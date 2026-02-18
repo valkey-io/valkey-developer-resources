@@ -29,7 +29,7 @@ async def vector_search(
         List of matching documents with scores
         
     Raises:
-        ImportError: If valkey-glide-async not installed
+        ImportError: If valkey-glide not installed
         
     Example:
         results = await vector_search(
@@ -47,8 +47,8 @@ async def vector_search(
         )
     except ImportError:
         raise ImportError(
-            "Could not import valkey-glide-async. "
-            "Install with: pip install valkey-glide-async>=2.0.0"
+            "Could not import valkey-glide. "
+            "Install with: pip install valkey-glide>=2.0.0"
         )
 
     # Build KNN query
