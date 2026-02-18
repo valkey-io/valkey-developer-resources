@@ -30,6 +30,29 @@ def test_create_index():
     print(f"✓ Index creation: {result['status']}")
 
 
+def test_recreate_index():
+    """Test index recreation (delete + create)."""
+    print("\nTesting index recreation...")
+    resp = requests.put(
+        f"{BASE_URL}/index/test_idx",
+        json={"dimensions": 3},
+    )
+    assert resp.status_code == 200
+    result = resp.json()
+    assert result["status"] == "recreated"
+    print(f"✓ Index recreated: {result['index']}")
+
+
+def test_delete_index():
+    """Test index deletion."""
+    print("\nTesting index deletion...")
+    resp = requests.delete(f"{BASE_URL}/index/test_idx")
+    assert resp.status_code == 200
+    result = resp.json()
+    assert result["status"] == "deleted"
+    print(f"✓ Index deleted: {result['index']}")
+
+
 def test_add_documents():
     """Test adding documents."""
     print("\nTesting document addition...")
@@ -111,6 +134,11 @@ if __name__ == "__main__":
         test_search()
         test_search_with_filter()
         test_index_info()
+        test_delete_index()  # Test explicit delete
+        test_recreate_index()  # Test recreate (delete + create)
+        test_add_documents()  # Re-add after recreate
+        test_search()  # Verify search works after recreate
+        test_delete_index()  # Final cleanup
 
         print("\n" + "=" * 60)
         print("✓ All tests passed!")
