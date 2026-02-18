@@ -25,9 +25,10 @@ This skill provides patterns and constraints for implementing Valkey client oper
 
 ---
 
-## Core Principle
+## Core Principles
 
-**Use Valkey GLIDE clients (`valkey-glide-sync` or `valkey-glide-async`), NOT the `valkey` package (Redis fork).**
+1.  Use Valkey GLIDE clients (`valkey-glide-sync` or `valkey-glide-async`), NOT the `valkey` package (Redis fork).
+2.  Avoid use of catching general exceptions (`Exception`) when handling GLIDE errors, this is too vague.
 
 ---
 
@@ -96,7 +97,15 @@ from valkey.commands.search import Search
 - Need high concurrency
 - Using async/await patterns throughout
 
-### Synchronous Client
+### Choose Cluster vs Standalone
+
+**Use cluster client when:**
+- Running multiple GLIDE nodes
+- Using multiple Valkey clusters
+
+Otherwise, use standalone client.
+
+### General Contract
 
 ```python
 from glide_sync import (
@@ -109,81 +118,19 @@ from glide_sync import (
 from glide_shared.exceptions import ConnectionError, ClosingError, TimeoutError
 
 def get_client(valkey_url: str, **kwargs) -> GlideClient | GlideClusterClient:
-    """Create GLIDE client with automatic cluster detection."""
     host, port = _parse_valkey_url(valkey_url)
     addresses = [NodeAddress(host, port)]
-    
-    # Try standalone first (more common for local dev)
-    try:
-        config = GlideClientConfiguration(
-            addresses=addresses, 
-            request_timeout=5000,
-            **kwargs
-        )
-        return GlideClient.create(config)
-    except (ConnectionError, ClosingError, TimeoutError) as e:
-        # If standalone fails, try cluster
-        try:
-            config = GlideClusterClientConfiguration(
-                addresses=addresses,
-                request_timeout=5000,
-                **kwargs
-            )
-            return GlideClusterClient.create(config)
-        except (ConnectionError, ClosingError, TimeoutError) as cluster_error:
-            raise RuntimeError(
-                f"Failed to connect to Valkey at {valkey_url}. "
-                f"Standalone error: {e}. Cluster error: {cluster_error}. "
-                "Make sure Valkey is running."
-            )
-```
-
-### Asynchronous Client
-
-```python
-from glide import (
-    GlideClient,
-    GlideClientConfiguration,
-    GlideClusterClient,
-    GlideClusterClientConfiguration,
-    NodeAddress,
-)
-from glide_shared.exceptions import ConnectionError, ClosingError, TimeoutError
-
-async def get_client(valkey_url: str, **kwargs) -> GlideClient | GlideClusterClient:
-    """Create async GLIDE client with automatic cluster detection."""
-    host, port = _parse_valkey_url(valkey_url)
-    addresses = [NodeAddress(host, port)]
-    
-    # Try standalone first (more common for local dev)
-    try:
-        config = GlideClientConfiguration(
-            addresses=addresses,
-            request_timeout=5000,
-            **kwargs
-        )
-        return await GlideClient.create(config)
-    except (ConnectionError, ClosingError, TimeoutError) as e:
-        # If standalone fails, try cluster
-        try:
-            config = GlideClusterClientConfiguration(
-                addresses=addresses,
-                request_timeout=5000,
-                **kwargs
-            )
-            return await GlideClusterClient.create(config)
-        except (ConnectionError, ClosingError, TimeoutError) as cluster_error:
-            raise RuntimeError(
-                f"Failed to connect to Valkey at {valkey_url}. "
-                f"Standalone error: {e}. Cluster error: {cluster_error}. "
-                "Make sure Valkey is running."
-            )
+    config = GlideClientConfiguration(
+        addresses=addresses,
+        request_timeout=5000,
+        **kwargs
+    )
+    return GlideClient.create(config)
 ```
 
 **Key Points:**
+- Import from `glide` instead of `glide_sync` for the async client
 - Use `NodeAddress` for connection configuration
-- Try standalone mode first (more common for local development)
-- Catch specific GLIDE exceptions: `ConnectionError`, `ClosingError`, `TimeoutError`
 - Add `request_timeout` to prevent hanging
 - Use `await` for async client operations
 - Async client requires `await` on `.create()`
@@ -213,24 +160,7 @@ results = ft.search(
     options=FtSearchOptions(params={"vector": embedding_buffer}),
 )
 
-# Decode bytes to strings (GLIDE returns bytes)
-count = results[0]
-docs = []
-if count > 0 and len(results) > 1:
-    for key, fields in results[1].items():
-        str_key = key.decode() if isinstance(key, bytes) else key
-        str_fields = {}
-        for field_key, field_value in fields.items():
-            str_field_key = field_key.decode() if isinstance(field_key, bytes) else field_key
-            # Skip binary fields (like vector embeddings)
-            if str_field_key == "embedding":
-                continue
-            try:
-                str_field_value = field_value.decode() if isinstance(field_value, bytes) else field_value
-                str_fields[str_field_key] = str_field_value
-            except (UnicodeDecodeError, AttributeError):
-                pass  # Skip binary fields
-        docs.append({"key": str_key, **str_fields})
+docs = _decode_docs(results)
 ```
 
 **Key Points:**
