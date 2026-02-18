@@ -16,7 +16,7 @@ async def get_client(valkey_url: str) -> "GlideClient | GlideClusterClient":
         GlideClusterClient if cluster mode, else GlideClient
 
     Raises:
-        ImportError: If valkey-glide-async not installed
+        ImportError: If valkey-glide not installed
     """
     try:
         from glide import (
@@ -29,8 +29,8 @@ async def get_client(valkey_url: str) -> "GlideClient | GlideClusterClient":
         from glide_shared.exceptions import ConnectionError, ClosingError, TimeoutError
     except ImportError:
         raise ImportError(
-            "Could not import valkey-glide-async. "
-            "Install with: pip install valkey-glide-async>=2.0.0"
+            "Could not import valkey-glide. "
+            "Install with: pip install valkey-glide>=2.0.0"
         )
 
     host, port = _parse_valkey_url(valkey_url)

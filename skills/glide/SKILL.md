@@ -8,6 +8,7 @@
 
 ### Working Examples
 - [Flask Demo](flask_demo/) - Complete Flask app demonstrating sync client patterns
+- [Aiohttp Demo](aiohttp_demo/) - Complete aiohttp app demonstrating async client patterns
 - [Code Snippets](snippets/) - Reusable functions for common operations
 
 ### Code Snippets
@@ -27,7 +28,7 @@ This skill provides patterns and constraints for implementing Valkey client oper
 
 ## Core Principles
 
-1.  Use Valkey GLIDE clients (`valkey-glide-sync` or `valkey-glide-async`), NOT the `valkey` package (Redis fork).
+1.  Use Valkey GLIDE clients (`valkey-glide-sync` or `valkey-glide`), NOT the `valkey` package (Redis fork).
 2.  Avoid use of catching general exceptions (`Exception`) when handling GLIDE errors, this is too vague.
 
 ---
@@ -68,7 +69,7 @@ from glide_shared.commands.server_modules.ft_options.ft_create_options import (
     NumericField,
 )
 ```
-**Package:** `valkey-glide-async>=2.0.0`
+**Package:** `valkey-glide>=2.0.0`
 
 **Note:** `glide_shared` is used by both sync and async packages for shared types and options.
 
@@ -342,8 +343,8 @@ async def some_function():
         )
     except ImportError:
         raise ImportError(
-            "Could not import valkey-glide-async python package. "
-            "Please install it with `pip install valkey-glide-async>=2.0.0`."
+            "Could not import valkey-glide python package. "
+            "Please install it with `pip install valkey-glide>=2.0.0`."
         )
 ```
 
@@ -397,7 +398,7 @@ distance_map = {
 
 ### 1. Using Redis Fork Instead of GLIDE
 **Problem:** Importing from `valkey` package instead of `glide_sync` or `glide`
-**Solution:** Always use `valkey-glide-sync` (sync) or `valkey-glide-async` (async) packages
+**Solution:** Always use `valkey-glide-sync` (sync) or `valkey-glide` (async) packages
 
 ### 2. Incorrect Function Call Pattern
 **Problem:** Calling `client.ft.search()` instead of `ft.search(client, ...)`
@@ -442,7 +443,7 @@ valkey = ["valkey-glide-sync>=2.0.0"]
 **Asynchronous applications:**
 ```toml
 [project.optional-dependencies]
-valkey = ["valkey-glide-async>=2.0.0"]
+valkey = ["valkey-glide>=2.0.0"]
 ```
 
 **Why optional:** Keeps base package lightweight, users install only what they need.
@@ -453,13 +454,15 @@ valkey = ["valkey-glide-async>=2.0.0"]
 
 When implementing Valkey functionality with GLIDE:
 
-- [ ] Choose sync (`valkey-glide-sync`) or async (`valkey-glide-async`) based on application needs
+- [ ] Choose sync (`valkey-glide-sync`) or async (`valkey-glide`) based on application needs
 - [ ] Import from `glide_sync`/`glide` and `glide_shared`, NOT `valkey` package
 - [ ] Use module-level functions: `ft.search(client=..., ...)`, not `client.ft.search(...)`
 - [ ] Use keyword arguments for `ft.search()` and `ft.create()`
 - [ ] Import `FtCreateOptions` and `FtSearchOptions` directly (not `ft.FtCreateOptions`)
 - [ ] Wrap search params in `FtSearchOptions(params={...})`
 - [ ] Use typed field objects for schema creation
+- [ ] Catch `RequestError` for index operations (not broad exceptions)
+- [ ] Decode bytes to strings for JSON serialization (skip binary fields)
 - [ ] Don't add `.sort_by()` to KNN queries
 - [ ] Mock at import location, not definition location
 - [ ] Use `TYPE_CHECKING` for type hints
@@ -484,7 +487,7 @@ When implementing Valkey functionality with GLIDE:
 Add to system prompt or project knowledge:
 ```
 Use the Valkey GLIDE Agent Skill when implementing Valkey client operations.
-Key constraints: Use valkey-glide-sync or valkey-glide-async, never the valkey package.
+Key constraints: Use valkey-glide-sync or valkey-glide, never the valkey package.
 ```
 
 ### For ChatGPT (OpenAI)
