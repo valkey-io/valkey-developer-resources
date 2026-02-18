@@ -1,8 +1,3 @@
-# Agent Skill: Valkey GLIDE Client Development
-
-**Type:** AI Coding Assistant Skill
-**Purpose:** Guide correct usage of Valkey GLIDE clients based on real-world implementation experience
-**Audience:** AI agents (Claude, ChatGPT, etc.) and human developers
 
 ## External Resources
 
@@ -17,12 +12,6 @@
 - [index_management_sync.py](snippets/index_management_sync.py) - Index creation and management
 - [vector_search_sync.py](snippets/vector_search_sync.py) - Sync vector search and document operations
 - [vector_search_async.py](snippets/vector_search_async.py) - Async vector search and document operations
-
----
-
-## Overview
-
-This skill provides patterns and constraints for implementing Valkey client operations using the GLIDE library. It captures lessons learned from production implementations to prevent common pitfalls.
 
 ---
 
