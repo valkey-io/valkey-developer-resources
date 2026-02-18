@@ -124,6 +124,47 @@ def create_index():
     return jsonify(result)
 
 
+@app.route("/index/<index_name>", methods=["DELETE"])
+def delete_index(index_name: str):
+    """Delete vector search index."""
+    try:
+        from glide_sync import ft
+        from glide_shared.exceptions import RequestError
+    except ImportError:
+        return jsonify({"error": "valkey-glide-sync not installed"}), 500
+
+    try:
+        ft.dropindex(client, index_name)
+        return jsonify({"status": "deleted", "index": index_name})
+    except RequestError as e:
+        return jsonify({"error": f"Index not found: {e}"}), 404
+
+
+@app.route("/index/<index_name>", methods=["PUT"])
+def recreate_index(index_name: str):
+    """Delete and recreate vector search index."""
+    try:
+        from glide_sync import ft
+        from glide_shared.exceptions import RequestError
+    except ImportError:
+        return jsonify({"error": "valkey-glide-sync not installed"}), 500
+
+    data = request.json or {}
+    dimensions = data.get("dimensions", 1536)
+
+    # Delete if exists (check first to avoid error logs)
+    try:
+        ft.info(client, index_name)
+        # Index exists, delete it
+        ft.dropindex(client, index_name)
+    except RequestError:
+        pass  # Index didn't exist, that's fine
+
+    # Recreate
+    result = ensure_index(index_name, dimensions)
+    return jsonify({"status": "recreated", "index": index_name, **result})
+
+
 @app.route("/index/info/<index_name>")
 def index_info(index_name: str):
     """Get index information."""

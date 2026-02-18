@@ -34,6 +34,18 @@ curl -X POST http://localhost:5000/index/create \
   -d '{"index_name": "docs_idx", "dimensions": 3}'
 ```
 
+### Delete Index
+```bash
+curl -X DELETE http://localhost:5000/index/docs_idx
+```
+
+### Recreate Index (nuke and rebuild)
+```bash
+curl -X PUT http://localhost:5000/index/docs_idx \
+  -H "Content-Type: application/json" \
+  -d '{"dimensions": 3}'
+```
+
 ### Add Document
 ```bash
 curl -X POST http://localhost:5000/document \
@@ -78,7 +90,9 @@ curl http://localhost:5000/index/info/docs_idx
 - ✅ Sync client creation with cluster fallback
 - ✅ URL parsing for connection strings
 - ✅ Index creation with typed field objects
+- ✅ Index deletion and recreation
 - ✅ Vector search with KNN queries
 - ✅ Metadata filtering
 - ✅ Proper import organization with TYPE_CHECKING
 - ✅ Error handling with helpful messages
+- ✅ Bytes decoding for JSON serialization
