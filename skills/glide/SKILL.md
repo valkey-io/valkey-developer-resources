@@ -5,7 +5,18 @@
 **Audience:** AI agents (Claude, ChatGPT, etc.) and human developers
 
 ## External Resources
-- [Code Snippets](snippets/urls.md) - Contains code example, use for parsing Valkey connection URLs
+
+### Working Examples
+- [Flask Demo](flask_demo/) - Complete Flask app demonstrating sync client patterns
+- [Code Snippets](snippets/) - Reusable functions for common operations
+
+### Code Snippets
+- [client_creation_sync.py](snippets/client_creation_sync.py) - Sync client creation with cluster fallback
+- [client_creation_async.py](snippets/client_creation_async.py) - Async client creation with cluster fallback
+- [index_management_sync.py](snippets/index_management_sync.py) - Index creation and management
+- [vector_search_sync.py](snippets/vector_search_sync.py) - Sync vector search and document operations
+- [vector_search_async.py](snippets/vector_search_async.py) - Async vector search and document operations
+
 ---
 
 ## Overview
@@ -95,19 +106,36 @@ from glide_sync import (
     GlideClusterClientConfiguration,
     NodeAddress,
 )
+from glide_shared.exceptions import ConnectionError, ClosingError, TimeoutError
 
 def get_client(valkey_url: str, **kwargs) -> GlideClient | GlideClusterClient:
     """Create GLIDE client with automatic cluster detection."""
     host, port = _parse_valkey_url(valkey_url)
     addresses = [NodeAddress(host, port)]
-
-    # Try cluster first, fall back to standalone
+    
+    # Try standalone first (more common for local dev)
     try:
-        config = GlideClusterClientConfiguration(addresses=addresses, **kwargs)
-        return GlideClusterClient.create(config)
-    except Exception:
-        config = GlideClientConfiguration(addresses=addresses, **kwargs)
+        config = GlideClientConfiguration(
+            addresses=addresses, 
+            request_timeout=5000,
+            **kwargs
+        )
         return GlideClient.create(config)
+    except (ConnectionError, ClosingError, TimeoutError) as e:
+        # If standalone fails, try cluster
+        try:
+            config = GlideClusterClientConfiguration(
+                addresses=addresses,
+                request_timeout=5000,
+                **kwargs
+            )
+            return GlideClusterClient.create(config)
+        except (ConnectionError, ClosingError, TimeoutError) as cluster_error:
+            raise RuntimeError(
+                f"Failed to connect to Valkey at {valkey_url}. "
+                f"Standalone error: {e}. Cluster error: {cluster_error}. "
+                "Make sure Valkey is running."
+            )
 ```
 
 ### Asynchronous Client
@@ -120,25 +148,44 @@ from glide import (
     GlideClusterClientConfiguration,
     NodeAddress,
 )
+from glide_shared.exceptions import ConnectionError, ClosingError, TimeoutError
 
 async def get_client(valkey_url: str, **kwargs) -> GlideClient | GlideClusterClient:
     """Create async GLIDE client with automatic cluster detection."""
     host, port = _parse_valkey_url(valkey_url)
     addresses = [NodeAddress(host, port)]
-
-    # Try cluster first, fall back to standalone
+    
+    # Try standalone first (more common for local dev)
     try:
-        config = GlideClusterClientConfiguration(addresses=addresses, **kwargs)
-        return await GlideClusterClient.create(config)
-    except Exception:
-        config = GlideClientConfiguration(addresses=addresses, **kwargs)
+        config = GlideClientConfiguration(
+            addresses=addresses,
+            request_timeout=5000,
+            **kwargs
+        )
         return await GlideClient.create(config)
+    except (ConnectionError, ClosingError, TimeoutError) as e:
+        # If standalone fails, try cluster
+        try:
+            config = GlideClusterClientConfiguration(
+                addresses=addresses,
+                request_timeout=5000,
+                **kwargs
+            )
+            return await GlideClusterClient.create(config)
+        except (ConnectionError, ClosingError, TimeoutError) as cluster_error:
+            raise RuntimeError(
+                f"Failed to connect to Valkey at {valkey_url}. "
+                f"Standalone error: {e}. Cluster error: {cluster_error}. "
+                "Make sure Valkey is running."
+            )
 ```
 
 **Key Points:**
 - Use `NodeAddress` for connection configuration
-- Try cluster mode first, fall back to standalone
-- Pass through `**kwargs` for SSL, auth, etc.
+- Try standalone mode first (more common for local development)
+- Catch specific GLIDE exceptions: `ConnectionError`, `ClosingError`, `TimeoutError`
+- Add `request_timeout` to prevent hanging
+- Use `await` for async client operations
 - Async client requires `await` on `.create()`
 
 ---
@@ -160,18 +207,39 @@ if filter:
 
 # Execute search
 results = ft.search(
-    client,
-    index_name,
-    base_query,
+    client=client,
+    index_name=index_name,
+    query=base_query,
     options=FtSearchOptions(params={"vector": embedding_buffer}),
 )
+
+# Decode bytes to strings (GLIDE returns bytes)
+count = results[0]
+docs = []
+if count > 0 and len(results) > 1:
+    for key, fields in results[1].items():
+        str_key = key.decode() if isinstance(key, bytes) else key
+        str_fields = {}
+        for field_key, field_value in fields.items():
+            str_field_key = field_key.decode() if isinstance(field_key, bytes) else field_key
+            # Skip binary fields (like vector embeddings)
+            if str_field_key == "embedding":
+                continue
+            try:
+                str_field_value = field_value.decode() if isinstance(field_value, bytes) else field_value
+                str_fields[str_field_key] = str_field_value
+            except (UnicodeDecodeError, AttributeError):
+                pass  # Skip binary fields
+        docs.append({"key": str_key, **str_fields})
 ```
 
 **Key Points:**
 - Use `ft.search()` function, not a method on client
-- Pass client as first argument
+- Use keyword arguments: `client=`, `index_name=`, `query=`, `options=`
 - Use `FtSearchOptions` for parameters
 - Results format: `[count, {key: {field: value}}]`
+- **IMPORTANT:** GLIDE returns bytes - decode to strings for JSON/display
+- **Skip binary fields** like vector embeddings (can't decode to UTF-8)
 
 ### ⚠️ CONSTRAINT: No .sort_by() with KNN
 
@@ -201,6 +269,7 @@ from glide_shared.commands.server_modules.ft_options.ft_create_options import (
     VectorType,
     TagField,
     NumericField,
+    FtCreateOptions,
 )
 
 # Build schema
@@ -223,15 +292,15 @@ ft.create(
     client,
     index_name,
     schema,
-    ft.FtCreateOptions(prefixes=["doc:"]),
+    FtCreateOptions(prefixes=["doc:"]),
 )
 ```
 
 **Key Points:**
 - Use `ft.create()` function, not a method
-- Pass client as first argument
+- Import `FtCreateOptions` from ft_create_options
 - Use typed field objects (VectorField, TagField, NumericField)
-- Use `FtCreateOptions` for prefixes and other options
+- Pass `FtCreateOptions` (not `ft.FtCreateOptions`) as 4th argument
 
 ---
 
@@ -241,11 +310,12 @@ ft.create(
 
 ```python
 from glide_sync import ft
+from glide_shared.exceptions import RequestError
 
 try:
     ft.info(client, index_name)
     index_exists = True
-except Exception:
+except RequestError:
     index_exists = False
 ```
 
@@ -253,11 +323,18 @@ except Exception:
 
 ```python
 from glide_sync import ft
+from glide_shared.exceptions import RequestError
 
 try:
     ft.dropindex(client, index_name)
-except Exception:
+except RequestError:
     pass  # Index didn't exist
+```
+
+**Key Points:**
+- `ft.info()` raises `RequestError` when index doesn't exist
+- Catch `RequestError` specifically, not broad exceptions
+- `RequestError` is the base class for all request-related errors
 ```
 
 ---
@@ -396,17 +473,29 @@ distance_map = {
 **Problem:** Calling `client.ft.search()` instead of `ft.search(client, ...)`
 **Solution:** GLIDE uses module-level functions, not client methods
 
-### 3. Missing FtSearchOptions
+### 3. Missing Keyword Arguments
+**Problem:** Using positional arguments for `ft.search(client, index, query, options)`
+**Solution:** Use keyword arguments: `ft.search(client=client, index_name=index, query=query, options=options)`
+
+### 4. Wrong FtCreateOptions Import
+**Problem:** Using `ft.FtCreateOptions(...)` instead of `FtCreateOptions(...)`
+**Solution:** Import `FtCreateOptions` from `ft_create_options` and use directly
+
+### 5. Missing FtSearchOptions
 **Problem:** Passing params directly to `ft.search()`
 **Solution:** Wrap params in `FtSearchOptions(params={...})`
 
-### 4. Wrong Mock Location
+### 6. Wrong Mock Location
 **Problem:** Mocking `glide_sync.GlideClient` or `glide.GlideClient` instead of where it's imported
 **Solution:** Mock at the usage location (e.g., `your_module.GlideClient`)
 
-### 5. Adding .sort_by() to KNN Queries
+### 7. Adding .sort_by() to KNN Queries
 **Problem:** Trying to sort KNN results manually
 **Solution:** KNN results are pre-sorted by score, don't add sorting
+
+### 8. Not Decoding Bytes in Results
+**Problem:** GLIDE returns bytes for keys and values, causing JSON serialization errors
+**Solution:** Decode bytes to strings: `key.decode() if isinstance(key, bytes) else key`
 
 ---
 
@@ -436,8 +525,10 @@ When implementing Valkey functionality with GLIDE:
 
 - [ ] Choose sync (`valkey-glide-sync`) or async (`valkey-glide-async`) based on application needs
 - [ ] Import from `glide_sync`/`glide` and `glide_shared`, NOT `valkey` package
-- [ ] Use module-level functions: `ft.search(client, ...)`, not `client.ft.search(...)`
-- [ ] Wrap search params in `FtSearchOptions`
+- [ ] Use module-level functions: `ft.search(client=..., ...)`, not `client.ft.search(...)`
+- [ ] Use keyword arguments for `ft.search()` and `ft.create()`
+- [ ] Import `FtCreateOptions` and `FtSearchOptions` directly (not `ft.FtCreateOptions`)
+- [ ] Wrap search params in `FtSearchOptions(params={...})`
 - [ ] Use typed field objects for schema creation
 - [ ] Don't add `.sort_by()` to KNN queries
 - [ ] Mock at import location, not definition location
