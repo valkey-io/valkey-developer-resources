@@ -2,17 +2,9 @@
 
 ## External Resources
 
-### Working Examples
-- [Flask Demo](flask_demo/) - Complete Flask app demonstrating sync client patterns
-- [Aiohttp Demo](aiohttp_demo/) - Complete aiohttp app demonstrating async client patterns
-- [Code Snippets](snippets/) - Reusable functions for common operations, in separate files
-
 ### Code Snippets
-- [client_creation_sync.py](snippets/client_creation_sync.py) - Sync client creation with cluster fallback
-- [client_creation_async.py](snippets/client_creation_async.py) - Async client creation with cluster fallback
-- [index_management_sync.py](snippets/index_management_sync.py) - Index creation and management
-- [vector_search_sync.py](snippets/vector_search_sync.py) - Sync vector search and document operations
-- [vector_search_async.py](snippets/vector_search_async.py) - Async vector search and document operations
+- [parse_valkey_urls.md](snippets/parse_valkey_urls.md) - Parsing Valkey URLs into host and port
+- [decode_docs.md](snippets/decode_docs.md) - Decoding bytes to strings for JSON deserialization
 
 ---
 
@@ -128,22 +120,41 @@ def get_client(valkey_url: str, **kwargs) -> GlideClient | GlideClusterClient:
 
 ---
 
+## Distance Metrics Mapping
+
+```python
+from glide_shared.commands.server_modules.ft_options.ft_create_options import (
+    DistanceMetricType,
+)
+
+distance_map = {
+    "COSINE": DistanceMetricType.COSINE,
+    "L2": DistanceMetricType.L2,
+    "IP": DistanceMetricType.IP,
+}
+```
+
+---
+
 ## FT.SEARCH Command Pattern
 
 ### Vector Similarity Search
 Return value is a two-element array / list, first element being the number of documents, the second element
-being a dictionary of those documents.  See the code snippet for `_decode_docs()` for an example.
+being a dictionary of those documents.  See the [decode_docs.md](snippets/decode_docs.md) code snippet for an example.
 
 ```python
 from glide_sync import ft
 from glide_shared.commands.server_modules.ft_options.ft_search_options import FtSearchOptions
 
-# Build KNN query
+# Build KNN query, using `vector_field` to identify the vector field
 base_query = f"*=>[KNN {k} @{vector_field} $vector AS score]"
 
 # With metadata filter
 if filter:
     base_query = f"({filter})=>[KNN {k} @{vector_field} $vector AS score]"
+
+# Convert query vector to bytes
+embedding_buffer = struct.pack(f"{len(query_vector)}f", *query_vector)
 
 # Execute search
 results = ft.search(
@@ -153,6 +164,7 @@ results = ft.search(
     options=FtSearchOptions(params={"vector": embedding_buffer}),
 )
 
+# Decode results to strings / dictionaries
 docs = _decode_docs(results)
 ```
 
@@ -179,6 +191,9 @@ results = ft.search(...)
 ---
 
 ## FT.CREATE Command Pattern
+Vector fields, tag fields, and numeric fields should be parameterized.
+- Tag fields are used for exact matching.
+- Numeric fields are used for range matching.
 
 ### Index Creation
 
@@ -224,6 +239,24 @@ ft.create(
 - Import `FtCreateOptions` from ft_create_options
 - Use typed field objects (VectorField, TagField, NumericField)
 - Pass `FtCreateOptions` (not `ft.FtCreateOptions`) as 4th argument
+
+---
+
+## Add Document Pattern
+Documents can be added using `HSET`, the example implies a vector field named `embedding`.
+
+```python
+    # Convert vector to bytes
+    embedding_buffer = struct.pack(f"{len(embedding)}f", *embedding)
+
+    # Build field dict
+    fields = {"embedding": embedding_buffer}
+    if metadata:
+        fields.update(metadata)
+
+    # Store document
+    client.hset(key, fields)
+```
 
 ---
 
@@ -366,22 +399,6 @@ def test_something(mock_cluster, mock_client):
 ```
 
 **Lesson Learned:** Mock at the location where the object is used, not where it's defined.
-
----
-
-## Distance Metrics Mapping
-
-```python
-from glide_shared.commands.server_modules.ft_options.ft_create_options import (
-    DistanceMetricType,
-)
-
-distance_map = {
-    "COSINE": DistanceMetricType.COSINE,
-    "L2": DistanceMetricType.L2,
-    "IP": DistanceMetricType.IP,
-}
-```
 
 ---
 
