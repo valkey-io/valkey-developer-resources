@@ -189,6 +189,25 @@ results = ft.search(...).sort_by("score")
 results = ft.search(...)
 ```
 
+### ⚠️ CONSTRAINT: Do not use positional arguments
+```python
+# ❌ WRONG - positional arguments
+results = ft.search(
+    client,
+    index_name,
+    query,
+    options=FtSearchOptions(params={"vector": embedding_buffer}),
+)
+
+# ✅ CORRECT - keyword arguments
+results = ft.search(
+    client=client,
+    index_name=index_name,
+    query=query,
+    options=FtSearchOptions(params={"vector": embedding_buffer}),
+)
+```
+
 ---
 
 ## FT.CREATE Command Pattern
@@ -240,6 +259,30 @@ ft.create(
 - Import `FtCreateOptions` from ft_create_options
 - Use typed field objects (VectorField, TagField, NumericField)
 - Pass `FtCreateOptions` (not `ft.FtCreateOptions`) as 4th argument
+
+### ⚠️ CONSTRAINT: Must import FtCreateOptions directly
+```python
+# ❌ WRONG - using ft.FtCreateOptions
+from glide_sync import ft
+ft.create(client, index_name, schema, ft.FtCreateOptions(prefixes=["doc:"]))
+
+# ✅ CORRECT - import and use FtCreateOptions directly
+from glide_sync import ft
+from glide_shared.commands.server_modules.ft_options.ft_create_options import (
+    FtCreateOptions
+)
+ft.create(client, index_name, schema, FtCreateOptions(prefixes=["doc:"]))
+```
+
+### ⚠️ CONSTRAINT: **DON'T** add `.sort_by()` to KNN queries
+`.sort_by()` causes errors. KNN results are already sorted by score.
+```python
+# ❌ WRONG - causes error
+results = ft.search(...).sort_by("score")
+
+# ✅ CORRECT - results already sorted
+results = ft.search(...)
+```
 
 ---
 
