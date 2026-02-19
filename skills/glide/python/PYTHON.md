@@ -4,7 +4,7 @@
 ### Working Examples
 - [Flask Demo](flask_demo/) - Complete Flask app demonstrating sync client patterns
 - [Aiohttp Demo](aiohttp_demo/) - Complete aiohttp app demonstrating async client patterns
-- [Code Snippets](snippets/) - Reusable functions for common operations
+- [Code Snippets](snippets/) - Reusable functions for common operations, in separate files
 
 ### Code Snippets
 - [client_creation_sync.py](snippets/client_creation_sync.py) - Sync client creation with cluster fallback
@@ -130,6 +130,8 @@ def get_client(valkey_url: str, **kwargs) -> GlideClient | GlideClusterClient:
 ## FT.SEARCH Command Pattern
 
 ### Vector Similarity Search
+Return value is a two-element array / list, first element being the number of documents, the second element
+being a dictionary of those documents.  See the code snippet for `_decode_docs()` for an example.
 
 ```python
 from glide_sync import ft
