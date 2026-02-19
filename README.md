@@ -1,2 +1,2 @@
-# awesome-valkey-ai
-An awesome list of curated resources with demos, tutorials and resources for using Valkey in the AI ecosystem. 
+# Valkey Samples
+An list of curated resources with demos, tutorials and samples for Valkey. 
