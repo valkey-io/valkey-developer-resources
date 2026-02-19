@@ -258,7 +258,6 @@ except RequestError:
 - `ft.info()` raises `RequestError` when index doesn't exist
 - Catch `RequestError` specifically, not broad exceptions
 - `RequestError` is the base class for all request-related errors
-```
 
 ---
 
