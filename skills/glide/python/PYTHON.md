@@ -1,3 +1,4 @@
+# General Python Guidelines
 
 ## External Resources
 
@@ -496,6 +497,105 @@ Reference in code comments:
 # Following Valkey GLIDE Agent Skill patterns
 # Using valkey-glide-sync for synchronous operations
 ```
+
+---
+# Pipelining and Batching GLIDE Patterns
+
+Language-specific implementation details for Valkey GLIDE Python clients.
+
+## Batch Commands (Python)
+
+### Sync Client
+
+```python
+from glide_sync import Batch, ClusterBatch, BatchOptions, ClusterBatchOptions
+from glide_shared.commands.server_modules.batch_options import BatchRetryStrategy
+
+# Standalone atomic batch (transaction)
+batch = Batch(True)
+batch.set("key", "value")
+batch.get("key")
+result = client.exec(batch, raise_on_error=True)
+
+# Standalone pipeline
+batch = Batch(False)
+batch.set("key1", "value1")
+batch.set("key2", "value2")
+result = client.exec(batch, raise_on_error=False)
+
+# Cluster pipeline with options
+batch = ClusterBatch(False)
+batch.set("{user}:1", "data1")
+batch.set("{user}:2", "data2")
+
+retry_strategy = BatchRetryStrategy(
+    retry_server_error=True,
+    retry_connection_error=False
+)
+options = ClusterBatchOptions(
+    timeout=2000,
+    retry_strategy=retry_strategy
+)
+result = client.exec(batch, raise_on_error=False, options=options)
+```
+
+### Async Client
+
+```python
+from glide import Batch, ClusterBatch, BatchOptions, ClusterBatchOptions
+from glide_shared.commands.server_modules.batch_options import BatchRetryStrategy
+
+# Standalone atomic batch (transaction)
+batch = Batch(True)
+batch.set("key", "value")
+batch.get("key")
+result = await client.exec(batch, raise_on_error=True)
+
+# Cluster pipeline with retry strategy
+batch = ClusterBatch(False)
+batch.set("{user}:1", "data1")
+batch.get("{user}:1")
+
+retry_strategy = BatchRetryStrategy(
+    retry_server_error=True,
+    retry_connection_error=False
+)
+options = ClusterBatchOptions(
+    timeout=2000,
+    retry_strategy=retry_strategy
+)
+result = await client.exec(batch, raise_on_error=False, options=options)
+```
+
+### Error Handling
+
+```python
+# raise_on_error=False - errors in result array
+batch = ClusterBatch(False)
+batch.set("key", "hello")
+batch.lpop("key")  # WRONGTYPE error
+batch.delete(["key"])
+
+result = client.exec(batch, raise_on_error=False)
+# Result: ['OK', RequestError('WRONGTYPE...'), 1]
+
+# raise_on_error=True - raises first error
+batch = Batch(True)
+batch.set("key", "hello")
+batch.lpop("key")  # WRONGTYPE error
+
+try:
+    result = client.exec(batch, raise_on_error=True)
+except RequestError as e:
+    print(f"Batch failed: {e}")
+```
+
+### Key Points
+
+- Use `raise_on_error` parameter (Python uses snake_case)
+- Import `BatchRetryStrategy` from `glide_shared.commands.server_modules.batch_options`
+- Async client requires `await` on `exec()`
+- Errors are `RequestError` exceptions from `glide_shared.exceptions`
 
 ---
 
