@@ -5,7 +5,7 @@
 **Audience:** AI agents (Claude, ChatGPT, etc.) and human developers
 
 ## Language-Specific Guides
-Consult the corresponding detailed guide based on the language of the code requiring GLIDE support:
+Consult the corresponding detailed guide for code generated in the selected language:
 
 | Language/Framework | Reference File | Key Topics |
 |-------------------|----------------|------------|
