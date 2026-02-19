@@ -471,34 +471,6 @@ When implementing Valkey functionality with GLIDE:
 - [Valkey FT.SEARCH](https://valkey.io/commands/ft.search/)
 
 ---
-
-## Usage as AI Agent Skill
-
-### For Claude (Anthropic)
-
-Add to system prompt or project knowledge:
-```
-Use the Valkey GLIDE Agent Skill when implementing Valkey client operations.
-Key constraints: Use valkey-glide-sync or valkey-glide, never the valkey package.
-```
-
-### For ChatGPT (OpenAI)
-
-Add to custom instructions or GPT configuration:
-```
-When working with Valkey: Use GLIDE clients (valkey-glide-sync/async), not valkey package.
-Follow module-level function pattern: ft.search(client, ...) not client.ft.search(...)
-```
-
-### For GitHub Copilot
-
-Reference in code comments:
-```python
-# Following Valkey GLIDE Agent Skill patterns
-# Using valkey-glide-sync for synchronous operations
-```
-
----
 # Pipelining and Batching GLIDE Patterns
 
 Language-specific implementation details for Valkey GLIDE Python clients.
