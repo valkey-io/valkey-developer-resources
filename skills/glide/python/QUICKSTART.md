@@ -78,6 +78,6 @@ from your_module.snippets.vector_search_sync import vector_search, add_document
 ## Resources
 
 - **Full Skill**: [SKILL.md](PYTHON.md)
-- **Flask Demo**: [flask_demo/](flask_demo/)
+- **Flask Demo**: [flask_demo/](demos/flask_demo/)
 - **Code Snippets**: [snippets/](snippets/)
 - **Validation**: [VALIDATION.md](VALIDATION.md)
