@@ -10,6 +10,7 @@ Consult the corresponding detailed guide for code generated in the selected lang
 | Language/Framework | Reference File | Key Topics |
 |-------------------|----------------|------------|
 | **Python** | [Python-specific skill](python/PYTHON.md) | Mutable Default Arguments, Exception Handling, Class Attributes |
+| **Java** | [Java-specific skill](java/JAVA.md) | TBD |
 
 ---
 ## Overview
