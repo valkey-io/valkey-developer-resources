@@ -6,7 +6,7 @@ Develop comprehensive Java-specific GLIDE skill documentation by creating workin
 ## 1. Environment Setup
 - Install Java GLIDE client dependency
 - Create Maven/Gradle project structure
-- **Testing host**: `aux.obsidian.home` (local development only)
+- **Testing host**: Found in `VALKEY_HOST` environment variable (local development only)
 - **Documentation host**: `localhost` (final examples)
 
 ## 2. Core POC Examples (4 demos)
@@ -16,7 +16,7 @@ Create in `java/demos/` directory:
 - **vector-search/**: FT.CREATE index, add documents, FT.SEARCH with KNN
 - **cluster-operations/**: Multi-node routing, hash slot constraints
 
-*POCs use `aux.obsidian.home` for testing, final docs use `localhost`*
+*POCs use Valkey host from `VALKEY_HOST` environment variable and port `6379` for testing, final docs use `localhost`*
 
 ## 3. Document Lessons Learned
 Create `java/LESSONS_LEARNED.md` with:
@@ -43,9 +43,10 @@ Mirror Python structure using lessons learned:
 - Summary checklist
 
 ## 5. Validation
-- Test all code examples against `aux.obsidian.home`
+- Test all code examples against Valkey host from `VALKEY_HOST` environment variable and port `6379`
 - Verify patterns against GLIDE Java docs
 - Cross-reference with Python patterns for consistency
+- Ensure all "TBD" or "TODO" placeholders in skill documents are either removed or populated
 
 ## 6. Cleanup Phase (requires approval)
 **Before removal, present to user:**

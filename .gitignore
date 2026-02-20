@@ -6,7 +6,10 @@
 
 # Gradle
 .gradle/
+**/.gradle
+**/gradle*
 build/
+**/build
 bin/
 
 # Local dev build artifacts
