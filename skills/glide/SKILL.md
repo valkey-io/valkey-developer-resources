@@ -18,6 +18,10 @@ Consult the corresponding detailed guide for code generated in the selected lang
 This skill provides patterns and constraints for implementing Valkey client operations using the GLIDE library. It captures lessons learned from production implementations to prevent common pitfalls.
 The API provides batch command support (transactions and pipelines) for both standalone and clustered deployments.
 
+### General Principles
+1.  Avoid use of catching general exceptions when handling GLIDE errors, this is too vague and too broad.  Instead narrow the catch to GLIDE specific exceptions when possible, broaden exceptions for more generic errors but only as necessary, never as a general catch-all.
+2.  Add comments as necessary to disambiguate between sync and async GLIDE calls when it is not clear (i.e. the word 'sync' nor the word 'async' appear in nearby syntax).
+
 ---
 ## Batch Commands (Pipeline and Transaction)
 

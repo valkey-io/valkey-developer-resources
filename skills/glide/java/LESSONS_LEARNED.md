@@ -99,15 +99,17 @@ Long count = (Long) results[3];
 ```java
 // All operations return CompletableFuture
 CompletableFuture<String> future = client.get("key");
-String value = future.get();  // Blocking
 
-// Or use async chaining
+// Blocking (sync) - call .get()
+String value = future.get();
+
+// Non-blocking (async) - use chaining
 client.get("key").thenAccept(value -> {
     System.out.println(value);
 });
 ```
 
-**Key Finding:** Java GLIDE is async-first, uses CompletableFuture (not callbacks)
+**Key Finding:** Java GLIDE is async-first using CompletableFuture. Call `.get()` to block (sync), or chain with `.thenAccept()`, `.thenApply()`, etc. for async. Always add comments to clarify sync vs async usage.
 
 ## Python vs Java Comparison
 

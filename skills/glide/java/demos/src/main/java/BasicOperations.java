@@ -1,6 +1,7 @@
 import glide.api.GlideClient;
 import glide.api.models.configuration.GlideClientConfiguration;
 import glide.api.models.configuration.NodeAddress;
+import glide.api.models.exceptions.RequestException;
 
 import java.util.concurrent.ExecutionException;
 
@@ -14,24 +15,30 @@ public class BasicOperations {
             .requestTimeout(10000)
             .build();
 
-        try (GlideClient client = GlideClient.createClient(config).get()) {
-            // Set and get
-            client.set("hello", "world").get();
-            String value = client.get("hello").get();
-            System.out.println("GET hello: " + value);
-
-            // Error handling - wrong type operation
-            client.set("mykey", "string_value").get();
-            try {
-                client.lpop("mykey").get();
-            } catch (ExecutionException e) {
-                System.out.println("Expected error: " + e.getCause().getClass().getSimpleName());
-            }
-
-            System.out.println("Basic operations completed");
-        } catch (Exception e) {
-            System.err.println("Error: " + e.getMessage());
-            e.printStackTrace();
-        }
+        // Async (non-blocking) - using CompletableFuture chaining
+        GlideClient.createClient(config).thenCompose(client -> {
+            // Set and get (async)
+            return client.set("hello", "world")
+                .thenCompose(ok -> client.get("hello"))
+                .thenAccept(value -> System.out.println("GET hello: " + value))
+                .thenCompose(v -> client.set("mykey", "string_value"))
+                .thenCompose(ok -> client.lpop("mykey"))
+                .exceptionally(e -> {
+                    // Direct access to GLIDE exception, no unwrapping needed
+                    if (e instanceof RequestException) {
+                        System.out.println("Expected error: " + e.getClass().getSimpleName());
+                        System.out.println("Error message: " + e.getMessage());
+                    }
+                    return null;
+                })
+                .thenRun(() -> System.out.println("Basic operations completed"))
+                .whenComplete((v, e) -> {
+                    try {
+                        client.close();
+                    } catch (ExecutionException ex) {
+                        System.err.println("Error closing client: " + ex.getMessage());
+                    }
+                });
+        }).join(); // Only block at the very end to keep main thread alive
     }
 }
