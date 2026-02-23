@@ -169,16 +169,22 @@ try (GlideClient client = GlideClient.createClient(config).get()) {
 - Simpler code for prototypes
 
 ### Exception Handling Differences
+These catch an `ExecutionException`, branch on the enclosed narrower exception, perform any narrow-specific processing, and then rethrows it.
 
 **Async chaining:**
 ```java
 client.get("key")
     .exceptionally(e -> {
-        // Direct access to GLIDE exception
-        if (e instanceof RequestException) {
-            // Handle error
+        // Exception may be wrapped - unwrap to check actual cause
+        Throwable cause = (e instanceof CompletionException && e.getCause() != null) 
+            ? e.getCause() : e;
+        
+        if (cause instanceof RequestException) {
+            // Handle and optionally rethrow
+            System.err.println("Request error: " + cause.getMessage());
+            throw new CompletionException((RequestException) cause);  // Rethrow
         }
-        return null;
+        return null;  // Or return default value
     });
 ```
 
@@ -208,7 +214,7 @@ try {
 }
 ```
 
-**Key Finding:** Async chaining with `.exceptionally()` provides direct access to GLIDE exceptions without unwrapping. Blocking requires unwrapping from `ExecutionException` or `CompletionException`.
+**Key Finding:** Async exceptions may arrive wrapped in `CompletionException` - unwrap with `getCause()` before checking type. Rethrow by wrapping in new `CompletionException` to propagate up the chain.
 
 ---
 
@@ -266,10 +272,13 @@ import glide.api.models.exceptions.ConnectionException;   // Connection issues
 ```java
 client.lpop("string_key")
     .exceptionally(e -> {
-        if (e instanceof RequestException) {
-            System.err.println("Request error: " + e.getMessage());
-        } else if (e instanceof TimeoutException) {
-            System.err.println("Timeout: " + e.getMessage());
+        Throwable cause = (e instanceof CompletionException && e.getCause() != null) 
+            ? e.getCause() : e;
+        
+        if (cause instanceof RequestException) {
+            System.err.println("Request error: " + cause.getMessage());
+        } else if (cause instanceof TimeoutException) {
+            System.err.println("Timeout: " + cause.getMessage());
         }
         return null;
     });
