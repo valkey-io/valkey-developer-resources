@@ -12,9 +12,8 @@
 
 ## Core Principles
 
-1.  Use Valkey GLIDE clients (`valkey-glide-sync` or `valkey-glide`), NOT the `valkey` package (Redis fork).
-2.  Avoid use of catching general exceptions (`Exception`) when handling GLIDE errors, this is too vague.
-3.  Use batching / pipelining when suitable to group operations for efficiency.
+1. Use Valkey GLIDE clients (`valkey-glide-sync` or `valkey-glide`), NOT the `valkey` package (Redis fork).
+2. Use batching / pipelining when suitable to group operations for efficiency.
 
 ---
 

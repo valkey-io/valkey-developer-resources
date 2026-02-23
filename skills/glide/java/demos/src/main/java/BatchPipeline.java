@@ -13,6 +13,7 @@ public class BatchPipeline {
             .requestTimeout(10000)
             .build();
 
+        // Blocking (sync) - using .get() on CompletableFuture
         try (GlideClient client = GlideClient.createClient(config).get()) {
             // Pipeline (non-atomic): bulk independent operations
             Batch pipeline = new Batch(false);
@@ -21,6 +22,7 @@ public class BatchPipeline {
             pipeline.get("user:1");
             pipeline.get("user:2");
             
+            // Execute pipeline (blocking)
             Object[] results = client.exec(pipeline, true).get();
             System.out.println("Pipeline results: " + java.util.Arrays.toString(results));
 
@@ -31,6 +33,7 @@ public class BatchPipeline {
             transaction.incr("counter");
             transaction.get("counter");
             
+            // Execute transaction (blocking)
             results = client.exec(transaction, true).get();
             System.out.println("Transaction results: " + java.util.Arrays.toString(results));
 
