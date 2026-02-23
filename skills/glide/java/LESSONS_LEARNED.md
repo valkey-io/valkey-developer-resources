@@ -192,6 +192,18 @@ Object[] results = FT.search(client, "my_idx", query, opts).get();
 
 **Key Finding:** FT.search returns `Object[]` where first element is count. Second element (documents map) only present if count > 0. Always check `results.length > 1` before accessing `results[1]`.
 
+### Storing Documents with Vectors
+```java
+// CRITICAL: Use GlideString for binary vector data, NOT String
+Map<GlideString, GlideString> doc = Map.of(
+    GlideString.of("embedding"), GlideString.of(floatArrayToBytes(vec)),
+    GlideString.of("category"), GlideString.of("A")
+);
+client.hset(GlideString.of("doc:1"), doc).get();
+```
+
+**Key Finding:** Binary vector data MUST use `GlideString`, not `String`. Converting bytes to String corrupts the data and breaks vector search. Use `GlideString.of(byte[])` for vectors.
+
 ### Vector Encoding
 ```java
 private static byte[] floatArrayToBytes(float[] array) {
