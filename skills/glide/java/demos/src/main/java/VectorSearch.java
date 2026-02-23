@@ -58,17 +58,18 @@ public class VectorSearch {
             float[] vec1 = {1.0f, 0.0f, 0.0f};
             float[] vec2 = {0.0f, 1.0f, 0.0f};
             
-            Map<String, String> doc1 = Map.of(
-                "embedding", new String(floatArrayToBytes(vec1)),
-                "category", "A"
+            // Use GlideString for binary vector data
+            Map<GlideString, GlideString> doc1 = Map.of(
+                GlideString.of("embedding"), GlideString.of(floatArrayToBytes(vec1)),
+                GlideString.of("category"), GlideString.of("A")
             );
-            client.hset("doc:1", doc1).get();
+            client.hset(GlideString.of("doc:1"), doc1).get();
             
-            Map<String, String> doc2 = Map.of(
-                "embedding", new String(floatArrayToBytes(vec2)),
-                "category", "B"
+            Map<GlideString, GlideString> doc2 = Map.of(
+                GlideString.of("embedding"), GlideString.of(floatArrayToBytes(vec2)),
+                GlideString.of("category"), GlideString.of("B")
             );
-            client.hset("doc:2", doc2).get();
+            client.hset(GlideString.of("doc:2"), doc2).get();
             
             System.out.println("Stored 2 documents");
 
