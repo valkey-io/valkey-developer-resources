@@ -8,10 +8,12 @@ import glide.api.models.commands.FT.FTCreateOptions.VectorFieldFlat;
 import glide.api.models.commands.FT.FTCreateOptions.DistanceMetric;
 import glide.api.models.commands.FT.FTSearchOptions;
 import glide.api.models.GlideString;
+import glide.api.models.exceptions.RequestException;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 public class VectorSearch {
     public static void main(String[] args) {
@@ -31,8 +33,12 @@ public class VectorSearch {
             try {
                 FT.dropindex(client, indexName).get();
                 System.out.println("Dropped existing index");
-            } catch (Exception e) {
-                System.out.println("No existing index to drop");
+            } catch (ExecutionException e) {
+                if (e.getCause() instanceof RequestException) {
+                    System.out.println("No existing index to drop");
+                } else {
+                    throw e;
+                }
             }
 
             // Create vector index
