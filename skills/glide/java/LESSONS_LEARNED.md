@@ -147,7 +147,73 @@ client.get("key").thenAccept(value -> {
 
 ## Next Steps
 
-- [ ] Vector search POC (FT.CREATE, FT.SEARCH)
+- [x] Vector search POC (FT.CREATE, FT.SEARCH)
 - [ ] Cluster operations POC
 - [ ] Document retry strategies for batches
 - [ ] Document batch options (timeout, routing)
+
+---
+
+## Vector Search Patterns
+
+### FT Module Imports
+```java
+import glide.api.commands.servermodules.FT;
+import glide.api.models.commands.FT.FTCreateOptions;
+import glide.api.models.commands.FT.FTCreateOptions.FieldInfo;
+import glide.api.models.commands.FT.FTCreateOptions.VectorFieldFlat;
+import glide.api.models.commands.FT.FTCreateOptions.DistanceMetric;
+import glide.api.models.commands.FT.FTSearchOptions;
+import glide.api.models.GlideString;
+```
+
+### Index Creation
+```java
+FieldInfo[] schema = new FieldInfo[] {
+    new FieldInfo("embedding", 
+        VectorFieldFlat.builder(DistanceMetric.COSINE, 3).build())
+};
+FT.create(client, "my_idx", schema).get();
+```
+
+### Vector Search
+```java
+float[] queryVec = {0.9f, 0.1f, 0.0f};
+String query = "*=>[KNN 2 @embedding $vector AS score]";
+
+FTSearchOptions opts = FTSearchOptions.builder()
+    .params(Map.of(GlideString.of("vector"), GlideString.of(floatArrayToBytes(queryVec))))
+    .build();
+
+Object[] results = FT.search(client, "my_idx", query, opts).get();
+// results[0] = count (Long)
+// results[1] = Map of documents (only if count > 0)
+```
+
+**Key Finding:** FT.search returns `Object[]` where first element is count. Second element (documents map) only present if count > 0. Always check `results.length > 1` before accessing `results[1]`.
+
+### Vector Encoding
+```java
+private static byte[] floatArrayToBytes(float[] array) {
+    ByteBuffer buffer = ByteBuffer.allocate(array.length * 4)
+        .order(ByteOrder.LITTLE_ENDIAN);
+    for (float f : array) {
+        buffer.putFloat(f);
+    }
+    return buffer.array();
+}
+```
+
+### Index Management
+```java
+// Drop index
+FT.dropindex(client, "my_idx").get();
+
+// Get info
+Map<String, Object> info = FT.info(client, "my_idx").get();
+
+// List all indexes
+GlideString[] indexes = FT.list(client).get();
+```
+
+**Key Finding:** Use `GlideString.of()` factory method, not constructor. FT methods are static on `FT` class, not client methods.
