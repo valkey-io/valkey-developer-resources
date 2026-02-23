@@ -148,9 +148,71 @@ client.get("key").thenAccept(value -> {
 ## Next Steps
 
 - [x] Vector search POC (FT.CREATE, FT.SEARCH)
-- [ ] Cluster operations POC
+- [x] Cluster operations POC (concepts demonstrated)
 - [ ] Document retry strategies for batches
 - [ ] Document batch options (timeout, routing)
+
+---
+
+## Cluster Operations
+
+### Client Types
+```java
+// Standalone
+import glide.api.GlideClient;
+import glide.api.models.configuration.GlideClientConfiguration;
+import glide.api.models.Batch;
+
+// Cluster
+import glide.api.GlideClusterClient;
+import glide.api.models.configuration.GlideClusterClientConfiguration;
+import glide.api.models.ClusterBatch;
+```
+
+### Hash Tags for Same Slot
+```java
+// In cluster mode, use hash tags to ensure keys map to same slot
+ClusterBatch atomicBatch = new ClusterBatch(true);
+atomicBatch.set("{user}:1", "Alice");  // Same slot
+atomicBatch.set("{user}:2", "Bob");    // Same slot
+client.exec(atomicBatch, true).get();  // Success
+```
+
+### CROSSSLOT Error
+```java
+// Atomic batch with keys in different slots fails
+ClusterBatch crossSlot = new ClusterBatch(true);
+crossSlot.set("key1", "value1");  // Slot A
+crossSlot.set("key2", "value2");  // Slot B
+client.exec(crossSlot, true).get();  // Throws RequestException: CROSSSLOT
+```
+
+**Key Finding:** CROSSSLOT error occurs when a single command/atomic batch operates on keys in different hash slots. In cluster mode, data is distributed across 16384 slots. Each key hashes to a specific slot, and slots are distributed across nodes. Commands requiring atomicity (like atomic batches or multi-key operations like `DEL`) must operate on keys in the same slot.
+
+### Multi-Slot Operations
+```java
+// Non-atomic batch can span multiple slots
+ClusterBatch pipeline = new ClusterBatch(false);
+pipeline.set("key1", "value1");  // Slot A
+pipeline.set("key2", "value2");  // Slot B
+client.exec(pipeline, true).get();  // Success - GLIDE routes to different nodes
+
+// Delete keys in same slot together
+client.del(new String[]{"{user}:1", "{user}:2"}).get();  // Same slot - OK
+
+// Delete keys in different slots separately
+client.del(new String[]{"key1"}).get();
+client.del(new String[]{"key2"}).get();
+```
+
+**Key Finding:** Non-atomic batches (pipelines) can span multiple slots. GLIDE automatically splits the pipeline into sub-pipelines per node, dispatches them independently, and reassembles responses in order.
+
+### Cluster vs Standalone
+- **Standalone:** Use `GlideClient` and `Batch`
+- **Cluster:** Use `GlideClusterClient` and `ClusterBatch`
+- **Atomic batch constraint:** All keys must map to same hash slot (cluster only)
+- **Non-atomic batch:** Can span multiple slots in cluster mode
+- **Hash tags:** Use `{tag}` to control slot assignment (e.g., `{user}:1`, `{user}:2`)
 
 ---
 

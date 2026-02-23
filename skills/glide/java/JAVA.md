@@ -342,6 +342,10 @@ try {
 **Problem:** Accessing `results[1]` when count is 0 causes IndexOutOfBoundsException
 **Solution:** Check `results.length > 1` before accessing documents map
 
+### 11. CROSSSLOT Errors in Cluster Mode
+**Problem:** Atomic batch or multi-key command with keys in different slots
+**Solution:** Use hash tags `{tag}` to ensure keys map to same slot, or use non-atomic batch
+
 ---
 
 ## Vector Search (FT Module)
@@ -425,6 +429,72 @@ private static byte[] floatArrayToBytes(float[] array) {
 
 ---
 
+## Cluster Operations
+
+### Client Selection
+```java
+// Standalone
+import glide.api.GlideClient;
+import glide.api.models.configuration.GlideClientConfiguration;
+import glide.api.models.Batch;
+
+// Cluster
+import glide.api.GlideClusterClient;
+import glide.api.models.configuration.GlideClusterClientConfiguration;
+import glide.api.models.ClusterBatch;
+```
+
+### Hash Slots and CROSSSLOT Errors
+
+In cluster mode, data is distributed across 16384 hash slots. Each key hashes to a specific slot, and slots are distributed across nodes.
+
+**Atomic batches require same slot:**
+```java
+// Success - hash tags ensure same slot
+ClusterBatch batch = new ClusterBatch(true);
+batch.set("{user}:1", "Alice");
+batch.set("{user}:2", "Bob");
+client.exec(batch, true).get();
+
+// Fails - different slots
+ClusterBatch batch = new ClusterBatch(true);
+batch.set("key1", "value1");  // Slot A
+batch.set("key2", "value2");  // Slot B
+client.exec(batch, true).get();  // RequestException: CROSSSLOT
+```
+
+**Non-atomic batches span slots:**
+```java
+ClusterBatch pipeline = new ClusterBatch(false);
+pipeline.set("key1", "value1");  // Slot A
+pipeline.set("key2", "value2");  // Slot B
+client.exec(pipeline, true).get();  // Success
+```
+
+**Multi-key operations:**
+```java
+// Same slot - OK
+client.del(new String[]{"{user}:1", "{user}:2"}).get();
+
+// Different slots - CROSSSLOT error
+client.del(new String[]{"key1", "key2"}).get();  // Fails
+
+// Use non-atomic batch for multi-slot delete
+ClusterBatch cleanup = new ClusterBatch(false);
+cleanup.del(new String[]{"{user}:1", "{user}:2"});
+cleanup.del(new String[]{"key1"});
+cleanup.del(new String[]{"key2"});
+Object[] results = client.exec(cleanup, true).get();  // [2, 1, 1]
+```
+
+**Key Points:**
+- Use hash tags `{tag}` to control slot assignment
+- Atomic operations require all keys in same slot
+- Non-atomic batches automatically route to multiple nodes
+- GLIDE splits pipelines per node and reassembles responses
+
+---
+
 ## Summary Checklist
 
 When implementing Valkey functionality with GLIDE:
@@ -444,6 +514,9 @@ When implementing Valkey functionality with GLIDE:
 - [ ] Never convert binary data to String - use `GlideString` throughout
 - [ ] Check `results.length > 1` before accessing FT.search documents map
 - [ ] Use `ByteOrder.LITTLE_ENDIAN` for vector encoding
+- [ ] Use `GlideClusterClient` and `ClusterBatch` for cluster mode
+- [ ] Use hash tags `{tag}` to ensure keys in same slot for atomic operations
+- [ ] Avoid CROSSSLOT errors by grouping keys with hash tags or using non-atomic batches
 
 ---
 
