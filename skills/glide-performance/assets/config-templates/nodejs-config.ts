@@ -61,7 +61,7 @@ export async function createClients() {
 }
 
 // Graceful shutdown
-export async function closeClients(standalone: GlideClient, cluster: GlideClusterClient) {
-  await standalone.close();
-  await cluster.close();
+export function closeClients(standalone: GlideClient, cluster: GlideClusterClient) {
+  standalone.close();
+  cluster.close();
 }

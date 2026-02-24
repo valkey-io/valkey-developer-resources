@@ -328,24 +328,25 @@ client.MSet(ctx, data)
 **✅ Iterate All Keys in Cluster**
 ```go
 import (
-    "github.com/valkey-io/valkey-glide/go/v2"
     "github.com/valkey-io/valkey-glide/go/v2/models"
+    "github.com/valkey-io/valkey-glide/go/v2/options"
 )
 
 cursor := models.NewClusterScanCursor()
 var allKeys []string
 
+scanOpts := *options.NewClusterScanOptions()
+scanOpts.SetMatch("user:*")
+scanOpts.SetCount(100)
+
 for {
-    newCursor, keys, err := clusterClient.Scan(ctx, cursor, &models.ScanOptions{
-        Match: "user:*",
-        Count: 100,
-    })
+    result, err := clusterClient.ScanWithOptions(ctx, cursor, scanOpts)
     if err != nil {
         log.Fatal(err)
     }
     
-    allKeys = append(allKeys, keys...)
-    cursor = newCursor
+    allKeys = append(allKeys, result.Keys...)
+    cursor = result.Cursor
     
     if cursor.IsFinished() {
         break
@@ -396,7 +397,7 @@ value, err := client.Get(ctx, "key")
 if err != nil {
     var timeoutErr *glide.TimeoutError
     var connErr *glide.ConnectionError
-    var reqErr *glide.RequestError
+    var closingErr *glide.ClosingError
     
     switch {
     case errors.As(err, &timeoutErr):
@@ -405,9 +406,9 @@ if err != nil {
     case errors.As(err, &connErr):
         // Circuit breaker pattern
         log.Printf("Connection failed: %v", err)
-    case errors.As(err, &reqErr):
-        // Server error - check command syntax
-        log.Printf("Request error: %v", err)
+    case errors.As(err, &closingErr):
+        // Client is closing - recreate client
+        log.Printf("Client closing: %v", err)
     default:
         // Unknown error
         log.Printf("Unexpected error: %v", err)
@@ -471,7 +472,7 @@ if err != nil {
 }
 
 // Use for BLPOP, BRPOP, etc.
-item, err := blockingClient.BLPop(ctx, []string{"queue"}, 30)
+item, err := blockingClient.BLPop(ctx, []string{"queue"}, 30*time.Second)
 
 // Regular client for other operations
 regularCfg := config.NewClientConfiguration().
@@ -646,18 +647,21 @@ logger.SetLoggerConfig(logger.Error, "")
 ```go
 // O(N) full keyspace iteration — degrades as dataset grows
 var matched []string
-cursor := "0"
+cursor := models.NewClusterScanCursor()
+scanOpts := *options.NewClusterScanOptions()
+scanOpts.SetMatch(pattern)
+scanOpts.SetCount(100)
 for {
-    result, _ := client.Scan(cursor, config.ScanOptions{Match: pattern, Count: 100})
-    cursor = result.Cursor
+    result, _ := clusterClient.ScanWithOptions(ctx, cursor, scanOpts)
     matched = append(matched, result.Keys...)
-    if cursor == "0" {
+    cursor = result.Cursor
+    if cursor.IsFinished() {
         break
     }
 }
 // Then individually fetching each matched key compounds the problem
 for _, key := range matched {
-    val, _ := client.Get(key)
+    val, _ := client.Get(ctx, key)
     // ...
 }
 ```
