@@ -385,12 +385,21 @@ $client->hSet('user:123', 'age', '31');
 ```php
 use ValkeyGlide\OpenTelemetry\OpenTelemetryConfig;
 use ValkeyGlide\OpenTelemetry\TracesConfig;
+use ValkeyGlide\OpenTelemetry\MetricsConfig;
 
 $otelConfig = OpenTelemetryConfig::builder()
-    ->traces(TracesConfig::builder()
-        ->endpoint('grpc://localhost:4317')
-        ->samplePercentage(10)  // 10% sampling in production
-        ->build())
+    ->traces(
+        TracesConfig::builder()
+            ->endpoint('http://localhost:4318/v1/traces')
+            ->samplePercentage(1)  // 1% sampling in production
+            ->build()
+    )
+    ->metrics(
+        MetricsConfig::builder()
+            ->endpoint('http://localhost:4318/v1/metrics')
+            ->build()
+    )
+    ->flushIntervalMs(5000)  // Optional, defaults to 5000
     ->build();
 
 $client = new ValkeyGlide();
@@ -436,11 +445,13 @@ try {
 ```php
 // O(N) full keyspace iteration — degrades as dataset grows
 $matched = [];
-$cursor = 0;
+$iterator = null;
 do {
-    [$cursor, $keys] = $client->scan($cursor, ['MATCH' => $pattern, 'COUNT' => 100]);
-    $matched = array_merge($matched, $keys);
-} while ($cursor !== 0);
+    $keys = $client->scan($iterator, $pattern, 100);
+    if ($keys !== false) {
+        $matched = array_merge($matched, $keys);
+    }
+} while ($iterator !== "0");
 
 // Then individually fetching each matched key compounds the problem
 foreach ($matched as $key) {

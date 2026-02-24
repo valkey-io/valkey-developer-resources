@@ -18,7 +18,7 @@ All templates include:
 - **Connection Retry Strategy**: Exponential backoff (10 retries, 500ms base, 2x multiplier)
 - **Client Name**: Descriptive name for debugging
 - **Lazy Connect**: Optional for serverless/Lambda deployments
-- **High-Throughput**: `inflightRequestsLimit` set to 2000 for high-performance scenarios
+- **High-Throughput**: `inflightRequestsLimit` set to 2000 for high-performance scenarios (Node.js, Python, Java; not available in Go)
 
 Cluster templates additionally include:
 
@@ -30,54 +30,59 @@ Cluster templates additionally include:
 ### Node.js/TypeScript
 
 ```typescript
-import { createClients, closeClients } from './config/nodejs-config';
+import { GlideClient, GlideClusterClient } from '@valkey/valkey-glide';
 
-// At application startup
-const { standalone, cluster } = await createClients();
+// At application startup (using config from nodejs-config.ts)
+const standalone = await GlideClient.createClient(standaloneConfig);
 
 // Use clients
 const value = await standalone.get('key');
 
 // At shutdown
-await closeClients(standalone, cluster);
+standalone.close();
 ```
 
 ### Python (Async)
 
 ```python
-from config.python_config import create_async_clients, close_async_clients
+from glide import (
+    GlideClient,
+    GlideClusterClient,
+    GlideClientConfiguration,
+    NodeAddress,
+)
 
-# At application startup
-standalone, cluster = await create_async_clients()
+# At application startup (using config from python-config.py)
+standalone = await GlideClient.create(async_standalone_config)
 
 # Use clients
 value = await standalone.get('key')
 
 # At shutdown
-await close_async_clients(standalone, cluster)
+await standalone.close()
 ```
 
 ### Python (Sync)
 
 ```python
-from config.python_config import create_sync_client, close_sync_client
+from glide_sync import GlideClient as GlideClientSync
 
-# At application startup
-standalone = create_sync_client()
+# At application startup (using config from python-config.py)
+standalone = GlideClientSync.create(sync_standalone_config)
 
 # Use clients
 value = standalone.get('key')
 
 # At shutdown
-close_sync_client(standalone)
+standalone.close()
 ```
 
 ### Java
 
 ```java
-import com.example.GlideConfig;
+import glide.api.GlideClient;
 
-// At application startup
+// At application startup (using GlideConfig from java-config.java)
 GlideConfig.Clients clients = new GlideConfig.Clients();
 
 // Use clients
@@ -90,9 +95,12 @@ clients.close();
 ### Go
 
 ```go
-import "github.com/example/config"
+import (
+    glide "github.com/valkey-io/valkey-glide/go/v2"
+    // Import your config package that wraps go-config.go
+)
 
-// At application startup
+// At application startup (using CreateClients from go-config.go)
 clients, err := config.CreateClients()
 if err != nil {
     log.Fatal(err)
@@ -106,20 +114,18 @@ value, err := clients.Standalone.Get(ctx, "key")
 ### PHP
 
 ```php
-require_once 'config/php-config.php';
+// ValkeyGlide extension must be installed (pecl install valkey-glide)
 
-// Clients are created globally and reused
-function handleRequest() {
-    global $glide_standalone;
-    
-    try {
-        $value = $glide_standalone->get('key');
-        return $value;
-    } catch (ValkeyGlideException $e) {
-        error_log("Valkey error: " . $e->getMessage());
-        throw $e;
-    }
-}
+// At application startup (using config from php-config.php)
+$client = new ValkeyGlide();
+$client->connect(/* see php-config.php for full config */);
+
+// Use clients
+$value = $client->get('key');
+
+// Cluster client
+$cluster = new ValkeyGlideCluster(/* see php-config.php for full config */);
+$value = $cluster->get('key');
 ```
 
 ## Customization
@@ -146,7 +152,7 @@ Example backoff sequence: 500ms, 1s, 2s, 4s, 8s, 16s, 32s, 64s, 128s, 256s
 
 For applications requiring >100K ops/sec:
 
-- Increase `inflightRequestsLimit` from 1000
+- Increase `inflightRequestsLimit` from 1000 (Node.js, Python, Java; not available in Go)
 - Reduce `requestTimeout` to 200ms or lower
 
 ### AZ Affinity (Cluster Only)
@@ -177,7 +183,6 @@ For serverless deployments:
 
 ## Additional Resources
 
-- [GLIDE Wiki - Configuration](https://github.com/valkey-io/valkey-glide/wiki/General-Concepts#configuration)
-- [GLIDE Wiki - Connection Management](https://github.com/valkey-io/valkey-glide/wiki/General-Concepts#connection-management)
+- [GLIDE Wiki](https://glide.valkey.io/)
 - [AZ Affinity Blog](https://valkey.io/blog/az-affinity-strategy/)
 - [Performance Checklist](../performance-checklist.md)

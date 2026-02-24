@@ -4,6 +4,8 @@
 package config
 
 import (
+	"time"
+
 	glide "github.com/valkey-io/valkey-glide/go/v2"
 	"github.com/valkey-io/valkey-glide/go/v2/config"
 )
@@ -14,7 +16,7 @@ func StandaloneConfig() *config.ClientConfiguration {
 		WithAddress(&config.NodeAddress{Host: "localhost", Port: 6379}).
 
 		// Request timeout (500ms recommended for web apps)
-		WithRequestTimeout(500). // milliseconds
+		WithRequestTimeout(500 * time.Millisecond).
 
 		// Connection retry strategy
 		WithReconnectStrategy(config.NewBackoffStrategy(
@@ -37,7 +39,7 @@ func ClusterConfig() *config.ClusterClientConfiguration {
 		WithAddress(&config.NodeAddress{Host: "cluster.endpoint.cache.amazonaws.com", Port: 6379}).
 
 		// Request timeout
-		WithRequestTimeout(500).
+		WithRequestTimeout(500 * time.Millisecond).
 
 		// AZ Affinity for cost optimization (read-heavy workloads)
 		WithReadFrom(config.AzAffinity).

@@ -136,8 +136,8 @@ These targets are general guidelines based on typical deployments. Your actual p
 
 ## Resources
 
-- [GLIDE Wiki](https://github.com/valkey-io/valkey-glide/wiki)
-- [Batching Guide](https://github.com/valkey-io/valkey-glide/wiki/General-Concepts#batching-pipeline-and-transaction)
+- [GLIDE Wiki](https://glide.valkey.io/)
+- [Batching Guide](https://glide.valkey.io/how-to/send-batch-commands/)
 - [Connection Management](https://github.com/valkey-io/valkey-glide/wiki/General-Concepts#connection-management)
 - [AZ Affinity Blog](https://valkey.io/blog/az-affinity-strategy/)
 - [Examples](https://github.com/valkey-io/valkey-glide/tree/main/examples)

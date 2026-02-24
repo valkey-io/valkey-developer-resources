@@ -87,11 +87,6 @@ You should see "glide-performance" or "GLIDE Performance Optimization" in the li
 - "How can I reduce latency in this code?"
 - "Review my error handling strategy"
 
-**Migration Help**:
-- "Help me migrate from node-redis to GLIDE"
-- "Convert this redis-py code to use GLIDE"
-- "What GLIDE features can improve this Jedis code?"
-
 ## What Gets Loaded
 
 The skill uses progressive disclosure to minimize context usage:
@@ -184,7 +179,7 @@ Contributions are welcome!
 ## Additional Resources
 
 - [Valkey GLIDE Repository](https://github.com/valkey-io/valkey-glide)
-- [GLIDE Wiki](https://github.com/valkey-io/valkey-glide/wiki)
+- [GLIDE Wiki](https://glide.valkey.io/)
 - [AZ Affinity Blog](https://valkey.io/blog/az-affinity-strategy/)
 - [Benchmarks](https://github.com/valkey-io/valkey-glide/tree/main/benchmarks)
 - [Examples](https://github.com/valkey-io/valkey-glide/tree/main/examples)
@@ -194,4 +189,4 @@ Contributions are welcome!
 For issues or questions:
 - Open an issue on [GitHub](https://github.com/valkey-io/valkey-samples/issues)
 - Join the [Valkey Community](https://valkey.io/community/)
-- Check the [GLIDE Wiki](https://github.com/valkey-io/valkey-glide/wiki)
+- Check the [GLIDE Wiki](https://glide.valkey.io/)

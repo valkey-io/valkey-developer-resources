@@ -382,18 +382,23 @@ all_fields = await client.hgetall("user:123")
 
 **✅ Enable Tracing**
 ```python
-from glide import OpenTelemetry
+from glide import (
+    OpenTelemetry,
+    OpenTelemetryConfig,
+    OpenTelemetryTracesConfig,
+    OpenTelemetryMetricsConfig,
+)
 
 # Initialize once at application startup
-OpenTelemetry.init(
-    traces={
-        "endpoint": "http://localhost:4318/v1/traces",
-        "sample_percentage": 1,  # 1% sampling for production
-    },
-    metrics={
-        "endpoint": "http://localhost:4318/v1/metrics",
-    },
-)
+OpenTelemetry.init(OpenTelemetryConfig(
+    traces=OpenTelemetryTracesConfig(
+        endpoint="http://localhost:4318/v1/traces",
+        sample_percentage=1,  # 1% sampling for production
+    ),
+    metrics=OpenTelemetryMetricsConfig(
+        endpoint="http://localhost:4318/v1/metrics",
+    ),
+))
 ```
 
 ### Logging Configuration

@@ -62,11 +62,11 @@ When you review code, this skill detects the language from:
 3. **Syntax patterns**: Language-specific keywords and structures
 
 **Action Required**: When language is detected, load the corresponding reference file:
-- Node.js/TypeScript → Load `.kiro/skills/glide-performance/reference/nodejs-patterns.md`
-- Python → Load `.kiro/skills/glide-performance/reference/python-patterns.md`
-- Java → Load `.kiro/skills/glide-performance/reference/java-patterns.md`
-- Go → Load `.kiro/skills/glide-performance/reference/go-patterns.md`
-- PHP → Load `.kiro/skills/glide-performance/reference/php-patterns.md`
+- Node.js/TypeScript → Load `skills/glide-performance/reference/nodejs-patterns.md`
+- Python → Load `skills/glide-performance/reference/python-patterns.md`
+- Java → Load `skills/glide-performance/reference/java-patterns.md`
+- Go → Load `skills/glide-performance/reference/go-patterns.md`
+- PHP → Load `skills/glide-performance/reference/php-patterns.md`
 
 ## Universal Anti-Patterns (All Languages)
 

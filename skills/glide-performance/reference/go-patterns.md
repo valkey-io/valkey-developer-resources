@@ -46,7 +46,7 @@ var client *glide.Client
 func init() {
     cfg := config.NewClientConfiguration().
         WithAddress(&config.NodeAddress{Host: "localhost", Port: 6379}).
-        WithRequestTimeout(500).
+        WithRequestTimeout(500 * time.Millisecond).
         WithClientName("my-app-client")
 
     var err error
@@ -97,7 +97,7 @@ import (
 
 cfg := config.NewClientConfiguration().
     WithAddress(&config.NodeAddress{Host: "localhost", Port: 6379}).
-    WithRequestTimeout(500) // milliseconds
+    WithRequestTimeout(500 * time.Millisecond) // 500ms
 
 client, err := glide.NewClient(cfg)
 ```
@@ -369,7 +369,7 @@ cfg := config.NewClusterClientConfiguration().
     WithAddress(&config.NodeAddress{Host: "cluster.endpoint.cache.amazonaws.com", Port: 6379}).
     WithReadFrom(config.AzAffinity).
     WithClientAZ("us-east-1a"). // Your application's AZ
-    WithRequestTimeout(500)
+    WithRequestTimeout(500 * time.Millisecond)
 
 client, err := glide.NewClusterClient(cfg)
 if err != nil {
@@ -428,7 +428,7 @@ import (
 cfg := config.NewClientConfiguration().
     WithAddress(&config.NodeAddress{Host: "localhost", Port: 6379}).
     WithReconnectStrategy(config.NewBackoffStrategy(10, 500, 2)). // retries, factor, exponentBase
-    WithRequestTimeout(500)
+    WithRequestTimeout(500 * time.Millisecond)
 
 client, err := glide.NewClient(cfg)
 ```
@@ -463,7 +463,7 @@ import (
 // Separate client for blocking commands
 blockingCfg := config.NewClientConfiguration().
     WithAddress(&config.NodeAddress{Host: "localhost", Port: 6379}).
-    WithRequestTimeout(30000). // 30 seconds
+    WithRequestTimeout(30 * time.Second). // 30 seconds
     WithClientName("queue-worker")
 
 blockingClient, err := glide.NewClient(blockingCfg)
@@ -477,7 +477,7 @@ item, err := blockingClient.BLPop(ctx, []string{"queue"}, 30*time.Second)
 // Regular client for other operations
 regularCfg := config.NewClientConfiguration().
     WithAddress(&config.NodeAddress{Host: "localhost", Port: 6379}).
-    WithRequestTimeout(500).
+    WithRequestTimeout(500 * time.Millisecond).
     WithClientName("app-client")
 
 regularClient, err := glide.NewClient(regularCfg)
@@ -500,7 +500,7 @@ import (
 // For high-throughput in Go, focus on batching and concurrency patterns.
 cfg := config.NewClientConfiguration().
     WithAddress(&config.NodeAddress{Host: "localhost", Port: 6379}).
-    WithRequestTimeout(500)
+    WithRequestTimeout(500 * time.Millisecond)
 
 client, err := glide.NewClient(cfg)
 ```
@@ -513,7 +513,7 @@ func HandleLambdaRequest(event map[string]string) string {
     endpoint := os.Getenv("CACHE_ENDPOINT")
     cfg := config.NewClientConfiguration().
         WithAddress(&config.NodeAddress{Host: endpoint, Port: 6379}).
-        WithRequestTimeout(1000)
+        WithRequestTimeout(1 * time.Second)
 
     client, _ := glide.NewClient(cfg)
     defer client.Close()
@@ -539,7 +539,7 @@ func ensureClient() error {
     }
     cfg := config.NewClientConfiguration().
         WithAddress(&config.NodeAddress{Host: os.Getenv("CACHE_ENDPOINT"), Port: 6379}).
-        WithRequestTimeout(500).
+        WithRequestTimeout(500 * time.Millisecond).
         WithLazyConnect(true). // Defer TCP+TLS handshake until first command
         WithClientName("lambda-handler").
         WithReconnectStrategy(config.NewBackoffStrategy(3, 500, 2))
@@ -609,18 +609,21 @@ allFields, _ := client.HGetAll(ctx, "user:123")
 
 **✅ Enable Tracing**
 ```go
-import "github.com/valkey-io/valkey-glide/go/v2/otel"
+import glide "github.com/valkey-io/valkey-glide/go/v2"
 
 // Initialize once at application startup
-otel.Init(&otel.Configuration{
-    Traces: &otel.TracesConfig{
+err := glide.GetOtelInstance().Init(glide.OpenTelemetryConfig{
+    Traces: &glide.OpenTelemetryTracesConfig{
         Endpoint:         "http://localhost:4318/v1/traces",
         SamplePercentage: 1, // 1% sampling for production
     },
-    Metrics: &otel.MetricsConfig{
+    Metrics: &glide.OpenTelemetryMetricsConfig{
         Endpoint: "http://localhost:4318/v1/metrics",
     },
 })
+if err != nil {
+    log.Fatalf("Failed to initialize OpenTelemetry: %v", err)
+}
 ```
 
 ### Logging Configuration

@@ -418,16 +418,24 @@ Map<String, String> allFields = client.hgetall("user:123").get();
 
 **✅ Enable Tracing**
 ```java
-import glide.api.models.configuration.OpenTelemetryConfiguration;
+import glide.api.OpenTelemetry;
 
 // Initialize once at application startup
-OpenTelemetryConfiguration otelConfig = OpenTelemetryConfiguration.builder()
-    .tracesEndpoint("http://localhost:4318/v1/traces")
-    .samplePercentage(1) // 1% sampling for production
-    .metricsEndpoint("http://localhost:4318/v1/metrics")
-    .build();
-
-OpenTelemetry.init(otelConfig);
+OpenTelemetry.init(
+    OpenTelemetry.OpenTelemetryConfig.builder()
+        .traces(
+            OpenTelemetry.TracesConfig.builder()
+                .endpoint("http://localhost:4318/v1/traces")
+                .samplePercentage(1) // 1% sampling for production
+                .build()
+        )
+        .metrics(
+            OpenTelemetry.MetricsConfig.builder()
+                .endpoint("http://localhost:4318/v1/metrics")
+                .build()
+        )
+        .build()
+);
 ```
 
 ### Logging Configuration
