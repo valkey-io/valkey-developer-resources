@@ -27,6 +27,10 @@ func StandaloneConfig() *config.ClientConfiguration {
 		WithClientName("my-app-client")
 }
 
+// Note: inflightRequestsLimit is currently not exposed in the Go config builder.
+// It is managed at the Rust core level (default: 1000). Other languages
+// that expose this setting, see the respective config templates.
+
 // ClusterConfig returns a production-ready cluster client configuration.
 func ClusterConfig() *config.ClusterClientConfiguration {
 	return config.NewClusterClientConfiguration().

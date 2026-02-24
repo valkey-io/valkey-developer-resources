@@ -50,7 +50,7 @@ transaction = Batch(is_atomic=True)
 transaction.set('user:123:name', 'John')
 transaction.set('user:123:email', 'john@example.com')
 transaction.set('user:123:age', '30')
-await client.exec(transaction)
+await client.exec(transaction, raise_on_error=True)
 # Recommendation: Standalone mode sufficient
 ```
 

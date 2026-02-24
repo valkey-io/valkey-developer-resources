@@ -1,7 +1,7 @@
 // Node.js/TypeScript GLIDE Configuration Template
 // Optimized for production web applications
 
-import { GlideClient, GlideClusterClient } from '@valkey/valkey-glide';
+import { GlideClient, GlideClusterClient, ReadFrom } from '@valkey/valkey-glide';
 
 // Standalone Client Configuration
 export const standaloneConfig = {
@@ -35,7 +35,7 @@ export const clusterConfig = {
   requestTimeout: 500,
   
   // AZ Affinity for cost optimization (read-heavy workloads)
-  readFrom: 'AZAffinity',
+  readFrom: 'AZAffinity' as ReadFrom,
   clientAz: 'us-east-1a',  // Your application's AZ
   
   // Connection retry strategy

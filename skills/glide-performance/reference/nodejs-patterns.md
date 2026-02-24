@@ -85,7 +85,7 @@ const batch = new Batch(false); // false = pipeline (non-atomic)
 batch.get("user:1");
 batch.get("user:2");
 batch.get("user:3");
-const [user1, user2, user3] = await client.exec(batch);
+const [user1, user2, user3] = await client.exec(batch, true);
 ```
 
 ### Transaction (Atomic)
@@ -97,7 +97,7 @@ transaction.set("balance:user:123", "100");
 transaction.incr("transaction:count");
 transaction.set("last_update", Date.now().toString());
 
-const results = await client.exec(transaction);
+const results = await client.exec(transaction, true);
 // All commands succeed or all fail
 ```
 
@@ -109,7 +109,7 @@ const batch = new Batch(false);
 for (let i = 0; i < 50; i++) {
     batch.get(`key:${i}`);
 }
-const results = await client.exec(batch);
+const results = await client.exec(batch, true);
 
 // Avoid: >1000 commands (split into smaller batches)
 const keys = Array.from({ length: 5000 }, (_, i) => `key:${i}`);
@@ -118,7 +118,7 @@ const batchSize = 100;
 for (let i = 0; i < keys.length; i += batchSize) {
     const batch = new Batch(false);
     keys.slice(i, i + batchSize).forEach(key => batch.get(key));
-    const results = await client.exec(batch);
+    const results = await client.exec(batch, true);
     // Process results
 }
 ```
@@ -206,11 +206,11 @@ console.log(`Found ${allKeys.length} keys`);
 
 **✅ Enable for Read-Heavy Workloads**
 ```typescript
-import { GlideClusterClient, GlideClusterClientConfiguration } from "@valkey/valkey-glide";
+import { GlideClusterClient, GlideClusterClientConfiguration, ReadFrom } from "@valkey/valkey-glide";
 
 const config: GlideClusterClientConfiguration = {
     addresses: [{ host: "cluster.endpoint.cache.amazonaws.com", port: 6379 }],
-    readFrom: "AZAffinity",
+    readFrom: "AZAffinity" as ReadFrom,
     clientAz: "us-east-1a", // Your application's AZ
     requestTimeout: 500,
 };
@@ -423,7 +423,7 @@ if (value !== null) {
 const batch = new Batch(false);
 batch.get("user:1");
 batch.get("user:2");
-const [user1, user2] = await client.exec(batch) as [string | null, string | null];
+const [user1, user2] = await client.exec(batch, true) as [string | null, string | null];
 ```
 
 ## SCAN vs Valkey-Search

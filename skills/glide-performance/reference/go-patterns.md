@@ -493,8 +493,10 @@ import (
     "github.com/valkey-io/valkey-glide/go/v2/config"
 )
 
-// Note: inflightRequestsLimit is configured at the core level
-// For high-throughput, ensure proper connection management
+// The Go wrapper does not currently expose inflightRequestsLimit (default: 1000).
+// It is managed at the Rust core level. Other wrappers (Node.js, Python,
+// Java) allow configuring this value directly.
+// For high-throughput in Go, focus on batching and concurrency patterns.
 cfg := config.NewClientConfiguration().
     WithAddress(&config.NodeAddress{Host: "localhost", Port: 6379}).
     WithRequestTimeout(500)

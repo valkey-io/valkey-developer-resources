@@ -20,7 +20,7 @@ async_standalone_config = GlideClientConfiguration(
     
     # Connection retry strategy
     reconnect_strategy=BackoffStrategy(
-        number_of_retries=10,
+        num_of_retries=10,
         factor=500,        # Base delay in ms
         exponent_base=2,   # Exponential backoff
     ),
@@ -48,7 +48,7 @@ async_cluster_config = GlideClusterClientConfiguration(
     
     # Connection retry strategy
     reconnect_strategy=BackoffStrategy(
-        number_of_retries=10,
+        num_of_retries=10,
         factor=500,
         exponent_base=2,
     ),
@@ -82,7 +82,7 @@ sync_standalone_config = GlideClientConfiguration(
     addresses=[NodeAddress("localhost", 6379)],
     request_timeout=500,
     reconnect_strategy=BackoffStrategy(
-        number_of_retries=10,
+        num_of_retries=10,
         factor=500,
         exponent_base=2,
     ),

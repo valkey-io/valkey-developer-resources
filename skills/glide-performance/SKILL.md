@@ -350,7 +350,7 @@ Configure exponential backoff for resilience:
 ### Throughput Tuning
 
 GLIDE uses a single multiplexed connection, not a traditional connection pool. For high-throughput scenarios:
-- Increase `inflightRequestsLimit` from default 1000
+- Increase `inflightRequestsLimit` from default 1000 (available in Node.js, Python, and Java; the Go wrapper does not currently expose this setting)
 
 ### Serverless/Lambda
 

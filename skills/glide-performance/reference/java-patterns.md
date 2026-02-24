@@ -102,7 +102,7 @@ batch.get("user:1");
 batch.get("user:2");
 batch.get("user:3");
 
-Object[] results = client.exec(batch).get();
+Object[] results = client.exec(batch, true).get();
 String user1 = (String) results[0];
 String user2 = (String) results[1];
 String user3 = (String) results[2];
@@ -118,7 +118,7 @@ transaction.set("balance:user:123", "100");
 transaction.incr("transaction:count");
 transaction.set("last_update", String.valueOf(System.currentTimeMillis()));
 
-Object[] results = client.exec(transaction).get();
+Object[] results = client.exec(transaction, true).get();
 // All commands succeed or all fail
 ```
 
@@ -130,7 +130,7 @@ Batch batch = new Batch(false);
 for (int i = 0; i < 50; i++) {
     batch.get("key:" + i);
 }
-Object[] results = client.exec(batch).get();
+Object[] results = client.exec(batch, true).get();
 
 // Avoid: >1000 commands (split into smaller batches)
 List<String> keys = IntStream.range(0, 5000)
@@ -142,7 +142,7 @@ for (int i = 0; i < keys.size(); i += batchSize) {
     Batch batch = new Batch(false);
     keys.subList(i, Math.min(i + batchSize, keys.size()))
         .forEach(batch::get);
-    Object[] results = client.exec(batch).get();
+    Object[] results = client.exec(batch, true).get();
     // Process results
 }
 ```
@@ -600,12 +600,12 @@ batch.get("key2"); // NOT thread-safe!
 // Thread 1
 Batch batch1 = new Batch(false);
 batch1.get("key1");
-client.exec(batch1).get();
+client.exec(batch1, true).get();
 
 // Thread 2
 Batch batch2 = new Batch(false);
 batch2.get("key2");
-client.exec(batch2).get();
+client.exec(batch2, true).get();
 ```
 
 ## Performance Checklist

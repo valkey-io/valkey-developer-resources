@@ -104,7 +104,7 @@ batch = Batch(is_atomic=False)  # False = pipeline (non-atomic)
 batch.get("user:1")
 batch.get("user:2")
 batch.get("user:3")
-results = await client.exec(batch)
+results = await client.exec(batch, raise_on_error=True)
 user1, user2, user3 = results
 ```
 
@@ -117,7 +117,7 @@ transaction.set("balance:user:123", "100")
 transaction.incr("transaction:count")
 transaction.set("last_update", str(int(time.time())))
 
-results = await client.exec(transaction)
+results = await client.exec(transaction, raise_on_error=True)
 # All commands succeed or all fail
 ```
 
@@ -128,7 +128,7 @@ results = await client.exec(transaction)
 batch = Batch(is_atomic=False)
 for i in range(50):
     batch.get(f"key:{i}")
-results = await client.exec(batch)
+results = await client.exec(batch, raise_on_error=True)
 
 # Avoid: >1000 commands (split into smaller batches)
 keys = [f"key:{i}" for i in range(5000)]
@@ -138,7 +138,7 @@ for i in range(0, len(keys), batch_size):
     batch = Batch(is_atomic=False)
     for key in keys[i:i + batch_size]:
         batch.get(key)
-    results = await client.exec(batch)
+    results = await client.exec(batch, raise_on_error=True)
     # Process results
 ```
 
@@ -277,7 +277,7 @@ from glide import BackoffStrategy
 config = GlideClientConfiguration(
     addresses=[NodeAddress("localhost", 6379)],
     reconnect_strategy=BackoffStrategy(
-        number_of_retries=10,
+        num_of_retries=10,
         factor=500,        # Base delay in ms
         exponent_base=2,   # Exponential backoff (500ms, 1s, 2s, 4s, ...)
     ),
