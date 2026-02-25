@@ -11,6 +11,7 @@ Consult the corresponding detailed guide for code generated in the selected lang
 |-------------------|----------------|------------|
 | **Python** | [Python-specific skill](python/PYTHON.md) | Mutable Default Arguments, Exception Handling, Class Attributes |
 | **Java** | [Java-specific skill](java/JAVA.md) | CompletableFuture Patterns, Exception Unwrapping, GlideString for Binary Data |
+| **Go** | [Go-specific skill](go/GO.md) | Context Pattern, Explicit Error Handling, Batch Pointer Dereferencing |
 
 ---
 ## Overview

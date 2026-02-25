@@ -1,0 +1,8 @@
+# Go build artifacts - executables
+basic_operations
+batch_pipeline
+vector_search
+cluster_operations
+
+# Dependency lock file (auto-generated from go.mod)
+go.sum
