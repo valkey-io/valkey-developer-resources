@@ -61,7 +61,7 @@ const batch = new Batch(true); // true = atomic
 batch.set("key1", "value1");
 batch.get("key1");
 
-const results = await client.executeBatch(batch);
+const results = await client.exec(batch, true);
 ```
 
 ### Cluster Batch
@@ -72,7 +72,7 @@ const batch = new ClusterBatch(false); // false = non-atomic
 batch.set("{user}:1", "Alice");
 batch.set("{user}:2", "Bob");
 
-const results = await client.executeBatch(batch);
+const results = await client.exec(batch, true);
 ```
 
 ### Key Differences
@@ -176,11 +176,11 @@ docs.forEach(doc => {
 ```javascript
 // ❌ Wrong: Using Batch with cluster client
 const batch = new Batch(true);
-await clusterClient.executeBatch(batch); // Error
+await clusterClient.exec(batch, true); // Error
 
 // ✅ Correct: Use ClusterBatch
 const batch = new ClusterBatch(true);
-await clusterClient.executeBatch(batch);
+await clusterClient.exec(batch, true);
 ```
 
 ### 2. Missing Decoder for Binary Data
