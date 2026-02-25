@@ -13,6 +13,7 @@ Consult the corresponding detailed guide for code generated in the selected lang
 | **Java** | [Java-specific skill](java/JAVA.md) | CompletableFuture Patterns, Exception Unwrapping, GlideString for Binary Data |
 | **Go** | [Go-specific skill](go/GO.md) | Context Pattern, Explicit Error Handling, Batch Pointer Dereferencing |
 | **Node.js** | [Node.js-specific skill](js/JS.md) | Promise-Based API, Decoder.Bytes for Binary Data, Static FT Methods |
+| **PHP** | [PHP-specific skill](php/PHP.md) | C Extension, PHPRedis Compatibility, Synchronous API, multi()/pipeline() |
 
 ---
 ## Overview
