@@ -52,13 +52,13 @@ const { Batch } = require("@valkey/valkey-glide");
 const batch = new Batch(true);
 batch.set("key1", "value1");
 batch.get("key1");
-const results = await client.executeBatch(batch);
+const results = await client.exec(batch, true);
 
 // Non-atomic pipeline
 const pipeline = new Batch(false);
 pipeline.set("key1", "value1");
 pipeline.set("key2", "value2");
-const results = await client.executeBatch(pipeline);
+const results = await client.exec(pipeline, true);
 ```
 
 ### Cluster Batch
@@ -69,13 +69,13 @@ const { ClusterBatch } = require("@valkey/valkey-glide");
 const batch = new ClusterBatch(true);
 batch.set("{user}:1", "Alice");
 batch.get("{user}:1");
-const results = await client.executeBatch(batch);
+const results = await client.exec(batch, true);
 
 // Non-atomic pipeline (can span slots)
 const pipeline = new ClusterBatch(false);
 pipeline.set("key1", "value1");
 pipeline.set("key2", "value2");
-const results = await client.executeBatch(pipeline);
+const results = await client.exec(pipeline, true);
 ```
 
 ## Vector Search (FT Module)
@@ -157,7 +157,7 @@ await client.set("{user}:1:email", "alice@example.com");
 const batch = new ClusterBatch(true);
 batch.get("{user}:1:name");
 batch.get("{user}:1:email");
-const results = await client.executeBatch(batch);
+const results = await client.exec(batch, true);
 ```
 
 ### Multi-Slot Operations
@@ -165,7 +165,7 @@ const results = await client.executeBatch(batch);
 // Non-atomic batch for different slots
 const batch = new ClusterBatch(false);
 batch.del(["key1", "key2", "key3"]);
-const results = await client.executeBatch(batch);
+const results = await client.exec(batch, true);
 ```
 
 ## Error Handling
@@ -184,11 +184,11 @@ try {
 ```javascript
 // ❌ Wrong
 const batch = new Batch(true);
-await clusterClient.executeBatch(batch);
+await clusterClient.exec(batch, true);
 
 // ✅ Correct
 const batch = new ClusterBatch(true);
-await clusterClient.executeBatch(batch);
+await clusterClient.exec(batch, true);
 ```
 
 ### 2. Missing Decoder.Bytes for Binary Data
