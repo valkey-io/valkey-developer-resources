@@ -78,11 +78,6 @@ config = GlideClientConfiguration(
 )
 ```
 
-**Timeout Guidelines**:
-- Real-time apps (sub-10ms): 20-50ms
-- Web APIs: 200-500ms
-- Background jobs: 1000-5000ms
-
 ## Batching Patterns
 
 ### Pipeline (Non-Atomic) - Async
@@ -239,11 +234,6 @@ config = GlideClusterClientConfiguration(
 client = await GlideClusterClient.create(config)
 ```
 
-**Requirements**:
-- Valkey 8.0+ or ElastiCache for Valkey 7.2+
-- Cluster mode with replicas
-- Read-heavy workload (>80% reads)
-
 ## Error Handling
 
 ### Typed Error Handling (Async)
@@ -328,8 +318,6 @@ regular_client = await GlideClient.create(regular_config)
 ```
 
 ### Throughput Tuning
-
-GLIDE uses a single multiplexed connection, not a traditional connection pool. Tune throughput via `inflight_requests_limit`.
 
 **✅ High-Throughput Configuration**
 ```python
@@ -481,8 +469,6 @@ with GlideClient.create(config) as client:
 
 ## SCAN vs Valkey-Search
 
-### SCAN for Key Discovery (Scalability Concern)
-
 **❌ SCAN Loop for Pattern-Based Key Lookup**
 ```python
 # O(N) full keyspace iteration — degrades as dataset grows
@@ -515,8 +501,6 @@ await client.ft_create(
 # O(K) where K = result count, independent of total keyspace size
 results = await client.ft_search("idx:content", f"@title:{search_term}")
 ```
-
-**Note**: SCAN is appropriate for one-time migrations or admin tasks. For application-level search or filtering, Valkey-Search (`FT.*`) scales independently of keyspace size.
 
 ## Common Pitfalls
 
@@ -610,20 +594,11 @@ async def get_user(client: GlideClient, user_id: str) -> Optional[str]:
     return await client.get(f"user:{user_id}")
 ```
 
-## Performance Checklist
+## Additional Performance Checklist
 
-- [ ] Client created once at startup, not per request
-- [ ] Request timeout configured (500ms recommended)
-- [ ] Batching used for bulk operations (10-100 commands)
+See SKILL.md for universal checklist. Language-specific items:
+
 - [ ] asyncio.gather() for concurrent independent operations (async)
-- [ ] Hash tags for related keys in cluster
-- [ ] AZ affinity enabled for read-heavy workloads
-- [ ] Error handling with typed exceptions
-- [ ] Connection backoff configured
-- [ ] Dedicated client for blocking commands
-- [ ] Hash data structures for structured data
-- [ ] OpenTelemetry enabled for monitoring
-- [ ] Logging set to warn/error for production
-- [ ] lazy_connect for serverless/Lambda
 - [ ] Async client for async frameworks, sync for sync frameworks
 - [ ] Context managers for automatic cleanup
+- [ ] Type hints used

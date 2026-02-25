@@ -102,9 +102,8 @@ The skill uses progressive disclosure to minimize context usage:
 - `reference/php-patterns.md` - PHP patterns (loaded only for .php files)
 
 ### Additional Resources (Loaded When Referenced)
-- `assets/performance-checklist.md` - Quick reference checklist
 - `assets/server-configuration-guide.md` - Valkey/ElastiCache infrastructure optimization
-- `assets/config-templates/` - Production-ready configuration examples
+- `reference/config-templates/` - Production-ready configuration examples per language
 
 **Context Efficiency**: Reviewing Node.js code loads only Node.js patterns. Python/Java/Go/PHP patterns remain unloaded, reducing the amount of context loaded into your AI tool.
 
@@ -125,29 +124,30 @@ The skill uses progressive disclosure to minimize context usage:
 4. **Async/Concurrent Patterns** - Reducing wall-clock time
 5. **Data Size Optimization** - Hash structures vs JSON strings
 6. **Configuration Tuning** - Timeouts, retries, inflight request limits
+7. **SCAN vs Valkey-Search** - Using FT.* indexes instead of O(N) keyspace scans
+8. **Valkey Module Detection** - Optimization guidance for Valkey-Search, JSON, and BloomFilter modules
 
 ## Architecture
 
 ```
 glide-performance/
-├── SKILL.md                          # Core skill (~200 lines, always loaded)
+├── SKILL.md                          # Core skill (always loaded)
 ├── README.md                         # This file
-├── reference/                        # On-demand loaded guides
-│   ├── nodejs-patterns.md            # Node.js/TypeScript specific
-│   ├── python-patterns.md            # Python specific
-│   ├── java-patterns.md              # Java specific
-│   ├── go-patterns.md                # Go specific
-│   └── php-patterns.md               # PHP specific
+├── reference/                        # On-demand language patterns
+│   ├── nodejs-patterns.md            # Node.js/TypeScript
+│   ├── python-patterns.md            # Python async/sync
+│   ├── java-patterns.md              # Java
+│   ├── go-patterns.md                # Go
+│   ├── php-patterns.md               # PHP
+│   └── config-templates/             # Production-ready configs
+│       ├── nodejs-config.ts
+│       ├── python-config.py
+│       ├── java-config.java
+│       ├── go-config.go
+│       ├── php-config.php
+│       └── README.md
 └── assets/
-    ├── performance-checklist.md      # Quick reference
-    ├── server-configuration-guide.md # Infrastructure optimization
-    └── config-templates/             # Production-ready configurations
-        ├── nodejs-config.ts
-        ├── python-config.py
-        ├── java-config.java
-        ├── go-config.go
-        ├── php-config.php
-        └── README.md
+    └── server-configuration-guide.md # Valkey/ElastiCache infrastructure
 ```
 
 ## Performance Impact

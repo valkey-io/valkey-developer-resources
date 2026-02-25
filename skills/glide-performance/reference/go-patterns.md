@@ -102,11 +102,6 @@ cfg := config.NewClientConfiguration().
 client, err := glide.NewClient(cfg)
 ```
 
-**Timeout Guidelines**:
-- Real-time apps (sub-10ms): 20-50ms
-- Web APIs: 200-500ms
-- Background jobs: 1000-5000ms
-
 ## Batching Patterns
 
 ### Pipeline (Non-Atomic)
@@ -377,11 +372,6 @@ if err != nil {
 }
 ```
 
-**Requirements**:
-- Valkey 8.0+ or ElastiCache for Valkey 7.2+
-- Cluster mode with replicas
-- Read-heavy workload (>80% reads)
-
 ## Error Handling
 
 ### Typed Error Handling
@@ -484,8 +474,6 @@ regularClient, err := glide.NewClient(regularCfg)
 ```
 
 ### Throughput Tuning
-
-GLIDE uses a single multiplexed connection, not a traditional connection pool. For high-throughput, ensure proper inflight request management.
 
 **✅ High-Throughput Configuration**
 ```go
@@ -644,8 +632,6 @@ logger.SetLoggerConfig(logger.Error, "")
 
 ## SCAN vs Valkey-Search
 
-### SCAN for Key Discovery (Scalability Concern)
-
 **❌ SCAN Loop for Pattern-Based Key Lookup**
 ```go
 // O(N) full keyspace iteration — degrades as dataset grows
@@ -683,8 +669,6 @@ client.FTCreate("idx:content", &ft.CreateOptions{
 // O(K) where K = result count, independent of total keyspace size
 results, _ := client.FTSearch("idx:content", "@title:"+searchTerm)
 ```
-
-**Note**: SCAN is appropriate for one-time migrations or admin tasks. For application-level search or filtering, Valkey-Search (`FT.*`) scales independently of keyspace size.
 
 ## Common Pitfalls
 
@@ -831,21 +815,12 @@ go func() {
 }()
 ```
 
-## Performance Checklist
+## Additional Performance Checklist
 
-- [ ] Client created once at startup, not per request
-- [ ] Request timeout configured (500ms recommended)
-- [ ] Batching used for bulk operations (10-100 commands)
+See SKILL.md for universal checklist. Language-specific items:
+
 - [ ] Goroutines for concurrent independent operations
-- [ ] Hash tags for related keys in cluster
-- [ ] AZ affinity enabled for read-heavy workloads
-- [ ] Error handling with typed errors
-- [ ] Connection backoff configured
-- [ ] Dedicated client for blocking commands
-- [ ] Hash data structures for structured data
+- [ ] Error handling with errors.As (TimeoutError, ConnectionError, ClosingError)
 - [ ] defer for cleanup
 - [ ] Context used for all operations
 - [ ] Goroutine safety considerations addressed
-- [ ] OpenTelemetry enabled for monitoring
-- [ ] Logging set to warn/error for production
-- [ ] LazyConnect enabled for serverless/Lambda entry points

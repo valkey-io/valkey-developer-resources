@@ -81,11 +81,6 @@ $cluster = new ValkeyGlideCluster(
 );
 ```
 
-**Timeout Guidelines**:
-- Real-time apps (sub-10ms): 20-50ms
-- Web APIs: 200-500ms
-- Background jobs: 1000-5000ms
-
 ## Batching Patterns
 
 ### Transaction (MULTI/EXEC) - Atomic
@@ -202,11 +197,6 @@ $cluster = new ValkeyGlideCluster(
     periodic_checks: ValkeyGlideCluster::PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS
 );
 ```
-
-**Requirements**:
-- Valkey 8.0+ or ElastiCache for Valkey 7.2+
-- Cluster mode with replicas
-- Read-heavy workload (>80% reads)
 
 ## Error Handling
 
@@ -439,8 +429,6 @@ try {
 
 ## SCAN vs Valkey-Search
 
-### SCAN for Key Discovery (Scalability Concern)
-
 **❌ SCAN Loop for Pattern-Based Key Lookup**
 ```php
 // O(N) full keyspace iteration — degrades as dataset grows
@@ -474,8 +462,6 @@ $client->ftCreate('idx:content', [
 // O(K) where K = result count, independent of total keyspace size
 $results = $client->ftSearch('idx:content', "@title:{$searchTerm}");
 ```
-
-**Note**: SCAN is appropriate for one-time migrations or admin tasks. For application-level search or filtering, Valkey-Search (`FT.*`) scales independently of keyspace size.
 
 ## Common Pitfalls
 
@@ -538,17 +524,10 @@ $valkeyClient->blpop(['queue'], 30);
 $item = $valkeyClient->lpop('queue');
 ```
 
-## Performance Checklist
+## Additional Performance Checklist
 
-- [ ] Client created once at startup, not per request
-- [ ] Request timeout configured (500ms recommended)
-- [ ] Batching used for bulk operations (10-100 commands)
-- [ ] Hash tags for related keys in cluster
-- [ ] AZ affinity enabled for read-heavy workloads
-- [ ] Error handling with ValkeyGlideException
-- [ ] Connection backoff configured
-- [ ] Dedicated client for blocking commands
-- [ ] Hash data structures for structured data
-- [ ] OpenTelemetry enabled for monitoring
-- [ ] lazy_connect for serverless/Lambda
+See SKILL.md for universal checklist. Language-specific items:
+
+- [ ] Global/static variable for client reuse
+- [ ] ValkeyGlideException try-catch around operations
 - [ ] PHP-FPM worker connections managed via pm.max_children

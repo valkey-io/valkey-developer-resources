@@ -59,11 +59,6 @@ const client = await GlideClient.createClient({
 });
 ```
 
-**Timeout Guidelines**:
-- Real-time apps (sub-10ms): 20-50ms
-- Web APIs: 200-500ms
-- Background jobs: 1000-5000ms
-
 ## Batching Patterns
 
 ### Pipeline (Non-Atomic)
@@ -218,11 +213,6 @@ const config: GlideClusterClientConfiguration = {
 const client = await GlideClusterClient.createClient(config);
 ```
 
-**Requirements**:
-- Valkey 8.0+ or ElastiCache for Valkey 7.2+
-- Cluster mode with replicas
-- Read-heavy workload (>80% reads)
-
 ## Error Handling
 
 ### Typed Error Handling
@@ -304,8 +294,6 @@ const regularClient = await GlideClient.createClient({
 ```
 
 ### Throughput Tuning
-
-GLIDE uses a single multiplexed connection, not a traditional connection pool. Tune throughput via `inflightRequestsLimit`.
 
 **✅ High-Throughput Configuration**
 ```typescript
@@ -428,8 +416,6 @@ const [user1, user2] = await client.exec(batch, true) as [string | null, string 
 
 ## SCAN vs Valkey-Search
 
-### SCAN for Key Discovery (Scalability Concern)
-
 **❌ SCAN Loop for Pattern-Based Key Lookup**
 ```typescript
 // O(N) full keyspace iteration — degrades as dataset grows
@@ -465,8 +451,6 @@ await client.ftCreate("idx:content", {
 // O(K) where K = result count, independent of total keyspace size
 const results = await client.ftSearch("idx:content", `@title:${searchTerm}`);
 ```
-
-**Note**: SCAN is appropriate for one-time migrations or admin tasks. For application-level search or filtering, Valkey-Search (`FT.*`) scales independently of keyspace size.
 
 ## Common Pitfalls
 
@@ -519,18 +503,10 @@ await blockingClient.blpop(["queue"], 30);
 await regularClient.get("key"); // Works fine
 ```
 
-## Performance Checklist
+## Additional Performance Checklist
 
-- [ ] Client created once at startup, not per request
-- [ ] Request timeout configured (500ms recommended)
-- [ ] Batching used for bulk operations (10-100 commands)
+See SKILL.md for universal checklist. Language-specific items:
+
 - [ ] Promise.all() for concurrent independent operations
-- [ ] Hash tags for related keys in cluster
-- [ ] AZ affinity enabled for read-heavy workloads
 - [ ] Error handling with typed exceptions
-- [ ] Connection backoff configured
-- [ ] Dedicated client for blocking commands
-- [ ] Hash data structures for structured data
-- [ ] OpenTelemetry enabled for monitoring
-- [ ] Logging set to warn/error for production
-- [ ] lazyConnect for serverless/Lambda
+- [ ] Proper await on client creation and operations
