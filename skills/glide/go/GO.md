@@ -206,23 +206,37 @@ results, err := client.Exec(ctx, *pipelineBatch, true)
 ### Results Handling
 ```go
 results, err := client.Exec(ctx, *batch, true)
+if err != nil {
+	return err
+}
 // results is []any ([]interface{})
 
-// Type assertion with safety check
+// ✅ Safe type assertion (recommended)
 if str, ok := results[0].(string); ok {
 	fmt.Println("String result:", str)
+} else {
+	// Handle unexpected type
 }
 
+// ❌ Unsafe - can panic if wrong type
+strVal := results[0].(string)
+
 // Common types
-strVal := results[0].(string)      // "OK"
-intVal := results[1].(int64)       // 42
-bytesVal := results[2].([]byte)    // Binary data
+if str, ok := results[0].(string); ok {
+	// "OK"
+}
+if intVal, ok := results[1].(int64); ok {
+	// 42
+}
+if bytesVal, ok := results[2].([]byte); ok {
+	// Binary data
+}
 ```
 
 **Key Points:**
 - Results are `[]any` (interface slice)
-- Use type assertions to access specific types
-- Always use two-value form: `value, ok := result.(Type)`
+- **Always use two-value form**: `value, ok := result.(Type)`
+- Direct assertions can panic - avoid in production code
 - Common types: `string`, `int64`, `[]byte`
 
 ---
@@ -308,13 +322,129 @@ results, err := client.Exec(ctx, *cleanupBatch, true)
 **Problem:** Atomic batch with keys in different slots
 **Solution:** Use hash tags `{tag}` to ensure keys map to same slot
 
-### 7. Type Assertions Without Checking
-**Problem:** Direct assertion: `str := result.(string)` panics if wrong type
-**Solution:** Use safe form: `str, ok := result.(string)`
+### 7. Type Assertions Without Safety Check
+**Problem:** Direct assertion panics if wrong type
+```go
+// ❌ Wrong - panics if not string
+str := results[0].(string)
+```
+
+**Solution:** Always use two-value form
+```go
+// ✅ Correct - safe type assertion
+if str, ok := results[0].(string); ok {
+	fmt.Println("Result:", str)
+} else {
+	// Handle unexpected type
+	fmt.Println("Unexpected type")
+}
+```
 
 ### 8. Not Using defer for Cleanup
 **Problem:** Forgetting to close client
 **Solution:** Always use `defer client.Close()` after creation
+
+---
+
+## Go Best Practices for GLIDE
+
+### Explicit Over Magic
+Go GLIDE follows Go's philosophy of explicit, obvious code:
+
+```go
+// ✅ Explicit error handling (Go way)
+value, err := client.Get(ctx, "key")
+if err != nil {
+	return fmt.Errorf("failed to get key: %w", err)
+}
+
+// ❌ Don't try to hide error handling
+// No "smart" wrappers or generic error handlers
+```
+
+### No Struct Tag Magic
+Unlike other languages, Go GLIDE doesn't use struct tags for configuration:
+
+```go
+// ✅ Explicit configuration
+cfg := config.NewClientConfiguration().
+	WithAddress(&config.NodeAddress{Host: "localhost", Port: 6379}).
+	WithRequestTimeout(10000)
+
+// ❌ Not like this (anti-pattern from other ORMs)
+// type Config struct {
+//     Host string `valkey:"host"`
+//     Port int    `valkey:"port"`
+// }
+```
+
+### Separate Models for Different Concerns
+If building a web application with GLIDE:
+
+```go
+// ✅ Separate models
+type UserAPIResponse struct {
+	ID    int    `json:"id"`
+	Name  string `json:"name"`
+}
+
+type UserCacheModel struct {
+	ID        int
+	Name      string
+	UpdatedAt time.Time
+}
+
+// Convert between them explicitly
+func toAPIResponse(cache UserCacheModel) UserAPIResponse {
+	return UserAPIResponse{
+		ID:   cache.ID,
+		Name: cache.Name,
+	}
+}
+
+// ❌ Don't combine responsibilities
+// type User struct {
+//     ID   int    `json:"id" cache:"id"`
+//     Name string `json:"name" cache:"name"`
+// }
+```
+
+### Context for Cancellation
+Use context properly for production code:
+
+```go
+// ✅ Production: timeout context
+ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+defer cancel()
+
+value, err := client.Get(ctx, "key")
+if err != nil {
+	if ctx.Err() == context.DeadlineExceeded {
+		return fmt.Errorf("operation timed out")
+	}
+	return err
+}
+
+// ✅ Simple demos: background context
+ctx := context.Background()
+value, err := client.Get(ctx, "key")
+```
+
+### Error Wrapping
+Provide context when returning errors:
+
+```go
+// ✅ Wrap errors with context
+value, err := client.Get(ctx, userKey)
+if err != nil {
+	return fmt.Errorf("failed to fetch user %s: %w", userID, err)
+}
+
+// ❌ Don't lose error context
+if err != nil {
+	return err  // What failed? Which key?
+}
+```
 
 ---
 
