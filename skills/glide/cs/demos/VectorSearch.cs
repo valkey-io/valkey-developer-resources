@@ -1,4 +1,6 @@
-using System.Text;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Valkey.Glide;
 using static Valkey.Glide.ConnectionConfiguration;
 
@@ -21,7 +23,6 @@ class VectorSearch
         try
         {
             await client.CustomCommand(["FT.DROPINDEX", indexName]);
-            await client.Del(["product:1", "product:2"]);
         }
         catch { }
 
@@ -41,19 +42,10 @@ class VectorSearch
 
         // Create vectors as byte arrays
         var vector1 = ToBytes([1.0f, 2.0f, 3.0f]);
-        var vector2 = ToBytes([4.0f, 5.0f, 6.0f]);
 
         // Store documents with vectors
-        await client.HashSetAsync("product:1", new Dictionary<string, GlideString>
-        {
-            ["name"] = "Product A",
-            ["description_vector"] = vector1
-        });
-        await client.HashSetAsync("product:2", new Dictionary<string, GlideString>
-        {
-            ["name"] = "Product B",
-            ["description_vector"] = vector2
-        });
+        await client.HashSetAsync("product:1", "name", "Product A");
+        await client.HashSetAsync("product:1", "description_vector", vector1);
         Console.WriteLine("✓ Documents stored");
 
         // Vector search
@@ -66,11 +58,10 @@ class VectorSearch
             "DIALECT", "2"
         ]);
         
-        Console.WriteLine($"✓ Search results: {results}");
+        Console.WriteLine($"✓ Search completed: {results}");
 
         // Cleanup
         await client.CustomCommand(["FT.DROPINDEX", indexName]);
-        await client.Del(["product:1", "product:2"]);
         Console.WriteLine("✓ Vector search completed");
     }
 

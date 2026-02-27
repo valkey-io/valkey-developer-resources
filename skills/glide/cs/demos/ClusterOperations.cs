@@ -1,3 +1,5 @@
+using System;
+using System.Threading.Tasks;
 using Valkey.Glide;
 using Valkey.Glide.Pipeline;
 using static Valkey.Glide.ConnectionConfiguration;
@@ -27,19 +29,19 @@ class ClusterOperations
         Console.WriteLine($"✓ Hash tags: {name1}, {name2}");
 
         // Cluster batch (atomic requires same slot)
-        var batch = new ClusterBatch(atomic: true);
-        batch.StringSet("{order}:100:status", "pending");
-        batch.StringSet("{order}:100:total", "99.99");
-        batch.StringGet("{order}:100:status");
+        var batch = new ClusterBatch(isAtomic: true);
+        batch.StringSetAsync("{order}:100:status", "pending");
+        batch.StringSetAsync("{order}:100:total", "99.99");
+        batch.StringGetAsync("{order}:100:status");
         
         var results = await client.Exec(batch, raiseOnError: true);
         Console.WriteLine($"✓ Cluster batch: status={results![2]}");
 
         // Non-atomic pipeline (can span slots)
-        var pipeline = new ClusterBatch(atomic: false);
-        pipeline.StringSet("product:1", "Widget");
-        pipeline.StringSet("product:2", "Gadget");
-        pipeline.StringSet("product:3", "Doohickey");
+        var pipeline = new ClusterBatch(isAtomic: false);
+        pipeline.StringSetAsync("product:1", "Widget");
+        pipeline.StringSetAsync("product:2", "Gadget");
+        pipeline.StringSetAsync("product:3", "Doohickey");
         
         var pipeResults = await client.Exec(pipeline, raiseOnError: true);
         Console.WriteLine($"✓ Pipeline: {pipeResults!.Length} commands across slots");
