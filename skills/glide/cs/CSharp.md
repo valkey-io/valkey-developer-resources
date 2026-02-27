@@ -1,45 +1,41 @@
-# C# GLIDE Skill (Preview)
+# C# GLIDE Skill
 
-> **⚠️ Status:** C# GLIDE is in early development (v0.9.0). This skill will be fully developed when v1.0 is released and available on NuGet.
+> **Status:** Preview - C# GLIDE is available on NuGet but still has features being implemented before GA. See [official documentation](https://valkey.io/valkey-glide/) for latest updates.
 
-## Current Status
-
-- **Version:** v0.9.0 (September 17, 2025)
-- **Repository:** https://github.com/valkey-io/valkey-glide-csharp
-- **NuGet:** Not yet published
-- **Documentation:** https://glide.valkey.io/languages/csharp
-
-## Installation (Source Build Required)
-
-```bash
-git clone https://github.com/valkey-io/valkey-glide-csharp.git
-cd valkey-glide-csharp
-# Follow DEVELOPER.md for build instructions
-```
-
-## Basic Usage (from v0.9.0 README)
-
-### Standalone Client
+## Package Selection
 
 ```csharp
+// ✅ Correct
 using Valkey.Glide;
+using Valkey.Glide.Pipeline;
+using static Valkey.Glide.ConnectionConfiguration;
 
-var config = GlideClientConfiguration.Builder()
+// ❌ Wrong
+using StackExchange.Redis;  // Different library (though Valkey.Glide provides compatibility layer)
+```
+
+**Why:** Valkey.Glide is the official high-performance client built on Rust core with native async/await support.
+
+## Client Creation
+
+### Standalone Client
+```csharp
+var config = new StandaloneClientConfigurationBuilder()
     .WithAddress("localhost", 6379)
+    .WithRequestTimeout(TimeSpan.FromSeconds(10))
     .Build();
 
 await using var client = await GlideClient.CreateClient(config);
-
-// Basic operations
-await client.StringSetAsync("key", "value");
-var result = await client.StringGetAsync("key");
-Console.WriteLine($"Value: {result}");
 ```
 
-### Cluster Client
+**Key Points:**
+- Use `await using` for automatic async disposal
+- `CreateClient` is async, returns `Task<GlideClient>`
+- Set explicit timeout to avoid connection issues
 
+### Cluster Client
 ```csharp
-var config = GlideClusterClientConfiguration.Builder()
+var config = new ClusterClientConfigurationBuilder()
     .WithAddress("localhost", 7000)
     .WithAddress("localhost", 7001)
     .WithAddress("localhost", 7002)
@@ -48,27 +44,160 @@ var config = GlideClusterClientConfiguration.Builder()
 await using var client = await GlideClusterClient.CreateClient(config);
 ```
 
-### Pub/Sub
-
+### With Authentication and TLS
 ```csharp
-var config = GlideClientConfiguration.Builder()
+// Password authentication with TLS
+var config = new StandaloneClientConfigurationBuilder()
     .WithAddress("localhost", 6379)
-    .WithPubSubSubscriptions(builder => builder
-        .WithChannel("alerts")
-        .WithPattern("log:*")
-        .WithCallback((msg, ctx) => {
-            Console.WriteLine($"Received: {msg.Message}");
-        }))
+    .WithAuthentication("username", "password")
+    .WithTls()
     .Build();
 
-await using var client = await GlideClient.CreateClient(config);
-
-// Subscribe/unsubscribe dynamically
-client.PSubscribeAsync("news*");
-client.UnsubscribeAsync("alerts");
+// IAM authentication for AWS ElastiCache
+var iamAuthConfig = new IamAuthConfig("cluster-name", ServiceType.ElastiCache, "us-east-1");
+var config = new ClusterClientConfigurationBuilder()
+    .WithAddress("host", 6379)
+    .WithAuthentication("username", iamAuthConfig)
+    .WithTls(true)
+    .Build();
 ```
 
-### Error Handling
+## Async Patterns
+
+All operations return `Task<T>`. Use async/await:
+
+```csharp
+async Task Example()
+{
+    var value = await client.StringGetAsync("key");
+    await client.StringSetAsync("key", "value");
+}
+```
+
+**Key Point:** Unlike Java's `CompletableFuture.get()`, C# uses `await` - no blocking calls needed.
+
+## Batch/Pipeline Operations
+
+### Standalone Batch
+```csharp
+// Atomic batch (transaction)
+var batch = new Batch(atomic: true);
+batch.StringSet("key1", "value1");
+batch.StringGet("key1");
+var results = await client.Exec(batch, raiseOnError: true);
+
+// Non-atomic pipeline
+var pipeline = new Batch(atomic: false);
+pipeline.StringSet("key1", "value1");
+pipeline.StringSet("key2", "value2");
+var results = await client.Exec(pipeline, raiseOnError: true);
+```
+
+### Cluster Batch
+```csharp
+// Atomic batch (requires same slot)
+var batch = new ClusterBatch(atomic: true);
+batch.StringSet("{user}:1", "Alice");
+batch.StringGet("{user}:1");
+var results = await client.Exec(batch, raiseOnError: true);
+
+// Non-atomic pipeline (can span slots)
+var pipeline = new ClusterBatch(atomic: false);
+pipeline.StringSet("key1", "value1");
+pipeline.StringSet("key2", "value2");
+var results = await client.Exec(pipeline, raiseOnError: true);
+```
+
+**Key Points:**
+- Use named parameter `atomic:` for clarity
+- Results are `object?[]?` - nullable array of nullable objects
+- Cluster atomic batches require same hash slot
+
+## Vector Search (FT Module)
+
+C# GLIDE doesn't have dedicated FT module yet. Use `CustomCommand`:
+
+### Create Index
+```csharp
+await client.CustomCommand([
+    "FT.CREATE", "products_idx",
+    "ON", "HASH",
+    "PREFIX", "1", "product:",
+    "SCHEMA",
+    "name", "TEXT",
+    "description_vector", "VECTOR", "HNSW", "6",
+    "TYPE", "FLOAT32",
+    "DIM", "3",
+    "DISTANCE_METRIC", "L2"
+]);
+```
+
+### Store Vectors
+```csharp
+// Convert float array to bytes
+static byte[] ToBytes(float[] vector)
+{
+    var bytes = new byte[vector.Length * sizeof(float)];
+    Buffer.BlockCopy(vector, 0, bytes, 0, bytes.Length);
+    return bytes;
+}
+
+var vector = ToBytes([1.0f, 2.0f, 3.0f]);
+await client.HashSetAsync("product:1", new Dictionary<string, GlideString>
+{
+    ["name"] = "Product A",
+    ["description_vector"] = vector
+});
+```
+
+### Search
+```csharp
+var queryVector = ToBytes([1.5f, 2.5f, 3.5f]);
+var results = await client.CustomCommand([
+    "FT.SEARCH", "products_idx",
+    "*=>[KNN 2 @description_vector $vec]",
+    "PARAMS", "2", "vec", queryVector,
+    "RETURN", "1", "name",
+    "DIALECT", "2"
+]);
+```
+
+### Drop Index
+```csharp
+await client.CustomCommand(["FT.DROPINDEX", "products_idx"]);
+```
+
+## Cluster Operations
+
+### Hash Tags for Slot Control
+```csharp
+// Use {tag} to ensure keys map to same slot
+await client.StringSetAsync("{user}:1:name", "Alice");
+await client.StringSetAsync("{user}:1:email", "alice@example.com");
+
+// Atomic batch requires same slot
+var batch = new ClusterBatch(atomic: true);
+batch.StringSet("{order}:100:status", "pending");
+batch.StringSet("{order}:100:total", "99.99");
+await client.Exec(batch, raiseOnError: true);
+```
+
+### CROSSSLOT Error
+```csharp
+// ❌ This fails - keys in different slots
+var batch = new ClusterBatch(atomic: true);
+batch.StringSet("key1", "value1");  // Slot A
+batch.StringSet("key2", "value2");  // Slot B
+await client.Exec(batch, raiseOnError: true);  // Throws ValkeyException: CROSSSLOT
+
+// ✅ This works - non-atomic can span slots
+var pipeline = new ClusterBatch(atomic: false);
+pipeline.StringSet("key1", "value1");
+pipeline.StringSet("key2", "value2");
+await client.Exec(pipeline, raiseOnError: true);
+```
+
+## Error Handling
 
 ```csharp
 try
@@ -90,46 +219,204 @@ catch (ValkeyException ex)
 }
 ```
 
-## Key Features
+**Key Point:** Direct exception access (no wrapping like Java's `ExecutionException`)
 
-- **Rust Core:** High performance with memory safety
-- **Async/Await:** Native .NET async patterns
-- **Connection Pooling:** Efficient connection management
-- **Pipeline Support:** Batch operations for reduced latency
-- **Pub/Sub:** Message patterns and callbacks
-- **Cluster Support:** Multi-node routing
+## PubSub Operations
 
-## Exception Types
+### Configuration-Time Subscriptions
+```csharp
+var config = new StandaloneClientConfigurationBuilder()
+    .WithAddress("localhost", 6379)
+    .WithPubSubReconciliationInterval(TimeSpan.FromSeconds(1))
+    .WithPubSubSubscriptionConfig(new StandalonePubSubSubscriptionConfig()
+        .WithChannel("alerts")
+        .WithPattern("log:*")
+        .WithCallback((msg, ctx) => {
+            Console.WriteLine($"Received: {msg.Message}");
+        }))
+    .Build();
 
-- `ConnectionException` - Connection failures
-- `TimeoutException` - Operation timeouts
-- `ValkeyException` - General Valkey errors
+await using var client = await GlideClient.CreateClient(config);
+```
 
-## Ecosystem Integration
+### Dynamic Subscribe/Unsubscribe
+```csharp
+await client.PSubscribeAsync("news*");
+await client.UnsubscribeAsync("alerts");
+```
 
-C# GLIDE works well with:
-- **ASP.NET Core** - Caching layer or session store
-- **Entity Framework** - High-performance caching
-- **Minimal APIs** - Microservices and API backends
-- **Background Services** - Queue processing
+### Publishing
+```csharp
+await client.PublishAsync("channel", "message");
+```
 
-## Next Steps
+## StackExchange.Redis Compatibility
 
-**When C# GLIDE reaches v1.0:**
-1. Full POC development (basic operations, batch/pipeline, vector search, cluster)
-2. Comprehensive lessons learned document
-3. Complete skill file with all patterns
-4. Anti-pattern analysis
-5. Validation against production Valkey
+Valkey.Glide provides compatibility layer:
 
-## References
+```csharp
+// Compatible with StackExchange.Redis API
+var connection = await ConnectionMultiplexer.ConnectAsync("localhost:6379");
+var db = connection.GetDatabase();
 
+await db.StringSetAsync("key", "value");
+var value = await db.StringGetAsync("key");
+```
+
+**Key Point:** Eases migration from StackExchange.Redis to Valkey.Glide
+
+## Configuration Options
+
+### Database Selection (Standalone Only)
+```csharp
+var config = new StandaloneClientConfigurationBuilder()
+    .WithAddress("localhost", 6379)
+    .WithDataBaseId(1)
+    .Build();
+```
+
+### Retry Strategy
+```csharp
+var config = new StandaloneClientConfigurationBuilder()
+    .WithAddress("localhost", 6379)
+    .WithConnectionRetryStrategy(
+        numOfRetries: 5,
+        factor: 100,
+        exponentBase: 2
+    )
+    .Build();
+```
+
+### Client Name
+```csharp
+var config = new StandaloneClientConfigurationBuilder()
+    .WithAddress("localhost", 6379)
+    .WithClientName("my-app")
+    .Build();
+```
+
+### Protocol Version
+```csharp
+var config = new StandaloneClientConfigurationBuilder()
+    .WithAddress("localhost", 6379)
+    .WithProtocolVersion(ConnectionConfiguration.Protocol.RESP2)
+    .Build();
+```
+
+## Testing Patterns
+
+### Test Configuration
+```csharp
+var config = new StandaloneClientConfigurationBuilder()
+    .WithAddress("localhost", 6379)
+    .WithClientName("test-client")
+    .WithRequestTimeout(TimeSpan.FromSeconds(2))
+    .Build();
+```
+
+### Cleanup Pattern
+```csharp
+await using var client = await GlideClient.CreateClient(config);
+try
+{
+    // Test operations
+    await client.StringSetAsync("test:key", "value");
+}
+finally
+{
+    await client.Del(["test:key"]);
+}
+```
+
+## Common Pitfalls
+
+### ❌ Forgetting await
+```csharp
+// Wrong - returns Task, not value
+var value = client.StringGetAsync("key");  // Task<ValkeyValue>
+
+// Correct
+var value = await client.StringGetAsync("key");  // ValkeyValue
+```
+
+### ❌ Not Using await using
+```csharp
+// Wrong - client not disposed
+var client = await GlideClient.CreateClient(config);
+// ... operations ...
+// Client never disposed!
+
+// Correct
+await using var client = await GlideClient.CreateClient(config);
+// ... operations ...
+// Client automatically disposed
+```
+
+### ❌ Synchronous Blocking
+```csharp
+// Wrong - can cause deadlocks
+var value = client.StringGetAsync("key").Result;
+
+// Correct
+var value = await client.StringGetAsync("key");
+```
+
+### ❌ Wrong Naming Convention
+```csharp
+// Wrong - C# uses PascalCase
+await client.stringSetAsync("key", "value");
+
+// Correct
+await client.StringSetAsync("key", "value");
+```
+
+### ❌ Cluster Atomic Batch Across Slots
+```csharp
+// Wrong - CROSSSLOT error
+var batch = new ClusterBatch(atomic: true);
+batch.StringSet("key1", "value1");  // Different slots
+batch.StringSet("key2", "value2");
+await client.Exec(batch, raiseOnError: true);  // Throws
+
+// Correct - use hash tags
+var batch = new ClusterBatch(atomic: true);
+batch.StringSet("{user}:1", "value1");  // Same slot
+batch.StringSet("{user}:2", "value2");
+await client.Exec(batch, raiseOnError: true);  // Success
+```
+
+## Summary Checklist
+
+- [ ] Install `Valkey.Glide` NuGet package
+- [ ] Use `await using` for client disposal
+- [ ] Set explicit `RequestTimeout` in configuration
+- [ ] Use `await` for all async operations (never `.Result` or `.Wait()`)
+- [ ] Use `Batch(atomic: true)` for transactions, `Batch(atomic: false)` for pipelines
+- [ ] Use hash tags `{tag}` for cluster atomic batches
+- [ ] Handle specific exceptions: `ConnectionException`, `TimeoutException`, `ValkeyException`
+- [ ] Use `CustomCommand` for FT module operations (no dedicated API yet)
+- [ ] Use `Buffer.BlockCopy` for efficient float-to-byte vector conversion
+- [ ] Configure PubSub subscriptions at connection time
+- [ ] Use `ClusterBatch` for cluster mode, `Batch` for standalone
+- [ ] Enable nullable reference types for better null safety
+
+## Language Comparison
+
+| Feature | Node.js | Java | C# |
+|---------|---------|------|-----|
+| Package | `@valkey/valkey-glide` | `io.valkey:valkey-glide` | `Valkey.Glide` |
+| Client creation | `await GlideClient.createClient()` | `GlideClient.createClient().get()` | `await GlideClient.CreateClient()` |
+| Async model | Promises | CompletableFuture | Task<T> |
+| Resource cleanup | `client.close()` | try-with-resources | `await using` |
+| Naming | camelCase | camelCase | PascalCase |
+| Exception handling | Direct | Wrapped in ExecutionException | Direct |
+| Batch constructor | `new Batch(false)` | `new Batch(false)` | `new Batch(atomic: false)` |
+| Binary data | `Buffer` | `GlideString` | `GlideString` / `byte[]` |
+| FT module | `GlideFt` class | `FT` class | `CustomCommand` |
+
+## Additional Resources
+
+- [Official Documentation](https://valkey.io/valkey-glide/)
 - [GitHub Repository](https://github.com/valkey-io/valkey-glide-csharp)
-- [API Documentation](https://docs.github.io/valkey-glide/)
+- [NuGet Package](https://www.nuget.org/packages/Valkey.Glide)
 - [General Concepts](https://github.com/valkey-io/valkey-glide/wiki/General-Concepts)
-- [Contributing Guidelines](https://github.com/valkey-io/valkey-glide-csharp/blob/main/CONTRIBUTING.md)
-
----
-
-**Last Updated:** 2026-02-27  
-**C# GLIDE Version:** v0.9.0 (Pre-release)
