@@ -1,22 +1,6 @@
 ---
 name: GLIDE Performance Optimization
 description: Expert guidance for optimizing Valkey GLIDE clients across Node.js, Python, Java, Go, and PHP with progressive disclosure
-version: 1.0.0
-author: Valkey Maintainers
-tags:
-  - performance
-  - optimization
-  - valkey
-  - glide
-  - redis
-  - caching
-languages:
-  - javascript
-  - typescript
-  - python
-  - java
-  - go
-  - php
 ---
 
 # GLIDE Performance Optimization Skill
@@ -85,6 +69,15 @@ BLPOP, BRPOP, BLMOVE, BZPOPMIN, BZPOPMAX block the connection for all operations
 
 ### 6. Missing Error Handling & Retries
 No try-catch or retry config → immediate failure on transient network issues. Configure connection backoff with exponential retry.
+
+### 7. TTL Strategy Issues
+No TTL → unbounded memory growth. Mass expiry → thundering herd. `EXPIRE` after `SET` → use `SET key value EX seconds` instead. Add jitter to TTLs (e.g., 3600 ± 10%) to prevent synchronized expiry.
+
+### 8. Hot Key Issues
+Single key with disproportionate traffic saturates one shard/node. Common detections: global counters, session keys read by all requests, shared config. Fix: client-side caching, key sharding (`counter:{shard_N}`), read replicas, or local cache layer.
+
+### 9. Oversized Values
+Values >10KB without compression or >100KB at all → increased network bandwidth, higher latency, memory pressure. Fix: compress with gzip/snappy for values >10KB, split objects >100KB across multiple keys or use Hash fields.
 
 ## Core Optimization Strategies
 
@@ -171,7 +164,7 @@ Production templates: `reference/config-templates/{nodejs-config.ts,python-confi
 
 **Timeouts**: 20-50ms (real-time), 200-500ms (web), 1000-5000ms (batch)
 
-**Retry**: Exponential backoff — 5-10 retries, 500ms base, 2x exponent, 10-20% jitter.
+**Retry**: Exponential backoff — 10 retries, 500ms base, 2x exponent, 10-20% jitter.
 
 **Throughput**: GLIDE uses single multiplexed connection (not a pool). Increase `inflightRequestsLimit` from default 1000 for high-throughput (Node.js, Python, Java; not exposed in Go).
 

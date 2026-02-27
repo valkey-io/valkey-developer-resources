@@ -2,6 +2,17 @@
 
 Expert guidance for optimizing Valkey GLIDE clients across Node.js, Python, Java, Go, and PHP. This skill provides context-aware performance optimization feedback through AI development tools (Kiro, Claude, WindSurf, VS Code).
 
+## Problem
+
+Common performance mistakes when using Valkey GLIDE clients can degrade latency by orders of magnitude:
+
+- **Per-request client creation** adds connection overhead to every request
+- **Missing timeouts** cause operations to hang indefinitely, leading to cascading failures
+- **Sequential operations** multiply network roundtrip latency (3 sequential calls = 3x the latency)
+- **Blocking commands on shared clients** freeze all operations for seconds at a time
+
+These issues are easy to introduce and hard to spot in code review without domain expertise. This skill encodes that expertise so AI tools can catch these patterns automatically during development before they reach production.
+
 ## Features
 
 - **Progressive Disclosure**: Loads only relevant language-specific patterns, significantly reducing context usage
@@ -28,23 +39,27 @@ This automatically installs the skill to your AI tool's skills directory.
 npx skills update glide-performance
 ```
 
-### Manual Installation (Git Clone)
+### Manual Installation
+
+```bash
+git clone https://github.com/valkey-io/valkey-samples
+```
+
+Then copy the skill to your AI tool's skills directory:
 
 ```bash
 # For Kiro:
-git clone https://github.com/valkey-io/valkey-samples ~/.kiro/skills/
+cp -r valkey-samples/skills/glide-performance ~/.kiro/skills/glide-performance
 
 # For Claude:
-git clone https://github.com/valkey-io/valkey-samples ~/.claude/skills/
+cp -r valkey-samples/skills/glide-performance ~/.claude/skills/glide-performance
 
 # For VSCode (User Profile):
-git clone https://github.com/valkey-io/valkey-samples ~/.agents/skills/
+cp -r valkey-samples/skills/glide-performance ~/.agents/skills/glide-performance
 
 # For WindSurf (Global):
-git clone https://github.com/valkey-io/valkey-samples ~/.codeium/windsurf/skills/
+cp -r valkey-samples/skills/glide-performance ~/.codeium/windsurf/skills/glide-performance
 ```
-
-The skill will be available at `<skills-dir>/valkey-samples/skills/glide-performance/`.
 
 ### Prerequisites
 
@@ -171,6 +186,8 @@ Typical improvements when moving from anti-patterns to recommended patterns. Act
 - Java: `io.valkey:valkey-glide` v1.0.0+
 - Go: `valkey-glide/go` v1.0.0+
 - PHP: `valkey-glide-php` v1.0.0+
+
+**Note**: C# support will be added once the GLIDE C# client is released.
 
 ## Contributing
 

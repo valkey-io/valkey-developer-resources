@@ -23,10 +23,6 @@ Skill analyzes your code patterns to determine if cluster mode would benefit you
 - **Simple deployment requirements**: No need for horizontal scaling
 - **Transactions across multiple keys**: Heavy use of MULTI/EXEC without hash tags
 
-### Cluster Slot Distribution Analysis
-
-When cluster mode is recommended, the skill analyzes key distribution
-
 ## Read/Write Workload Analysis
 
 | Workload | Detected Commands | Read Strategy | Replicas |
