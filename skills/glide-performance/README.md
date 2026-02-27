@@ -167,17 +167,18 @@ glide-performance/
 
 ## Performance Impact
 
-Typical improvements when moving from anti-patterns to recommended patterns. Actual results vary significantly based on your infrastructure, network conditions, data sizes, and workload characteristics. Always benchmark in your specific environment.
+Expected improvements when moving from anti-patterns to recommended patterns. Actual results vary significantly based on your infrastructure, network conditions, data sizes, and workload characteristics. See [benchmarks/](benchmarks/) for anti-pattern examples and AI-driven evaluation instructions.
 
-| Optimization | Latency Impact | Throughput Impact | Complexity |
-|--------------|----------------|-------------------|------------|
-| Connection Reuse | Eliminates connection overhead (typically 10-100ms per request) | Can increase throughput 10-100x | Low |
-| Batching | Reduces N roundtrips to 1 (scales with network latency) | Scales linearly with batch size | Low-Medium |
-| AZ Affinity | Reduces cross-AZ latency | Moderate increase for read-heavy workloads | Medium |
-| Async Patterns | Reduces wall-clock time for independent operations | Scales with concurrency level | Medium |
-| Cluster Hash Tags | Reduces cross-shard operations | Moderate increase for multi-key operations | Medium-High |
+| Anti-Pattern | Impact | Recommended Pattern | Complexity |
+|--------------|--------|---------------------|------------|
+| Per-request client creation | Adds connection overhead to every request; dramatically reduces throughput | Reuse client across requests | Low |
+| Sequential operations | Latency scales with number of roundtrips | Use batching: reduces N roundtrips to 1 | Low-Medium |
+| Missing timeouts | Operations can hang indefinitely; risk of cascading failures | Configure request timeouts | Low |
+| Cross-AZ reads (read-heavy) | Higher latency and data transfer costs | Enable AZ Affinity routing | Medium |
+| Blocking commands on shared client | Blocks all operations for duration of blocking call | Use dedicated client for blocking operations | Low |
+| Large batches (>1000 ops) | Memory pressure; increased timeout risk | Split into smaller batches (10-100 ops) | Low |
 
-**Important**: These are general guidelines based on common scenarios. Your results will depend on factors including network topology, server configuration, operation types, and data sizes. Benchmark before and after optimization to measure actual impact.
+**Note**: Performance improvements are workload-dependent. The [benchmarks/](benchmarks/) directory provides anti-pattern examples and instructions for evaluating the skill's detection accuracy using AI prompts.
 
 ## Supported GLIDE Versions
 
