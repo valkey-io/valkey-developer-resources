@@ -1,106 +1,77 @@
-# GLIDE Performance Benchmarks
+# GLIDE Performance Skill — Benchmark
 
-This directory contains anti-pattern examples demonstrating common performance issues in Valkey GLIDE client usage. These examples serve two purposes:
+Measures whether code generated with the GLIDE Performance skill is faster than code generated without it, using a ride-sharing platform backend as the workload.
 
-1. Provide the AI skill with concrete code patterns to match against during reviews
-2. Enable prompt-based evaluation of the skill's detection accuracy
+## How It Works
+
+1. `valkey-template.js` defines a ride-sharing Valkey layer as empty stubs — driver profiles, trip management, rider sessions, surge pricing, dispatch queues, vehicle availability, feature flags, ETA caching, rate limiting, driver zones, and an operations dashboard.
+2. You ask your AI to implement the template **twice**:
+   - **Without** the skill loaded → save as `valkey-baseline.js`
+   - **With** the skill loaded → save as `valkey-skill.js`
+3. `app-benchmark.js` runs the same workload against both and compares latency.
+
+The delta between the two is the measurable impact of the skill.
 
 ## Directory Structure
 
 ```
 benchmarks/
-├── README.md                          # This file
-├── tests/                             # Anti-pattern & best-practice code files
-│   ├── node-antipatterns.js           # Node.js/TypeScript
-│   ├── python-antipatterns.py         # Python async/sync
-│   ├── java-antipatterns.java         # Java
-│   ├── go-antipatterns.go             # Go
-│   └── php-antipatterns.php           # PHP
-└── expected/
-    └── RESULTS.md                     # Answer key (DO NOT read before review)
+├── README.md              # This file
+├── app-benchmark.js       # Benchmark runner
+├── valkey-template.js     # Stubs — the contract both implementations must satisfy
+├── valkey-baseline.js     # (AI-generated without skill — you create this)
+├── valkey-skill.js        # (AI-generated with skill — you create this)
+└── sample-results/        # Reference implementations and expected output
+    ├── sample-valkey-baseline.js
+    ├── sample-valkey-skill.js
+    └── sample-results.txt
 ```
 
-## Anti-Pattern Files
+## Setup
 
-- `tests/node-antipatterns.js` - Node.js/TypeScript anti-patterns
-- `tests/python-antipatterns.py` - Python async/sync anti-patterns
-- `tests/java-antipatterns.java` - Java anti-patterns
-- `tests/go-antipatterns.go` - Go anti-patterns
-- `tests/php-antipatterns.php` - PHP anti-patterns
+```bash
+# Start Valkey
+valkey-server # OR
+docker run -d --name valkey -p 6379:6379 valkey/valkey:latest
 
-Each file contains realistic code showing per-request client creation, missing timeouts, sequential operations, blocking commands on shared clients, missing TLS, and inefficient data access patterns. The files also include known-good code and subtle edge cases to test false-positive resistance and nuanced analysis.
-
-## Evaluating the Skill
-
-Since this is an AI skill (not a runtime library), "testing" means prompting an AI agent with the skill loaded and checking whether it correctly identifies anti-patterns and recommends fixes.
-
-### Quick Evaluation
-
-Pick any anti-pattern file from `tests/` and paste a class into your AI tool with the skill installed:
-
-```
-Review this code for Valkey performance issues:
-
-<paste a class from one of the anti-pattern files>
+# Install GLIDE
+npm install @valkey/valkey-glide
 ```
 
-The AI should identify the relevant anti-patterns without you pointing them out.
+## Generating Implementations
 
-### Structured Evaluation (Blind Exam)
+### Step 1: Baseline implementation (skill NOT loaded)
 
-For a thorough, repeatable assessment, follow this two-phase process:
-
-#### Phase 1: Blind Review
-
-Prompt the AI with the skill loaded. Give it an entire anti-pattern file from `tests/` (or specific classes) and ask for a review. The AI must NOT read `expected/RESULTS.md` during this phase.
-
-Example prompt:
+Make sure the GLIDE Performance skill is **not** active, then prompt your AI:
 
 ```
-Review the following code for Valkey GLIDE performance issues. For each class/function,
-list every anti-pattern you find. Also identify any code that follows best practices
-and should NOT be flagged.
-
-<paste the contents of one of the files from tests/>
+Implement every function in valkey-template.js using @valkey/valkey-glide.
+The Valkey server is at localhost:6379. Save the result as valkey-baseline.js.
+Do not change the function signatures or exports.
 ```
 
-Save the AI's output.
+### Step 2: Skill-guided implementation (skill loaded)
 
-#### Phase 2: Self-Scoring
-
-After the AI completes its review, ask it to score itself:
+Load the GLIDE Performance skill, then prompt your AI:
 
 ```
-Now read benchmarks/expected/RESULTS.md and score your review against the answer key.
-
-IMPORTANT: Calculate these metrics:
-- Detection rate: (correctly flagged anti-patterns) / (total known anti-patterns)
-- False positive rate: (incorrectly flagged good code) / (total good code sections)
-
-Target: detection rate ≥ 90%, false positive rate = 0%
-
-Present results as a table showing each class, expected findings, your findings,
-and whether each was detected or missed.
+Implement every function in valkey-template.js using @valkey/valkey-glide and the GLIDE performance skill.
+Do not read valkey-baseline.js.
+The Valkey server is at localhost:6379. Save the result as valkey-skill.js.
+Do not change the function signatures or exports.
 ```
 
-#### Why This Order Matters
+## Running
 
-The AI must complete its review BEFORE seeing `expected/RESULTS.md`. If it reads the answer key first, it will just parrot the expected findings back — that tests reading comprehension, not the skill's effectiveness. The blind-then-score approach tests whether the skill actually enables the AI to reason about code semantics.
+```bash
+# Compare both implementations
+node app-benchmark.js
 
-### What to Look For
+# Run only one
+node app-benchmark.js --only baseline
+node app-benchmark.js --only skill
 
-Beyond raw detection rates, pay attention to:
+# More iterations for stable numbers
+node app-benchmark.js --iterations 500
+```
 
-- **Nuanced analysis on edge cases**: Classes like `ConfigHydrator` are singletons (good for client reuse) but missing timeout/retry config. The AI should give partial credit, not blanket pass/fail.
-- **Semantic reasoning vs name matching**: Classes use non-obvious names like `stashBlob`, `hydrateNamespace`, `probeExistence`. The AI should reason about what the code does, not just pattern-match on names like `createClient` or `getWithoutTimeout`.
-- **Mixed-pattern classes**: Some classes have both good and bad patterns. The AI should identify the specific issues without dismissing the entire class.
-
-### Running After Skill Updates
-
-Re-run the blind exam after each skill update to catch regressions. Compare detection rates across versions to track whether changes improved or degraded the skill's effectiveness.
-
-## Related Resources
-
-- [GLIDE Official Benchmarks](https://github.com/valkey-io/valkey-glide/tree/main/benchmarks) - General client performance comparisons
-- [AZ Affinity Blog](https://valkey.io/blog/az-affinity-strategy/) - Cost optimization strategies
-- [Skill Reference Patterns](../reference/) - Best practice implementations

@@ -1,1 +1,9 @@
 .DS_Store
+node_modules/
+skills/glide-performance/benchmarks/package.json
+skills/glide-performance/benchmarks/package-lock.json
+dump.rdb
+
+# AI-generated benchmark implementations (user creates these locally)
+skills/glide-performance/benchmarks/valkey-baseline.js
+skills/glide-performance/benchmarks/valkey-skill.js

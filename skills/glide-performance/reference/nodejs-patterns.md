@@ -334,8 +334,11 @@ const name = await client.hget("user:123", "name");
 // Retrieve multiple fields
 const [name, email] = await client.hmget("user:123", ["name", "email"]);
 
-// Retrieve all fields
+// Retrieve all fields — returns HashDataType: {field, value}[]
 const allFields = await client.hgetall("user:123");
+// allFields = [{field: "name", value: "John"}, {field: "email", value: "john@example.com"}, ...]
+// Convert to a plain object if needed:
+const obj = Object.fromEntries(allFields.map(({field, value}) => [field, value]));
 ```
 
 ## Monitoring

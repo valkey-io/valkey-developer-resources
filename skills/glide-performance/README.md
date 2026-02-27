@@ -50,15 +50,19 @@ Then copy the skill to your AI tool's skills directory:
 ```bash
 # For Kiro:
 cp -r valkey-samples/skills/glide-performance ~/.kiro/skills/glide-performance
+rm -rf ~/.kiro/skills/glide-performance/benchmarks
 
 # For Claude:
 cp -r valkey-samples/skills/glide-performance ~/.claude/skills/glide-performance
+rm -rf ~/.claude/skills/glide-performance/benchmarks
 
 # For VSCode (User Profile):
 cp -r valkey-samples/skills/glide-performance ~/.agents/skills/glide-performance
+rm -rf ~/.agents/skills/glide-performance/benchmarks
 
 # For WindSurf (Global):
 cp -r valkey-samples/skills/glide-performance ~/.codeium/windsurf/skills/glide-performance
+rm -rf ~/.codeium/windsurf/skills/glide-performance/benchmarks
 ```
 
 ### Prerequisites
@@ -161,13 +165,17 @@ glide-performance/
 │       ├── go-config.go
 │       ├── php-config.php
 │       └── README.md
+├── benchmarks/                       # Performance impact measurement
+│   ├── README.md                     # Benchmark instructions
+│   ├── app-benchmark.js              # Benchmark runner
+│   └── valkey-template.js            # Stubs for AI to implement
 └── assets/
     └── server-configuration-guide.md # Valkey/ElastiCache infrastructure
 ```
 
 ## Performance Impact
 
-Expected improvements when moving from anti-patterns to recommended patterns. Actual results vary significantly based on your infrastructure, network conditions, data sizes, and workload characteristics. See [benchmarks/](benchmarks/) for anti-pattern examples and AI-driven evaluation instructions.
+Expected improvements when moving from anti-patterns to recommended patterns. Actual results vary significantly based on your infrastructure, network conditions, data sizes, and workload characteristics. See [benchmarks/](benchmarks/) for a runnable benchmark that measures the real-world impact of following the skill's recommendations.
 
 | Anti-Pattern | Impact | Recommended Pattern | Complexity |
 |--------------|--------|---------------------|------------|
@@ -178,7 +186,7 @@ Expected improvements when moving from anti-patterns to recommended patterns. Ac
 | Blocking commands on shared client | Blocks all operations for duration of blocking call | Use dedicated client for blocking operations | Low |
 | Large batches (>1000 ops) | Memory pressure; increased timeout risk | Split into smaller batches (10-100 ops) | Low |
 
-**Note**: Performance improvements are workload-dependent. The [benchmarks/](benchmarks/) directory provides anti-pattern examples and instructions for evaluating the skill's detection accuracy using AI prompts.
+**Note**: Performance improvements are workload-dependent. The [benchmarks/](benchmarks/) directory includes a template-based benchmark where you generate two implementations (with and without the skill) and compare latency side-by-side.
 
 ## Supported GLIDE Versions
 
