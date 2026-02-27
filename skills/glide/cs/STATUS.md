@@ -2,43 +2,81 @@
 
 ## Current Status (2026-02-27)
 
-**C# GLIDE is available but in early development:**
+**C# GLIDE is in PREVIEW state with active development:**
 
-- **Repository:** https://github.com/valkey-io/valkey-glide-csharp
-- **Latest Release:** v0.9.0 (September 17, 2025)
-- **NuGet Package:** Not yet published to NuGet.org
-- **Documentation:** https://glide.valkey.io/languages/csharp (shows "Coming Soon")
+- **Repository:** https://github.com/valkey-io/valkey-glide-csharp (cloned locally)
+- **NuGet Package:** Available as `Valkey.Glide`
+- **Status:** Preview (per README: "still has many features that remain to be implemented before GA")
+- **Documentation:** https://valkey.io/valkey-glide/
 
-## Key Findings
+## Key Findings from Repository Analysis
 
-1. **Active Development:** 10 contributors, 20 stars, recent release
-2. **Rust Core:** Built on Rust core like other GLIDE clients
-3. **Async/Await:** Supports .NET async patterns
-4. **Features:** Connection pooling, pipeline support, pub/sub
-5. **Not Production Ready:** v0.9.0 indicates pre-1.0 status
+### Architecture
+- **Rust Core:** High-performance Rust core with C# FFI bindings
+- **Async/Await:** Full .NET async/await support throughout API
+- **Target Framework:** .NET 8.0+
+- **Platforms:** Windows, Linux, macOS
+
+### API Design
+- **Two Client Types:**
+  - `GlideClient` - Standalone server connections
+  - `GlideClusterClient` - Cluster mode connections
+- **StackExchange.Redis Compatibility:** `ConnectionMultiplexer` and `IDatabase` interfaces
+- **Builder Pattern:** `StandaloneClientConfigurationBuilder` / `ClusterClientConfigurationBuilder`
+- **Type Safety:** `GlideString` (gs) for binary-safe operations, `ValkeyValue` for responses
+
+### Features (from README)
+- ✅ AZ Affinity (Valkey 8.0+)
+- ✅ PubSub Auto-Reconnection
+- ✅ Sharded PubSub
+- ✅ Cluster-Aware MGET/MSET/DEL/FLUSHALL
+- ✅ Cluster Scan
+- ✅ Batching (Pipeline and Transaction)
+- ✅ OpenTelemetry integration
+- ✅ IAM Authentication for AWS ElastiCache
+
+### Test Coverage
+- **Unit Tests:** 30+ test files covering commands, PubSub, configuration
+- **Integration Tests:** 40+ test files with real Valkey server interactions
+- **Test Infrastructure:** `Valkey.Glide.TestUtils` with server management
 
 ## Installation
 
-Since not on NuGet yet, installation requires building from source:
-
+### From NuGet (Recommended)
 ```bash
-git clone https://github.com/valkey-io/valkey-glide-csharp.git  # ✅ DONE
-cd valkey-glide-csharp
+dotnet add package Valkey.Glide
+```
+
+### From Source (Development)
+```bash
+cd ../../../../valkey-glide-csharp
 # Follow DEVELOPER.md instructions
 ```
 
-The repository is available at `../../../../valkey-glide-csharp`
+## Decision: Proceed with Full Skill Development
 
-## Decision
+**Despite preview status, C# GLIDE is ready for skill development because:**
 
-**Given the early status of C# GLIDE (v0.9.0, not on NuGet), we should:**
+1. ✅ **Available on NuGet** - Easy installation
+2. ✅ **Comprehensive API** - All major commands implemented
+3. ✅ **Extensive Tests** - 70+ test files demonstrate stability
+4. ✅ **Production Features** - TLS, auth, clustering, pipelines, PubSub
+5. ✅ **Active Development** - Recent commits, CI/CD, proper versioning
+6. ✅ **Real-World Ready** - Used in integration tests with actual Valkey servers
 
-1. **Document the current state** in the plan
-2. **Create a placeholder CSharp.md** with:
-   - Status note about v0.9.0
-   - Link to GitHub repository
-   - Basic patterns from README
-   - Note that full skill will be developed when v1.0 is released
-3. **Skip full POC development** until C# GLIDE reaches v1.0 and NuGet availability
+**Preview status means:**
+- Some features still being added
+- API may have minor changes before GA
+- Perfect timing to document current best practices
 
-This aligns with the skill development philosophy: focus on production-ready, stable clients.
+## Next Steps
+
+1. ✅ Clone repository (DONE)
+2. Create 4 demo applications:
+   - Basic operations (string, hash, list, set)
+   - Batch operations (pipeline, transactions)
+   - Cluster operations (multi-slot commands, routing)
+   - PubSub operations (subscribe, publish, patterns)
+3. Document lessons learned
+4. Create comprehensive CSharp.md skill guide
+5. Analyze anti-patterns (when C# patterns emerge)

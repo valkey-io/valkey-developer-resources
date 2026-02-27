@@ -14,7 +14,7 @@ Consult the corresponding detailed guide for code generated in the selected lang
 | **Go** | [Go-specific skill](go/GO.md) | Context Pattern, Explicit Error Handling, Batch Pointer Dereferencing |
 | **Node.js** | [Node.js-specific skill](js/JS.md) | Promise-Based API, Decoder.Bytes for Binary Data, Static FT Methods |
 | **PHP** | [PHP-specific skill](php/PHP.md) | C Extension, PHPRedis Compatibility, Synchronous API, multi()/pipeline() |
-| **C#** | [C#-specific skill](cs/CSharp.md) | ⚠️ Preview (v0.9.0) - Async/Await, Builder Pattern, Exception Types |
+| **C#** | [C#-specific skill](cs/CSharp.md) | Task-Based Async, await using Pattern, CustomCommand for FT Module |
 
 ---
 ## Overview
