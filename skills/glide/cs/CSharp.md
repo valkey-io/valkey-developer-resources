@@ -113,60 +113,6 @@ var results = await client.Exec(pipeline, raiseOnError: true);
 - Results are `object?[]?` - nullable array of nullable objects
 - Cluster atomic batches require same hash slot
 
-## Vector Search (FT Module)
-
-C# GLIDE doesn't have dedicated FT module yet. Use `CustomCommand`:
-
-### Create Index
-```csharp
-await client.CustomCommand([
-    "FT.CREATE", "products_idx",
-    "ON", "HASH",
-    "PREFIX", "1", "product:",
-    "SCHEMA",
-    "name", "TEXT",
-    "description_vector", "VECTOR", "HNSW", "6",
-    "TYPE", "FLOAT32",
-    "DIM", "3",
-    "DISTANCE_METRIC", "L2"
-]);
-```
-
-### Store Vectors
-```csharp
-// Convert float array to bytes
-static byte[] ToBytes(float[] vector)
-{
-    var bytes = new byte[vector.Length * sizeof(float)];
-    Buffer.BlockCopy(vector, 0, bytes, 0, bytes.Length);
-    return bytes;
-}
-
-var vector = ToBytes([1.0f, 2.0f, 3.0f]);
-await client.HashSetAsync("product:1", new Dictionary<string, GlideString>
-{
-    ["name"] = "Product A",
-    ["description_vector"] = vector
-});
-```
-
-### Search
-```csharp
-var queryVector = ToBytes([1.5f, 2.5f, 3.5f]);
-var results = await client.CustomCommand([
-    "FT.SEARCH", "products_idx",
-    "*=>[KNN 2 @description_vector $vec]",
-    "PARAMS", "2", "vec", queryVector,
-    "RETURN", "1", "name",
-    "DIALECT", "2"
-]);
-```
-
-### Drop Index
-```csharp
-await client.CustomCommand(["FT.DROPINDEX", "products_idx"]);
-```
-
 ## Cluster Operations
 
 ### Hash Tags for Slot Control
@@ -176,8 +122,8 @@ await client.StringSetAsync("{user}:1:name", "Alice");
 await client.StringSetAsync("{user}:1:email", "alice@example.com");
 
 // Atomic batch requires same slot
-var batch = new ClusterBatch(atomic: true);
-batch.StringSet("{order}:100:status", "pending");
+var batch = new ClusterBatch(isAtomic: true);
+batch.StringSetAsync("{order}:100:status", "pending");
 batch.StringSet("{order}:100:total", "99.99");
 await client.Exec(batch, raiseOnError: true);
 ```
@@ -394,8 +340,6 @@ await client.Exec(batch, raiseOnError: true);  // Success
 - [ ] Use `Batch(atomic: true)` for transactions, `Batch(atomic: false)` for pipelines
 - [ ] Use hash tags `{tag}` for cluster atomic batches
 - [ ] Handle specific exceptions: `ConnectionException`, `TimeoutException`, `ValkeyException`
-- [ ] Use `CustomCommand` for FT module operations (no dedicated API yet)
-- [ ] Use `Buffer.BlockCopy` for efficient float-to-byte vector conversion
 - [ ] Configure PubSub subscriptions at connection time
 - [ ] Use `ClusterBatch` for cluster mode, `Batch` for standalone
 - [ ] Enable nullable reference types for better null safety
@@ -410,9 +354,8 @@ await client.Exec(batch, raiseOnError: true);  // Success
 | Resource cleanup | `client.close()` | try-with-resources | `await using` |
 | Naming | camelCase | camelCase | PascalCase |
 | Exception handling | Direct | Wrapped in ExecutionException | Direct |
-| Batch constructor | `new Batch(false)` | `new Batch(false)` | `new Batch(atomic: false)` |
+| Batch constructor | `new Batch(false)` | `new Batch(false)` | `new Batch(isAtomic: false)` |
 | Binary data | `Buffer` | `GlideString` | `GlideString` / `byte[]` |
-| FT module | `GlideFt` class | `FT` class | `CustomCommand` |
 
 ## Additional Resources
 
