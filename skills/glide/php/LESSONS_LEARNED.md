@@ -249,3 +249,23 @@ $client = new ValkeyGlideCluster(
 5. **Array-Based**: Everything uses PHP arrays (addresses, results, keys)
 6. **Error Handling Mixed**: Some errors print, some throw exceptions
 7. **Docker Recommended**: Complex build dependencies make Docker ideal for development
+
+## Anti-Patterns and Best Practices
+
+See [ANTI_PATTERNS.md](demos/ANTI_PATTERNS.md) for working demonstrations of:
+
+1. **God Object:** Violates Single Responsibility Principle
+2. **If-Else Chains:** Violates Open-Closed Principle
+3. **Tight Coupling:** Violates Dependency Inversion Principle
+
+**Key Findings from Anti-Pattern Analysis:**
+
+- **Single Responsibility:** Separate classes for separate concerns (UserRepository, SessionRepository)
+- **Open-Closed:** Use Strategy Pattern instead of if-else chains for extensibility
+- **Dependency Inversion:** Inject interfaces, not concrete classes, for testability and flexibility
+
+**SOLID Principles Applied to PHP GLIDE:**
+- Create focused repository classes (one per domain entity)
+- Use interfaces for cache strategies (short, medium, long TTL)
+- Inject `CacheClient` interface instead of concrete `ValkeyGlide` class
+- Makes code testable, maintainable, and extensible

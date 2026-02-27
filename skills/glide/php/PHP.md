@@ -179,6 +179,133 @@ $client = new ValkeyGlideCluster(
 );
 ```
 
+## Best Practices
+
+### ✅ CORRECT: Single Responsibility Principle
+```php
+class UserRepository {
+    private $client;
+    
+    public function __construct($client) {
+        $this->client = $client;
+    }
+    
+    public function createUser($userId, $data) {
+        $this->client->set("user:$userId", json_encode($data));
+    }
+}
+
+class SessionRepository {
+    private $client;
+    
+    public function __construct($client) {
+        $this->client = $client;
+    }
+    
+    public function createSession($sessionId, $userId) {
+        $this->client->set("session:$sessionId", $userId);
+    }
+}
+```
+
+### ❌ INCORRECT: God Object
+```php
+class ValkeyManager {
+    // User management
+    public function createUser($userId, $data) { }
+    
+    // Session management
+    public function createSession($sessionId, $userId) { }
+    
+    // Cache management
+    public function cacheData($key, $value, $ttl) { }
+    
+    // Analytics
+    public function trackEvent($event) { }
+}
+```
+
+**Why:** God objects violate Single Responsibility Principle, making code hard to maintain and test.
+
+---
+
+### ✅ CORRECT: Strategy Pattern (Open-Closed Principle)
+```php
+interface CacheStrategy {
+    public function cache($client, $key, $value);
+}
+
+class ShortCacheStrategy implements CacheStrategy {
+    public function cache($client, $key, $value) {
+        $client->setex($key, 60, $value);
+    }
+}
+
+class CacheManager {
+    public function __construct($client, CacheStrategy $strategy) {
+        $this->strategy = $strategy;
+    }
+}
+```
+
+### ❌ INCORRECT: If-Else Chains
+```php
+class CacheManager {
+    public function cache($key, $value, $strategy) {
+        if ($strategy === 'short') {
+            $this->client->setex($key, 60, $value);
+        } elseif ($strategy === 'medium') {
+            $this->client->setex($key, 3600, $value);
+        }
+        // Must modify this method to add new strategies!
+    }
+}
+```
+
+**Why:** If-else chains violate Open-Closed Principle - must modify code to extend behavior.
+
+---
+
+### ✅ CORRECT: Dependency Injection (Dependency Inversion Principle)
+```php
+interface CacheClient {
+    public function get($key);
+    public function set($key, $value);
+}
+
+class ValkeyGlideAdapter implements CacheClient {
+    private $client;
+    
+    public function __construct() {
+        $this->client = new ValkeyGlide();
+        $this->client->connect(...);
+    }
+    
+    public function get($key) {
+        return $this->client->get($key);
+    }
+}
+
+class UserService {
+    public function __construct(CacheClient $cache) {
+        $this->cache = $cache;
+    }
+}
+```
+
+### ❌ INCORRECT: Tight Coupling
+```php
+class UserService {
+    public function __construct() {
+        // Tightly coupled to ValkeyGlide
+        $this->client = new ValkeyGlide();
+        $this->client->connect(...);
+    }
+}
+```
+
+**Why:** Tight coupling makes testing difficult and prevents swapping implementations.
+
 ## Summary Checklist
 
 - [ ] Install valkey_glide extension (PECL/pie/source)
@@ -194,3 +321,6 @@ $client = new ValkeyGlideCluster(
 - [ ] API is synchronous (blocking)
 - [ ] PHPRedis compatibility available with `registerPHPRedisAliases()`
 - [ ] FT module (vector search) not yet available in v1.0.0
+- [ ] **Follow Single Responsibility Principle - one class, one purpose**
+- [ ] **Use Strategy Pattern instead of if-else chains**
+- [ ] **Inject dependencies via interfaces, not concrete classes**
