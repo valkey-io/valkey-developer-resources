@@ -18,7 +18,6 @@ dotnet run --project BasicOperations.csproj
 Demonstrates:
 - Client creation and connection
 - String, hash, list, set operations
-- Error handling with specific exception types
 
 ### Batch/Pipeline Operations
 ```bash
@@ -40,20 +39,15 @@ Demonstrates:
 - Hash tags for slot control
 - Cluster-aware batching
 
-### Vector Search
-```bash
-dotnet run --project VectorSearch.csproj
-```
+## Docker Validation
 
-Demonstrates:
-- FT.CREATE index with vector field
-- Storing binary vectors
-- KNN vector search using CustomCommand
-- Binary data handling
+Run all demos in Docker:
+```bash
+./validate.sh
+```
 
 ## Notes
 
 - All demos use `await using` for automatic client disposal
-- Error handling uses specific exception types (ConnectionException, TimeoutException, ValkeyException)
 - Cluster demos require cluster mode (ports 7000-7002)
-- Vector search requires Valkey with search module loaded
+- Vector search not yet supported in C# GLIDE (use CustomCommand when available)
