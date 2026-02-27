@@ -149,8 +149,27 @@ client.get("key").thenAccept(value -> {
 
 - [x] Vector search POC (FT.CREATE, FT.SEARCH)
 - [x] Cluster operations POC (concepts demonstrated)
+- [x] Anti-pattern demonstrations (resource leaks, exception handling, design patterns)
 - [ ] Document retry strategies for batches
 - [ ] Document batch options (timeout, routing)
+
+---
+
+## Anti-Patterns and Best Practices
+
+See [ANTI_PATTERNS.md](demos/ANTI_PATTERNS.md) for working demonstrations of:
+
+1. **Resource Management:** Not closing resources vs try-with-resources
+2. **Concurrency:** Swallowing InterruptedException vs restoring interrupt status
+3. **Exception Handling:** Wrong exception catching vs unwrapping ExecutionException
+4. **Design:** Primitive obsession vs value objects
+
+**Key Findings from Anti-Pattern Analysis:**
+
+- **Resource leaks:** GLIDE clients must be closed. Use try-with-resources for automatic cleanup.
+- **Interruption handling:** Never swallow `InterruptedException`. Always restore interrupt status with `Thread.currentThread().interrupt()`.
+- **Exception unwrapping:** CompletableFuture wraps exceptions in `ExecutionException`. Use `getCause()` for blocking calls, direct access for async chains.
+- **Type safety:** Use value objects instead of primitives for domain concepts to prevent parameter swaps and enforce validation.
 
 ---
 

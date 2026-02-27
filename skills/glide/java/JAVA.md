@@ -495,6 +495,154 @@ Object[] results = client.exec(cleanup, true).get();  // [2, 1, 1]
 
 ---
 
+## Best Practices
+
+### Resource Management
+
+### ✅ CORRECT: Use try-with-resources
+```java
+try (GlideClient client = GlideClient.createClient(config).get()) {
+    client.set("key", "value").get();
+}
+```
+
+### ❌ INCORRECT: Resource leak
+```java
+GlideClient client = GlideClient.createClient(config).get();
+client.set("key", "value").get();
+// Client never closed!
+```
+
+**Why:** Without try-with-resources, connections leak and exhaust the connection pool.
+
+---
+
+### Concurrency
+
+### ✅ CORRECT: Restore interrupt status
+```java
+try {
+    String value = future.get();
+} catch (InterruptedException e) {
+    Thread.currentThread().interrupt();
+    // Handle interruption
+}
+```
+
+### ❌ INCORRECT: Swallow InterruptedException
+```java
+try {
+    String value = future.get();
+} catch (InterruptedException e) {
+    // Ignoring - thread can't be stopped!
+}
+```
+
+**Why:** Swallowing interruption breaks thread cancellation and prevents graceful shutdown.
+
+---
+
+### Exception Handling (Blocking Calls)
+
+### ✅ CORRECT: Unwrap ExecutionException
+```java
+try {
+    client.lpop("string:key").get();
+} catch (ExecutionException e) {
+    if (e.getCause() instanceof RequestException) {
+        System.out.println("Error: " + e.getCause().getMessage());
+    }
+}
+```
+
+### ❌ INCORRECT: Catch wrapped exception directly
+```java
+try {
+    client.lpop("string:key").get();
+} catch (RequestException e) {
+    // Never reached - wrapped in ExecutionException!
+}
+```
+
+**Why:** CompletableFuture wraps exceptions in ExecutionException for blocking calls.
+
+---
+
+### Exception Handling (Async Chains)
+
+### ✅ CORRECT: Direct exception access
+```java
+client.lpop("string:key")
+    .exceptionally(e -> {
+        if (e instanceof RequestException) {
+            System.out.println("Error: " + e.getMessage());
+        }
+        return null;
+    });
+```
+
+**Why:** Async chains provide direct exception access - no unwrapping needed.
+
+---
+
+### Design Patterns
+
+### ✅ CORRECT: Type-safe value objects
+```java
+class UserId {
+    private final String value;
+    public UserId(String value) {
+        if (!value.startsWith("user:")) {
+            throw new IllegalArgumentException("Invalid user ID");
+        }
+        this.value = value;
+    }
+    public String getValue() { return value; }
+}
+
+void storeUser(GlideClient client, UserId userId, SessionId sessionId) {
+    // Compiler prevents parameter swap
+}
+```
+
+### ❌ INCORRECT: Primitive obsession
+```java
+void storeUser(GlideClient client, String userId, String sessionId) {
+    // Easy to swap parameters - compiles but wrong!
+}
+```
+
+**Why:** Primitives lack type safety and allow parameter order mistakes.
+
+---
+
+### Testing
+
+### ✅ CORRECT: Use test doubles
+```java
+@Test
+void testUserService() {
+    GlideClient mockClient = mock(GlideClient.class);
+    when(mockClient.get("user:1")).thenReturn(CompletableFuture.completedFuture("Alice"));
+    // Test with mock
+}
+```
+
+### ❌ INCORRECT: Depend on external Valkey
+```java
+@Test
+void testUserService() {
+    GlideClient client = GlideClient.createClient(config).get();
+    // Flaky - depends on external state
+}
+```
+
+**Why:** Tests depending on external services are non-deterministic and flaky.
+
+**See also:** [Anti-Pattern Demonstrations](demos/ANTI_PATTERNS.md) for working examples proving these patterns.
+
+---
+
 ## Summary Checklist
 
 When implementing Valkey functionality with GLIDE:
@@ -517,6 +665,10 @@ When implementing Valkey functionality with GLIDE:
 - [ ] Use `GlideClusterClient` and `ClusterBatch` for cluster mode
 - [ ] Use hash tags `{tag}` to ensure keys in same slot for atomic operations
 - [ ] Avoid CROSSSLOT errors by grouping keys with hash tags or using non-atomic batches
+- [ ] **Always use try-with-resources for client cleanup**
+- [ ] **Never swallow InterruptedException - restore interrupt status**
+- [ ] **Unwrap ExecutionException with getCause() for blocking calls**
+- [ ] **Use value objects instead of primitives for domain concepts**
 
 ---
 
@@ -524,9 +676,10 @@ When implementing Valkey functionality with GLIDE:
 
 - [Valkey GLIDE Documentation](https://glide.valkey.io/)
 - [GLIDE Java Client](https://github.com/valkey-io/valkey-glide/tree/main/java)
+- [Java Anti-Patterns Guide](https://www.ayokoding.com/en/learn/software-engineering/programming-languages/java/in-the-field/anti-patterns/)
 
 ---
 
 **Version:** 1.0
-**Last Updated:** 2026-02-23
+**Last Updated:** 2026-02-27
 **Source:** Production implementation experience
