@@ -178,6 +178,70 @@ try {
 }
 ```
 
+## Best Practices
+
+### Async Iteration
+When processing multiple keys, avoid `forEach` with async callbacks:
+
+```javascript
+// ❌ Wrong - forEach doesn't await (fire-and-forget)
+keys.forEach(async (key) => {
+  await client.del(key);  // These run immediately, not sequentially
+});
+console.log("Done!"); // Lies - operations still running
+
+// ✅ Correct - Sequential with for...of
+for (const key of keys) {
+  await client.del(key);
+}
+console.log("Actually done");
+
+// ✅ Correct - Parallel with Promise.all
+await Promise.all(keys.map(key => client.del(key)));
+console.log("All operations complete");
+
+// ✅ Best - Use batch for multiple operations
+const batch = new Batch(false);
+keys.forEach(key => batch.del([key]));
+await client.exec(batch, true);
+```
+
+### TypeScript Runtime Validation
+If using TypeScript, validate external data at runtime:
+
+```javascript
+import { z } from "zod";
+
+// ✅ Validate FT.SEARCH results
+const SearchResultSchema = z.tuple([
+  z.number(),
+  z.array(z.object({
+    key: z.instanceof(Buffer),
+    value: z.array(z.any())
+  }))
+]);
+
+const results = SearchResultSchema.parse(
+  await GlideFt.search(client, "idx", query, { decoder: Decoder.Bytes })
+);
+
+// Now TypeScript knows the exact shape, and runtime validates it
+const [count, documents] = results;
+```
+
+### Resource Cleanup
+Always close clients in finally blocks:
+
+```javascript
+const client = await GlideClient.createClient({...});
+
+try {
+  await client.set("key", "value");
+} finally {
+  client.close();  // Ensures cleanup even if error occurs
+}
+```
+
 ## Common Pitfalls
 
 ### 1. Wrong Batch Class for Client Type
@@ -224,6 +288,38 @@ await GlideFt.dropIndex(client, "idx"); // Not a function
 await GlideFt.dropindex(client, "idx"); // lowercase 'index'
 ```
 
+### 5. forEach with Async Callbacks
+```javascript
+// ❌ Wrong - fire-and-forget (operations not awaited)
+keys.forEach(async (key) => {
+  await client.del(key);
+});
+
+// ✅ Correct - sequential
+for (const key of keys) {
+  await client.del(key);
+}
+
+// ✅ Correct - parallel
+await Promise.all(keys.map(key => client.del(key)));
+```
+
+### 6. Missing finally Block
+```javascript
+// ❌ Wrong - client not closed if error occurs
+const client = await GlideClient.createClient({...});
+await client.set("key", "value");
+client.close();
+
+// ✅ Correct - always closes
+const client = await GlideClient.createClient({...});
+try {
+  await client.set("key", "value");
+} finally {
+  client.close();
+}
+```
+
 ## Summary Checklist
 
 - [ ] Use `@valkey/valkey-glide` package
@@ -238,3 +334,7 @@ await GlideFt.dropindex(client, "idx"); // lowercase 'index'
 - [ ] Use non-atomic batches for multi-slot operations
 - [ ] Remember `GlideFt.dropindex()` is lowercase
 - [ ] FT.SEARCH returns `[count, documents]` tuple
+- [ ] Avoid `forEach` with async callbacks - use `for...of` or `Promise.all`
+- [ ] Always close client in `finally` block
+- [ ] Use batch operations instead of loops for multiple keys
+- [ ] Validate external data at runtime (TypeScript with Zod)
