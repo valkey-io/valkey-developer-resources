@@ -121,22 +121,6 @@ def get_client(valkey_url: str, **kwargs) -> GlideClient | GlideClusterClient:
 
 ---
 
-## Distance Metrics Mapping
-
-```python
-from glide_shared.commands.server_modules.ft_options.ft_create_options import (
-    DistanceMetricType,
-)
-
-distance_map = {
-    "COSINE": DistanceMetricType.COSINE,
-    "L2": DistanceMetricType.L2,
-    "IP": DistanceMetricType.IP,
-}
-```
-
----
-
 ## FT.SEARCH Command Pattern
 
 ### Vector Similarity Search
@@ -446,6 +430,105 @@ def test_something(mock_cluster, mock_client):
 
 ---
 
+## Distance Metrics Mapping
+
+```python
+from glide_shared.commands.server_modules.ft_options.ft_create_options import (
+    DistanceMetricType,
+)
+
+distance_map = {
+    "COSINE": DistanceMetricType.COSINE,
+    "L2": DistanceMetricType.L2,
+    "IP": DistanceMetricType.IP,
+}
+```
+
+---
+
+## Best Practices
+
+### ✅ CORRECT: Status-Based Returns
+```python
+async def fetch_data(key: str) -> dict:
+    value = await client.get(key)
+    if value is None:
+        return {"status": "error", "msg": "Not found"}
+    return {"status": "ok", "data": value}
+```
+
+### ❌ INCORRECT: Exceptions as Control Flow
+```python
+async def fetch_data(key: str) -> str:
+    value = await client.get(key)
+    if value is None:
+        raise ValueError("Not found")  # Don't use exceptions for normal logic
+    return value
+```
+
+**Why:** Exceptions are expensive and make code hard to read. Use status returns for predictable logic.
+
+---
+
+### ✅ CORRECT: Module-Level Functions
+```python
+async def get_user(client, user_id: str) -> str:
+    return await client.get(f"user:{user_id}")
+```
+
+### ❌ INCORRECT: Static Method-Only Classes
+```python
+class CacheUtils:
+    @staticmethod
+    async def get_user(client, user_id: str) -> str:
+        return await client.get(f"user:{user_id}")
+```
+
+**Why:** Python has modules for namespacing. Static-only classes add unnecessary boilerplate.
+
+---
+
+### ✅ CORRECT: Protocol-Based Abstraction
+```python
+from typing import Protocol
+
+class CacheClient(Protocol):
+    async def get(self, key: str) -> str: ...
+    async def set(self, key: str, value: str): ...
+
+class UserService:
+    def __init__(self, cache: CacheClient):
+        self.cache = cache
+```
+
+### ❌ INCORRECT: Tight Coupling
+```python
+class UserService:
+    def __init__(self, host: str, port: int):
+        self.config = GlideClientConfiguration([NodeAddress(host, port)])
+        self.client = await GlideClient.create(self.config)
+```
+
+**Why:** Tight coupling makes testing difficult and prevents swapping implementations.
+
+---
+
+### ✅ CORRECT: Explicit Imports
+```python
+from glide import GlideClient, GlideClientConfiguration, NodeAddress
+```
+
+### ❌ INCORRECT: Wildcard Imports
+```python
+from glide import *  # Namespace pollution
+```
+
+**Why:** Wildcard imports pollute namespace, cause name collisions, and break static analysis.
+
+**See also:** [Anti-Pattern Demonstrations](ANTI_PATTERNS.md) for working examples proving these patterns.
+
+---
+
 ## Common Pitfalls
 
 ### 1. Using Redis Fork Instead of GLIDE
@@ -521,8 +604,11 @@ When implementing Valkey functionality with GLIDE:
 - [ ] Provide helpful ImportError messages
 - [ ] Support both cluster and standalone modes
 - [ ] Use `await` for async client operations
+- [ ] **Use status returns instead of exceptions for control flow**
+- [ ] **Use module-level functions instead of static-only classes**
+- [ ] **Use Protocols for abstraction, not concrete classes**
+- [ ] **Use explicit imports, never wildcard imports**
 
----
 
 ## References
 
