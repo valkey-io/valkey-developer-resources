@@ -1,7 +1,8 @@
 /**
  * Valkey GLIDE — Baseline Implementation
  * 
- * THIS FILE WAS TESTED USING AUTO MODEL IN THE KIRO IDE
+ * THIS FILE WAS GENERATED STRAIGHT FROM THE AUTO MODEL IN THE KIRO IDE. IT HAS
+ * NOT BEEN MODIFIED FOR CORRECTNESS OR PERFORMANCE.
  *
  * A straightforward implementation using @valkey/valkey-glide.
  * This serves as a baseline for performance comparison.

@@ -1,7 +1,8 @@
 /**
  * Valkey GLIDE — Implementation with GLIDE Performance Optimization Skill
  *
- * THIS FILE WAS GENERATED USING AUTO MODEL IN THE KIRO IDE
+ * THIS FILE WAS GENERATED STRAIGHT FROM THE AUTO MODEL IN THE KIRO IDE. IT HAS
+ * NOT BEEN MODIFIED FOR CORRECTNESS OR PERFORMANCE.
  * 
  * A ride-sharing / delivery platform Valkey layer that exercises every major
  * pattern the GLIDE Performance Optimization skill covers.
