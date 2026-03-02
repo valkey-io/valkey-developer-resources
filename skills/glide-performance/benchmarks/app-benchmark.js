@@ -29,8 +29,7 @@ for (let i = 2; i < process.argv.length; i++) {
 // ---------------------------------------------------------------------------
 
 function now() {
-  const [s, ns] = process.hrtime();
-  return s * 1e3 + ns / 1e6;
+  return Number(process.hrtime.bigint()) / 1e6;
 }
 
 function stats(samples) {
