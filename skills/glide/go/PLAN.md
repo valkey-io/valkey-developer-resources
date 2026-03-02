@@ -10,7 +10,7 @@ Develop comprehensive GoLang-specific GLIDE skill documentation by creating work
 - **Documentation host**: `localhost` (final examples)
 
 ## 2. Core POC Examples (4 demos)
-Create in `go/demos/` directory:
+Create each as sub-directories of `go/demos/`, and drop associated demos in:
 - **basic-operations/**: Connect, set/get, error handling
 - **batch-pipeline/**: Atomic transactions vs non-atomic pipelines
 - **cluster-operations/**: Multi-node routing, hash slot constraints

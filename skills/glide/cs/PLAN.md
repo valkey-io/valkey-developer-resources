@@ -12,7 +12,7 @@ Develop comprehensive and specifically C-Sharp GLIDE skill documentation by crea
 *Build and run all C-Sharp demos via a docker container, see [demos/README.md](demos/README.md) for instructions and [demos/validate.sh](demos/validate.sh) for specific validation script.
 
 ## 2. Core POC Examples (4 demos)
-Create in `cs/demos/` directory:
+Create each as sub-directories of `cs/demos/`, and drop associated demos in:
 - **basic-operations/**: Connect, set/get, error handling
 - **batch-pipeline/**: Atomic transactions vs non-atomic pipelines
 - **vector-search/**: FT.CREATE index, add documents, FT.SEARCH with KNN

@@ -10,7 +10,7 @@ Develop comprehensive and specifically Node.js GLIDE skill documentation by crea
 - **Documentation host**: `localhost` (final examples)
 
 ## 2. Core POC Examples (4 demos)
-Create in `js/demos/` directory:
+Create each as sub-directories of `js/demos/`, and drop associated demos in:
 - **basic-operations/**: Connect, set/get, error handling
 - **batch-pipeline/**: Atomic transactions vs non-atomic pipelines
 - **vector-search/**: FT.CREATE index, add documents, FT.SEARCH with KNN
