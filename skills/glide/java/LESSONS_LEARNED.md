@@ -150,8 +150,114 @@ client.get("key").thenAccept(value -> {
 - [x] Vector search POC (FT.CREATE, FT.SEARCH)
 - [x] Cluster operations POC (concepts demonstrated)
 - [x] Anti-pattern demonstrations (resource leaks, exception handling, design patterns)
+- [x] TLS and authentication testing
 - [ ] Document retry strategies for batches
 - [ ] Document batch options (timeout, routing)
+
+---
+
+## TLS and Authentication
+
+### ✅ TLS + Authentication (Port 6479)
+Successfully validated TLS with password authentication:
+
+```java
+// For self-signed certificates (testing only)
+// ⚠️ WARNING: useInsecureTLS disables certificate verification
+TlsAdvancedConfiguration tlsConfig = TlsAdvancedConfiguration.builder()
+    .useInsecureTLS(true)
+    .build();
+
+AdvancedGlideClientConfiguration advancedConfig = AdvancedGlideClientConfiguration.builder()
+    .tlsAdvancedConfiguration(tlsConfig)
+    .build();
+
+GlideClientConfiguration config = GlideClientConfiguration.builder()
+    .address(NodeAddress.builder()
+        .host(host)
+        .port(6479)
+        .build())
+    .useTLS(true)  // Enable TLS
+    .credentials(ServerCredentials.builder()
+        .password("mypassword")
+        .build())
+    .advancedConfiguration(advancedConfig)
+    .requestTimeout(5000)
+    .build();
+
+try (GlideClient client = GlideClient.createClient(config).get()) {
+    client.set("tls_test_java", "Hello with TLS!").get();
+    String value = client.get("tls_test_java").get();
+    System.out.println("✓ TLS works: " + value);
+}
+```
+
+**Output:**
+```
+✓ TLS works: Hello with TLS!
+```
+
+### Key Findings
+
+**Method Names:**
+- `useTLS(true)` - Enable TLS (capital TLS, not `useTls`)
+- `.tlsAdvancedConfiguration()` - Set advanced TLS config (not `.tlsAdvancedConfig()`)
+- `.advancedConfiguration()` - Set advanced client config (not `.advancedConfig()`)
+- `.useInsecureTLS(true)` - Disable certificate verification (testing only)
+
+**TLS Configuration Modes:**
+
+1. **Production (with CA certificates):**
+```java
+// Load CA certificate
+byte[] caCert = Files.readAllBytes(Paths.get("ca.crt"));
+
+TlsAdvancedConfiguration tlsConfig = TlsAdvancedConfiguration.builder()
+    .rootCertificates(caCert)
+    .build();
+```
+
+2. **Testing (insecure mode):**
+```java
+// ⚠️ WARNING: Disables certificate verification
+TlsAdvancedConfiguration tlsConfig = TlsAdvancedConfiguration.builder()
+    .useInsecureTLS(true)
+    .build();
+```
+
+**Authentication:**
+```java
+// Password only
+.credentials(ServerCredentials.builder()
+    .password("mypassword")
+    .build())
+
+// With username
+.credentials(ServerCredentials.builder()
+    .username("user")
+    .password("mypassword")
+    .build())
+
+// AWS IAM (requires username)
+.credentials(ServerCredentials.builder()
+    .username("myUser")  // Required for IAM
+    .iamConfig(IamAuthConfig.builder()
+        .clusterName("my-cluster")
+        .service(ServiceType.ELASTICACHE)  // or ServiceType.MEMORYDB
+        .region("us-east-1")
+        .build())
+    .build())
+```
+
+### Comparison with Python
+
+| Aspect | Python | Java |
+|--------|--------|------|
+| Enable TLS | `use_tls=True` | `.useTLS(true)` |
+| Insecure mode | `use_insecure_tls=True` | `.useInsecureTLS(true)` |
+| Advanced config | `TlsAdvancedConfiguration(...)` | `TlsAdvancedConfiguration.builder()...build()` |
+| CA certificates | `root_pem_cacerts=bytes` | `.rootCertificates(byte[])` |
+| Password auth | `ServerCredentials("password")` | `ServerCredentials.builder().password("password").build()` |
 
 ---
 
