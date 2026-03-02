@@ -243,3 +243,97 @@ Node.js GLIDE has the simplest API:
 - Standard async/await (no special asyncio setup)
 - Buffer is built-in (no GlideString wrapper needed)
 - Static methods for FT module (consistent with Java)
+
+
+## TLS and Authentication
+
+### ✅ IAM Authentication (GLIDE 2.2+)
+Successfully validated IAM authentication configuration:
+
+```javascript
+const { GlideClient, ServiceType } = require("@valkey/valkey-glide");
+
+const config = {
+  addresses: [{ host: "my-cluster.cache.amazonaws.com", port: 6379 }],
+  useTLS: true,
+  credentials: {
+    username: "myUser",
+    iamConfig: {
+      cluster_name: "my-cluster",
+      service: ServiceType.Elasticache,  // or ServiceType.MemoryDB
+      region: "us-east-1"
+    }
+  },
+  requestTimeout: 5000
+};
+
+const client = await GlideClient.createClient(config);
+```
+
+**Output:**
+```
+✓ IAM configuration created successfully
+✓ Configuration is valid (connection failure is expected)
+```
+
+### ⚠️ TLS with Self-Signed Certificates
+TLS configuration structure is correct but insecure mode may not work:
+
+```javascript
+const config = {
+  addresses: [{ host: "localhost", port: 6479 }],
+  useTLS: true,
+  credentials: { password: "mypassword" },
+  advancedClientConfiguration: {
+    tlsAdvancedConfiguration: {
+      insecure: true  // May not bypass certificate validation
+    }
+  },
+  requestTimeout: 5000
+};
+```
+
+**Issue:** The `insecure: true` flag is correctly configured per API documentation, but certificate validation is not bypassed in Node.js GLIDE 2.2.7. This appears to be a limitation or bug in the Node.js implementation.
+
+**Workaround:** Use proper CA-signed certificates or load root certificates:
+
+```javascript
+const fs = require('fs');
+
+const config = {
+  addresses: [{ host: "localhost", port: 6479 }],
+  useTLS: true,
+  credentials: { password: "mypassword" },
+  advancedClientConfiguration: {
+    tlsAdvancedConfiguration: {
+      rootCertificates: fs.readFileSync('ca.crt')  // Load CA certificate
+    }
+  }
+};
+```
+
+### Key Findings
+
+**Configuration Structure:**
+- TLS config goes in `advancedClientConfiguration.tlsAdvancedConfiguration`
+- Not at top level like Python/Java
+- Must use nested object structure
+
+**Authentication:**
+- Password only: `credentials: { password: "mypassword" }`
+- With username: `credentials: { username: "user", password: "pass" }`
+- IAM: `credentials: { username: "user", iamConfig: {...} }`
+
+**Service Types:**
+- Use `ServiceType.Elasticache` or `ServiceType.MemoryDB` (not strings)
+- Import from `@valkey/valkey-glide`
+
+### Comparison with Python/Java
+
+| Aspect | Python | Java | Node.js |
+|--------|--------|------|---------|
+| TLS config | `use_tls=True` | `.useTLS(true)` | `useTLS: true` |
+| Insecure mode | `use_insecure_tls=True` (works) | `.useInsecureTLS(true)` (works) | `insecure: true` (may not work) |
+| Config structure | Flat with `advanced_config` | Builder with `.advancedConfiguration()` | Nested object |
+| Credentials | `ServerCredentials("password")` | `ServerCredentials.builder()` | `{ password: "..." }` |
+| IAM service | `ServiceType.ELASTICACHE` | `ServiceType.ELASTICACHE` | `ServiceType.Elasticache` |
