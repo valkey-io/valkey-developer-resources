@@ -16,6 +16,8 @@ using StackExchange.Redis;  // Different library (though Valkey.Glide provides c
 
 **Why:** Valkey.Glide is the official high-performance client built on Rust core with native async/await support.
 
+**Note:** Current NuGet version is 0.9.0. Features like IAM authentication and insecure TLS mode require version 2.0+ (not yet released).
+
 ## Client Creation
 
 ### Standalone Client
@@ -53,7 +55,7 @@ var config = new StandaloneClientConfigurationBuilder()
     .WithTls()
     .Build();
 
-// IAM authentication for AWS ElastiCache
+// IAM authentication for AWS ElastiCache (requires v2.0+)
 var iamAuthConfig = new IamAuthConfig("cluster-name", ServiceType.ElastiCache, "us-east-1");
 var config = new ClusterClientConfigurationBuilder()
     .WithAddress("host", 6379)
@@ -61,6 +63,8 @@ var config = new ClusterClientConfigurationBuilder()
     .WithTls(true)
     .Build();
 ```
+
+**Note:** IAM authentication and insecure TLS mode require Valkey.Glide 2.0+. Current NuGet version (0.9.0) supports password authentication and TLS with CA-signed certificates.
 
 ## Async Patterns
 

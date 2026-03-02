@@ -335,7 +335,7 @@ var config = new ClusterClientConfigurationBuilder()
     .Build();
 ```
 
-**Key Finding:** First-class IAM support for AWS ElastiCache
+**Key Finding:** IAM support requires Valkey.Glide 2.0+ (not available in current NuGet v0.9.0)
 
 ### Database Selection (Standalone Only)
 ```csharp

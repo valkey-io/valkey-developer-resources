@@ -28,4 +28,23 @@ for demo in "${demos[@]}"; do
     echo ""
 done
 
+# Authentication demos
+auth_demos=("TlsAuthDemo" "IamAuthDemo")
+
+for demo in "${auth_demos[@]}"; do
+    echo "--- Testing authentication/$demo ---"
+    
+    docker run --rm \
+        -e VALKEY_HOST=$VALKEY_HOST \
+        --network host \
+        -v $(pwd)/authentication/${demo}.cs:/app/Program.cs:ro \
+        -v $(pwd)/authentication/${demo}.csproj:/app/demo.csproj:ro \
+        -w /app \
+        mcr.microsoft.com/dotnet/sdk:8.0 \
+        bash -c "dotnet restore demo.csproj && dotnet run --project demo.csproj" \
+        2>&1 || echo "❌ authentication/$demo failed"
+    
+    echo ""
+done
+
 echo "=== Validation Complete ==="
