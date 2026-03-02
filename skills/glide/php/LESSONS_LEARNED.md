@@ -48,6 +48,46 @@ $client->connect(
 );
 ```
 
+## Authentication and TLS
+
+### Password Authentication
+```php
+$client->connect(
+    addresses: [['host' => 'localhost', 'port' => 6379]],
+    credentials: ['password' => 'mypassword']
+);
+
+// With username
+credentials: ['username' => 'myuser', 'password' => 'mypassword']
+```
+
+### TLS Configuration
+```php
+$client->connect(
+    addresses: [['host' => 'localhost', 'port' => 6379]],
+    use_tls: true,
+    credentials: ['password' => 'mypassword']
+);
+```
+
+**Note:** PHP GLIDE v1.0.0 may not support insecure TLS mode for self-signed certificates.
+
+### IAM Authentication (GLIDE 2.2+)
+```php
+$client->connect(
+    addresses: [['host' => 'my-cluster.cache.amazonaws.com', 'port' => 6379]],
+    use_tls: true,  // Required for IAM
+    credentials: [
+        'username' => 'myUser',
+        'iamConfig' => [
+            ValkeyGlide::IAM_CONFIG_CLUSTER_NAME => 'my-cluster',
+            ValkeyGlide::IAM_CONFIG_REGION => 'us-east-1',
+            ValkeyGlide::IAM_CONFIG_SERVICE => ValkeyGlide::IAM_SERVICE_ELASTICACHE,
+        ]
+    ]
+);
+```
+
 ## Synchronous API
 
 PHP GLIDE is **synchronous only** - no async/await:
