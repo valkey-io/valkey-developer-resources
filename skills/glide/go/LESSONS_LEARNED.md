@@ -198,3 +198,59 @@ results, err := client.Exec(ctx, *pipeline, true)
 - Results are `[]any` requiring type assertions
 - Context required for all operations
 - Cluster operations follow same patterns as Java (hash tags, CROSSSLOT)
+
+
+## TLS and Authentication
+
+### ✅ TLS + Authentication (Port 6479)
+Successfully validated TLS with password authentication:
+
+```go
+// For self-signed certificates (testing only)
+tlsConfig := config.NewTlsConfiguration().WithInsecureTLS(true)
+advancedConfig := config.NewAdvancedClientConfiguration().WithTlsConfiguration(tlsConfig)
+
+clientConfig := config.NewClientConfiguration().
+	WithAddress(&config.NodeAddress{Host: host, Port: 6479}).
+	WithUseTLS(true).
+	WithCredentials(config.NewServerCredentials("", "mypassword")).
+	WithRequestTimeout(5000).
+	WithAdvancedConfiguration(advancedConfig)
+
+client, err := glide.NewClient(clientConfig)
+```
+
+**Output:**
+```
+✓ TLS works: Hello with TLS!
+```
+
+### Key Findings
+
+**TLS Configuration:**
+- Use `NewTlsConfiguration()` to create TLS config
+- Use `WithInsecureTLS(true)` for self-signed certs (testing only)
+- Wrap in `NewAdvancedClientConfiguration()` 
+- Pass to client config with `WithAdvancedConfiguration()`
+
+**Authentication:**
+- Use `config.NewServerCredentials(username, password)`
+- Empty string for username if only password is needed
+- Pass with `WithCredentials()` before `WithAdvancedConfiguration()`
+
+**Method Chain Order:**
+1. `WithAddress()`
+2. `WithUseTLS(true)`
+3. `WithCredentials()`
+4. `WithRequestTimeout()`
+5. `WithAdvancedConfiguration()` (must be last)
+
+### Comparison with Java
+
+| Aspect | Java | Go |
+|--------|------|-----|
+| TLS config | `TlsAdvancedConfiguration.builder()...build()` | `config.NewTlsConfiguration().With*()` |
+| Insecure mode | `.useInsecureTLS(true)` | `.WithInsecureTLS(true)` |
+| Advanced config | `AdvancedGlideClientConfiguration.builder()` | `config.NewAdvancedClientConfiguration()` |
+| Credentials | `ServerCredentials.builder().password().build()` | `config.NewServerCredentials("", "password")` |
+| Client creation | `GlideClient.createClient(config).get()` | `glide.NewClient(config)` |
