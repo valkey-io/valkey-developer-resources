@@ -10,7 +10,7 @@ Develop comprehensive Java-specific GLIDE skill documentation by creating workin
 - **Documentation host**: `localhost` (final examples)
 
 ## 2. Core POC Examples (4 demos)
-Create in `java/demos/` directory:
+Create each as sub-directories of `java/demos/`, and drop associated demos in:
 - **basic-operations/**: Connect, set/get, error handling
 - **batch-pipeline/**: Atomic transactions vs non-atomic pipelines
 - **vector-search/**: FT.CREATE index, add documents, FT.SEARCH with KNN
