@@ -9,15 +9,28 @@ Develop comprehensive and specifically Node.js GLIDE skill documentation by crea
 - **Testing host**: Found in `VALKEY_HOST` environment variable (local development only)
 - **Documentation host**: `localhost` (final examples)
 
-## 2. Core POC Examples (4 demos)
+## 2. Core POC Examples (7 demos)
 Create each as sub-directories of `js/demos/`, and drop associated demos in:
 - **basic-operations/**: Connect, set/get, error handling
 - **batch-pipeline/**: Atomic transactions vs non-atomic pipelines
 - **vector-search/**: FT.CREATE index, add documents, FT.SEARCH with KNN
 - **cluster-operations/**: Multi-node routing, hash slot constraints
+- **authentication/**: Basic auth via `ServerCredentials`, TLS/SSL, AWS IAM auth
 
-*POCs use Valkey host from `VALKEY_HOST` environment variable and port `6379` for testing, final docs use `localhost`*
-*For vector-search API, refer to GLIDE API source files at `../../../valkey-glide/node/src/server-modules/` for a reference
+*POCs use Valkey host from `VALKEY_HOST` environment variable for testing, and use the following for specific testing:*
+- All core operations use port `6379`
+- Cluster operations use port `7000`
+- Authentication and TLS uses port `6479`
+
+The final documentation output uses `localhost`
+
+For vector-search API, refer to GLIDE API source files at `../../../valkey-glide/node/src/server-modules/` for a reference
+
+**NOTE:** TLS testing will require using insecure from the client side (ignore server certificate validation), but 
+document both secure and insecure certificate client connection modes in the skill.
+
+**NOTE:** AWS IAM auth cannot be runtime tested, but a demo should be created none-the-less for validation, and it should
+at least compile without errors, and it should run without any errors specific to AWS. 
 
 ## 3. Document Lessons Learned
 Create `js/LESSONS_LEARNED.md` with:

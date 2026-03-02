@@ -11,15 +11,33 @@ Develop comprehensive and specifically C-Sharp GLIDE skill documentation by crea
 
 *Build and run all C-Sharp demos via a docker container, see [demos/README.md](demos/README.md) for instructions and [demos/validate.sh](demos/validate.sh) for specific validation script.
 
-## 2. Core POC Examples (4 demos)
+### Testing TLS connectivity
+TLS connectivity can be tested using the CLI tool / commands:
+```#!shell
+cd ../../../../valkey/tls
+../src/valkey-cli -h $VALKEY_HOST -p 6480 \
+    --tls --cert valkey.crt --key valkey.key --cacert valkey.crt \
+    --sni $VALKEY_HOST
+```
+
+## 2. Core POC Examples (7 demos)
 Create each as sub-directories of `cs/demos/`, and drop associated demos in:
 - **basic-operations/**: Connect, set/get, error handling
 - **batch-pipeline/**: Atomic transactions vs non-atomic pipelines
 - **vector-search/**: FT.CREATE index, add documents, FT.SEARCH with KNN
 - **cluster-operations/**: Multi-node routing, hash slot constraints
+- **authentication/**: Basic auth via `ServerCredentials`, TLS/SSL, AWS IAM auth
 
-*POCs use Valkey host from `VALKEY_HOST` environment variable and port `6379` for testing, final docs use `localhost`*
-*For vector-search API, refer to GLIDE API source files at `../../../valkey-glide/node/src/server-modules/` for a reference
+*POCs use Valkey host from `VALKEY_HOST` environment variable for testing, and use the following for specific testing:*
+- All core operations use port `6379`
+- Cluster operations use port `7000`
+- Authentication and TLS uses port `6479`
+
+The final documentation output uses `localhost`
+
+**NOTE:** TLS testing will require using insecure from the client side (ignore server certificate validation), but 
+document both secure and insecure certificate client connection modes in the skill.
+For vector-search API, refer to GLIDE API source files at `../../../valkey-glide/node/src/server-modules/` for a reference
 
 ## 3. Document Lessons Learned
 Create `cs/LESSONS_LEARNED.md` with:

@@ -11,15 +11,36 @@ Develop comprehensive and specifically PHP GLIDE skill documentation by creating
 
 *Build and run all PHP demos via a docker container, see [README.md](README.md) for instructions.
 
-## 2. Core POC Examples (3 demos)
+### Testing TLS connectivity
+TLS connectivity can be tested using the CLI tool / commands:
+```#!shell
+cd ../../../../valkey/tls
+../src/valkey-cli -h $VALKEY_HOST -p 6480 \
+    --tls --cert valkey.crt --key valkey.key --cacert valkey.crt \
+    --sni $VALKEY_HOST
+```
+
+## 2. Core POC Examples (6 demos)
 Create each as sub-directories of `php/demos/`, and drop associated demos in:
 - **basic-operations/**: Connect, set/get, error handling
 - **batch-pipeline/**: Atomic transactions vs non-atomic pipelines
 - **cluster-operations/**: Multi-node routing, hash slot constraints
+- **authentication/**: Basic auth via `ServerCredentials`, TLS/SSL, AWS IAM auth
 
 Skip vector search demos, GLIDE for PHP does not support the FT module features yet.
 
-*POCs use Valkey host from `VALKEY_HOST` environment variable and port `6379` for testing, final docs use `localhost`*
+*POCs use Valkey host from `VALKEY_HOST` environment variable for testing, and use the following for specific testing:*
+- All core operations use port `6379`
+- Cluster operations use port `7000`
+- Authentication and TLS uses port `6479`
+
+The final documentation output uses `localhost`
+
+**NOTE:** TLS testing will require using insecure from the client side (ignore server certificate validation), but 
+document both secure and insecure certificate client connection modes in the skill.
+
+**NOTE:** AWS IAM auth cannot be runtime tested, but a demo should be created none-the-less for validation, and it should
+at least compile without errors, and it should run without any errors specific to AWS. 
 
 ## 3. Document Lessons Learned
 Create `php/LESSONS_LEARNED.md` with:
