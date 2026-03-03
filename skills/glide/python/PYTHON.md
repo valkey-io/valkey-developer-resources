@@ -689,11 +689,25 @@ When implementing Valkey functionality with GLIDE:
 - [ ] **Use explicit imports, never wildcard imports**
 
 
-## References
+---
 
-- [Valkey GLIDE Documentation](https://glide.valkey.io/)
-- [GLIDE Python Client](https://github.com/valkey-io/valkey-glide/tree/main/python)
-- [Valkey FT.SEARCH](https://valkey.io/commands/ft.search/)
+## Client Lifecycle Management
+
+**Async (FastAPI lifespan):**
+```python
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global _client
+    _client = await GlideClient.create(config)
+    yield
+    await _client.close()
+```
+
+**Sync:**
+```python
+_client = GlideClient.create(config)
+atexit.register(lambda: _client.close())
+```
 
 ---
 # Pipelining and Batching GLIDE Patterns
@@ -845,6 +859,116 @@ results = await client.exec(batch, raise_on_error=True, options=options)
 
 ---
 
-**Version:** 1.0
-**Last Updated:** 2026-02-13
-**Source:** Production implementation experience
+# Performance Optimization
+
+Config templates: [`performance/config-templates/python-config.py`](../performance/config-templates/python-config.py)
+
+## AZ Affinity
+
+```python
+from glide import GlideClusterClient, GlideClusterClientConfiguration, NodeAddress, ReadFrom
+
+config = GlideClusterClientConfiguration(
+    addresses=[NodeAddress("cluster.endpoint.cache.amazonaws.com", 6379)],
+    read_from=ReadFrom.AZ_AFFINITY,
+    client_az="us-east-1a",
+    request_timeout=500,
+)
+client = await GlideClusterClient.create(config)
+```
+
+## Throughput Tuning
+
+```python
+config = GlideClientConfiguration(
+    addresses=[NodeAddress("localhost", 6379)],
+    inflight_requests_limit=2000,  # Default: 1000
+    request_timeout=500,
+)
+```
+
+## Serverless / Lambda
+
+```python
+config = GlideClientConfiguration(
+    addresses=[NodeAddress("localhost", 6379)],
+    lazy_connect=True,  # Defer connection until first command
+    request_timeout=500,
+)
+client = await GlideClient.create(config)
+```
+
+## Dedicated Blocking Client
+
+```python
+blocking_client = await GlideClient.create(GlideClientConfiguration(
+    addresses=[NodeAddress("localhost", 6379)],
+    request_timeout=30000,
+    client_name="queue-worker",
+))
+item = await blocking_client.blpop(["queue"], 30)
+```
+
+## Hash vs JSON for Structured Data
+
+```python
+# ❌ Inefficient — must fetch/parse entire object
+await client.set("user:123", json.dumps(user))
+data = json.loads(await client.get("user:123"))
+
+# ✅ Efficient — fetch only needed fields
+await client.hset("user:123", {"name": "John", "email": "john@example.com", "age": "30"})
+name = await client.hget("user:123", "name")
+```
+
+## Context Manager Pattern
+
+```python
+# Async
+async with await GlideClient.create(config) as client:
+    result = await client.get("key")
+
+# Sync
+with GlideClient.create(config) as client:
+    result = client.get("key")
+```
+
+## Monitoring
+
+### OpenTelemetry
+
+```python
+from glide import OpenTelemetry, OpenTelemetryConfig, OpenTelemetryTracesConfig, OpenTelemetryMetricsConfig
+
+OpenTelemetry.init(OpenTelemetryConfig(
+    traces=OpenTelemetryTracesConfig(
+        endpoint="http://localhost:4318/v1/traces",
+        sample_percentage=1,  # 1% for production
+    ),
+    metrics=OpenTelemetryMetricsConfig(
+        endpoint="http://localhost:4318/v1/metrics",
+    ),
+))
+```
+
+### Logging
+
+```python
+from glide import Logger
+
+Logger.set_logger_config("warn", "glide.log")   # Production
+Logger.set_logger_config("error")                # Max performance
+```
+
+## Concurrent Operations (Async)
+
+```python
+# When operations are truly independent and on different keys:
+user, posts, comments = await asyncio.gather(
+    client.get("user:123"),
+    client.lrange("posts:123", 0, -1),
+    client.lrange("comments:123", 0, -1),
+)
+```
+
+Server-side config: [`performance/server-configuration-guide.md`](../performance/server-configuration-guide.md)

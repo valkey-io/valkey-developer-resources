@@ -412,3 +412,135 @@ class UserService {
 - [ ] **Follow Single Responsibility Principle - one class, one purpose**
 - [ ] **Use Strategy Pattern instead of if-else chains**
 - [ ] **Inject dependencies via interfaces, not concrete classes**
+
+---
+
+## Client Lifecycle Management
+
+One client per PHP-FPM worker (not per request). Use a static property or global:
+
+```php
+class Cache {
+    private static ?ValkeyGlide $client = null;
+    public static function client(): ValkeyGlide {
+        if (self::$client === null) {
+            self::$client = new ValkeyGlide();
+            self::$client->connect(addresses: [['host' => 'localhost', 'port' => 6379]], request_timeout: 500);
+        }
+        return self::$client;
+    }
+}
+```
+
+---
+
+# Performance Optimization
+
+Config templates: [`performance/config-templates/php-config.php`](../performance/config-templates/php-config.php)
+
+## AZ Affinity
+
+```php
+$cluster = new ValkeyGlideCluster(
+    addresses: [['host' => 'cluster.endpoint.cache.amazonaws.com', 'port' => 6379]],
+    use_tls: false,
+    read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY,
+    client_az: 'us-east-1a',
+    request_timeout: 500,
+    periodic_checks: ValkeyGlideCluster::PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS,
+);
+```
+
+Read strategy constants: `READ_FROM_PRIMARY`, `READ_FROM_PREFER_REPLICA`, `READ_FROM_AZ_AFFINITY`, `READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY`.
+
+## Serverless / Lambda & PHP-FPM
+
+```php
+$client = new ValkeyGlide();
+$client->connect(
+    addresses: [['host' => getenv('VALKEY_ENDPOINT'), 'port' => 6379]],
+    request_timeout: 500,
+    lazy_connect: true,  // Defer connection until first command
+);
+```
+
+For PHP-FPM, each worker maintains its own persistent connection. Connection count = `pm.max_children`:
+
+```php
+global $valkeyClient;
+if (!isset($valkeyClient)) {
+    $valkeyClient = new ValkeyGlide();
+    $valkeyClient->connect(
+        addresses: [['host' => 'localhost', 'port' => 6379]],
+        request_timeout: 500,
+        client_name: 'php-fpm-worker-' . getmypid(),
+    );
+}
+```
+
+## Retry Strategy
+
+```php
+$client = new ValkeyGlide();
+$client->connect(
+    addresses: [['host' => 'localhost', 'port' => 6379]],
+    request_timeout: 500,
+    reconnect_strategy: [
+        'num_of_retries' => 10,
+        'factor' => 2,
+        'exponent_base' => 2,
+        'jitter_percent' => 15,  // Avoid thundering herd
+    ],
+);
+```
+
+## Dedicated Blocking Client
+
+```php
+$blockingClient = new ValkeyGlide();
+$blockingClient->connect(
+    addresses: [['host' => 'localhost', 'port' => 6379]],
+    request_timeout: 35000,
+    client_name: 'blocking-worker',
+);
+$task = $blockingClient->blpop(['queue:tasks'], 30);
+```
+
+## Hash vs JSON for Structured Data
+
+```php
+// ❌ Inefficient — must fetch/parse entire object
+$client->set('user:123', json_encode($userData));
+$email = json_decode($client->get('user:123'), true)['email'];
+
+// ✅ Efficient — fetch only needed fields
+$client->hSet('user:123', 'name', 'John', 'email', 'john@example.com', 'age', '30');
+$email = $client->hGet('user:123', 'email');
+```
+
+## Monitoring
+
+### OpenTelemetry
+
+```php
+use ValkeyGlide\OpenTelemetry\OpenTelemetryConfig;
+use ValkeyGlide\OpenTelemetry\TracesConfig;
+use ValkeyGlide\OpenTelemetry\MetricsConfig;
+
+$otelConfig = OpenTelemetryConfig::builder()
+    ->traces(TracesConfig::builder()
+        ->endpoint('http://localhost:4318/v1/traces')
+        ->samplePercentage(1)
+        ->build())
+    ->metrics(MetricsConfig::builder()
+        ->endpoint('http://localhost:4318/v1/metrics')
+        ->build())
+    ->build();
+
+// Adjust sampling at runtime:
+ValkeyGlide::setOtelSamplePercentage(10);
+```
+
+Recommended sampling: 1-10% production, 25-50% staging, 100% development.
+
+Server-side config: [`performance/server-configuration-guide.md`](../performance/server-configuration-guide.md)

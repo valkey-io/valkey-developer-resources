@@ -578,14 +578,188 @@ When implementing Valkey functionality with GLIDE:
 
 ---
 
-## References
+## Client Lifecycle Management
 
-- [Valkey GLIDE Documentation](https://glide.valkey.io/)
-- [GLIDE Go Client](https://github.com/valkey-io/valkey-glide/tree/main/go)
-- [Go Package Documentation](https://pkg.go.dev/github.com/valkey-io/valkey-glide/go/v2)
+```go
+// package-level; initialize in main(), close on exit
+var client *glide.Client
+
+func main() {
+    var err error
+    client, err = glide.NewClient(cfg)
+    if err != nil { log.Fatal(err) }
+    defer client.Close()
+
+    ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+    defer stop()
+    <-ctx.Done()
+}
+```
 
 ---
 
-**Version:** 1.0
-**Last Updated:** 2026-02-25
-**Source:** Production implementation experience
+# Performance Optimization
+
+Config templates: [`performance/config-templates/go-config.go`](../performance/config-templates/go-config.go)
+
+`inflightRequestsLimit` not exposed in Go — managed at Rust core level (default: 1000). Focus on batching and concurrency.
+
+## AZ Affinity
+
+```go
+cfg := config.NewClusterClientConfiguration().
+    WithAddress(&config.NodeAddress{Host: "cluster.endpoint.cache.amazonaws.com", Port: 6379}).
+    WithReadFrom(config.AzAffinity).
+    WithClientAZ("us-east-1a").
+    WithRequestTimeout(500 * time.Millisecond)
+
+client, err := glide.NewClusterClient(cfg)
+```
+
+## Serverless / Lambda
+
+```go
+var lambdaClient *glide.Client
+
+func ensureClient() error {
+    if lambdaClient != nil {
+        return nil
+    }
+    cfg := config.NewClientConfiguration().
+        WithAddress(&config.NodeAddress{Host: os.Getenv("CACHE_ENDPOINT"), Port: 6379}).
+        WithRequestTimeout(500 * time.Millisecond).
+        WithLazyConnect(true). // Defer TCP+TLS handshake until first command
+        WithClientName("lambda-handler").
+        WithReconnectStrategy(config.NewBackoffStrategy(3, 500, 2))
+
+    var err error
+    lambdaClient, err = glide.NewClient(cfg)
+    return err
+}
+```
+
+## Retry Strategy
+
+```go
+cfg := config.NewClientConfiguration().
+    WithAddress(&config.NodeAddress{Host: "localhost", Port: 6379}).
+    WithReconnectStrategy(config.NewBackoffStrategy(10, 500, 2)). // retries, factor, exponentBase
+    WithRequestTimeout(500 * time.Millisecond)
+```
+
+## Dedicated Blocking Client
+
+```go
+blockingClient, _ := glide.NewClient(
+    config.NewClientConfiguration().
+        WithAddress(&config.NodeAddress{Host: "localhost", Port: 6379}).
+        WithRequestTimeout(30 * time.Second).
+        WithClientName("queue-worker"),
+)
+item, err := blockingClient.BLPop(ctx, []string{"queue"}, 30*time.Second)
+```
+
+## Typed Error Handling
+
+```go
+import "errors"
+
+value, err := client.Get(ctx, "key")
+if err != nil {
+    var timeoutErr *glide.TimeoutError
+    var connErr *glide.ConnectionError
+    var closingErr *glide.ClosingError
+
+    switch {
+    case errors.As(err, &timeoutErr):
+        // Retry with exponential backoff
+    case errors.As(err, &connErr):
+        // Circuit breaker pattern
+    case errors.As(err, &closingErr):
+        // Client is closing — recreate
+    }
+}
+```
+
+## Cluster Scan
+
+```go
+cursor := models.NewClusterScanCursor()
+var allKeys []string
+scanOpts := *options.NewClusterScanOptions()
+scanOpts.SetMatch("user:*")
+scanOpts.SetCount(100)
+
+for {
+    result, err := clusterClient.ScanWithOptions(ctx, cursor, scanOpts)
+    if err != nil { break }
+    allKeys = append(allKeys, result.Keys...)
+    cursor = result.Cursor
+    if cursor.IsFinished() { break }
+}
+```
+
+## Hash vs JSON for Structured Data
+
+```go
+// ❌ Inefficient — must fetch/parse entire object
+data, _ := json.Marshal(user)
+client.Set(ctx, "user:123", string(data))
+
+// ✅ Efficient — fetch only needed fields
+client.HSet(ctx, "user:123", map[string]string{"name": "John", "email": "john@example.com"})
+name, _ := client.HGet(ctx, "user:123", "name")
+```
+
+## Concurrent Operations
+
+```go
+// errgroup for concurrent operations with error handling:
+g, ctx := errgroup.WithContext(ctx)
+var user string
+g.Go(func() error {
+    var err error
+    user, err = client.Get(ctx, "user:123")
+    return err
+})
+// ... more goroutines
+if err := g.Wait(); err != nil { /* handle */ }
+```
+
+## Goroutine Safety
+
+```go
+// ✅ Batch created per goroutine because Batch objects are NOT goroutine safe
+go func() {
+    batch := pipeline.NewStandaloneBatch(false)
+    batch.Get("key1")
+    client.Exec(ctx, *batch, false)
+}()
+```
+
+## Monitoring
+
+### OpenTelemetry
+
+```go
+err := glide.GetOtelInstance().Init(glide.OpenTelemetryConfig{
+    Traces: &glide.OpenTelemetryTracesConfig{
+        Endpoint:         "http://localhost:4318/v1/traces",
+        SamplePercentage: 1,
+    },
+    Metrics: &glide.OpenTelemetryMetricsConfig{
+        Endpoint: "http://localhost:4318/v1/metrics",
+    },
+})
+```
+
+### Logging
+
+```go
+import "github.com/valkey-io/valkey-glide/go/v2/logger"
+
+logger.SetLoggerConfig(logger.Warn, "glide.log")  // Production
+logger.SetLoggerConfig(logger.Error, "")           // Max performance
+```
+
+Server-side config: [`performance/server-configuration-guide.md`](../performance/server-configuration-guide.md)
