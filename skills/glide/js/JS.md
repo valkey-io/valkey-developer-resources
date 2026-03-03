@@ -159,6 +159,54 @@ pipeline.set("key2", "value2");
 const results = await client.exec(pipeline, true);
 ```
 
+### Retry Strategies (Cluster Only)
+
+**Retry on server errors:**
+```javascript
+const options = {
+    retryStrategy: {
+        retryServerError: true,
+        retryConnectionError: false,
+    },
+};
+const results = await client.exec(batch, true, options);
+```
+
+**Retry on connection errors:**
+```javascript
+const options = {
+    retryStrategy: {
+        retryServerError: false,
+        retryConnectionError: true,
+    },
+};
+const results = await client.exec(batch, true, options);
+```
+
+**Retry on both:**
+```javascript
+const options = {
+    retryStrategy: {
+        retryServerError: true,
+        retryConnectionError: true,
+    },
+};
+const results = await client.exec(batch, true, options);
+```
+
+**No retries:**
+```javascript
+const options = {
+    retryStrategy: {
+        retryServerError: false,
+        retryConnectionError: false,
+    },
+};
+const results = await client.exec(batch, true, options);
+```
+
+See SKILL.md for retry strategy decision matrix.
+
 ## Vector Search (FT Module)
 
 ### Import
