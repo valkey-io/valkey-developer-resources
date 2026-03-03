@@ -291,6 +291,26 @@ results, err := client.Exec(ctx, *pipelineBatch, true)
 - Must dereference with `*` when passing to `Exec()`
 - Second parameter is `raiseOnError` (bool)
 - Returns `([]any, error)` - slice of interface{}
+- See SKILL.md for retry strategy decision matrix
+
+### Retry Strategies (Cluster Only)
+
+```go
+// Configure retry strategy
+options := pipeline.NewClusterBatchOptions().
+	WithRetryStrategy(*pipeline.NewClusterBatchRetryStrategy().
+		WithRetryServerError(true).
+		WithRetryConnectionError(false))
+
+// Execute with options
+results, err := client.ExecWithOptions(ctx, *batch, true, *options)
+```
+
+**API Pattern:**
+- Use `ExecWithOptions()` instead of `Exec()` for retry strategies
+- `NewClusterBatchRetryStrategy()` creates retry config
+- Chain `WithRetryServerError()` and `WithRetryConnectionError()`
+- Must dereference options with `*` when passing to `ExecWithOptions()`
 
 ---
 
