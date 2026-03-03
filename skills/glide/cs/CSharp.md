@@ -117,6 +117,43 @@ var results = await client.Exec(pipeline, raiseOnError: true);
 - Results are `object?[]?` - nullable array of nullable objects
 - Cluster atomic batches require same hash slot
 
+### Retry Strategies
+
+**Note:** C# GLIDE v0.9.0 does not support batch retry strategies. This feature may be added in future versions.
+
+For production resilience, implement retry logic at the application level:
+
+```csharp
+async Task<T> ExecuteWithRetryAsync<T>(
+    Func<Task<T>> operation,
+    int maxRetries = 3,
+    int baseDelayMs = 100)
+{
+    for (int attempt = 0; attempt < maxRetries; attempt++)
+    {
+        try
+        {
+            return await operation();
+        }
+        catch (Exception ex) when (attempt < maxRetries - 1)
+        {
+            await Task.Delay(baseDelayMs * (int)Math.Pow(2, attempt));
+        }
+    }
+    throw new InvalidOperationException("Max retries exceeded");
+}
+
+// Usage
+var results = await ExecuteWithRetryAsync(async () =>
+{
+    var batch = new ClusterBatch(atomic: false);
+    batch.StringSetAsync("key", "value");
+    return await client.Exec(batch, raiseOnError: true);
+});
+```
+
+See SKILL.md for retry strategy decision matrix (applicable when feature becomes available).
+
 ## Cluster Operations
 
 ### Hash Tags for Slot Control

@@ -29,6 +29,16 @@ Demonstrates:
 - Non-atomic pipelines
 - Batch execution patterns
 
+### Batch Retry Strategies
+```bash
+dotnet run --project BatchRetryStrategies.csproj
+```
+
+Demonstrates:
+- Retry strategy limitation in v0.9.0
+- Application-level retry workaround
+- Expected API for future versions
+
 ### Cluster Operations
 ```bash
 dotnet run --project ClusterOperations.csproj
