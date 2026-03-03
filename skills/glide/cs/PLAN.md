@@ -23,7 +23,7 @@ cd ../../../../valkey/tls
 ## 2. Core POC Examples (7 demos)
 Create each as sub-directories of `cs/demos/`, and drop associated demos in:
 - **basic-operations/**: Connect, set/get, error handling
-- **batch-pipeline/**: Atomic transactions vs non-atomic pipelines
+- **batch-pipeline/**: Atomic transactions vs non-atomic pipelines, retry strategies
 - **vector-search/**: FT.CREATE index, add documents, FT.SEARCH with KNN
 - **cluster-operations/**: Multi-node routing, hash slot constraints
 - **authentication/**: Basic auth via `ServerCredentials`, TLS/SSL, AWS IAM auth
@@ -38,6 +38,8 @@ The final documentation output uses `localhost`
 **NOTE:** TLS testing will require using insecure from the client side (ignore server certificate validation), but 
 document both secure and insecure certificate client connection modes in the skill.
 For vector-search API, refer to GLIDE API source files at `../../../valkey-glide/node/src/server-modules/` for a reference
+
+**NOTE:** Batch operations retry strategies should show examples of when to use `retryServerError`, `retryConnectionError`, and when to avoid both.
 
 ## 3. Document Lessons Learned
 Create `cs/LESSONS_LEARNED.md` with:
