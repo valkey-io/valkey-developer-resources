@@ -124,6 +124,11 @@ $results = $client->exec();  // Returns array of results
 - `exec()` executes and returns results
 - Results are PHP arrays, not objects
 
+### Retry Strategies
+**Note:** PHP GLIDE v1.0.0 does not support batch retry strategies (`retryServerError`, `retryConnectionError`). This feature may be added in future versions. For now, implement retry logic at the application level if needed.
+
+See SKILL.md for retry strategy decision matrix (applicable when feature becomes available).
+
 ## Error Handling
 
 ### Errors Printed, Not Always Thrown
