@@ -108,12 +108,23 @@ await client.exec(batch)  # Success!
 
 | Language | Status | Key Features |
 |----------|--------|--------------|
-| [Python](python/PYTHON.md) | ✅ Complete | Async/await, type hints, anti-patterns |
-| [Java](java/JAVA.md) | ✅ Complete | CompletableFuture, try-with-resources, anti-patterns |
-| [Node.js](js/JS.md) | ✅ Complete | Promises, GlideFt, Decoder.Bytes |
-| [Go](go/GO.md) | ✅ Complete | context.Context, error handling, anti-patterns |
-| [PHP](php/PHP.md) | ✅ Complete | Synchronous API, SOLID principles, anti-patterns |
+| [Python](python/PYTHON.md) | ✅ Complete | Async/await, type hints, anti-patterns, performance optimization |
+| [Java](java/JAVA.md) | ✅ Complete | CompletableFuture, try-with-resources, anti-patterns, performance optimization |
+| [Node.js](js/JS.md) | ✅ Complete | Promises, GlideFt, Decoder.Bytes, performance optimization |
+| [Go](go/GO.md) | ✅ Complete | context.Context, error handling, anti-patterns, performance optimization |
+| [PHP](php/PHP.md) | ✅ Complete | Synchronous API, SOLID principles, anti-patterns, performance optimization |
 | [C#](cs/CSharp.md) | ✅ Complete | Task<T>, await using, StackExchange.Redis compatibility |
+
+## Performance Optimization
+
+Each language guide includes a **Performance Optimization** section covering production tuning. Cross-cutting resources:
+
+| Resource | Description |
+|----------|-------------|
+| [Config Templates](performance/config-templates/) | Production-ready client configurations for all languages |
+| [Server Configuration Guide](performance/server-configuration-guide.md) | Cluster sizing, memory policy, ElastiCache node types, monitoring |
+| [Benchmarks](performance/benchmarks/) | Measure performance impact of optimization patterns |
+| [SKILL.md — Performance](SKILL.md#performance-optimization) | Universal anti-patterns and optimization checklist |
 
 ## Quick Start
 
@@ -374,6 +385,13 @@ Each language skill contains:
 - Batch/pipeline operations (atomic vs non-atomic)
 - Cluster operations (hash tags, slot management)
 - Vector search (where supported)
+
+### Performance Optimization (all languages)
+- Production config templates (timeouts, retry, throughput, AZ affinity)
+- Monitoring (OpenTelemetry, logging)
+- Serverless/Lambda patterns
+- Data structure optimization
+- Performance checklist
 
 ## Common Patterns Across Languages
 

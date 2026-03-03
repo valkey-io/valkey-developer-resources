@@ -2,3 +2,7 @@
 **/.gradle
 **/gradle*
 **/build
+
+node_modules
+dump.rdb
+.DS_Store

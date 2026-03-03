@@ -467,3 +467,150 @@ try {
 - [ ] Always close client in `finally` block
 - [ ] Use batch operations instead of loops for multiple keys
 - [ ] Validate external data at runtime (TypeScript with Zod)
+
+---
+
+## Client Lifecycle Management
+
+```javascript
+// module-level — initialize before server starts, close on exit
+let client = await GlideClient.createClient({ addresses: [...], requestTimeout: 500 });
+
+process.on("SIGTERM", () => { client?.close(); process.exit(0); });
+process.on("SIGINT",  () => { client?.close(); process.exit(0); });
+```
+
+---
+
+# Performance Optimization
+
+Config templates: [`performance/config-templates/nodejs-config.ts`](../performance/config-templates/nodejs-config.ts)
+
+## AZ Affinity
+
+```typescript
+import { GlideClusterClient, ReadFrom } from "@valkey/valkey-glide";
+
+const client = await GlideClusterClient.createClient({
+    addresses: [{ host: "cluster.endpoint.cache.amazonaws.com", port: 6379 }],
+    readFrom: "AZAffinity" as ReadFrom,
+    clientAz: "us-east-1a",
+    requestTimeout: 500,
+});
+```
+
+## Throughput Tuning
+
+```typescript
+const client = await GlideClient.createClient({
+    addresses: [{ host: "localhost", port: 6379 }],
+    inflightRequestsLimit: 2000, // Default: 1000
+    requestTimeout: 500,
+});
+```
+
+## Serverless / Lambda
+
+```typescript
+const client = await GlideClient.createClient({
+    addresses: [{ host: "localhost", port: 6379 }],
+    lazyConnect: true, // Defer connection until first command
+    requestTimeout: 500,
+});
+```
+
+## Retry Strategy
+
+```typescript
+const client = await GlideClient.createClient({
+    addresses: [{ host: "localhost", port: 6379 }],
+    connectionBackoff: {
+        numberOfRetries: 10,
+        factor: 500,
+        exponentBase: 2,
+    },
+    requestTimeout: 500,
+});
+```
+
+## Dedicated Blocking Client
+
+```typescript
+const blockingClient = await GlideClient.createClient({
+    addresses: [{ host: "localhost", port: 6379 }],
+    requestTimeout: 30000,
+    clientName: "queue-worker",
+});
+const item = await blockingClient.blpop(["queue"], 30);
+```
+
+## Hash vs JSON for Structured Data
+
+```typescript
+// ❌ Inefficient — must fetch/parse entire object
+await client.set("user:123", JSON.stringify(user));
+const parsed = JSON.parse(await client.get("user:123"));
+
+// ✅ Efficient — fetch only needed fields
+await client.hset("user:123", { name: "John", email: "john@example.com", age: "30" });
+const name = await client.hget("user:123", "name");
+```
+
+## Typed Error Handling
+
+```typescript
+import { ConnectionError, TimeoutError, RequestError } from "@valkey/valkey-glide";
+
+try {
+    const result = await client.get("key");
+} catch (error) {
+    if (error instanceof TimeoutError) {
+        // Retry with exponential backoff
+    } else if (error instanceof ConnectionError) {
+        // Circuit breaker pattern
+    } else if (error instanceof RequestError) {
+        // Check command syntax
+    }
+}
+```
+
+## Concurrent Operations
+
+```typescript
+// For truly independent operations on different keys:
+const [user, posts, comments] = await Promise.all([
+    client.get("user:123"),
+    client.lrange("posts:123", 0, -1),
+    client.lrange("comments:123", 0, -1),
+]);
+
+// Handle partial failures:
+const results = await Promise.allSettled([
+    client.get("key1"),
+    client.get("key2"),
+]);
+```
+
+## Monitoring
+
+### OpenTelemetry
+
+```typescript
+import { OpenTelemetry } from "@valkey/valkey-glide";
+
+OpenTelemetry.init({
+    traces: { endpoint: "http://localhost:4318/v1/traces", samplePercentage: 1 },
+    metrics: { endpoint: "http://localhost:4318/v1/metrics" },
+});
+```
+
+### Logging
+
+```typescript
+import { Logger } from "@valkey/valkey-glide";
+
+Logger.setLoggerConfig("warn", "glide.log");  // Production
+Logger.setLoggerConfig("error");               // Max performance
+```
+
+Server-side config: [`performance/server-configuration-guide.md`](../performance/server-configuration-guide.md)

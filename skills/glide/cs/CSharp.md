@@ -85,13 +85,13 @@ async Task Example()
 ### Standalone Batch
 ```csharp
 // Atomic batch (transaction)
-var batch = new Batch(atomic: true);
+var batch = new Batch(isAtomic: true);
 batch.StringSet("key1", "value1");
 batch.StringGet("key1");
 var results = await client.Exec(batch, raiseOnError: true);
 
 // Non-atomic pipeline
-var pipeline = new Batch(atomic: false);
+var pipeline = new Batch(isAtomic: false);
 pipeline.StringSet("key1", "value1");
 pipeline.StringSet("key2", "value2");
 var results = await client.Exec(pipeline, raiseOnError: true);
@@ -100,20 +100,20 @@ var results = await client.Exec(pipeline, raiseOnError: true);
 ### Cluster Batch
 ```csharp
 // Atomic batch (requires same slot)
-var batch = new ClusterBatch(atomic: true);
+var batch = new ClusterBatch(isAtomic: true);
 batch.StringSet("{user}:1", "Alice");
 batch.StringGet("{user}:1");
 var results = await client.Exec(batch, raiseOnError: true);
 
 // Non-atomic pipeline (can span slots)
-var pipeline = new ClusterBatch(atomic: false);
+var pipeline = new ClusterBatch(isAtomic: false);
 pipeline.StringSet("key1", "value1");
 pipeline.StringSet("key2", "value2");
 var results = await client.Exec(pipeline, raiseOnError: true);
 ```
 
 **Key Points:**
-- Use named parameter `atomic:` for clarity
+- Use named parameter `isAtomic:` for clarity
 - Results are `object?[]?` - nullable array of nullable objects
 - Cluster atomic batches require same hash slot
 
@@ -146,7 +146,7 @@ async Task<T> ExecuteWithRetryAsync<T>(
 // Usage
 var results = await ExecuteWithRetryAsync(async () =>
 {
-    var batch = new ClusterBatch(atomic: false);
+    var batch = new ClusterBatch(isAtomic: false);
     batch.StringSetAsync("key", "value");
     return await client.Exec(batch, raiseOnError: true);
 });
@@ -172,13 +172,13 @@ await client.Exec(batch, raiseOnError: true);
 ### CROSSSLOT Error
 ```csharp
 // ❌ This fails - keys in different slots
-var batch = new ClusterBatch(atomic: true);
+var batch = new ClusterBatch(isAtomic: true);
 batch.StringSet("key1", "value1");  // Slot A
 batch.StringSet("key2", "value2");  // Slot B
-await client.Exec(batch, raiseOnError: true);  // Throws ValkeyException: CROSSSLOT
+await client.Exec(batch, raiseOnError: true);  // Throws RequestException: CROSSSLOT
 
 // ✅ This works - non-atomic can span slots
-var pipeline = new ClusterBatch(atomic: false);
+var pipeline = new ClusterBatch(isAtomic: false);
 pipeline.StringSet("key1", "value1");
 pipeline.StringSet("key2", "value2");
 await client.Exec(pipeline, raiseOnError: true);
@@ -187,6 +187,10 @@ await client.Exec(pipeline, raiseOnError: true);
 ## Error Handling
 
 ```csharp
+using static Valkey.Glide.Errors;
+// Note: alias Valkey.Glide.Errors.TimeoutException to avoid conflict with System.TimeoutException
+using TimeoutException = Valkey.Glide.Errors.TimeoutException;
+
 try
 {
     await client.StringSetAsync("key", "value");
@@ -200,13 +204,13 @@ catch (TimeoutException ex)
 {
     Console.WriteLine($"Timeout: {ex.Message}");
 }
-catch (ValkeyException ex)
+catch (RequestException ex)
 {
-    Console.WriteLine($"Valkey error: {ex.Message}");
+    Console.WriteLine($"Request error: {ex.Message}");
 }
 ```
 
-**Key Point:** Direct exception access (no wrapping like Java's `ExecutionException`)
+**Key Point:** Direct exception access (no wrapping like Java's `ExecutionException`). Exceptions are nested in `Valkey.Glide.Errors` — use `using static Valkey.Glide.Errors;` for convenience.
 
 ## PubSub Operations
 
@@ -267,7 +271,7 @@ var config = new StandaloneClientConfigurationBuilder()
 var config = new StandaloneClientConfigurationBuilder()
     .WithAddress("localhost", 6379)
     .WithConnectionRetryStrategy(
-        numOfRetries: 5,
+        numberOfRetries: 5,
         factor: 100,
         exponentBase: 2
     )
@@ -360,13 +364,13 @@ await client.StringSetAsync("key", "value");
 ### ❌ Cluster Atomic Batch Across Slots
 ```csharp
 // Wrong - CROSSSLOT error
-var batch = new ClusterBatch(atomic: true);
+var batch = new ClusterBatch(isAtomic: true);
 batch.StringSet("key1", "value1");  // Different slots
 batch.StringSet("key2", "value2");
 await client.Exec(batch, raiseOnError: true);  // Throws
 
 // Correct - use hash tags
-var batch = new ClusterBatch(atomic: true);
+var batch = new ClusterBatch(isAtomic: true);
 batch.StringSet("{user}:1", "value1");  // Same slot
 batch.StringSet("{user}:2", "value2");
 await client.Exec(batch, raiseOnError: true);  // Success
@@ -378,12 +382,28 @@ await client.Exec(batch, raiseOnError: true);  // Success
 - [ ] Use `await using` for client disposal
 - [ ] Set explicit `RequestTimeout` in configuration
 - [ ] Use `await` for all async operations (never `.Result` or `.Wait()`)
-- [ ] Use `Batch(atomic: true)` for transactions, `Batch(atomic: false)` for pipelines
+- [ ] Use `Batch(isAtomic: true)` for transactions, `Batch(isAtomic: false)` for pipelines
 - [ ] Use hash tags `{tag}` for cluster atomic batches
-- [ ] Handle specific exceptions: `ConnectionException`, `TimeoutException`, `ValkeyException`
+- [ ] Handle specific exceptions: `ConnectionException`, `TimeoutException`, `RequestException`
 - [ ] Configure PubSub subscriptions at connection time
 - [ ] Use `ClusterBatch` for cluster mode, `Batch` for standalone
 - [ ] Enable nullable reference types for better null safety
+
+---
+
+## Client Lifecycle Management
+
+**ASP.NET Core:**
+```csharp
+// Program.cs
+builder.Services.AddSingleton<GlideClient>(_ =>
+    GlideClient.CreateClient(config).GetAwaiter().GetResult());
+
+// Shutdown via IHostedService.StopAsync or await using for scripts
+await using var client = await GlideClient.CreateClient(config);
+```
+
+---
 
 ## Language Comparison
 
@@ -398,9 +418,176 @@ await client.Exec(batch, raiseOnError: true);  // Success
 | Batch constructor | `new Batch(false)` | `new Batch(false)` | `new Batch(isAtomic: false)` |
 | Binary data | `Buffer` | `GlideString` | `GlideString` / `byte[]` |
 
-## Additional Resources
+---
 
-- [Official Documentation](https://valkey.io/valkey-glide/)
-- [GitHub Repository](https://github.com/valkey-io/valkey-glide-csharp)
-- [NuGet Package](https://www.nuget.org/packages/Valkey.Glide)
-- [General Concepts](https://github.com/valkey-io/valkey-glide/wiki/General-Concepts)
+# Performance Optimization
+
+Config templates: [`performance/config-templates/csharp-config.cs`](../performance/config-templates/csharp-config.cs)
+
+`inflightRequestsLimit` not exposed in C# — managed at Rust core level (default: 1000). Focus on batching and `Task.WhenAll`.
+
+## AZ Affinity
+
+```csharp
+using static Valkey.Glide.ConnectionConfiguration;
+
+var config = new ClusterClientConfigurationBuilder()
+    .WithAddress("cluster.endpoint.cache.amazonaws.com", 6379)
+    .WithReadFrom(new ReadFrom(ReadFromStrategy.AzAffinity, "us-east-1a"))
+    .WithRequestTimeout(TimeSpan.FromMilliseconds(500))
+    .WithConnectionRetryStrategy(numberOfRetries: 10, factor: 500, exponentBase: 2)
+    .WithClientName("my-app-cluster")
+    .Build();
+
+await using var client = await GlideClusterClient.CreateClient(config);
+```
+
+## Serverless / Lambda
+
+```csharp
+var config = new StandaloneClientConfigurationBuilder()
+    .WithAddress(Environment.GetEnvironmentVariable("CACHE_ENDPOINT")!, 6379)
+    .WithRequestTimeout(TimeSpan.FromMilliseconds(500))
+    .WithLazyConnect(true)  // Defer TCP+TLS handshake until first command
+    .WithClientName("lambda-handler")
+    .WithConnectionRetryStrategy(numberOfRetries: 3, factor: 500, exponentBase: 2)
+    .Build();
+```
+
+## Retry Strategy
+
+```csharp
+var config = new StandaloneClientConfigurationBuilder()
+    .WithAddress("localhost", 6379)
+    .WithRequestTimeout(TimeSpan.FromMilliseconds(500))
+    .WithConnectionRetryStrategy(
+        numberOfRetries: 10,
+        factor: 500,        // Base delay in ms
+        exponentBase: 2     // Exponential backoff
+    )
+    .Build();
+```
+
+## Dedicated Blocking Client
+
+```csharp
+var blockingConfig = new StandaloneClientConfigurationBuilder()
+    .WithAddress("localhost", 6379)
+    .WithRequestTimeout(TimeSpan.FromSeconds(30))
+    .WithClientName("queue-worker")
+    .Build();
+
+await using var blockingClient = await GlideClient.CreateClient(blockingConfig);
+var item = await blockingClient.ListBlockingLeftPopAsync(
+    new ValkeyKey[] { "queue" }, TimeSpan.FromSeconds(30));
+```
+
+## Typed Error Handling
+
+```csharp
+using static Valkey.Glide.Errors;
+
+try
+{
+    var value = await client.StringGetAsync("key");
+}
+catch (TimeoutException ex)
+{
+    // Retry with exponential backoff
+}
+catch (ConnectionException ex)
+{
+    // Transient — client will auto-reconnect; use circuit breaker pattern
+}
+catch (RequestException ex)
+{
+    // Server-side error (WRONGTYPE, etc.)
+}
+catch (ExecAbortException ex)
+{
+    // Transaction aborted
+}
+catch (ConfigurationError ex)
+{
+    // Invalid configuration — fix config and recreate client
+}
+```
+
+## Hash vs JSON for Structured Data
+
+```csharp
+// ❌ Inefficient — must fetch/parse entire object
+var json = JsonSerializer.Serialize(user);
+await client.StringSetAsync("user:123", json);
+
+// ✅ Efficient — fetch only needed fields
+await client.HashSetAsync("user:123", new HashEntry[]
+{
+    new("name", "John"),
+    new("email", "john@example.com")
+});
+var name = await client.HashGetAsync("user:123", "name");
+```
+
+## Concurrent Operations
+
+```csharp
+// Task.WhenAll for concurrent independent operations
+var userTask = client.StringGetAsync("user:123");
+var settingsTask = client.StringGetAsync("settings:123");
+var statsTask = client.StringGetAsync("stats:123");
+
+await Task.WhenAll(userTask, settingsTask, statsTask);
+
+var user = userTask.Result;
+var settings = settingsTask.Result;
+var stats = statsTask.Result;
+```
+
+## Thread Safety
+
+```csharp
+// ✅ Batch created per scope (because Batch objects are NOT thread-safe — create one per operation scope.)
+async Task ProcessAsync(GlideClient client)
+{
+    var batch = new Batch(isAtomic: false);
+    batch.StringSet("key1", "value1");
+    batch.StringGet("key1");
+    await client.Exec(batch, raiseOnError: true);
+}
+```
+
+## ASP.NET Core Integration
+
+```csharp
+// Program.cs — register as singleton
+builder.Services.AddSingleton<GlideClient>(sp =>
+    GlideClient.CreateClient(config).GetAwaiter().GetResult());
+
+// Graceful shutdown via IHostedService
+public class GlideShutdownService : IHostedService
+{
+    private readonly GlideClient _client;
+    public GlideShutdownService(GlideClient client) => _client = client;
+    public Task StartAsync(CancellationToken ct) => Task.CompletedTask;
+    public async Task StopAsync(CancellationToken ct) => await _client.DisposeAsync();
+}
+```
+
+## Monitoring
+
+### OpenTelemetry
+
+```csharp
+// OpenTelemetry integration — check latest Valkey.Glide docs for C# API
+// The Rust core emits traces/metrics; configure the OTel exporter at startup
+```
+
+### Logging
+
+```csharp
+// Set log level for production (reduce noise)
+// Valkey.Glide uses the Rust core logger — configure via environment or API
+```
+
+Server-side config: [`performance/server-configuration-guide.md`](../performance/server-configuration-guide.md)
