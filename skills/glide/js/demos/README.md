@@ -16,6 +16,7 @@ node basic_operations.js
 node batch_pipeline.js
 node vector_search.js
 node cluster_operations.js
+node batch_retry_strategies.js
 ```
 
 ## Testing
