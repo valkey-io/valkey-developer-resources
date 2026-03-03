@@ -1,3 +1,89 @@
+# Python GLIDE Lessons Learned
+
+## Batch Operation Retry Strategies
+
+### When to Use retryServerError
+**Scenario:** Cluster resharding, server under load, transient server errors
+
+```python
+from glide import ClusterBatchOptions
+from glide_shared.commands.batch_options import BatchRetryStrategy
+
+options = ClusterBatchOptions(
+    retry_strategy=BatchRetryStrategy(
+        retry_server_error=True,  # Retry on TRYAGAIN
+        retry_connection_error=False,
+    )
+)
+```
+
+**Use when:**
+- Cluster is resharding (TRYAGAIN responses)
+- Server is under heavy load
+- Transient OOM or loading dataset errors
+
+**Trade-off:** May reorder commands within batch
+
+### When to Use retryConnectionError
+**Scenario:** Network instability, cluster node failover
+
+```python
+options = ClusterBatchOptions(
+    retry_strategy=BatchRetryStrategy(
+        retry_server_error=False,
+        retry_connection_error=True,  # Retry on connection loss
+    )
+)
+```
+
+**Use when:**
+- Network instability (cross-region, VPN)
+- Cluster node failover in progress
+- Connection pool exhaustion
+
+**Trade-off:** May duplicate entire batch
+
+### When to Use Both
+**Scenario:** Maximum resilience for idempotent operations
+
+```python
+options = ClusterBatchOptions(
+    retry_strategy=BatchRetryStrategy(
+        retry_server_error=True,
+        retry_connection_error=True,
+    )
+)
+```
+
+**Use when:**
+- High availability required
+- Operations are idempotent (SET, not INCR)
+- Can tolerate reordering and duplication
+
+**Trade-off:** Possible reordering + duplication
+
+### When to Disable Retries
+**Scenario:** Strict latency requirements, non-idempotent operations
+
+```python
+options = ClusterBatchOptions(
+    retry_strategy=BatchRetryStrategy(
+        retry_server_error=False,
+        retry_connection_error=False,
+    )
+)
+```
+
+**Use when:**
+- SLA-bound operations (strict latency requirements)
+- Non-idempotent commands (INCR, LPUSH)
+- Already have application-level retry logic
+- Need predictable failure behavior
+
+**Trade-off:** Fail fast on any error
+
+---
+
 # TLS and Authentication Testing
 
 ## Summary

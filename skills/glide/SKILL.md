@@ -134,6 +134,33 @@ client.exec(batch, raiseOnError, options?)
   - `retryConnectionError`: Retry entire batch (may duplicate)
 - `route`: Single-node routing
 
+**Retry Strategy Decision Matrix:**
+
+Enable `retryServerError` when:
+- Cluster is resharding (TRYAGAIN responses)
+- Server under heavy load
+- Transient OOM or loading dataset errors
+- **Trade-off:** May reorder commands within batch
+
+Enable `retryConnectionError` when:
+- Network instability (cross-region, VPN)
+- Cluster node failover in progress
+- Connection pool exhaustion
+- **Trade-off:** May duplicate entire batch
+
+Enable both when:
+- High availability required
+- Operations are idempotent (SET, not INCR)
+- Can tolerate reordering and duplication
+- **Trade-off:** Possible reordering + duplication
+
+Disable both when:
+- SLA-bound operations (strict latency requirements)
+- Non-idempotent commands (INCR, LPUSH)
+- Already have application-level retry logic
+- Need predictable failure behavior
+- **Trade-off:** Fail fast on any error
+
 **Multi-Node Support (Cluster Pipeline):**
 - GLIDE splits pipeline into sub-pipelines per node
 - Dispatches independently, reassembles responses in order
