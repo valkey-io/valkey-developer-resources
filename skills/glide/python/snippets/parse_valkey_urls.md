@@ -1,4 +1,5 @@
 # Connection URL Format
+For parsing Valkey connection URLs, use the `_parse_valkey_url` function.
 
 ```python
 def _parse_valkey_url(url: str) -> tuple[str, int]:
