@@ -5,6 +5,15 @@ description: Production-ready patterns for Valkey GLIDE clients across 6 languag
 
 ## Language-Specific Guides
 
+### CRITICAL: Language-Specific Guide Loading
+
+**BEFORE generating any code, you MUST:**
+1. Detect the language from file extension or imports
+2. Load the corresponding language-specific guide using readFile
+3. Confirm you've loaded it by mentioning which guide you loaded
+
+**This is a BLOCKING REQUIREMENT - do not proceed with implementation until the language-specific guide is loaded.**
+
 Load the corresponding guide when generating or reviewing code:
 
 | Language/Framework | Reference File | Key Topics |
