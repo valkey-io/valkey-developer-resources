@@ -4,6 +4,23 @@
 **Purpose:** Guide correct usage of Valkey GLIDE clients based on real-world implementation experience
 **Audience:** AI agents (Claude, ChatGPT, etc.) and human developers
 
+## Activation Triggers
+
+**Use this skill when:**
+- Generating new Valkey GLIDE code in any supported language
+- Reviewing or analyzing applications that use Valkey GLIDE
+- Debugging Valkey GLIDE related issues
+- Asked about Valkey client patterns, batching, clustering, or error handling
+
+**Example phrases:**
+- "write Valkey GLIDE code"
+- "review this Valkey code"
+- "create Valkey client"
+- "implement Valkey pipeline/batch/transaction"
+- "fix CROSSSLOT error"
+- "connect to Valkey cluster"
+- "handle Valkey timeout exceptions"
+
 ## Language-Specific Guides
 Consult the corresponding detailed guide for code generated in the selected language:
 
