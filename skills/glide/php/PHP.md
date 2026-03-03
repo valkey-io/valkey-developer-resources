@@ -138,6 +138,39 @@ $results = $client->exec();
 // Returns: [true, 1, 2, "2"]
 ```
 
+### Retry Strategies
+
+**Note:** PHP GLIDE v1.0.0 does not support batch retry strategies (`retryServerError`, `retryConnectionError`). This feature may be added in future versions.
+
+For production resilience, implement retry logic at the application level:
+
+```php
+function executeWithRetry($client, callable $operation, int $maxRetries = 3): mixed {
+    $attempt = 0;
+    while ($attempt < $maxRetries) {
+        try {
+            return $operation($client);
+        } catch (Exception $e) {
+            $attempt++;
+            if ($attempt >= $maxRetries) {
+                throw $e;
+            }
+            usleep(100000 * $attempt); // Exponential backoff
+        }
+    }
+}
+
+// Usage
+$results = executeWithRetry($client, function($c) {
+    $c->multi();
+    $c->set('key', 'value');
+    $c->get('key');
+    return $c->exec();
+});
+```
+
+See SKILL.md for retry strategy decision matrix (applicable when feature becomes available).
+
 ## Cluster Operations
 
 ### Hash Tags for Slot Control
