@@ -27,6 +27,22 @@ The API provides batch command support (transactions and pipelines) for both sta
 2.  Add comments as necessary to disambiguate between sync and async GLIDE calls when it is not clear (i.e. the word 'sync' nor the word 'async' appear in nearby syntax).
 
 ---
+## Timeout Configuration
+
+**Connection Timeout vs Request Timeout:**
+- **Connection timeout**: Time to establish initial connection (typically 2 seconds)
+- **Request timeout**: Time for individual command to complete (typically 250 milliseconds)
+
+**When to Adjust Timeouts:**
+Increase timeouts for:
+- Large batch operations (>1000 keys)
+- Vector search queries (high-dimensional data)
+- Blocking operations (BLPOP, BRPOP with timeout)
+- High network latency environments (cross-region, VPN)
+- Cluster operations spanning multiple nodes
+- Large data transfers (>1MB values)
+
+---
 ## Batch Commands (Pipeline and Transaction)
 
 **Batch API** replaces deprecated Transaction/ClusterTransaction APIs. Two modes:
