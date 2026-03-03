@@ -376,6 +376,60 @@ Object[] results = client.exec(transaction, true).get();
 - Returns: `CompletableFuture<Object[]>` - need casting for specific types
 - `raiseOnError=true`: Throws first error as exception
 - `raiseOnError=false`: Returns errors in result array
+- See SKILL.md for retry strategy decision matrix
+
+### Retry Strategies (Cluster Only)
+
+**Retry on server errors:**
+```java
+import glide.api.models.commands.batch.ClusterBatchOptions;
+import glide.api.models.commands.batch.ClusterBatchRetryStrategy;
+
+ClusterBatchOptions options = ClusterBatchOptions.builder()
+    .retryStrategy(ClusterBatchRetryStrategy.builder()
+        .retryServerError(true)
+        .retryConnectionError(false)
+        .build())
+    .build();
+
+Object[] results = client.exec(batch, true, options).get();
+```
+
+**Retry on connection errors:**
+```java
+ClusterBatchOptions options = ClusterBatchOptions.builder()
+    .retryStrategy(ClusterBatchRetryStrategy.builder()
+        .retryServerError(false)
+        .retryConnectionError(true)
+        .build())
+    .build();
+
+Object[] results = client.exec(batch, true, options).get();
+```
+
+**Retry on both:**
+```java
+ClusterBatchOptions options = ClusterBatchOptions.builder()
+    .retryStrategy(ClusterBatchRetryStrategy.builder()
+        .retryServerError(true)
+        .retryConnectionError(true)
+        .build())
+    .build();
+
+Object[] results = client.exec(batch, true, options).get();
+```
+
+**No retries:**
+```java
+ClusterBatchOptions options = ClusterBatchOptions.builder()
+    .retryStrategy(ClusterBatchRetryStrategy.builder()
+        .retryServerError(false)
+        .retryConnectionError(false)
+        .build())
+    .build();
+
+Object[] results = client.exec(batch, true, options).get();
+```
 
 ---
 
