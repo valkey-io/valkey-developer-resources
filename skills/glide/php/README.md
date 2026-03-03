@@ -37,6 +37,7 @@ docker run --rm -it \
 
 ## Demos
 
+- `anti_patterns.php` - Anti-patterns, how NOT to do things
 - `basic_operations.php` - Connect, set/get, error handling
 - `batch_pipeline.php` - Atomic transactions vs non-atomic pipelines
 - `cluster_operations.php` - Multi-node routing, hash slot constraints
