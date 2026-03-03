@@ -1,5 +1,86 @@
 # Go GLIDE Lessons Learned
 
+## Batch Operation Retry Strategies
+
+### When to Use RetryServerError
+**Scenario:** Cluster resharding, server under load, transient server errors
+
+```go
+options := pipeline.NewClusterBatchOptions().
+	WithRetryStrategy(*pipeline.NewClusterBatchRetryStrategy().
+		WithRetryServerError(true).
+		WithRetryConnectionError(false))
+
+results, err := client.ExecWithOptions(ctx, batch, true, *options)
+```
+
+**Use when:**
+- Cluster is resharding (TRYAGAIN responses)
+- Server is under heavy load
+- Transient OOM or loading dataset errors
+
+**Trade-off:** May reorder commands within batch
+
+### When to Use RetryConnectionError
+**Scenario:** Network instability, cluster node failover
+
+```go
+options := pipeline.NewClusterBatchOptions().
+	WithRetryStrategy(*pipeline.NewClusterBatchRetryStrategy().
+		WithRetryServerError(false).
+		WithRetryConnectionError(true))
+
+results, err := client.ExecWithOptions(ctx, batch, true, *options)
+```
+
+**Use when:**
+- Network instability (cross-region, VPN)
+- Cluster node failover in progress
+- Connection pool exhaustion
+
+**Trade-off:** May duplicate entire batch
+
+### When to Use Both
+**Scenario:** Maximum resilience for idempotent operations
+
+```go
+options := pipeline.NewClusterBatchOptions().
+	WithRetryStrategy(*pipeline.NewClusterBatchRetryStrategy().
+		WithRetryServerError(true).
+		WithRetryConnectionError(true))
+
+results, err := client.ExecWithOptions(ctx, batch, true, *options)
+```
+
+**Use when:**
+- High availability required
+- Operations are idempotent (SET, not INCR)
+- Can tolerate reordering and duplication
+
+**Trade-off:** Possible reordering + duplication
+
+### When to Disable Retries
+**Scenario:** Strict latency requirements, non-idempotent operations
+
+```go
+options := pipeline.NewClusterBatchOptions().
+	WithRetryStrategy(*pipeline.NewClusterBatchRetryStrategy().
+		WithRetryServerError(false).
+		WithRetryConnectionError(false))
+
+results, err := client.ExecWithOptions(ctx, batch, true, *options)
+```
+
+**Use when:**
+- SLA-bound operations (strict latency requirements)
+- Non-idempotent commands (INCR, LPUSH)
+- Already have application-level retry logic
+- Need predictable failure behavior
+
+**Trade-off:** Fail fast on any error
+
+---
+
 ## Import Patterns
 
 ### Core Imports

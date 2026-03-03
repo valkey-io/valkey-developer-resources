@@ -16,6 +16,7 @@ go run basic_operations.go
 go run batch_pipeline.go
 go run vector_search.go
 go run cluster_operations.go
+go run batch_retry_strategies.go
 ```
 
 ## Testing
