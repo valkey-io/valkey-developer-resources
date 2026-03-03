@@ -1,5 +1,97 @@
 # Java GLIDE Lessons Learned
 
+## Batch Operation Retry Strategies
+
+### When to Use retryServerError
+**Scenario:** Cluster resharding, server under load, transient server errors
+
+```java
+import glide.api.models.commands.batch.ClusterBatchOptions;
+import glide.api.models.commands.batch.ClusterBatchRetryStrategy;
+
+ClusterBatchOptions options = ClusterBatchOptions.builder()
+    .retryStrategy(ClusterBatchRetryStrategy.builder()
+        .retryServerError(true)
+        .retryConnectionError(false)
+        .build())
+    .build();
+
+Object[] results = client.exec(batch, true, options).get();
+```
+
+**Use when:**
+- Cluster is resharding (TRYAGAIN responses)
+- Server is under heavy load
+- Transient OOM or loading dataset errors
+
+**Trade-off:** May reorder commands within batch
+
+### When to Use retryConnectionError
+**Scenario:** Network instability, cluster node failover
+
+```java
+ClusterBatchOptions options = ClusterBatchOptions.builder()
+    .retryStrategy(ClusterBatchRetryStrategy.builder()
+        .retryServerError(false)
+        .retryConnectionError(true)
+        .build())
+    .build();
+
+Object[] results = client.exec(batch, true, options).get();
+```
+
+**Use when:**
+- Network instability (cross-region, VPN)
+- Cluster node failover in progress
+- Connection pool exhaustion
+
+**Trade-off:** May duplicate entire batch
+
+### When to Use Both
+**Scenario:** Maximum resilience for idempotent operations
+
+```java
+ClusterBatchOptions options = ClusterBatchOptions.builder()
+    .retryStrategy(ClusterBatchRetryStrategy.builder()
+        .retryServerError(true)
+        .retryConnectionError(true)
+        .build())
+    .build();
+
+Object[] results = client.exec(batch, true, options).get();
+```
+
+**Use when:**
+- High availability required
+- Operations are idempotent (SET, not INCR)
+- Can tolerate reordering and duplication
+
+**Trade-off:** Possible reordering + duplication
+
+### When to Disable Retries
+**Scenario:** Strict latency requirements, non-idempotent operations
+
+```java
+ClusterBatchOptions options = ClusterBatchOptions.builder()
+    .retryStrategy(ClusterBatchRetryStrategy.builder()
+        .retryServerError(false)
+        .retryConnectionError(false)
+        .build())
+    .build();
+
+Object[] results = client.exec(batch, true, options).get();
+```
+
+**Use when:**
+- SLA-bound operations (strict latency requirements)
+- Non-idempotent commands (INCR, LPUSH)
+- Already have application-level retry logic
+- Need predictable failure behavior
+
+**Trade-off:** Fail fast on any error
+
+---
+
 ## Import Patterns
 
 ### Core Imports
