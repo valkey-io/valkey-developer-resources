@@ -59,6 +59,38 @@ Increase timeouts for:
 - Cluster operations spanning multiple nodes
 - Large data transfers (>1MB values)
 
+**Handling Timeout Exceptions in Production:**
+
+1. **Catch timeout-specific exceptions** (not generic exceptions):
+   - Python: `TimeoutError`
+   - Java: `TimeoutException`
+   - Go: Check error type or message for timeout
+   - Node.js: Check error message for "timeout"
+   - PHP: Check exception message for timeout
+   - C#: `TimeoutException`
+
+2. **Log with structured context**:
+   - Operation name (GET, SET, batch, etc.)
+   - Key(s) involved
+   - Configured timeout value
+   - Timestamp and duration
+
+3. **Implement fallback strategy**:
+   - **Cache miss**: Fall back to database/source of truth
+   - **Cache write**: Log and continue (eventual consistency)
+   - **Critical read**: Retry with exponential backoff (max 2-3 attempts)
+   - **Batch operation**: Consider partial retry of failed subset
+
+4. **Emit metrics/alerts**:
+   - Increment timeout counter for monitoring
+   - Alert if timeout rate exceeds threshold (e.g., >1% of requests)
+   - Track timeout duration distribution
+
+5. **Decide on retry vs fail-fast**:
+   - **Retry**: Transient network issues, server under load
+   - **Fail-fast**: Strict SLA requirements, already at max timeout
+   - **Circuit breaker**: After N consecutive timeouts, fail immediately for M seconds
+
 ---
 ## Batch Commands (Pipeline and Transaction)
 
