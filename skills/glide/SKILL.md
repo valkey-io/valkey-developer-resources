@@ -1,3 +1,8 @@
+---
+name: Valkey GLIDE Client Development
+description: Production-ready patterns for Valkey GLIDE clients across 6 languages with batch operations, clustering, authentication, TLS, and error handling guidance
+---
+
 # Agent Skill: Valkey GLIDE Client Development
 
 **Type:** AI Coding Assistant Skill
