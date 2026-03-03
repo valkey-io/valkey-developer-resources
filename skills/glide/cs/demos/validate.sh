@@ -7,7 +7,7 @@ echo "=== C# GLIDE Demo Validation ==="
 echo "Using VALKEY_HOST: $VALKEY_HOST"
 echo ""
 
-demos=("BasicOperations" "BatchPipeline" "ClusterOperations")
+demos=("BasicOperations" "BatchPipeline" "ClusterOperations" "BatchRetryStrategies")
 
 for demo in "${demos[@]}"; do
     echo "--- Testing $demo ---"
