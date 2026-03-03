@@ -21,7 +21,7 @@ cd ../../../../valkey/tls
 ## 2. Core POC Examples (7 demos)
 Create each as sub-directories of `go/demos/`, and drop associated demos in:
 - **basic-operations/**: Connect, set/get, error handling
-- **batch-pipeline/**: Atomic transactions vs non-atomic pipelines
+- **batch-pipeline/**: Atomic transactions vs non-atomic pipelines, retry strategies
 - **cluster-operations/**: Multi-node routing, hash slot constraints
 - **authentication/**: Basic auth via `ServerCredentials`, TLS/SSL, AWS IAM auth
 
@@ -39,6 +39,8 @@ document both secure and insecure certificate client connection modes in the ski
 
 **NOTE:** AWS IAM auth cannot be runtime tested, but a demo should be created none-the-less for validation, and it should
 at least compile without errors, and it should run without any errors specific to AWS. 
+
+**NOTE:** Batch operations retry strategies should show examples of when to use `retryServerError`, `retryConnectionError`, and when to avoid both.
 
 ## 3. Document Lessons Learned
 Create `go/LESSONS_LEARNED.md` with:
