@@ -1,0 +1,7 @@
+{
+  "name": "valkey-glide-demo",
+  "type": "module",
+  "dependencies": {
+    "@valkey/valkey-glide": "^1.0.0"
+  }
+}
