@@ -1,5 +1,8 @@
 # Node.js GLIDE Skill
 
+## Code Snippets
+- [nodejs-config.ts](snippets/nodejs-config.ts) - Optimized templates for production web applications
+
 ## Package Selection
 
 ```javascript
@@ -484,7 +487,7 @@ process.on("SIGINT",  () => { client?.close(); process.exit(0); });
 
 # Performance Optimization
 
-Config templates: [`performance/config-templates/nodejs-config.ts`](../performance/config-templates/nodejs-config.ts)
+Config templates: [`snippets/nodejs-config.ts`](snippets/nodejs-config.ts)
 
 ## AZ Affinity
 

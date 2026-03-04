@@ -1,5 +1,8 @@
 # C# GLIDE Skill
 
+## Code Snippets
+- [csharp-config.cs](snippets/csharp-config.cs) - Optimized templates for production web applications
+
 > **Status:** Preview - C# GLIDE is available on NuGet but still has features being implemented before GA. See [official documentation](https://valkey.io/valkey-glide/) for latest updates.
 
 ## Package Selection
@@ -422,7 +425,7 @@ await using var client = await GlideClient.CreateClient(config);
 
 # Performance Optimization
 
-Config templates: [`performance/config-templates/csharp-config.cs`](../performance/config-templates/csharp-config.cs)
+Config templates: [`snippets/csharp-config.cs`](snippets/csharp-config.cs)
 
 `inflightRequestsLimit` not exposed in C# — managed at Rust core level (default: 1000). Focus on batching and `Task.WhenAll`.
 

@@ -5,6 +5,7 @@
 ### Code Snippets
 - [parse_valkey_urls.md](snippets/parse_valkey_urls.md) - Parsing Valkey URLs into host and port
 - [decode_docs.md](snippets/decode_docs.md) - Decoding bytes to strings for JSON deserialization
+- [python-config.py](snippets/python-config.py) - Optimized templates for production web applications
 - [https://glide.valkey.io/languages/python/api/glide_async/core/](https://glide.valkey.io/languages/python/api/glide_async/core/) - Python Async API Reference
 - [https://glide.valkey.io/languages/python/api/glide_sync/core/](https://glide.valkey.io/languages/python/api/glide_sync/core/) - Python Sync API Reference
 
@@ -861,7 +862,7 @@ results = await client.exec(batch, raise_on_error=True, options=options)
 
 # Performance Optimization
 
-Config templates: [`performance/config-templates/python-config.py`](../performance/config-templates/python-config.py)
+Config templates: [`snippets/python-config.py`](snippets/python-config.py)
 
 ## AZ Affinity
 

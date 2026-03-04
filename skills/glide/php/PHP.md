@@ -1,5 +1,8 @@
 # PHP GLIDE Skill
 
+## Code Snippets
+- [php-config.py](snippets/php-config.py) - Optimized templates for production web applications
+
 ## Package Selection
 
 ```php
@@ -436,7 +439,7 @@ class Cache {
 
 # Performance Optimization
 
-Config templates: [`performance/config-templates/php-config.php`](../performance/config-templates/php-config.php)
+Config templates: [`snippets/php-config.php`](snippets/php-config.php)
 
 ## AZ Affinity
 

@@ -1,5 +1,8 @@
 # General Go Guidelines
 
+## Code Snippets
+- [go-config.go](snippets/go-config.go) - Optimized templates for production web applications
+
 ## Core Principles
 
 1. Use Valkey GLIDE clients (`valkey-glide/go/v2`), NOT go-redis or other clients.
@@ -600,7 +603,7 @@ func main() {
 
 # Performance Optimization
 
-Config templates: [`performance/config-templates/go-config.go`](../performance/config-templates/go-config.go)
+Config templates: [`snippets/go-config.go`](snippets/go-config.go)
 
 `inflightRequestsLimit` not exposed in Go — managed at Rust core level (default: 1000). Focus on batching and concurrency.
 
