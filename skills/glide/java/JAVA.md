@@ -1,7 +1,8 @@
 # General Java Guidelines
 
-## Code Snippets
+## External Resources
 - [java-config.java](snippets/java-config.java) - Optimized templates for production web applications
+- [ANTI_PATTERNS.md](ANTI_PATTERNS.md) - Anti-patterns to avoid in Java GLIDE development, including exception handling, Hash vs JSON performance, thread safety, and more.
 
 ## Core Principles
 
@@ -14,6 +15,8 @@
 ---
 
 ## Package Selection
+
+**See:** [Package Selection in SKILL.md](../SKILL.md#package-selection) for cross-language package guidance.
 
 ### ✅ CORRECT: Use GLIDE
 
@@ -60,9 +63,6 @@ dependencies {
 import redis.clients.jedis.*;
 import io.lettuce.core.*;
 ```
-
-**Why:** Jedis and Lettuce are Redis clients. GLIDE is the official AWS-recommended client with better performance and active development.
-
 ---
 
 ## Client Creation Pattern
@@ -445,47 +445,6 @@ import glide.api.models.exceptions.TimeoutException;      // Request timeout
 import glide.api.models.exceptions.ConnectionException;   // Connection issues
 ```
 
-### ✅ CORRECT: Specific Exception Handling
-
-**Async:**
-```java
-client.lpop("string_key")
-    .exceptionally(e -> {
-        Throwable cause = (e instanceof CompletionException && e.getCause() != null) 
-            ? e.getCause() : e;
-        
-        if (cause instanceof RequestException) {
-            System.err.println("Request error: " + cause.getMessage());
-        } else if (cause instanceof TimeoutException) {
-            System.err.println("Timeout: " + cause.getMessage());
-        }
-        return null;
-    });
-```
-
-**Blocking:**
-```java
-try {
-    client.lpop("string_key").get();
-} catch (ExecutionException e) {
-    if (e.getCause() instanceof RequestException) {
-        System.err.println("Request error: " + e.getCause().getMessage());
-    }
-}
-```
-
-### ❌ INCORRECT: Broad Exception Handling
-```java
-// DON'T catch Exception - too broad
-try {
-    client.get("key").get();
-} catch (Exception e) {
-    // Too vague
-}
-```
-
----
-
 ## Common Pitfalls
 
 ### 1. Using Jedis/Lettuce Instead of GLIDE
@@ -683,152 +642,6 @@ Object[] results = client.exec(cleanup, true).get();  // [2, 1, 1]
 
 ## Best Practices
 
-### Resource Management
-
-### ✅ CORRECT: Use try-with-resources
-```java
-try (GlideClient client = GlideClient.createClient(config).get()) {
-    client.set("key", "value").get();
-}
-```
-
-### ❌ INCORRECT: Resource leak
-```java
-GlideClient client = GlideClient.createClient(config).get();
-client.set("key", "value").get();
-// Client never closed!
-```
-
-**Why:** Without try-with-resources, connections leak and exhaust the connection pool.
-
----
-
-### Concurrency
-
-### ✅ CORRECT: Restore interrupt status
-```java
-try {
-    String value = future.get();
-} catch (InterruptedException e) {
-    Thread.currentThread().interrupt();
-    // Handle interruption
-}
-```
-
-### ❌ INCORRECT: Swallow InterruptedException
-```java
-try {
-    String value = future.get();
-} catch (InterruptedException e) {
-    // Ignoring - thread can't be stopped!
-}
-```
-
-**Why:** Swallowing interruption breaks thread cancellation and prevents graceful shutdown.
-
----
-
-### Exception Handling (Blocking Calls)
-
-### ✅ CORRECT: Unwrap ExecutionException
-```java
-try {
-    client.lpop("string:key").get();
-} catch (ExecutionException e) {
-    if (e.getCause() instanceof RequestException) {
-        System.out.println("Error: " + e.getCause().getMessage());
-    }
-}
-```
-
-### ❌ INCORRECT: Catch wrapped exception directly
-```java
-try {
-    client.lpop("string:key").get();
-} catch (RequestException e) {
-    // Never reached - wrapped in ExecutionException!
-}
-```
-
-**Why:** CompletableFuture wraps exceptions in ExecutionException for blocking calls.
-
----
-
-### Exception Handling (Async Chains)
-
-### ✅ CORRECT: Direct exception access
-```java
-client.lpop("string:key")
-    .exceptionally(e -> {
-        if (e instanceof RequestException) {
-            System.out.println("Error: " + e.getMessage());
-        }
-        return null;
-    });
-```
-
-**Why:** Async chains provide direct exception access - no unwrapping needed.
-
----
-
-### Design Patterns
-
-### ✅ CORRECT: Type-safe value objects
-```java
-class UserId {
-    private final String value;
-    public UserId(String value) {
-        if (!value.startsWith("user:")) {
-            throw new IllegalArgumentException("Invalid user ID");
-        }
-        this.value = value;
-    }
-    public String getValue() { return value; }
-}
-
-void storeUser(GlideClient client, UserId userId, SessionId sessionId) {
-    // Compiler prevents parameter swap
-}
-```
-
-### ❌ INCORRECT: Primitive obsession
-```java
-void storeUser(GlideClient client, String userId, String sessionId) {
-    // Easy to swap parameters - compiles but wrong!
-}
-```
-
-**Why:** Primitives lack type safety and allow parameter order mistakes.
-
----
-
-### Testing
-
-### ✅ CORRECT: Use test doubles
-```java
-@Test
-void testUserService() {
-    GlideClient mockClient = mock(GlideClient.class);
-    when(mockClient.get("user:1")).thenReturn(CompletableFuture.completedFuture("Alice"));
-    // Test with mock
-}
-```
-
-### ❌ INCORRECT: Depend on external Valkey
-```java
-@Test
-void testUserService() {
-    GlideClient client = GlideClient.createClient(config).get();
-    // Flaky - depends on external state
-}
-```
-
-**Why:** Tests depending on external services are non-deterministic and flaky.
-
-**See also:** [Anti-Pattern Demonstrations](demos/ANTI_PATTERNS.md) for working examples proving these patterns.
-
----
-
 ## Client Lifecycle Management
 
 **Spring Boot:**
@@ -844,8 +657,6 @@ public GlideClient glideClient() throws ExecutionException, InterruptedException
 GlideClient client = GlideClient.createClient(config).get();
 Runtime.getRuntime().addShutdownHook(new Thread(client::close));
 ```
-
----
 
 ---
 
@@ -923,17 +734,7 @@ GlideClient blockingClient = GlideClient.createClient(
 String[] item = blockingClient.blpop(new String[]{"queue"}, 30).get();
 ```
 
-## Hash vs JSON for Structured Data
-
-```java
-// ❌ Inefficient — must fetch/parse entire object
-client.set("user:123", mapper.writeValueAsString(user)).get();
-Map<String, Object> parsed = mapper.readValue(client.get("user:123").get(), Map.class);
-
-// ✅ Efficient — fetch only needed fields
-client.hset("user:123", Map.of("name", "John", "email", "john@example.com", "age", "30")).get();
-String name = client.hget("user:123", "name").get();
-```
+---
 
 ## Concurrent Operations
 

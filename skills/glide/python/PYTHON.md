@@ -9,6 +9,9 @@
 - [https://glide.valkey.io/languages/python/api/glide_async/core/](https://glide.valkey.io/languages/python/api/glide_async/core/) - Python Async API Reference
 - [https://glide.valkey.io/languages/python/api/glide_sync/core/](https://glide.valkey.io/languages/python/api/glide_sync/core/) - Python Sync API Reference
 
+### Anti-Patterns
+- [ANTI_PATTERNS.md](ANTI_PATTERNS.md) - Anti-patterns to avoid in Python GLIDE development including vector search constraints, FtCreateOptions import constraints, test mocking patterns, Hash vs JSON performance patterns, and more
+
 ---
 
 ## Core Principles
@@ -19,6 +22,8 @@
 ---
 
 ## Package Selection
+
+**See:** [Package Selection in SKILL.md](../SKILL.md#package-selection) for cross-language package guidance.
 
 ### ✅ CORRECT: Use GLIDE
 
@@ -64,9 +69,6 @@ from glide_shared.commands.server_modules.ft_options.ft_create_options import (
 from valkey import Valkey
 from valkey.commands.search import Search
 ```
-
-**Why:** GLIDE is the official AWS-recommended client with better performance and active development.
-
 ---
 
 ## Client Creation Pattern
@@ -241,37 +243,6 @@ docs = _decode_docs(results)
 - **IMPORTANT:** GLIDE returns bytes - decode to strings for JSON/display
 - **Skip binary fields** like vector embeddings (can't decode to UTF-8)
 
-### ⚠️ CONSTRAINT: No .sort_by() with KNN
-
-**DON'T** add `.sort_by()` to KNN queries - it causes errors. KNN results are already sorted by score.
-
-```python
-# ❌ WRONG - causes error
-results = ft.search(...).sort_by("score")
-
-# ✅ CORRECT - results already sorted
-results = ft.search(...)
-```
-
-### ⚠️ CONSTRAINT: Do not use positional arguments
-```python
-# ❌ WRONG - positional arguments
-results = ft.search(
-    client,
-    index_name,
-    query,
-    options=FtSearchOptions(params={"vector": embedding_buffer}),
-)
-
-# ✅ CORRECT - keyword arguments
-results = ft.search(
-    client=client,
-    index_name=index_name,
-    query=query,
-    options=FtSearchOptions(params={"vector": embedding_buffer}),
-)
-```
-
 ---
 
 ## FT.CREATE Command Pattern
@@ -323,30 +294,6 @@ ft.create(
 - Import `FtCreateOptions` from ft_create_options
 - Use typed field objects (VectorField, TagField, NumericField)
 - Pass `FtCreateOptions` (not `ft.FtCreateOptions`) as 4th argument
-
-### ⚠️ CONSTRAINT: Must import FtCreateOptions directly
-```python
-# ❌ WRONG - using ft.FtCreateOptions
-from glide_sync import ft
-ft.create(client, index_name, schema, ft.FtCreateOptions(prefixes=["doc:"]))
-
-# ✅ CORRECT - import and use FtCreateOptions directly
-from glide_sync import ft
-from glide_shared.commands.server_modules.ft_options.ft_create_options import (
-    FtCreateOptions
-)
-ft.create(client, index_name, schema, FtCreateOptions(prefixes=["doc:"]))
-```
-
-### ⚠️ CONSTRAINT: **DON'T** add `.sort_by()` to KNN queries
-`.sort_by()` causes errors. KNN results are already sorted by score.
-```python
-# ❌ WRONG - causes error
-results = ft.search(...).sort_by("score")
-
-# ✅ CORRECT - results already sorted
-results = ft.search(...)
-```
 
 ---
 
@@ -489,27 +436,6 @@ async def some_function():
 
 ## Testing Patterns
 
-### Mocking GLIDE Clients
-
-```python
-from unittest.mock import MagicMock, patch
-
-# ✅ CORRECT: Mock at the import location
-@patch("langchain_aws.utilities.valkey.GlideClient")
-@patch("langchain_aws.utilities.valkey.GlideClusterClient")
-def test_something(mock_cluster, mock_client):
-    # Mock the create() class method
-    mock_client.create.return_value = MagicMock()
-    ...
-
-# ❌ WRONG: Mocking at glide_sync module
-@patch("glide_sync.GlideClient")  # Won't work if already imported elsewhere
-```
-
-**Lesson Learned:** Mock at the location where the object is used, not where it's defined.
-
----
-
 ## Distance Metrics Mapping
 
 ```python
@@ -527,87 +453,6 @@ distance_map = {
 ---
 
 ## Best Practices
-
-### ✅ CORRECT: Status-Based Returns
-```python
-async def fetch_data(key: str) -> dict:
-    value = await client.get(key)
-    if value is None:
-        return {"status": "error", "msg": "Not found"}
-    return {"status": "ok", "data": value}
-```
-
-### ❌ INCORRECT: Exceptions as Control Flow
-```python
-async def fetch_data(key: str) -> str:
-    value = await client.get(key)
-    if value is None:
-        raise ValueError("Not found")  # Don't use exceptions for normal logic
-    return value
-```
-
-**Why:** Exceptions are expensive and make code hard to read. Use status returns for predictable logic.
-
----
-
-### ✅ CORRECT: Module-Level Functions
-```python
-async def get_user(client, user_id: str) -> str:
-    return await client.get(f"user:{user_id}")
-```
-
-### ❌ INCORRECT: Static Method-Only Classes
-```python
-class CacheUtils:
-    @staticmethod
-    async def get_user(client, user_id: str) -> str:
-        return await client.get(f"user:{user_id}")
-```
-
-**Why:** Python has modules for namespacing. Static-only classes add unnecessary boilerplate.
-
----
-
-### ✅ CORRECT: Protocol-Based Abstraction
-```python
-from typing import Protocol
-
-class CacheClient(Protocol):
-    async def get(self, key: str) -> str: ...
-    async def set(self, key: str, value: str): ...
-
-class UserService:
-    def __init__(self, cache: CacheClient):
-        self.cache = cache
-```
-
-### ❌ INCORRECT: Tight Coupling
-```python
-class UserService:
-    def __init__(self, host: str, port: int):
-        self.config = GlideClientConfiguration([NodeAddress(host, port)])
-        self.client = await GlideClient.create(self.config)
-```
-
-**Why:** Tight coupling makes testing difficult and prevents swapping implementations.
-
----
-
-### ✅ CORRECT: Explicit Imports
-```python
-from glide import GlideClient, GlideClientConfiguration, NodeAddress
-```
-
-### ❌ INCORRECT: Wildcard Imports
-```python
-from glide import *  # Namespace pollution
-```
-
-**Why:** Wildcard imports pollute namespace, cause name collisions, and break static analysis.
-
-**See also:** [Anti-Pattern Demonstrations](ANTI_PATTERNS.md) for working examples proving these patterns.
-
----
 
 ## Common Pitfalls
 
@@ -884,16 +729,6 @@ item = await blocking_client.blpop(["queue"], 30)
 ```
 
 ## Hash vs JSON for Structured Data
-
-```python
-# ❌ Inefficient — must fetch/parse entire object
-await client.set("user:123", json.dumps(user))
-data = json.loads(await client.get("user:123"))
-
-# ✅ Efficient — fetch only needed fields
-await client.hset("user:123", {"name": "John", "email": "john@example.com", "age": "30"})
-name = await client.hget("user:123", "name")
-```
 
 ## Context Manager Pattern
 

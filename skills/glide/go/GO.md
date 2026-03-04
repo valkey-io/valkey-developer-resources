@@ -1,7 +1,8 @@
 # General Go Guidelines
 
-## Code Snippets
+## External Resources
 - [go-config.go](snippets/go-config.go) - Optimized templates for production web applications
+- [ANTI_PATTERNS.md](ANTI_PATTERNS.md) - Anti-patterns to avoid in Go GLIDE development including cluster slot patterns and CROSSSLOT errors, type assertion, and Hash vs JSON performance, and more
 
 ## Core Principles
 
@@ -14,6 +15,8 @@
 ---
 
 ## Package Selection
+
+**See:** [Package Selection in SKILL.md](../SKILL.md#package-selection) for cross-language package guidance.
 
 ### ✅ CORRECT: Use GLIDE
 
@@ -44,8 +47,6 @@ import (
 // NEVER use these
 import "github.com/redis/go-redis/v9"
 ```
-
-**Why:** go-redis is a Redis client. GLIDE is the official AWS-recommended client with better performance and active development.
 
 ---
 
@@ -326,33 +327,11 @@ if err != nil {
 	return err
 }
 // results is []any ([]interface{})
-
-// ✅ Safe type assertion (recommended)
-if str, ok := results[0].(string); ok {
-	fmt.Println("String result:", str)
-} else {
-	// Handle unexpected type
-}
-
-// ❌ Unsafe - can panic if wrong type
-strVal := results[0].(string)
-
-// Common types
-if str, ok := results[0].(string); ok {
-	// "OK"
-}
-if intVal, ok := results[1].(int64); ok {
-	// 42
-}
-if bytesVal, ok := results[2].([]byte); ok {
-	// Binary data
-}
 ```
 
 **Key Points:**
 - Results are `[]any` (interface slice)
-- **Always use two-value form**: `value, ok := result.(Type)`
-- Direct assertions can panic - avoid in production code
+- Always use two-value form for type assertions
 - Common types: `string`, `int64`, `[]byte`
 
 ---
@@ -370,45 +349,10 @@ atomicBatch := pipeline.NewClusterBatch(true).
 results, err := client.Exec(ctx, *atomicBatch, true)
 ```
 
-```go
-// Fails - different slots
-crossSlotBatch := pipeline.NewClusterBatch(true).
-	Set("key1", "value1").  // Slot A
-	Set("key2", "value2")   // Slot B
-
-_, err := client.Exec(ctx, *crossSlotBatch, true)
-// Error: "Received crossed slots in pipeline- CrossSlot"
-```
-
-### Multi-Slot Operations
-
-```go
-// Non-atomic batch can span slots
-pipelineBatch := pipeline.NewClusterBatch(false).
-	Set("key1", "value1").
-	Set("key2", "value2").
-	Get("key1").
-	Get("key2")
-
-results, err := client.Exec(ctx, *pipelineBatch, true)
-```
-
-```go
-// Cleanup across multiple slots
-cleanupBatch := pipeline.NewClusterBatch(false).
-	Del([]string{"{user}:1", "{user}:2"}).  // Same slot
-	Del([]string{"key1"}).                   // Different slot
-	Del([]string{"key2"})                    // Different slot
-
-results, err := client.Exec(ctx, *cleanupBatch, true)
-// Results: [2 1 1]
-```
-
 **Key Points:**
 - Use hash tags `{tag}` to control slot assignment
 - Atomic operations require all keys in same slot
 - Non-atomic batches automatically route to multiple nodes
-- `Del()` takes `[]string` slice parameter
 
 ---
 
@@ -438,129 +382,9 @@ results, err := client.Exec(ctx, *cleanupBatch, true)
 **Problem:** Atomic batch with keys in different slots
 **Solution:** Use hash tags `{tag}` to ensure keys map to same slot
 
-### 7. Type Assertions Without Safety Check
-**Problem:** Direct assertion panics if wrong type
-```go
-// ❌ Wrong - panics if not string
-str := results[0].(string)
-```
-
-**Solution:** Always use two-value form
-```go
-// ✅ Correct - safe type assertion
-if str, ok := results[0].(string); ok {
-	fmt.Println("Result:", str)
-} else {
-	// Handle unexpected type
-	fmt.Println("Unexpected type")
-}
-```
-
-### 8. Not Using defer for Cleanup
+### 7. Not Using defer for Cleanup
 **Problem:** Forgetting to close client
 **Solution:** Always use `defer client.Close()` after creation
-
----
-
-## Go Best Practices for GLIDE
-
-### Explicit Over Magic
-Go GLIDE follows Go's philosophy of explicit, obvious code:
-
-```go
-// ✅ Explicit error handling (Go way)
-value, err := client.Get(ctx, "key")
-if err != nil {
-	return fmt.Errorf("failed to get key: %w", err)
-}
-
-// ❌ Don't try to hide error handling
-// No "smart" wrappers or generic error handlers
-```
-
-### No Struct Tag Magic
-Unlike other languages, Go GLIDE doesn't use struct tags for configuration:
-
-```go
-// ✅ Explicit configuration
-cfg := config.NewClientConfiguration().
-	WithAddress(&config.NodeAddress{Host: "localhost", Port: 6379}).
-	WithRequestTimeout(10000)
-
-// ❌ Not like this (anti-pattern from other ORMs)
-// type Config struct {
-//     Host string `valkey:"host"`
-//     Port int    `valkey:"port"`
-// }
-```
-
-### Separate Models for Different Concerns
-If building a web application with GLIDE:
-
-```go
-// ✅ Separate models
-type UserAPIResponse struct {
-	ID    int    `json:"id"`
-	Name  string `json:"name"`
-}
-
-type UserCacheModel struct {
-	ID        int
-	Name      string
-	UpdatedAt time.Time
-}
-
-// Convert between them explicitly
-func toAPIResponse(cache UserCacheModel) UserAPIResponse {
-	return UserAPIResponse{
-		ID:   cache.ID,
-		Name: cache.Name,
-	}
-}
-
-// ❌ Don't combine responsibilities
-// type User struct {
-//     ID   int    `json:"id" cache:"id"`
-//     Name string `json:"name" cache:"name"`
-// }
-```
-
-### Context for Cancellation
-Use context properly for production code:
-
-```go
-// ✅ Production: timeout context
-ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-defer cancel()
-
-value, err := client.Get(ctx, "key")
-if err != nil {
-	if ctx.Err() == context.DeadlineExceeded {
-		return fmt.Errorf("operation timed out")
-	}
-	return err
-}
-
-// ✅ Simple demos: background context
-ctx := context.Background()
-value, err := client.Get(ctx, "key")
-```
-
-### Error Wrapping
-Provide context when returning errors:
-
-```go
-// ✅ Wrap errors with context
-value, err := client.Get(ctx, userKey)
-if err != nil {
-	return fmt.Errorf("failed to fetch user %s: %w", userID, err)
-}
-
-// ❌ Don't lose error context
-if err != nil {
-	return err  // What failed? Which key?
-}
-```
 
 ---
 
@@ -686,16 +510,6 @@ for {
 ```
 
 ## Hash vs JSON for Structured Data
-
-```go
-// ❌ Inefficient — must fetch/parse entire object
-data, _ := json.Marshal(user)
-client.Set(ctx, "user:123", string(data))
-
-// ✅ Efficient — fetch only needed fields
-client.HSet(ctx, "user:123", map[string]string{"name": "John", "email": "john@example.com"})
-name, _ := client.HGet(ctx, "user:123", "name")
-```
 
 ## Concurrent Operations
 

@@ -1,119 +1,187 @@
-# Python GLIDE Anti-Pattern Demonstrations
+# Python GLIDE Anti-Patterns
 
-This demo proves common Python anti-patterns and their correct alternatives, based on [10 Python anti-patterns ruining your code](https://medium.com/@BuildShift/10-python-anti-patterns-ruining-your-code-and-what-to-do-instead-e304c457bc98).
+This document contains anti-patterns specific to Python GLIDE development. These patterns should be avoided in production code.
 
-## Running the Demo
+---
 
-```bash
-cd python
-source .venv/bin/activate
-pip install valkey-glide
-python3 anti_patterns_demo.py
+## Package Selection
+
+### ❌ INCORRECT: Don't use Redis fork
+```python
+# NEVER use these imports
+from valkey import Valkey
+from valkey.commands.search import Search
 ```
 
-## Anti-Patterns Demonstrated
-
-### 1. Exceptions as Control Flow
-
-**Anti-Pattern:**
+### ✅ CORRECT: Use GLIDE
 ```python
-def get_data():
-    try:
-        return fetch_from_primary_api()
-    except TimeoutError:
-        try:
-            return fetch_from_backup_api()
-        except TimeoutError:
-            return {"status": "error"}
+from glide_sync import GlideClient, GlideClusterClient, ft
+# or
+from glide import GlideClient, GlideClusterClient, ft
 ```
 
-**Correct Approach:**
+**Why:** GLIDE is the official AWS-recommended client with better performance and active development.
+
+---
+
+## Vector Search Constraints
+
+### ❌ INCORRECT: Adding .sort_by() to KNN queries
 ```python
-def fetch_from_api(key) -> dict:
+# ❌ WRONG - causes error
+results = ft.search(...).sort_by("score")
+```
+
+### ✅ CORRECT: KNN results already sorted
+```python
+# ✅ CORRECT - results already sorted
+results = ft.search(...)
+```
+
+**Why:** KNN results are already sorted by score. Adding .sort_by() causes errors.
+
+---
+
+### ❌ INCORRECT: Using positional arguments
+```python
+# ❌ WRONG - positional arguments
+results = ft.search(
+    client,
+    index_name,
+    query,
+    options=FtSearchOptions(params={"vector": embedding_buffer}),
+)
+```
+
+### ✅ CORRECT: Using keyword arguments
+```python
+# ✅ CORRECT - keyword arguments
+results = ft.search(
+    client=client,
+    index_name=index_name,
+    query=query,
+    options=FtSearchOptions(params={"vector": embedding_buffer}),
+)
+```
+
+**Why:** Keyword arguments prevent parameter order mistakes and improve readability.
+
+---
+
+### ❌ INCORRECT: Using ft.FtCreateOptions
+```python
+# ❌ WRONG - using ft.FtCreateOptions
+from glide_sync import ft
+ft.create(client, index_name, schema, ft.FtCreateOptions(prefixes=["doc:"]))
+```
+
+### ✅ CORRECT: Import FtCreateOptions directly
+```python
+# ✅ CORRECT - import and use FtCreateOptions directly
+from glide_sync import ft
+from glide_shared.commands.server_modules.ft_options.ft_create_options import (
+    FtCreateOptions
+)
+ft.create(client, index_name, schema, FtCreateOptions(prefixes=["doc:"]))
+```
+
+**Why:** FtCreateOptions must be imported directly from ft_create_options module.
+
+---
+
+## Testing Patterns
+
+### ❌ INCORRECT: Mocking at definition location
+```python
+# ❌ WRONG: Mocking at glide_sync module
+@patch("glide_sync.GlideClient")  # Won't work if already imported elsewhere
+```
+
+### ✅ CORRECT: Mock at import location
+```python
+# ✅ CORRECT: Mock at the import location
+@patch("langchain_aws.utilities.valkey.GlideClient")
+@patch("langchain_aws.utilities.valkey.GlideClusterClient")
+def test_something(mock_cluster, mock_client):
+    # Mock the create() class method
+    mock_client.create.return_value = MagicMock()
+    ...
+```
+
+**Why:** Mock at the location where the object is used, not where it's defined.
+
+---
+
+## Performance Optimization
+
+### ❌ INCORRECT: Fetching entire JSON object
+```python
+# ❌ Inefficient — must fetch/parse entire object
+user = json.loads(await client.get("user:123"))
+name = user["name"]
+```
+
+### ✅ CORRECT: Use JSON.GET with path
+```python
+# ✅ Efficient — fetch only needed fields
+name = await client.json_get("user:123", "$.name")
+```
+
+**Why:** Fetching only needed fields reduces network transfer and parsing overhead.
+
+---
+
+## Code Patterns
+
+### ❌ INCORRECT: Exceptions as Control Flow
+```python
+async def fetch_data(key: str) -> str:
+    value = await client.get(key)
+    if value is None:
+        raise ValueError("Not found")  # Don't use exceptions for normal logic
+    return value
+```
+
+### ✅ CORRECT: Status-Based Returns
+```python
+async def fetch_data(key: str) -> dict:
     value = await client.get(key)
     if value is None:
         return {"status": "error", "msg": "Not found"}
     return {"status": "ok", "data": value}
-
-def get_data():
-    result = fetch_from_api("primary:key")
-    if result["status"] == "error":
-        result = fetch_from_api("backup:key")
-    return result
 ```
 
-**Why This Fails:**
-- Exceptions are expensive (performance cost)
-- Code becomes hard to read (nested try/except)
-- Hides real problems
-- Doesn't scale
-
-**Demo Output:**
-```
-=== ANTI-PATTERN: Exceptions as Control Flow ===
-Result: {'status': 'ok', 'data': b'primary_data'}
-
-=== CORRECT: Status-Based Returns ===
-Result: {'status': 'ok', 'data': b'primary_data'}
-```
+**Why:** Exceptions are expensive and make code hard to read. Use status returns for predictable logic.
 
 ---
 
-### 2. Static Method-Only Classes
-
-**Anti-Pattern:**
+### ❌ INCORRECT: Static Method-Only Classes
 ```python
 class CacheUtils:
     @staticmethod
-    async def get_user(client, user_id):
+    async def get_user(client, user_id: str) -> str:
         return await client.get(f"user:{user_id}")
-    
-    @staticmethod
-    async def set_user(client, user_id, data):
-        await client.set(f"user:{user_id}", data)
 ```
 
-**Correct Approach:**
+### ✅ CORRECT: Module-Level Functions
 ```python
-# Just use module-level functions
-async def get_user(client, user_id):
+async def get_user(client, user_id: str) -> str:
     return await client.get(f"user:{user_id}")
-
-async def set_user(client, user_id, data):
-    await client.set(f"user:{user_id}", data)
 ```
 
-**Why This Fails:**
-- Unnecessary boilerplate
-- Namespace overkill (Python has modules)
-- No real benefit
-- Not object-oriented, just namespacing with ceremony
-
-**Demo Output:**
-```
-=== ANTI-PATTERN: Static Method-Only Class ===
-User from static class: b'Alice'
-
-=== CORRECT: Module-Level Functions ===
-User from function: b'Bob'
-```
+**Why:** Python has modules for namespacing. Static-only classes add unnecessary boilerplate.
 
 ---
 
-### 3. Tight Coupling (No Abstraction)
-
-**Anti-Pattern:**
+### ❌ INCORRECT: Tight Coupling
 ```python
 class UserService:
-    def __init__(self, host, port):
+    def __init__(self, host: str, port: int):
         self.config = GlideClientConfiguration([NodeAddress(host, port)])
-        self.client = None
-    
-    async def connect(self):
         self.client = await GlideClient.create(self.config)
 ```
 
-**Correct Approach:**
+### ✅ CORRECT: Protocol-Based Abstraction
 ```python
 from typing import Protocol
 
@@ -126,74 +194,20 @@ class UserService:
         self.cache = cache
 ```
 
-**Why This Fails:**
-- Hard to test (requires real Valkey connection)
-- Cannot swap implementations
-- Violates Dependency Inversion Principle
-- High coupling to concrete class
-
-**Demo Output:**
-```
-=== ANTI-PATTERN: Tight Coupling ===
-User from tightly coupled service: b'Alice'
-
-=== CORRECT: Protocol-Based Abstraction ===
-User from abstracted service: b'Bob'
-```
+**Why:** Tight coupling makes testing difficult and prevents swapping implementations.
 
 ---
 
-### 4. Wildcard Imports
-
-**Anti-Pattern:**
+### ❌ INCORRECT: Wildcard Imports
 ```python
-from glide import *
-
-client = GlideClient.create(...)  # Where did this come from?
+from glide import *  # Namespace pollution
 ```
 
-**Correct Approach:**
+### ✅ CORRECT: Explicit Imports
 ```python
 from glide import GlideClient, GlideClientConfiguration, NodeAddress
-
-client = await GlideClient.create(...)  # Clear origin
 ```
 
-**Why This Fails:**
-- Namespace pollution
-- Name collisions
-- Static analysis becomes useless
-- Cognitive load (where did this function come from?)
-
-**Demo Output:**
-```
-=== ANTI-PATTERN: Wildcard Imports ===
-# from glide import *  # ❌ Namespace pollution
-
-=== CORRECT: Explicit Imports ===
-# from glide import GlideClient, GlideClientConfiguration  # ✅ Clear
-```
+**Why:** Wildcard imports pollute namespace, cause name collisions, and break static analysis.
 
 ---
-
-## Key Takeaways
-
-1. **Exceptions should be exceptional** - Use status returns for normal logic
-2. **Functions over classes** - Don't wrap functions in static-only classes
-3. **Depend on abstractions** - Use Protocols for testability and flexibility
-4. **Explicit imports** - Never use wildcard imports
-
-## Python Anti-Patterns Summary
-
-| Anti-Pattern | Problem | Solution |
-|-------------|---------|----------|
-| Exceptions as control flow | Expensive, hard to read | Status-based returns |
-| Static method-only classes | Unnecessary boilerplate | Module-level functions |
-| Tight coupling | Hard to test, inflexible | Protocol-based abstraction |
-| Wildcard imports | Namespace pollution | Explicit imports |
-
-## Related Resources
-
-- [The Zen of Python](https://peps.python.org/pep-0020/)
-- [Python typing.Protocol docs](https://docs.python.org/3/library/typing.html#typing.Protocol)
-- [Original Article](https://medium.com/@BuildShift/10-python-anti-patterns-ruining-your-code-and-what-to-do-instead-e304c457bc98)

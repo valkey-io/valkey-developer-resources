@@ -415,8 +415,6 @@ Each language skill contains:
 - **Don't swallow errors** - log or propagate appropriately
 - **Unwrap exceptions** correctly (Java's ExecutionException.getCause())
 
-## Anti-Patterns to Avoid
-
 ### Resource Management
 ❌ **Wrong:** Not closing clients
 ```python
