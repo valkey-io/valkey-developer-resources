@@ -1,9 +1,12 @@
 # PHP GLIDE Skill
 
-## Code Snippets
-- [php-config.py](snippets/php-config.py) - Optimized templates for production web applications
+## External Resources
+- [php-config.py](snippets/php-config.php) - Optimized templates for production web applications
+- [ANTI_PATTERNS.md](ANTI_PATTERNS.md) - Anti-patterns to avoid in PHP GLIDE development including Hash vs JSON performance patterns, and more
 
 ## Package Selection
+
+**See:** [Package Selection in SKILL.md](../SKILL.md#package-selection) for cross-language package guidance.
 
 ```php
 // ✅ Correct - PHP Extension
@@ -217,185 +220,27 @@ try {
 }
 ```
 
+---
+
 ## Common Pitfalls
 
 ### 1. Forgetting exec()
-```php
-// ❌ Wrong - commands queued but not executed
-$client->multi();
-$client->set('key', 'value');
-
-// ✅ Correct
-$client->multi();
-$client->set('key', 'value');
-$results = $client->exec();
-```
+**Problem:** Commands queued but not executed
+**Solution:** Always call `exec()` after `multi()`
 
 ### 2. CROSSSLOT in Transactions
-```php
-// ❌ Wrong - different slots
-$client->multi();
-$client->set('key1', 'value1');
-$client->set('key2', 'value2');
-$client->exec();  // Error
-
-// ✅ Correct - use hash tags
-$client->multi();
-$client->set('{user}:1', 'value1');
-$client->set('{user}:2', 'value2');
-$client->exec();
-```
+**Problem:** Atomic operations with keys in different slots
+**Solution:** Use hash tags `{tag}` to ensure same slot
 
 ### 3. Extension Not Loaded
-```php
-// ❌ Wrong - assuming extension is loaded
-$client = new ValkeyGlide();
-
-// ✅ Correct - check first
-if (!extension_loaded('valkey_glide')) {
-    die('valkey_glide extension not loaded. Add extension=valkey_glide to php.ini');
-}
-$client = new ValkeyGlide();
-```
+**Problem:** Assuming extension is loaded
+**Solution:** Check with `extension_loaded('valkey_glide')` first
 
 ### 4. Wrong Client for Cluster
-```php
-// ❌ Wrong
-$client = new ValkeyGlide();
-$client->connect(addresses: [['host' => 'localhost', 'port' => 7000]]);
-
-// ✅ Correct
-$client = new ValkeyGlideCluster(
-    addresses: [['host' => 'localhost', 'port' => 7000]]
-);
-```
-
-## Best Practices
-
-### ✅ CORRECT: Single Responsibility Principle
-```php
-class UserRepository {
-    private $client;
-    
-    public function __construct($client) {
-        $this->client = $client;
-    }
-    
-    public function createUser($userId, $data) {
-        $this->client->set("user:$userId", json_encode($data));
-    }
-}
-
-class SessionRepository {
-    private $client;
-    
-    public function __construct($client) {
-        $this->client = $client;
-    }
-    
-    public function createSession($sessionId, $userId) {
-        $this->client->set("session:$sessionId", $userId);
-    }
-}
-```
-
-### ❌ INCORRECT: God Object
-```php
-class ValkeyManager {
-    // User management
-    public function createUser($userId, $data) { }
-    
-    // Session management
-    public function createSession($sessionId, $userId) { }
-    
-    // Cache management
-    public function cacheData($key, $value, $ttl) { }
-    
-    // Analytics
-    public function trackEvent($event) { }
-}
-```
-
-**Why:** God objects violate Single Responsibility Principle, making code hard to maintain and test.
+**Problem:** Using `ValkeyGlide` for cluster endpoints
+**Solution:** Use `ValkeyGlideCluster` for cluster mode
 
 ---
-
-### ✅ CORRECT: Strategy Pattern (Open-Closed Principle)
-```php
-interface CacheStrategy {
-    public function cache($client, $key, $value);
-}
-
-class ShortCacheStrategy implements CacheStrategy {
-    public function cache($client, $key, $value) {
-        $client->setex($key, 60, $value);
-    }
-}
-
-class CacheManager {
-    public function __construct($client, CacheStrategy $strategy) {
-        $this->strategy = $strategy;
-    }
-}
-```
-
-### ❌ INCORRECT: If-Else Chains
-```php
-class CacheManager {
-    public function cache($key, $value, $strategy) {
-        if ($strategy === 'short') {
-            $this->client->setex($key, 60, $value);
-        } elseif ($strategy === 'medium') {
-            $this->client->setex($key, 3600, $value);
-        }
-        // Must modify this method to add new strategies!
-    }
-}
-```
-
-**Why:** If-else chains violate Open-Closed Principle - must modify code to extend behavior.
-
----
-
-### ✅ CORRECT: Dependency Injection (Dependency Inversion Principle)
-```php
-interface CacheClient {
-    public function get($key);
-    public function set($key, $value);
-}
-
-class ValkeyGlideAdapter implements CacheClient {
-    private $client;
-    
-    public function __construct() {
-        $this->client = new ValkeyGlide();
-        $this->client->connect(...);
-    }
-    
-    public function get($key) {
-        return $this->client->get($key);
-    }
-}
-
-class UserService {
-    public function __construct(CacheClient $cache) {
-        $this->cache = $cache;
-    }
-}
-```
-
-### ❌ INCORRECT: Tight Coupling
-```php
-class UserService {
-    public function __construct() {
-        // Tightly coupled to ValkeyGlide
-        $this->client = new ValkeyGlide();
-        $this->client->connect(...);
-    }
-}
-```
-
-**Why:** Tight coupling makes testing difficult and prevents swapping implementations.
 
 ## Client Lifecycle Management
 
@@ -417,92 +262,6 @@ class Cache {
 ---
 
 # Performance Optimization
-
-Config templates: [`snippets/php-config.php`](snippets/php-config.php)
-
-## AZ Affinity
-
-```php
-$cluster = new ValkeyGlideCluster(
-    addresses: [['host' => 'cluster.endpoint.cache.amazonaws.com', 'port' => 6379]],
-    use_tls: false,
-    read_from: ValkeyGlide::READ_FROM_AZ_AFFINITY,
-    client_az: 'us-east-1a',
-    request_timeout: 500,
-    periodic_checks: ValkeyGlideCluster::PERIODIC_CHECK_ENABLED_DEFAULT_CONFIGS,
-);
-```
-
-Read strategy constants: `READ_FROM_PRIMARY`, `READ_FROM_PREFER_REPLICA`, `READ_FROM_AZ_AFFINITY`, `READ_FROM_AZ_AFFINITY_REPLICAS_AND_PRIMARY`.
-
-## Serverless / Lambda & PHP-FPM
-
-```php
-$client = new ValkeyGlide();
-$client->connect(
-    addresses: [['host' => getenv('VALKEY_ENDPOINT'), 'port' => 6379]],
-    request_timeout: 500,
-    lazy_connect: true,  // Defer connection until first command
-);
-```
-
-For PHP-FPM, each worker maintains its own persistent connection. Connection count = `pm.max_children`:
-
-```php
-global $valkeyClient;
-if (!isset($valkeyClient)) {
-    $valkeyClient = new ValkeyGlide();
-    $valkeyClient->connect(
-        addresses: [['host' => 'localhost', 'port' => 6379]],
-        request_timeout: 500,
-        client_name: 'php-fpm-worker-' . getmypid(),
-    );
-}
-```
-
-## Retry Strategy
-
-```php
-$client = new ValkeyGlide();
-$client->connect(
-    addresses: [['host' => 'localhost', 'port' => 6379]],
-    request_timeout: 500,
-    reconnect_strategy: [
-        'num_of_retries' => 10,
-        'factor' => 2,
-        'exponent_base' => 2,
-        'jitter_percent' => 15,  // Avoid thundering herd
-    ],
-);
-```
-
-## Dedicated Blocking Client
-
-```php
-$blockingClient = new ValkeyGlide();
-$blockingClient->connect(
-    addresses: [['host' => 'localhost', 'port' => 6379]],
-    request_timeout: 35000,
-    client_name: 'blocking-worker',
-);
-$task = $blockingClient->blpop(['queue:tasks'], 30);
-```
-
-## Hash vs JSON for Structured Data
-
-```php
-// ❌ Inefficient — must fetch/parse entire object
-$client->set('user:123', json_encode($userData));
-$email = json_decode($client->get('user:123'), true)['email'];
-
-// ✅ Efficient — fetch only needed fields
-$client->hSet('user:123', 'name', 'John', 'email', 'john@example.com', 'age', '30');
-$email = $client->hGet('user:123', 'email');
-```
-
-## Monitoring
-
-### OpenTelemetry
 
 ```php
 use ValkeyGlide\OpenTelemetry\OpenTelemetryConfig;

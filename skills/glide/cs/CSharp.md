@@ -1,11 +1,14 @@
 # C# GLIDE Skill
 
-## Code Snippets
+## External Resources
 - [csharp-config.cs](snippets/csharp-config.cs) - Optimized templates for production web applications
+- [ANTI_PATTERNS.md](ANTI_PATTERNS.md) - Anti-patterns to avoid in C# GLIDE development including CROSSSLOT error patterns, Hash vs JSON performance, and more.
 
 > **Status:** Preview - C# GLIDE is available on NuGet but still has features being implemented before GA. See [official documentation](https://valkey.io/valkey-glide/) for latest updates.
 
 ## Package Selection
+
+**See:** [Package Selection in SKILL.md](../SKILL.md#package-selection) for cross-language package guidance.
 
 ```csharp
 // ✅ Correct
@@ -16,8 +19,6 @@ using static Valkey.Glide.ConnectionConfiguration;
 // ❌ Wrong
 using StackExchange.Redis;  // Different library (though Valkey.Glide provides compatibility layer)
 ```
-
-**Why:** Valkey.Glide is the official high-performance client built on Rust core with native async/await support.
 
 **Note:** Current NuGet version is 0.9.0. Features like IAM authentication and insecure TLS mode require version 2.0+ (not yet released).
 
@@ -173,19 +174,8 @@ await client.Exec(batch, raiseOnError: true);
 ```
 
 ### CROSSSLOT Error
-```csharp
-// ❌ This fails - keys in different slots
-var batch = new ClusterBatch(isAtomic: true);
-batch.StringSet("key1", "value1");  // Slot A
-batch.StringSet("key2", "value2");  // Slot B
-await client.Exec(batch, raiseOnError: true);  // Throws RequestException: CROSSSLOT
 
-// ✅ This works - non-atomic can span slots
-var pipeline = new ClusterBatch(isAtomic: false);
-pipeline.StringSet("key1", "value1");
-pipeline.StringSet("key2", "value2");
-await client.Exec(pipeline, raiseOnError: true);
-```
+Atomic batches require all keys in the same slot. Non-atomic batches can span slots.
 
 ## Error Handling
 
@@ -324,61 +314,6 @@ finally
 
 ## Common Pitfalls
 
-### ❌ Forgetting await
-```csharp
-// Wrong - returns Task, not value
-var value = client.StringGetAsync("key");  // Task<ValkeyValue>
-
-// Correct
-var value = await client.StringGetAsync("key");  // ValkeyValue
-```
-
-### ❌ Not Using await using
-```csharp
-// Wrong - client not disposed
-var client = await GlideClient.CreateClient(config);
-// ... operations ...
-// Client never disposed!
-
-// Correct
-await using var client = await GlideClient.CreateClient(config);
-// ... operations ...
-// Client automatically disposed
-```
-
-### ❌ Synchronous Blocking
-```csharp
-// Wrong - can cause deadlocks
-var value = client.StringGetAsync("key").Result;
-
-// Correct
-var value = await client.StringGetAsync("key");
-```
-
-### ❌ Wrong Naming Convention
-```csharp
-// Wrong - C# uses PascalCase
-await client.stringSetAsync("key", "value");
-
-// Correct
-await client.StringSetAsync("key", "value");
-```
-
-### ❌ Cluster Atomic Batch Across Slots
-```csharp
-// Wrong - CROSSSLOT error
-var batch = new ClusterBatch(isAtomic: true);
-batch.StringSet("key1", "value1");  // Different slots
-batch.StringSet("key2", "value2");
-await client.Exec(batch, raiseOnError: true);  // Throws
-
-// Correct - use hash tags
-var batch = new ClusterBatch(isAtomic: true);
-batch.StringSet("{user}:1", "value1");  // Same slot
-batch.StringSet("{user}:2", "value2");
-await client.Exec(batch, raiseOnError: true);  // Success
-```
-
 ## Client Lifecycle Management
 
 **ASP.NET Core:**
@@ -502,20 +437,6 @@ catch (ConfigurationError ex)
 ```
 
 ## Hash vs JSON for Structured Data
-
-```csharp
-// ❌ Inefficient — must fetch/parse entire object
-var json = JsonSerializer.Serialize(user);
-await client.StringSetAsync("user:123", json);
-
-// ✅ Efficient — fetch only needed fields
-await client.HashSetAsync("user:123", new HashEntry[]
-{
-    new("name", "John"),
-    new("email", "john@example.com")
-});
-var name = await client.HashGetAsync("user:123", "name");
-```
 
 ## Concurrent Operations
 

@@ -1,9 +1,12 @@
 # Node.js GLIDE Skill
 
-## Code Snippets
+## External Resources
 - [nodejs-config.ts](snippets/nodejs-config.ts) - Optimized templates for production web applications
+- [ANTI_PATTERNS.md](ANTI_PATTERNS.md) - Anti-patterns to avoid in JavaScript/TypeScript GLIDE development including async iteration, Hash vs JSON performance patterns, and more.
 
 ## Package Selection
+
+**See:** [Package Selection in SKILL.md](../SKILL.md#package-selection) for cross-language package guidance.
 
 ```javascript
 // ✅ Correct
@@ -313,144 +316,40 @@ try {
 ## Best Practices
 
 ### Async Iteration
-When processing multiple keys, avoid `forEach` with async callbacks:
-
-```javascript
-// ❌ Wrong - forEach doesn't await (fire-and-forget)
-keys.forEach(async (key) => {
-  await client.del(key);  // These run immediately, not sequentially
-});
-console.log("Done!"); // Lies - operations still running
-
-// ✅ Correct - Sequential with for...of
-for (const key of keys) {
-  await client.del(key);
-}
-console.log("Actually done");
-
-// ✅ Correct - Parallel with Promise.all
-await Promise.all(keys.map(key => client.del(key)));
-console.log("All operations complete");
-
-// ✅ Best - Use batch for multiple operations
-const batch = new Batch(false);
-keys.forEach(key => batch.del([key]));
-await client.exec(batch, true);
-```
-
-### TypeScript Runtime Validation
-If using TypeScript, validate external data at runtime:
-
-```javascript
-import { z } from "zod";
-
-// ✅ Validate FT.SEARCH results
-const SearchResultSchema = z.tuple([
-  z.number(),
-  z.array(z.object({
-    key: z.instanceof(Buffer),
-    value: z.array(z.any())
-  }))
-]);
-
-const results = SearchResultSchema.parse(
-  await GlideFt.search(client, "idx", query, { decoder: Decoder.Bytes })
-);
-
-// Now TypeScript knows the exact shape, and runtime validates it
-const [count, documents] = results;
-```
+Use `for...of` for sequential operations, `Promise.all` for parallel, or batches for efficiency.
 
 ### Resource Cleanup
-Always close clients in finally blocks:
+Always close clients in finally blocks to ensure cleanup even if errors occur.
 
-```javascript
-const client = await GlideClient.createClient({...});
-
-try {
-  await client.set("key", "value");
-} finally {
-  client.close();  // Ensures cleanup even if error occurs
-}
-```
+---
 
 ## Common Pitfalls
 
 ### 1. Wrong Batch Class for Client Type
-```javascript
-// ❌ Wrong
-const batch = new Batch(true);
-await clusterClient.exec(batch, true);
-
-// ✅ Correct
-const batch = new ClusterBatch(true);
-await clusterClient.exec(batch, true);
-```
+**Problem:** Using `Batch` with cluster client
+**Solution:** Use `ClusterBatch` for cluster clients
 
 ### 2. Missing Decoder.Bytes for Binary Data
-```javascript
-// ❌ Wrong - UTF-8 decoding fails on binary vectors
-const results = await GlideFt.search(client, "idx", query);
-
-// ✅ Correct
-const results = await GlideFt.search(client, "idx", query, {
-  decoder: Decoder.Bytes,
-});
-```
+**Problem:** UTF-8 decoding fails on binary vectors
+**Solution:** Use `decoder: Decoder.Bytes` option
 
 ### 3. CROSSSLOT Errors in Atomic Batches
-```javascript
-// ❌ Wrong - different slots
-const batch = new ClusterBatch(true);
-batch.get("key1");
-batch.get("key2"); // CROSSSLOT error
-
-// ✅ Correct - use hash tags
-const batch = new ClusterBatch(true);
-batch.get("{user}:1");
-batch.get("{user}:2");
-```
+**Problem:** Atomic operations with keys in different slots
+**Solution:** Use hash tags `{tag}` to ensure same slot
 
 ### 4. Wrong Method Name
-```javascript
-// ❌ Wrong
-await GlideFt.dropIndex(client, "idx"); // Not a function
-
-// ✅ Correct
-await GlideFt.dropindex(client, "idx"); // lowercase 'index'
-```
+**Problem:** Case-sensitive method names
+**Solution:** Use correct casing (e.g., `dropindex` not `dropIndex`)
 
 ### 5. forEach with Async Callbacks
-```javascript
-// ❌ Wrong - fire-and-forget (operations not awaited)
-keys.forEach(async (key) => {
-  await client.del(key);
-});
-
-// ✅ Correct - sequential
-for (const key of keys) {
-  await client.del(key);
-}
-
-// ✅ Correct - parallel
-await Promise.all(keys.map(key => client.del(key)));
-```
+**Problem:** Fire-and-forget behavior
+**Solution:** Use `for...of`, `Promise.all`, or batches
 
 ### 6. Missing finally Block
-```javascript
-// ❌ Wrong - client not closed if error occurs
-const client = await GlideClient.createClient({...});
-await client.set("key", "value");
-client.close();
+**Problem:** Client not closed if error occurs
+**Solution:** Always use try/finally for cleanup
 
-// ✅ Correct - always closes
-const client = await GlideClient.createClient({...});
-try {
-  await client.set("key", "value");
-} finally {
-  client.close();
-}
-```
+---
 
 ## Client Lifecycle Management
 
@@ -527,16 +426,6 @@ const item = await blockingClient.blpop(["queue"], 30);
 ```
 
 ## Hash vs JSON for Structured Data
-
-```typescript
-// ❌ Inefficient — must fetch/parse entire object
-await client.set("user:123", JSON.stringify(user));
-const parsed = JSON.parse(await client.get("user:123"));
-
-// ✅ Efficient — fetch only needed fields
-await client.hset("user:123", { name: "John", email: "john@example.com", age: "30" });
-const name = await client.hget("user:123", "name");
-```
 
 ## Typed Error Handling
 

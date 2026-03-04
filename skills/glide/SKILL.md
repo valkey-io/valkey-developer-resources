@@ -49,6 +49,26 @@ Increase timeouts for: large batches (>1000 keys), vector search, blocking ops (
 5. Retry on transient issues; fail-fast on strict SLA; circuit-break after N consecutive timeouts
 
 ---
+## Package Selection
+
+**Use Valkey GLIDE** - the official AWS-recommended client with better performance and active development.
+
+| Language | Package | Installation | Notes |
+|----------|---------|--------------|-------|
+| **Python** | `valkey-glide` (async)<br>`valkey-glide-sync` (sync) | `pip install valkey-glide` | Use `glide_shared` for shared types |
+| **Java** | `io.valkey:valkey-glide` | Maven/Gradle with platform classifier | Requires `os-maven-plugin` or `osdetector` |
+| **Go** | `github.com/valkey-io/valkey-glide/go/v2` | `go get` | Requires Go 1.22+ |
+| **Node.js** | `@valkey/valkey-glide` | `npm install` | Promise-based API |
+| **PHP** | `valkey_glide` extension | PECL/pie/source | C extension, not Composer package |
+| **C#** | `Valkey.Glide` | `dotnet add package` | Current: v0.9.0, v2.0+ for IAM/TLS |
+
+**Platform support:** Java requires native binaries (linux-x86_64, linux-aarch_64, osx-x86_64, osx-aarch_64, windows-x86_64). PHP and C# also use native components.
+
+**Compatibility layers:** PHP provides PHPRedis compatibility (`ValkeyGlide::registerPHPRedisAliases()`), C# provides StackExchange.Redis compatibility.
+
+**❌ Don't use:** Redis forks (`valkey` Python package, `jedis`/`lettuce` Java, `go-redis` Go, `redis` PHP extension, `StackExchange.Redis` C# without compatibility layer).
+
+---
 ## Batch Commands (Pipeline and Transaction)
 
 **Batch API** replaces deprecated Transaction/ClusterTransaction APIs. Two modes:
