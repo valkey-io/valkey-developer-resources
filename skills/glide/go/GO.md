@@ -564,23 +564,6 @@ if err != nil {
 
 ---
 
-## Summary Checklist
-
-When implementing Valkey functionality with GLIDE:
-
-- [ ] Use `valkey-glide/go/v2`, NOT go-redis
-- [ ] Import from correct packages: `glide`, `config`, `pipeline`
-- [ ] Pass `context.Context` to all operations
-- [ ] Always check `err != nil` after operations
-- [ ] Use `defer client.Close()` for cleanup
-- [ ] Dereference batch with `*` when passing to `Exec()`
-- [ ] Use `NewStandaloneBatch` for standalone, `NewClusterBatch` for cluster
-- [ ] Use hash tags `{tag}` for same-slot operations in cluster
-- [ ] Use safe type assertions: `value, ok := result.(Type)`
-- [ ] Handle `[]any` results with type assertions
-
----
-
 ## Client Lifecycle Management
 
 ```go

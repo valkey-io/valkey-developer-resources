@@ -452,27 +452,6 @@ try {
 }
 ```
 
-## Summary Checklist
-
-- [ ] Use `@valkey/valkey-glide` package
-- [ ] Choose `GlideClient` (standalone) or `GlideClusterClient` (cluster)
-- [ ] Use `async/await` for all operations
-- [ ] Use `Batch` for standalone, `ClusterBatch` for cluster
-- [ ] Constructor boolean: `true` = atomic, `false` = non-atomic
-- [ ] Import `GlideFt` for vector search operations
-- [ ] Use `Decoder.Bytes` for binary vector data
-- [ ] Use `Buffer.from(new Float32Array(...).buffer)` for vectors
-- [ ] Use hash tags `{tag}` for same-slot keys in cluster
-- [ ] Use non-atomic batches for multi-slot operations
-- [ ] Remember `GlideFt.dropindex()` is lowercase
-- [ ] FT.SEARCH returns `[count, documents]` tuple
-- [ ] Avoid `forEach` with async callbacks - use `for...of` or `Promise.all`
-- [ ] Always close client in `finally` block
-- [ ] Use batch operations instead of loops for multiple keys
-- [ ] Validate external data at runtime (TypeScript with Zod)
-
----
-
 ## Client Lifecycle Management
 
 ```javascript
