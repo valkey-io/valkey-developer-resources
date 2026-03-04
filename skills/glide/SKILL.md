@@ -125,7 +125,7 @@ One client per application (or per distinct cluster). GLIDE multiplexes over a s
 
 ## Performance Optimization
 
-Each language guide has a Performance Optimization section. Config templates: `performance/config-templates/`.
+Each language guide has a Performance Optimization section.  See language-specific guide for location of templates.
 
 Key patterns: AZ Affinity (>80% reads), `inflightRequestsLimit` tuning (Node.js/Python/Java), `lazyConnect` for serverless, dedicated blocking client, cluster scan, SCAN vs FT.* search, Hash vs JSON strings, OpenTelemetry, log levels (warn/error), concurrent patterns (asyncio.gather/Promise.all/CompletableFuture/goroutines). Client is thread-safe; Batch objects are NOT.
 

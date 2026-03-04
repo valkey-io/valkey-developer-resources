@@ -1,5 +1,8 @@
 # General Java Guidelines
 
+## Code Snippets
+- [java-config.java](snippets/java-config.java) - Optimized templates for production web applications
+
 ## Core Principles
 
 1. Use Valkey GLIDE clients (`valkey-glide`), NOT Jedis or Lettuce clients.
@@ -877,7 +880,7 @@ Runtime.getRuntime().addShutdownHook(new Thread(client::close));
 
 # Performance Optimization
 
-Config templates: [`performance/config-templates/java-config.java`](../performance/config-templates/java-config.java)
+Config templates: [`snippets/java-config.java`](snippets/java-config.java)
 
 ## AZ Affinity
 
