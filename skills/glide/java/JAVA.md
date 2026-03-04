@@ -829,35 +829,6 @@ void testUserService() {
 
 ---
 
-## Summary Checklist
-
-When implementing Valkey functionality with GLIDE:
-
-- [ ] Use `valkey-glide`, NOT Jedis or Lettuce
-- [ ] Include platform classifier with auto-detection
-- [ ] Prefer async chaining over blocking for production
-- [ ] Add comments to clarify sync vs async usage
-- [ ] Set explicit `requestTimeout()` in configuration
-- [ ] Import `Batch` from `glide.api.models`, not `glide.api.models.commands.batch`
-- [ ] Catch specific exceptions: `RequestException`, `TimeoutException`, `ConnectionException`
-- [ ] Use `.exceptionally()` for async error handling (no unwrapping needed)
-- [ ] Unwrap exceptions with `.getCause()` when using blocking `.get()` or `.join()`
-- [ ] Support both cluster and standalone modes
-- [ ] Cast `Object[]` results to specific types as needed
-- [ ] Use `GlideString.of()` for binary data (vectors, etc.)
-- [ ] Never convert binary data to String - use `GlideString` throughout
-- [ ] Check `results.length > 1` before accessing FT.search documents map
-- [ ] Use `ByteOrder.LITTLE_ENDIAN` for vector encoding
-- [ ] Use `GlideClusterClient` and `ClusterBatch` for cluster mode
-- [ ] Use hash tags `{tag}` to ensure keys in same slot for atomic operations
-- [ ] Avoid CROSSSLOT errors by grouping keys with hash tags or using non-atomic batches
-- [ ] **Always use try-with-resources for client cleanup**
-- [ ] **Never swallow InterruptedException - restore interrupt status**
-- [ ] **Unwrap ExecutionException with getCause() for blocking calls**
-- [ ] **Use value objects instead of primitives for domain concepts**
-
----
-
 ## Client Lifecycle Management
 
 **Spring Boot:**

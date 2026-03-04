@@ -397,27 +397,6 @@ class UserService {
 
 **Why:** Tight coupling makes testing difficult and prevents swapping implementations.
 
-## Summary Checklist
-
-- [ ] Install valkey_glide extension (PECL/pie/source)
-- [ ] Enable extension in php.ini: `extension=valkey_glide`
-- [ ] Check extension loaded with `extension_loaded('valkey_glide')`
-- [ ] Use `ValkeyGlide` for standalone, `ValkeyGlideCluster` for cluster
-- [ ] Use `multi()` for atomic transactions
-- [ ] Use `pipeline()` for non-atomic pipelines
-- [ ] Always call `exec()` to execute queued commands
-- [ ] Use hash tags `{tag}` for same-slot keys in cluster
-- [ ] Use non-atomic pipeline for multi-slot operations
-- [ ] Results are PHP arrays
-- [ ] API is synchronous (blocking)
-- [ ] PHPRedis compatibility available with `registerPHPRedisAliases()`
-- [ ] FT module (vector search) not yet available in v1.0.0
-- [ ] **Follow Single Responsibility Principle - one class, one purpose**
-- [ ] **Use Strategy Pattern instead of if-else chains**
-- [ ] **Inject dependencies via interfaces, not concrete classes**
-
----
-
 ## Client Lifecycle Management
 
 One client per PHP-FPM worker (not per request). Use a static property or global:

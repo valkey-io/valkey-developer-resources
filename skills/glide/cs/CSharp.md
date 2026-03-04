@@ -379,21 +379,6 @@ batch.StringSet("{user}:2", "value2");
 await client.Exec(batch, raiseOnError: true);  // Success
 ```
 
-## Summary Checklist
-
-- [ ] Install `Valkey.Glide` NuGet package
-- [ ] Use `await using` for client disposal
-- [ ] Set explicit `RequestTimeout` in configuration
-- [ ] Use `await` for all async operations (never `.Result` or `.Wait()`)
-- [ ] Use `Batch(isAtomic: true)` for transactions, `Batch(isAtomic: false)` for pipelines
-- [ ] Use hash tags `{tag}` for cluster atomic batches
-- [ ] Handle specific exceptions: `ConnectionException`, `TimeoutException`, `RequestException`
-- [ ] Configure PubSub subscriptions at connection time
-- [ ] Use `ClusterBatch` for cluster mode, `Batch` for standalone
-- [ ] Enable nullable reference types for better null safety
-
----
-
 ## Client Lifecycle Management
 
 **ASP.NET Core:**

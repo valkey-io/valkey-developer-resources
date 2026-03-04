@@ -65,7 +65,7 @@ from valkey import Valkey
 from valkey.commands.search import Search
 ```
 
-**Why:** The `valkey` package is a Redis fork with limited maintenance. GLIDE is the official AWS-recommended client with better performance, proper async support, and active development.
+**Why:** GLIDE is the official AWS-recommended client with better performance and active development.
 
 ---
 
@@ -662,33 +662,6 @@ valkey = ["valkey-glide>=2.0.0"]
 ```
 
 **Why optional:** Keeps base package lightweight, users install only what they need.
-
----
-
-## Summary Checklist
-
-When implementing Valkey functionality with GLIDE:
-
-- [ ] Choose sync (`valkey-glide-sync`) or async (`valkey-glide`) based on application needs
-- [ ] Import from `glide_sync`/`glide` and `glide_shared`, NOT `valkey` package
-- [ ] Use module-level functions: `ft.search(client=..., ...)`, not `client.ft.search(...)`
-- [ ] Use keyword arguments for `ft.search()` and `ft.create()`
-- [ ] Import `FtCreateOptions` and `FtSearchOptions` directly (not `ft.FtCreateOptions`)
-- [ ] Wrap search params in `FtSearchOptions(params={...})`
-- [ ] Use typed field objects for schema creation
-- [ ] Catch `RequestError` for index operations (not broad exceptions)
-- [ ] Decode bytes to strings for JSON serialization (skip binary fields)
-- [ ] Don't add `.sort_by()` to KNN queries
-- [ ] Mock at import location, not definition location
-- [ ] Use `TYPE_CHECKING` for type hints
-- [ ] Provide helpful ImportError messages
-- [ ] Support both cluster and standalone modes
-- [ ] Use `await` for async client operations
-- [ ] **Use status returns instead of exceptions for control flow**
-- [ ] **Use module-level functions instead of static-only classes**
-- [ ] **Use Protocols for abstraction, not concrete classes**
-- [ ] **Use explicit imports, never wildcard imports**
-
 
 ---
 
