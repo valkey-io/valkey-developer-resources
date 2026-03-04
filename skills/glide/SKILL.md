@@ -133,7 +133,7 @@ Key patterns: AZ Affinity (>80% reads), `inflightRequestsLimit` tuning (Node.js/
 
 1. **Per-request client creation** — create once at startup, reuse everywhere
 2. **Missing request timeouts** — always configure (500ms for web apps)
-3. **Sequential operations** — use batching (10-100 commands) or concurrent execution
+3. **Sequential operations** — use batching (10-100 commands) or concurrent execution or `MGET` in lieu of many `GET`s
 4. **Blocking commands on shared client** — use dedicated client with longer timeout
 5. **Large batch sizes** — keep under 1000 commands, optimal 10-100
 6. **Missing error handling & retries** — configure exponential backoff
