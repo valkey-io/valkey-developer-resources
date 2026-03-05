@@ -1,6 +1,7 @@
 # General Go Guidelines
 
 ## External Resources
+- [package_selection.md](snippets/package_selection.md) - Installation and selecting appropriate packages for GLIDE integration
 - [go-config.go](snippets/go-config.go) - Optimized templates for production web applications
 - [ANTI_PATTERNS.md](ANTI_PATTERNS.md) - Anti-patterns to avoid in Go GLIDE development including cluster slot patterns and CROSSSLOT errors, type assertion, and Hash vs JSON performance, and more
 
@@ -11,42 +12,6 @@
 3. Use batching / pipelining when suitable to group operations for efficiency.
 4. Pass `context.Context` to all operations.
 5. Use `defer client.Close()` for cleanup.
-
----
-
-## Package Selection
-
-**See:** [Package Selection in SKILL.md](../SKILL.md#package-selection) for cross-language package guidance.
-
-### ✅ CORRECT: Use GLIDE
-
-**Installation:**
-```bash
-go get github.com/valkey-io/valkey-glide/go/v2
-go mod tidy
-```
-
-**Imports:**
-```go
-import (
-	"context"
-	
-	glide "github.com/valkey-io/valkey-glide/go/v2"
-	"github.com/valkey-io/valkey-glide/go/v2/config"
-	"github.com/valkey-io/valkey-glide/go/v2/pipeline"
-)
-```
-
-**Key Points:**
-- Requires Go 1.22 or above
-- Standard Go module structure
-- Context required for all operations
-
-### ❌ INCORRECT: Don't use go-redis
-```go
-// NEVER use these
-import "github.com/redis/go-redis/v9"
-```
 
 ---
 
