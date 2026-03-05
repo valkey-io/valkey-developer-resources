@@ -3,15 +3,15 @@
 ## External Resources
 
 ### Code Snippets
-- [package_selection.md](snippets/package_selection.md) - Selecting appropriate packages for GLIDE integration
-- [parse_valkey_urls.md](snippets/parse_valkey_urls.md) - Parsing Valkey URLs into host and port
-- [decode_docs.md](snippets/decode_docs.md) - Decoding bytes to strings for JSON deserialization
-- [python-config.py](snippets/python-config.py) - Optimized templates for production web applications
+- [python-package-selection.md](python-package-selection.md) - Selecting appropriate packages for GLIDE integration
+- [python-parse-valkey-urls.md](python-parse-valkey-urls.md) - Parsing Valkey URLs into host and port
+- [python-decode-docs.md](python-decode-docs.md) - Decoding bytes to strings for JSON deserialization
+- [python-config.py](../scripts/python-config.py) - Optimized templates for production web applications
 - [https://glide.valkey.io/languages/python/api/glide_async/core/](https://glide.valkey.io/languages/python/api/glide_async/core/) - Python Async API Reference
 - [https://glide.valkey.io/languages/python/api/glide_sync/core/](https://glide.valkey.io/languages/python/api/glide_sync/core/) - Python Sync API Reference
 
 ### Anti-Patterns
-- [ANTI_PATTERNS.md](ANTI_PATTERNS.md) - Anti-patterns to avoid in Python GLIDE development including vector search constraints, FtCreateOptions import constraints, test mocking patterns, Hash vs JSON performance patterns, and more
+- [ANTI_PATTERNS.md](python-anti-patterns.md) - Anti-patterns to avoid in Python GLIDE development including vector search constraints, FtCreateOptions import constraints, test mocking patterns, Hash vs JSON performance patterns, and more
 
 ---
 
@@ -158,7 +158,7 @@ client = await GlideClient.create(config)
 
 ### Vector Similarity Search
 Return value is a two-element array / list, first element being the number of documents, the second element
-being a dictionary of those documents.  See the [decode_docs.md](snippets/decode_docs.md) code snippet for an example.
+being a dictionary of those documents.  See the [python-decode-docs.md](python-decode-docs.md) code snippet for an example.
 
 ```python
 from glide_sync import ft
@@ -631,7 +631,7 @@ results = await client.exec(batch, raise_on_error=True, options=options)
 
 # Performance Optimization
 
-Config templates: [`snippets/python-config.py`](snippets/python-config.py)
+Config templates: [`scripts/python-config.py`](../scripts/python-config.py)
 
 ## AZ Affinity
 
@@ -731,4 +731,4 @@ user, posts, comments = await asyncio.gather(
 )
 ```
 
-Server-side config: [`performance/server-configuration-guide.md`](../performance/server-configuration-guide.md)
+Server-side config: [`references/server-configuration-guide.md`](server-configuration-guide.md)

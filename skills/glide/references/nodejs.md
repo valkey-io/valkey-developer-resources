@@ -1,8 +1,8 @@
 # Node.js GLIDE Skill
 
 ## External Resources
-- [nodejs-config.ts](snippets/nodejs-config.ts) - Optimized templates for production web applications
-- [ANTI_PATTERNS.md](ANTI_PATTERNS.md) - Anti-patterns to avoid in JavaScript/TypeScript GLIDE development including async iteration, Hash vs JSON performance patterns, and more.
+- [nodejs-config.ts](../scripts/nodejs-config.ts) - Optimized templates for production web applications
+- [ANTI_PATTERNS.md](nodejs-anti-patterns.md) - Anti-patterns to avoid in JavaScript/TypeScript GLIDE development including async iteration, Hash vs JSON performance patterns, and more.
 
 ## Package Selection
 
@@ -365,7 +365,7 @@ process.on("SIGINT",  () => { client?.close(); process.exit(0); });
 
 # Performance Optimization
 
-Config templates: [`snippets/nodejs-config.ts`](snippets/nodejs-config.ts)
+Config templates: [`scripts/nodejs-config.ts`](../scripts/nodejs-config.ts)
 
 ## AZ Affinity
 
@@ -484,4 +484,4 @@ Logger.setLoggerConfig("warn", "glide.log");  // Production
 Logger.setLoggerConfig("error");               // Max performance
 ```
 
-Server-side config: [`performance/server-configuration-guide.md`](../performance/server-configuration-guide.md)
+Server-side config: [`references/server-configuration-guide.md`](server-configuration-guide.md)

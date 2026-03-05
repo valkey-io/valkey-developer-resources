@@ -1,8 +1,8 @@
 # C# GLIDE Skill
 
 ## External Resources
-- [csharp-config.cs](snippets/csharp-config.cs) - Optimized templates for production web applications
-- [ANTI_PATTERNS.md](ANTI_PATTERNS.md) - Anti-patterns to avoid in C# GLIDE development including CROSSSLOT error patterns, Hash vs JSON performance, and more.
+- [csharp-config.cs](../scripts/csharp-config.cs) - Optimized templates for production web applications
+- [ANTI_PATTERNS.md](csharp-anti-patterns.md) - Anti-patterns to avoid in C# GLIDE development including CROSSSLOT error patterns, Hash vs JSON performance, and more.
 
 > **Status:** Preview - C# GLIDE is available on NuGet but still has features being implemented before GA. See [official documentation](https://valkey.io/valkey-glide/) for latest updates.
 
@@ -345,7 +345,7 @@ await using var client = await GlideClient.CreateClient(config);
 
 # Performance Optimization
 
-Config templates: [`snippets/csharp-config.cs`](snippets/csharp-config.cs)
+Config templates: [`scripts/csharp-config.cs`](../scripts/csharp-config.cs)
 
 `inflightRequestsLimit` not exposed in C# — managed at Rust core level (default: 1000). Focus on batching and `Task.WhenAll`.
 
@@ -499,4 +499,4 @@ public class GlideShutdownService : IHostedService
 // Valkey.Glide uses the Rust core logger — configure via environment or API
 ```
 
-Server-side config: [`performance/server-configuration-guide.md`](../performance/server-configuration-guide.md)
+Server-side config: [`references/server-configuration-guide.md`](server-configuration-guide.md)

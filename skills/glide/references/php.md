@@ -1,8 +1,8 @@
 # PHP GLIDE Skill
 
 ## External Resources
-- [php-config.py](snippets/php-config.php) - Optimized templates for production web applications
-- [ANTI_PATTERNS.md](ANTI_PATTERNS.md) - Anti-patterns to avoid in PHP GLIDE development including Hash vs JSON performance patterns, and more
+- [php-config.php](../scripts/php-config.php) - Optimized templates for production web applications
+- [ANTI_PATTERNS.md](php-anti-patterns.md) - Anti-patterns to avoid in PHP GLIDE development including Hash vs JSON performance patterns, and more
 
 ## Package Selection
 
@@ -284,4 +284,4 @@ ValkeyGlide::setOtelSamplePercentage(10);
 
 Recommended sampling: 1-10% production, 25-50% staging, 100% development.
 
-Server-side config: [`performance/server-configuration-guide.md`](../performance/server-configuration-guide.md)
+Server-side config: [`references/server-configuration-guide.md`](server-configuration-guide.md)

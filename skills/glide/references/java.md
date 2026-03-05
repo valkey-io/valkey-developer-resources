@@ -1,9 +1,9 @@
 # General Java Guidelines
 
 ## External Resources
-- [package_selection.md](snippets/package_selection.md) - Selecting appropriate packages for GLIDE integration
-- [java-config.java](snippets/java-config.java) - Optimized templates for production web applications
-- [ANTI_PATTERNS.md](ANTI_PATTERNS.md) - Anti-patterns to avoid in Java GLIDE development, including exception handling, Hash vs JSON performance, thread safety, and more.
+- [java-package-selection.md](java-package-selection.md) - Selecting appropriate packages for GLIDE integration
+- [java-config.java](../scripts/java-config.java) - Optimized templates for production web applications
+- [ANTI_PATTERNS.md](java-anti-patterns.md) - Anti-patterns to avoid in Java GLIDE development, including exception handling, Hash vs JSON performance, thread safety, and more.
 
 ## Core Principles
 
@@ -612,7 +612,7 @@ Runtime.getRuntime().addShutdownHook(new Thread(client::close));
 
 # Performance Optimization
 
-Config templates: [`snippets/java-config.java`](snippets/java-config.java)
+Config templates: [`scripts/java-config.java`](../scripts/java-config.java)
 
 ## AZ Affinity
 
@@ -736,4 +736,4 @@ Logger.setLoggerConfig(Logger.Level.WARN, "glide.log");  // Production
 Logger.setLoggerConfig(Logger.Level.ERROR);               // Max performance
 ```
 
-Server-side config: [`performance/server-configuration-guide.md`](../performance/server-configuration-guide.md)
+Server-side config: [`references/server-configuration-guide.md`](server-configuration-guide.md)

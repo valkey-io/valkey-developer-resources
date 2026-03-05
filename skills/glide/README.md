@@ -108,12 +108,12 @@ await client.exec(batch)  # Success!
 
 | Language | Status | Key Features |
 |----------|--------|--------------|
-| [Python](python/PYTHON.md) | ✅ Complete | Async/await, type hints, anti-patterns, performance optimization |
-| [Java](java/JAVA.md) | ✅ Complete | CompletableFuture, try-with-resources, anti-patterns, performance optimization |
-| [Node.js](js/JS.md) | ✅ Complete | Promises, GlideFt, Decoder.Bytes, performance optimization |
-| [Go](go/GO.md) | ✅ Complete | context.Context, error handling, anti-patterns, performance optimization |
-| [PHP](php/PHP.md) | ✅ Complete | Synchronous API, SOLID principles, anti-patterns, performance optimization |
-| [C#](cs/CSharp.md) | ✅ Complete | Task<T>, await using, StackExchange.Redis compatibility |
+| [Python](references/python.md) | ✅ Complete | Async/await, type hints, anti-patterns, performance optimization |
+| [Java](references/java.md) | ✅ Complete | CompletableFuture, try-with-resources, anti-patterns, performance optimization |
+| [Node.js](references/nodejs.md) | ✅ Complete | Promises, GlideFt, Decoder.Bytes, performance optimization |
+| [Go](references/go.md) | ✅ Complete | context.Context, error handling, anti-patterns, performance optimization |
+| [PHP](references/php.md) | ✅ Complete | Synchronous API, SOLID principles, anti-patterns, performance optimization |
+| [C#](references/csharp.md) | ✅ Complete | Task<T>, await using, StackExchange.Redis compatibility |
 
 ## Performance Optimization
 
@@ -121,9 +121,9 @@ Each language guide includes a **Performance Optimization** section covering pro
 
 | Resource | Description |
 |----------|-------------|
-| [Config Templates](performance/config-templates/) | Production-ready client configurations for all languages |
-| [Server Configuration Guide](performance/server-configuration-guide.md) | Cluster sizing, memory policy, ElastiCache node types, monitoring |
-| [Benchmarks](performance/benchmarks/) | Measure performance impact of optimization patterns |
+| [Config Templates](scripts/) | Production-ready client configurations for all languages |
+| [Server Configuration Guide](references/server-configuration-guide.md) | Cluster sizing, memory policy, ElastiCache node types, monitoring |
+| [Benchmarks](assets/benchmarks/) | Measure performance impact of optimization patterns |
 | [SKILL.md — Performance](SKILL.md#performance-optimization) | Universal anti-patterns and optimization checklist |
 
 ## Quick Start
@@ -156,7 +156,7 @@ async with GlideClient(config) as client:
 - Use `async with` for automatic cleanup
 - Avoid mutable default arguments
 - Use `raise_on_error=True` for batch operations
-- See [PYTHON.md](python/PYTHON.md) for complete guide
+- See [python.md](references/python.md) for complete guide
 
 ---
 
@@ -201,7 +201,7 @@ try (GlideClient client = GlideClient.createClient(
 - Set explicit `requestTimeout()`
 - Use `.get()` for blocking, `.thenCompose()` for async
 - Unwrap `ExecutionException` with `.getCause()`
-- See [JAVA.md](java/JAVA.md) for complete guide
+- See [java.md](references/java.md) for complete guide
 
 ---
 
@@ -239,7 +239,7 @@ client.close();
 - Use `Decoder.Bytes` for binary data
 - Use `GlideFt` for vector search
 - Always call `client.close()`
-- See [JS.md](js/JS.md) for complete guide
+- See [nodejs.md](references/nodejs.md) for complete guide
 
 ---
 
@@ -283,7 +283,7 @@ fmt.Printf("Value: %s\n", *value)
 - Check errors explicitly
 - Use `defer client.Close()`
 - Dereference pointers for values
-- See [GO.md](go/GO.md) for complete guide
+- See [go.md](references/go.md) for complete guide
 
 ---
 
@@ -324,7 +324,7 @@ $client->close();
 - PHPRedis compatibility layer available
 - Use `multi()` for transactions, `pipeline()` for pipelines
 - Separate repositories (avoid God Objects)
-- See [PHP.md](php/PHP.md) for complete guide
+- See [php.md](references/php.md) for complete guide
 
 ---
 
@@ -363,7 +363,7 @@ Console.WriteLine($"Value: {value}");
 - All methods are async (PascalCase naming)
 - Use `isAtomic:` parameter for batches
 - StackExchange.Redis compatibility available
-- See [CSharp.md](cs/CSharp.md) for complete guide
+- See [csharp.md](references/csharp.md) for complete guide
 
 ---
 

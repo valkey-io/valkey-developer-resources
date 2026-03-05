@@ -16,15 +16,14 @@ The delta between the two is the measurable impact of the skill.
 
 ```
 benchmarks/
-├── README.md              # This file
-├── app-benchmark.js       # Benchmark runner
-├── valkey-template.js     # Stubs — the contract both implementations must satisfy
-├── valkey-baseline.js     # (AI-generated without skill — you create this)
-├── valkey-skill.js        # (AI-generated with skill — you create this)
-└── sample-results/        # Reference implementations and expected output
-    ├── sample-valkey-baseline.js
-    ├── sample-valkey-skill.js
-    └── sample-results.txt
+├── README.md                    # This file
+├── app-benchmark.js             # Benchmark runner
+├── valkey-template.js           # Stubs — the contract both implementations must satisfy
+├── valkey-baseline.js           # (AI-generated without skill — you create this)
+├── valkey-skill.js              # (AI-generated with skill — you create this)
+├── sample-valkey-baseline.js    # Reference baseline implementation
+├── sample-valkey-skill.js       # Reference skill-guided implementation
+└── sample-results.txt           # Expected benchmark output
 ```
 
 ## Setup

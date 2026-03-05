@@ -1,6 +1,6 @@
 ---
-name: Valkey GLIDE Client Development
-description: Production-ready patterns for Valkey GLIDE clients across 6 languages. Activate when generating, reviewing, or debugging Valkey GLIDE code — including client creation, batch/pipeline/transaction operations, clustering, authentication, TLS, error handling, and timeout configuration.
+name: glide
+description: Production-ready patterns for Valkey GLIDE clients across 6 languages. Activate when generating, reviewing, or debugging Valkey GLIDE code including client creation, batch/pipeline/transaction operations, clustering, authentication, TLS, error handling, and timeout configuration.
 ---
 
 ## Language-Specific Guides
@@ -18,12 +18,12 @@ Load the corresponding guide when generating or reviewing code:
 
 | Language/Framework | Reference File | Key Topics |
 |-------------------|----------------|------------|
-| **Python** | [Python-specific skill](python/PYTHON.md) | Mutable Default Arguments, Exception Handling, Class Attributes, Client Lifecycle |
-| **Java** | [Java-specific skill](java/JAVA.md) | CompletableFuture Patterns, Exception Unwrapping, GlideString for Binary Data, Client Lifecycle |
-| **Go** | [Go-specific skill](go/GO.md) | Context Pattern, Explicit Error Handling, Batch Pointer Dereferencing, Client Lifecycle |
-| **Node.js** | [Node.js-specific skill](js/JS.md) | Promise-Based API, Decoder.Bytes for Binary Data, Static FT Methods, Client Lifecycle |
-| **PHP** | [PHP-specific skill](php/PHP.md) | C Extension, PHPRedis Compatibility, Synchronous API, multi()/pipeline(), Client Lifecycle |
-| **C#** | [C#-specific skill](cs/CSharp.md) | Task-Based Async, await using Pattern, CustomCommand for FT Module, Client Lifecycle |
+| **Python** | [Python-specific skill](references/python.md) | Mutable Default Arguments, Exception Handling, Class Attributes, Client Lifecycle |
+| **Java** | [Java-specific skill](references/java.md) | CompletableFuture Patterns, Exception Unwrapping, GlideString for Binary Data, Client Lifecycle |
+| **Go** | [Go-specific skill](references/go.md) | Context Pattern, Explicit Error Handling, Batch Pointer Dereferencing, Client Lifecycle |
+| **Node.js** | [Node.js-specific skill](references/nodejs.md) | Promise-Based API, Decoder.Bytes for Binary Data, Static FT Methods, Client Lifecycle |
+| **PHP** | [PHP-specific skill](references/php.md) | C Extension, PHPRedis Compatibility, Synchronous API, multi()/pipeline(), Client Lifecycle |
+| **C#** | [C#-specific skill](references/csharp.md) | Task-Based Async, await using Pattern, CustomCommand for FT Module, Client Lifecycle |
 
 Detect language via file extension (`.js`/`.ts`, `.py`, `.java`, `.go`, `.php`, `.cs`) or import (`@valkey/valkey-glide`, `from glide import`, `import glide.api.*`, `valkey-glide/go`, `use ValkeyGlide`, `using Valkey.Glide`) and load the matching guide.
 
@@ -186,12 +186,7 @@ Key patterns: AZ Affinity (>80% reads), `inflightRequestsLimit` tuning (Node.js/
 ### Server Configuration
 
 For infrastructure guidance (cluster sizing, memory policy, ElastiCache node types, monitoring):
-→ See [`performance/server-configuration-guide.md`](performance/server-configuration-guide.md)
-
-### Benchmarks
-
-For measuring the performance impact of these optimization patterns:
-→ See [`performance/benchmarks/`](performance/benchmarks/)
+→ See [`references/server-configuration-guide.md`](references/server-configuration-guide.md)
 
 ### Performance Checklist
 
