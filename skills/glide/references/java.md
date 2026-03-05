@@ -2,7 +2,7 @@
 
 ## External Resources
 - [java-package-selection.md](java-package-selection.md) - Selecting appropriate packages for GLIDE integration
-- [java-config.java](../scripts/java-config.java) - Optimized templates for production web applications
+- [java-config.java](../assets/java-config.java) - Optimized templates for production web applications
 - [ANTI_PATTERNS.md](java-anti-patterns.md) - Anti-patterns to avoid in Java GLIDE development, including exception handling, Hash vs JSON performance, thread safety, and more.
 
 ## Core Principles
@@ -612,7 +612,7 @@ Runtime.getRuntime().addShutdownHook(new Thread(client::close));
 
 # Performance Optimization
 
-Config templates: [`scripts/java-config.java`](../scripts/java-config.java)
+Config templates: [`assets/java-config.java`](../assets/java-config.java)
 
 ## AZ Affinity
 

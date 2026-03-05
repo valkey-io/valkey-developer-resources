@@ -6,7 +6,7 @@
 - [python-package-selection.md](python-package-selection.md) - Selecting appropriate packages for GLIDE integration
 - [python-parse-valkey-urls.md](python-parse-valkey-urls.md) - Parsing Valkey URLs into host and port
 - [python-decode-docs.md](python-decode-docs.md) - Decoding bytes to strings for JSON deserialization
-- [python-config.py](../scripts/python-config.py) - Optimized templates for production web applications
+- [python-config.py](../assets/python-config.py) - Optimized templates for production web applications
 - [https://glide.valkey.io/languages/python/api/glide_async/core/](https://glide.valkey.io/languages/python/api/glide_async/core/) - Python Async API Reference
 - [https://glide.valkey.io/languages/python/api/glide_sync/core/](https://glide.valkey.io/languages/python/api/glide_sync/core/) - Python Sync API Reference
 
@@ -631,7 +631,7 @@ results = await client.exec(batch, raise_on_error=True, options=options)
 
 # Performance Optimization
 
-Config templates: [`scripts/python-config.py`](../scripts/python-config.py)
+Config templates: [`assets/python-config.py`](../assets/python-config.py)
 
 ## AZ Affinity
 

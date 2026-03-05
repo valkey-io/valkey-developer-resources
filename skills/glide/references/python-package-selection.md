@@ -1,7 +1,5 @@
 # Package Selection
 
-**See:** [Package Selection in SKILL.md](../SKILL.md#package-selection) for cross-language package guidance.
-
 ## ✅ CORRECT: Use GLIDE
 
 **Synchronous (for sync applications):**

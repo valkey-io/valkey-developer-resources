@@ -121,7 +121,7 @@ Each language guide includes a **Performance Optimization** section covering pro
 
 | Resource | Description |
 |----------|-------------|
-| [Config Templates](scripts/) | Production-ready client configurations for all languages |
+| [Config Templates](assets/) | Production-ready client configurations for all languages |
 | [Server Configuration Guide](references/server-configuration-guide.md) | Cluster sizing, memory policy, ElastiCache node types, monitoring |
 | [Benchmarks](assets/benchmarks/) | Measure performance impact of optimization patterns |
 | [SKILL.md — Performance](SKILL.md#performance-optimization) | Universal anti-patterns and optimization checklist |

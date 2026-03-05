@@ -1,12 +1,10 @@
 # PHP GLIDE Skill
 
 ## External Resources
-- [php-config.php](../scripts/php-config.php) - Optimized templates for production web applications
+- [php-config.php](../assets/php-config.php) - Optimized templates for production web applications
 - [ANTI_PATTERNS.md](php-anti-patterns.md) - Anti-patterns to avoid in PHP GLIDE development including Hash vs JSON performance patterns, and more
 
 ## Package Selection
-
-**See:** [Package Selection in SKILL.md](../SKILL.md#package-selection) for cross-language package guidance.
 
 ```php
 // ✅ Correct - PHP Extension

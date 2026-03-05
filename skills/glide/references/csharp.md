@@ -1,14 +1,12 @@
 # C# GLIDE Skill
 
 ## External Resources
-- [csharp-config.cs](../scripts/csharp-config.cs) - Optimized templates for production web applications
+- [csharp-config.cs](../assets/csharp-config.cs) - Optimized templates for production web applications
 - [ANTI_PATTERNS.md](csharp-anti-patterns.md) - Anti-patterns to avoid in C# GLIDE development including CROSSSLOT error patterns, Hash vs JSON performance, and more.
 
 > **Status:** Preview - C# GLIDE is available on NuGet but still has features being implemented before GA. See [official documentation](https://valkey.io/valkey-glide/) for latest updates.
 
 ## Package Selection
-
-**See:** [Package Selection in SKILL.md](../SKILL.md#package-selection) for cross-language package guidance.
 
 ```csharp
 // ✅ Correct
@@ -345,7 +343,7 @@ await using var client = await GlideClient.CreateClient(config);
 
 # Performance Optimization
 
-Config templates: [`scripts/csharp-config.cs`](../scripts/csharp-config.cs)
+Config templates: [`assets/csharp-config.cs`](../assets/csharp-config.cs)
 
 `inflightRequestsLimit` not exposed in C# — managed at Rust core level (default: 1000). Focus on batching and `Task.WhenAll`.
 
