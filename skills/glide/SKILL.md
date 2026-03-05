@@ -131,7 +131,29 @@ client.exec(batch, raiseOnError, options?)
 - `ClusterTransaction` → `ClusterBatch(true)`
 
 ---
+## Common Patterns Across Languages
 
+### Client Creation
+- **Always set explicit timeouts** to avoid connection issues
+- **Use language-specific cleanup patterns** (try-with-resources, async with, defer, await using)
+- **Configure retry strategies** for production resilience
+
+### Batch Operations
+- **Atomic batches** (transactions) require same hash slot in cluster mode
+- **Non-atomic pipelines** can span multiple slots
+- **Use `raiseOnError`/`raise_on_error`** to control error handling
+
+### Cluster Operations
+- **Use hash tags** `{tag}` to control slot assignment
+- **CROSSSLOT errors** occur when atomic operations span slots
+- **Non-atomic pipelines** automatically route to correct nodes
+
+### Error Handling
+- **Use specific exception types** (ConnectionException, TimeoutException, RequestException)
+- **Don't swallow errors** - log or propagate appropriately
+- **Unwrap exceptions** correctly (Java's ExecutionException.getCause())
+
+---
 
 ## Client Lifecycle Management
 
