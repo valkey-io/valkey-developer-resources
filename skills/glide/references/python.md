@@ -1,31 +1,9 @@
 # General Python Guidelines
 
-## ⚠️ VECTOR SEARCH API - READ THIS FIRST
-
-**GLIDE uses module-level functions, NOT client methods:**
-
-```python
-# ✅ CORRECT - Module-level functions
-from glide_sync import ft
-
-# Create index
-ft.create(client, index_name, schema, options)
-
-# Search
-results = ft.search(client, index_name, query, options)
-```
-
-```python
-# ❌ WRONG - These methods DO NOT EXIST
-await client.ft_create(...)  # NO!
-await client.ft_search(...)  # NO!
-```
-
-**See [python-create-index.py](../assets/python-create-index.py) for complete example.**
-
----
-
 ## External Resources
+
+### FT Module API
+- **[python-ft-api.md](python-ft-api.md)** - Complete FT (Search) module API reference (READ THIS for vector search)
 
 ### Code Snippets
 - [python-package-selection.md](python-package-selection.md) - Selecting appropriate packages for GLIDE integration
