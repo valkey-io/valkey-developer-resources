@@ -5,8 +5,7 @@ description: Production-ready patterns for Valkey GLIDE clients across 6 languag
 
 ## Language-Specific Guides
 
-### CRITICAL: Language-Specific Guide Loading
-
+### ⚠️ CRITICAL: Language-Specific Guide Loading
 **BEFORE generating any code, you MUST:**
 1. Detect the language from file extension or imports
 2. Load the corresponding language-specific guide using readFile
@@ -49,7 +48,7 @@ Increase timeouts for: large batches (>1000 keys), vector search, blocking ops (
 5. Retry on transient issues; fail-fast on strict SLA; circuit-break after N consecutive timeouts
 
 ---
-## Package Selection
+## ⚠️ CRITICAL: Package Selection
 
 **Use Valkey GLIDE** - the official AWS-recommended client with better performance and active development.
 

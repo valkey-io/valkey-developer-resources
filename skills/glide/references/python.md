@@ -10,8 +10,8 @@
 - [https://glide.valkey.io/languages/python/api/glide_async/core/](https://glide.valkey.io/languages/python/api/glide_async/core/) - Python Async API Reference
 - [https://glide.valkey.io/languages/python/api/glide_sync/core/](https://glide.valkey.io/languages/python/api/glide_sync/core/) - Python Sync API Reference
 
-### Anti-Patterns
-- [ANTI_PATTERNS.md](python-anti-patterns.md) - Anti-patterns to avoid in Python GLIDE development including vector search constraints, FtCreateOptions import constraints, test mocking patterns, Hash vs JSON performance patterns, and more
+### Additional Anti-Patterns
+- [python-anti-patterns.md](python-anti-patterns.md) - Additional anti-patterns including test mocking patterns, performance patterns (Hash vs JSON), code design patterns, and more
 
 ---
 
@@ -21,6 +21,41 @@
 2. Use batching / pipelining when suitable to group operations for efficiency.
 
 ---
+
+### Package Selection
+
+**❌ NEVER use the Redis fork:**
+```python
+# NEVER use these imports
+from valkey import Valkey
+from valkey.commands.search import Search
+```
+
+**✅ ALWAYS use GLIDE:**
+```python
+from glide_sync import GlideClient, GlideClusterClient, ft
+# or
+from glide import GlideClient, GlideClusterClient, ft
+```
+
+**Why:** GLIDE is the official AWS-recommended client with better performance and active development.
+
+### Binary Data Handling
+
+**❌ WRONG - Not decoding bytes from search results:**
+```python
+results = ft.search(client, index_name, query)
+print(results[1].keys())  # b'doc:1' instead of 'doc:1'
+```
+
+**✅ CORRECT - Decode bytes to strings:**
+```python
+for key, fields in results[1].items():
+    str_key = key.decode() if isinstance(key, bytes) else key
+    # See references/python-decode-docs.md for complete implementation
+```
+
+**Why:** GLIDE returns bytes for search results. Must decode to strings, but skip binary fields like embeddings. See [python-decode-docs.md](python-decode-docs.md) for details.
 
 ## Client Creation Pattern
 
@@ -154,6 +189,50 @@ client = await GlideClient.create(config)
 
 ---
 
+## Vector Search Constraints
+
+**❌ WRONG - Adding .sort_by() to KNN queries:**
+```python
+results = ft.search(...).sort_by("score")  # Causes error
+```
+
+**✅ CORRECT - KNN results already sorted:**
+```python
+results = ft.search(...)  # Already sorted by score
+```
+
+**❌ WRONG - Using positional arguments:**
+```python
+results = ft.search(client, index_name, query, options=FtSearchOptions(...))
+```
+
+**✅ CORRECT - Using keyword arguments:**
+```python
+results = ft.search(
+    client=client,
+    index_name=index_name,
+    query=query,
+    options=FtSearchOptions(params={"vector": embedding_buffer}),
+)
+```
+
+**❌ WRONG - Using ft.FtCreateOptions:**
+```python
+from glide_sync import ft
+ft.create(client, index_name, schema, ft.FtCreateOptions(prefixes=["doc:"]))
+```
+
+**✅ CORRECT - Import FtCreateOptions directly:**
+```python
+from glide_sync import ft
+from glide_shared.commands.server_modules.ft_options.ft_create_options import (
+    FtCreateOptions
+)
+ft.create(client, index_name, schema, FtCreateOptions(prefixes=["doc:"]))
+```
+
+---
+
 ## FT.SEARCH Command Pattern
 
 ### Vector Similarity Search
@@ -202,43 +281,7 @@ Vector fields, tag fields, and numeric fields should be parameterized.
 - Numeric fields are used for range matching.
 
 ### Index Creation
-
-```python
-from glide_sync import ft
-from glide_shared.commands.server_modules.ft_options.ft_create_options import (
-    DistanceMetricType,
-    VectorField,
-    VectorFieldAttributesFlat,
-    VectorAlgorithm,
-    VectorType,
-    TagField,
-    NumericField,
-    FtCreateOptions,
-)
-
-# Build schema
-schema = [
-    VectorField(
-        "content_vector",
-        VectorAlgorithm.FLAT,  # or VectorAlgorithm.HNSW
-        VectorFieldAttributesFlat(
-            dimensions=1536,
-            distance_metric=DistanceMetricType.COSINE,
-            type=VectorType.FLOAT32,
-        ),
-    ),
-    TagField("category"),
-    NumericField("year"),
-]
-
-# Create index
-ft.create(
-    client,
-    index_name,
-    schema,
-    FtCreateOptions(prefixes=["doc:"]),
-)
-```
+See [../assets/python-create-index.py](../assets/python-create-index.py) code template
 
 **Key Points:**
 - Use `ft.create()` function, not a method
@@ -407,6 +450,8 @@ distance_map = {
 
 ## Common Pitfalls
 
+**Critical constraints (package selection, binary data, vector search) are in the "CRITICAL CONSTRAINTS" section above. See [python-anti-patterns.md](python-anti-patterns.md) for detailed ❌/✅ examples.**
+
 | Description | Problem | Solution |
 |-------------|---------|----------|
 | Using Redis Fork Instead of GLIDE | Importing from `valkey` package instead of `glide_sync` or `glide` | Always use `valkey-glide-sync` (sync) or `valkey-glide` (async) packages |
@@ -469,88 +514,15 @@ Language-specific implementation details for Valkey GLIDE Python clients.
 
 ### Sync Client
 
-```python
-from glide_sync import Batch, ClusterBatch, BatchOptions, ClusterBatchOptions
-from glide_shared.commands.server_modules.batch_options import BatchRetryStrategy
-
-# Standalone atomic batch (transaction)
-batch = Batch(True)
-batch.set("key", "value")
-batch.get("key")
-result = client.exec(batch, raise_on_error=True)
-
-# Standalone pipeline
-batch = Batch(False)
-batch.set("key1", "value1")
-batch.set("key2", "value2")
-result = client.exec(batch, raise_on_error=False)
-
-# Cluster pipeline with options
-batch = ClusterBatch(False)
-batch.set("{user}:1", "data1")
-batch.set("{user}:2", "data2")
-
-retry_strategy = BatchRetryStrategy(
-    retry_server_error=True,
-    retry_connection_error=False
-)
-options = ClusterBatchOptions(
-    timeout=2000,
-    retry_strategy=retry_strategy
-)
-result = client.exec(batch, raise_on_error=False, options=options)
-```
+See [../assets/python-batch-sync.py](../assets/python-batch-sync.py) code template
 
 ### Async Client
 
-```python
-from glide import Batch, ClusterBatch, BatchOptions, ClusterBatchOptions
-from glide_shared.commands.server_modules.batch_options import BatchRetryStrategy
-
-# Standalone atomic batch (transaction)
-batch = Batch(True)
-batch.set("key", "value")
-batch.get("key")
-result = await client.exec(batch, raise_on_error=True)
-
-# Cluster pipeline with retry strategy
-batch = ClusterBatch(False)
-batch.set("{user}:1", "data1")
-batch.get("{user}:1")
-
-retry_strategy = BatchRetryStrategy(
-    retry_server_error=True,
-    retry_connection_error=False
-)
-options = ClusterBatchOptions(
-    timeout=2000,
-    retry_strategy=retry_strategy
-)
-result = await client.exec(batch, raise_on_error=False, options=options)
-```
+See [../assets/python-batch-async.py](../assets/python-batch-async.py) code template
 
 ### Error Handling
 
-```python
-# raise_on_error=False - errors in result array
-batch = ClusterBatch(False)
-batch.set("key", "hello")
-batch.lpop("key")  # WRONGTYPE error
-batch.delete(["key"])
-
-result = client.exec(batch, raise_on_error=False)
-# Result: ['OK', RequestError('WRONGTYPE...'), 1]
-
-# raise_on_error=True - raises first error
-batch = Batch(True)
-batch.set("key", "hello")
-batch.lpop("key")  # WRONGTYPE error
-
-try:
-    result = client.exec(batch, raise_on_error=True)
-except RequestError as e:
-    print(f"Batch failed: {e}")
-```
+See [../assets/python-error-handling.py](../assets/python-error-handling.py) code template
 
 ### Key Points
 
@@ -561,52 +533,7 @@ except RequestError as e:
 - See SKILL.md for retry strategy decision matrix
 
 ### Retry Strategies (Cluster Only)
-
-**Retry on server errors:**
-```python
-from glide_shared.commands.batch_options import BatchRetryStrategy
-
-options = ClusterBatchOptions(
-    retry_strategy=BatchRetryStrategy(
-        retry_server_error=True,
-        retry_connection_error=False,
-    )
-)
-results = await client.exec(batch, raise_on_error=True, options=options)
-```
-
-**Retry on connection errors:**
-```python
-options = ClusterBatchOptions(
-    retry_strategy=BatchRetryStrategy(
-        retry_server_error=False,
-        retry_connection_error=True,
-    )
-)
-results = await client.exec(batch, raise_on_error=True, options=options)
-```
-
-**Retry on both:**
-```python
-options = ClusterBatchOptions(
-    retry_strategy=BatchRetryStrategy(
-        retry_server_error=True,
-        retry_connection_error=True,
-    )
-)
-results = await client.exec(batch, raise_on_error=True, options=options)
-```
-
-**No retries:**
-```python
-options = ClusterBatchOptions(
-    retry_strategy=BatchRetryStrategy(
-        retry_server_error=False,
-        retry_connection_error=False,
-    )
-)
-results = await client.exec(batch, raise_on_error=True, options=options)
-```
+See [python-retry-strategies.md](python-retry-strategies.md) for decision matrix code templates
 
 ---
 
