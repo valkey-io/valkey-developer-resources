@@ -266,7 +266,7 @@ docs = _decode_docs(results)
 ```
 
 **Key Points:**
-- Use `ft.search()` function, not a method on client
+- Use `ft.search()` function, not a method on client and not `client.ft_search()`
 - Use keyword arguments: `client=`, `index_name=`, `query=`, `options=`
 - Use `FtSearchOptions` for parameters
 - Results format: `[count, {key: {field: value}}]`
@@ -281,7 +281,7 @@ Vector fields, tag fields, and numeric fields should be parameterized.
 - Numeric fields are used for range matching.
 
 ### Index Creation
-See [../assets/python-create-index.py](../assets/python-create-index.py) code template
+⚠️ **CRITICAL**: Do NOT use `client.ft_create()` to create an index.  See [../assets/python-create-index.py](../assets/python-create-index.py) code template for correct usage.
 
 **Key Points:**
 - Use `ft.create()` function, not a method
@@ -456,6 +456,8 @@ distance_map = {
 |-------------|---------|----------|
 | Using Redis Fork Instead of GLIDE | Importing from `valkey` package instead of `glide_sync` or `glide` | Always use `valkey-glide-sync` (sync) or `valkey-glide` (async) packages |
 | Incorrect Function Call Pattern | Calling `client.ft.search()` instead of `ft.search(client, ...)` | GLIDE uses module-level functions, not client methods |
+| Using client.ft_search() Method | Calling `client.ft_search()` or `client.ft_create()` | Use module-level functions: `ft.search(client, ...)` or `ft.create(client, ...)` |
+| Using client.ft_create() Method | Calling `client.ft_create()` for index creation | Use `ft.create(client, index_name, schema, options)` |
 | Missing Keyword Arguments | Using positional arguments for `ft.search(client, index, query, options)` | Use keyword arguments: `ft.search(client=client, index_name=index, query=query, options=options)` |
 | Wrong FtCreateOptions Import | Using `ft.FtCreateOptions(...)` instead of `FtCreateOptions(...)` | Import `FtCreateOptions` from `ft_create_options` and use directly |
 | Missing FtSearchOptions | Passing params directly to `ft.search()` | Wrap params in `FtSearchOptions(params={...})` |
