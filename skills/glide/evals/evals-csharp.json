@@ -1,0 +1,41 @@
+{
+  "skill_name": "glide",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I'm building a C# ASP.NET Core service that needs to connect to Valkey at localhost:6379. Write a method that creates a GlideClient with proper resource management and a 10-second request timeout. Make sure to handle exceptions correctly.",
+      "expected_output": "Should use await using for disposal, StandaloneClientConfigurationBuilder, WithRequestTimeout(TimeSpan.FromSeconds(10)), proper async/await",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Write a C# method that batch-fetches 50 user keys (user:1 through user:50) from Valkey using GLIDE. Use efficient batch operations and handle timeouts properly. Return a Dictionary<string, string> mapping user IDs to their data.",
+      "expected_output": "Should use MGetAsync for batch fetch, await using for disposal, handle null values, return Dictionary<string, string>",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Review this C# code for issues:\n\n```csharp\nvar client = await GlideClient.CreateClient(config);\nawait client.StringSetAsync(\"key\", \"value\");\nvar value = await client.StringGetAsync(\"key\");\nConsole.WriteLine(value);\n```",
+      "expected_output": "Should identify: missing await using (resource leak), missing timeout configuration, no exception handling, should use using or await using",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Write a C# method that atomically updates multiple keys for the same user in a Valkey cluster. Update user:123:profile, user:123:settings, and user:123:last_seen using batch operations. Make sure it works in cluster mode.",
+      "expected_output": "Should use GlideClusterClient, use hash tags {user:123} for same slot, use batch with isAtomic: true, await using for disposal",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "I need to handle binary data in C# GLIDE. Write a method that stores and retrieves a byte array. Show me how to properly work with binary keys and values.",
+      "expected_output": "Should use byte[] for keys and values, proper async/await, await using for disposal, handle null returns",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "Write a C# method that scans all keys matching 'user:*' pattern. Make sure to handle the cursor correctly and iterate through all results.",
+      "expected_output": "Should use ScanAsync with cursor, start with cursor \"0\", loop until cursor returns \"0\", proper async/await",
+      "files": []
+    }
+  ]
+}
