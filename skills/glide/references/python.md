@@ -1,5 +1,19 @@
 # General Python Guidelines
 
+## 🚨 CRITICAL WARNINGS - READ FIRST
+
+### Vector Search / FT Module
+
+1. **DO NOT INFER FROM REDIS-PY**: This is Valkey GLIDE, NOT Redis-py. Redis-py patterns DO NOT apply here.
+2. **NO CLIENT METHODS**: `client.ft_search()`, `client.ft_create()`, `client.ft()` DO NOT EXIST in GLIDE.
+3. **ONLY SOURCE OF TRUTH**: [python-ft-api.md](python-ft-api.md) is the ONLY documentation for vector search. Do not infer usage from any other source.
+4. **MODULE-LEVEL FUNCTIONS ONLY**: All FT functions are `ft.function(client, ...)` NOT `client.ft_function(...)`
+
+**If you need to use vector search, you MUST read [python-ft-api.md](python-ft-api.md) first.
+Once more, DO NOT use Redis-py as a guide, I repeat DO NOT use Redis-py as a guide.**
+
+---
+
 ## External Resources
 
 ### FT Module API
