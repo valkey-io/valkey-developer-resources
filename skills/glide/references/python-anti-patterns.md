@@ -24,6 +24,27 @@ from glide import GlideClient, GlideClusterClient, ft
 
 ---
 
+## Binary Data Handling
+
+### ❌ INCORRECT: Not decoding bytes from search results
+```python
+# ❌ WRONG - returns bytes, not strings
+results = ft.search(client, index_name, query)
+print(results[1].keys())  # b'doc:1' instead of 'doc:1'
+```
+
+### ✅ CORRECT: Decode bytes to strings
+```python
+# ✅ CORRECT - decode bytes, skip binary fields
+for key, fields in results[1].items():
+    str_key = key.decode() if isinstance(key, bytes) else key
+    # See references/python-decode-docs.md for complete implementation
+```
+
+**Why:** GLIDE returns bytes for search results. Must decode to strings, but skip binary fields like embeddings. See [python-decode-docs.md](python-decode-docs.md) for details.
+
+---
+
 ## Vector Search Constraints
 
 ### ❌ INCORRECT: Adding .sort_by() to KNN queries
