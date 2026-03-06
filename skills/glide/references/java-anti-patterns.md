@@ -13,7 +13,7 @@ import redis.clients.jedis.*;
 import io.lettuce.core.*;
 ```
 
-**Why:** Jedis and Lettuce are Redis clients. GLIDE is the official AWS-recommended client with better performance and active development.
+**Why:** Jedis and Lettuce are Redis clients. GLIDE is the official recommended client with better performance and active development.
 
 ---
 

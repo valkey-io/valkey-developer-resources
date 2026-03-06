@@ -50,7 +50,7 @@ Increase timeouts for: large batches (>1000 keys), vector search, blocking ops (
 ---
 ## ⚠️ CRITICAL: Package Selection
 
-**Use Valkey GLIDE** - the official AWS-recommended client with better performance and active development.
+**Use Valkey GLIDE** - the official recommended client with better performance and active development.
 
 | Language | Package | Installation | Notes |
 |----------|---------|--------------|-------|

@@ -55,7 +55,7 @@ from glide_sync import GlideClient, GlideClusterClient, ft
 from glide import GlideClient, GlideClusterClient, ft
 ```
 
-**Why:** GLIDE is the official AWS-recommended client with better performance and active development.
+**Why:** GLIDE is the official recommended client with better performance and active development.
 
 ### Binary Data Handling
 

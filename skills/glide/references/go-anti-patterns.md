@@ -22,7 +22,7 @@ import (
 )
 ```
 
-**Why:** go-redis is a Redis client. GLIDE is the official AWS-recommended client with better performance and active development.
+**Why:** go-redis is a Redis client. GLIDE is the official recommended client with better performance and active development.
 
 ---
 
