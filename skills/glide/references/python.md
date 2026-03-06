@@ -439,6 +439,14 @@ distance_map = {
 **Problem:** GLIDE returns bytes for keys and values, causing JSON serialization errors
 **Solution:** Decode bytes to strings: `key.decode() if isinstance(key, bytes) else key`
 
+### 9. Expecting ping() to Return Bool
+**Problem:** Assuming `client.ping()` returns `True` for success
+**Solution:** `ping()` returns `b'PONG'` (bytes), not a boolean. Check with `== b'PONG'`
+
+### 10. Using Integer Cursor with scan()
+**Problem:** Passing integer cursor to `scan()`: `cursor = 0`
+**Solution:** `scan()` requires string cursor: `cursor = "0"`
+
 ---
 
 ## Dependencies
