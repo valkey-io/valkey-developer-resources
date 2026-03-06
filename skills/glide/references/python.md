@@ -482,7 +482,7 @@ distance_map = {
 | Adding .sort_by() to KNN Queries | Trying to sort KNN results manually | KNN results are pre-sorted by score, don't add sorting |
 | Not Decoding Bytes in Results | GLIDE returns bytes for keys and values, causing JSON serialization errors | Decode bytes to strings: `key.decode() if isinstance(key, bytes) else key` |
 | Expecting ping() to Return Bool | Assuming `client.ping()` returns `True` for success | `ping()` returns `b'PONG'` (bytes), not a boolean. Check with `== b'PONG'` |
-| Using Integer Cursor with scan() | Passing integer cursor to `scan()`: `cursor = 0` | `scan()` requires string cursor: `cursor = "0"` |
+| Using Integer Cursor with scan() | Passing integer cursor to `scan()`: `cursor = 0` | `scan()` requires bytes cursor: `cursor = b"0"` and returns bytes |
 
 ---
 
