@@ -1,0 +1,27 @@
+{
+  "eval_id": 3,
+  "eval_name": "batch-fetch-sync",
+  "prompt": "I need to batch-fetch user profiles from Valkey in my Django view. Write Python code that gets 100 user keys (user:1 through user:100) efficiently using the synchronous GLIDE client. Handle timeouts and return a dict mapping user IDs to their data.",
+  "assertions": [
+    {
+      "name": "Uses glide_sync not glide",
+      "description": "Should import from glide_sync for synchronous client"
+    },
+    {
+      "name": "Uses mget for batch fetch",
+      "description": "Should use mget() to fetch multiple keys efficiently, not individual get() calls"
+    },
+    {
+      "name": "Catches TimeoutError specifically",
+      "description": "Should catch TimeoutError (or TimeoutException) specifically, not generic Exception"
+    },
+    {
+      "name": "Uses context manager or explicit close",
+      "description": "Should use context manager or call client.close() explicitly"
+    },
+    {
+      "name": "Returns dict mapping IDs to data",
+      "description": "Should return dict like {1: data, 2: data, ...} mapping user IDs to their profile data"
+    }
+  ]
+}

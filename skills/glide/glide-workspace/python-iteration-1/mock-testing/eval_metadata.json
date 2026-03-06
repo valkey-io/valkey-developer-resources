@@ -1,0 +1,23 @@
+{
+  "eval_id": 5,
+  "eval_name": "mock-testing",
+  "prompt": "I'm writing unit tests for my Python service that uses GLIDE. Show me how to properly mock the GlideClient for testing. My service is in a file called cache_service.py and imports GlideClient at the top.",
+  "assertions": [
+    {
+      "name": "Mocks at usage location",
+      "description": "Should mock at 'cache_service.GlideClient' (usage location), not 'glide_sync.GlideClient' (definition location)"
+    },
+    {
+      "name": "Uses AsyncMock for async methods",
+      "description": "Should use AsyncMock (not MagicMock) for async operations"
+    },
+    {
+      "name": "Mocks context manager",
+      "description": "Should mock __aenter__ and __aexit__ for async with support"
+    },
+    {
+      "name": "Mocks create() class method",
+      "description": "Should mock the create() class method that returns the client instance"
+    }
+  ]
+}

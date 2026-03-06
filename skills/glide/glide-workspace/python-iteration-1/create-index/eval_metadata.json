@@ -1,0 +1,27 @@
+{
+  "eval_id": 6,
+  "eval_name": "create-index",
+  "prompt": "Write a Python function using GLIDE that creates a vector search index for product embeddings. The index should be called 'products_idx', use COSINE distance, and have a 768-dimensional vector field called 'embedding'. Include proper error handling and make sure the imports are correct.",
+  "assertions": [
+    {
+      "name": "Imports FtCreateOptions correctly",
+      "description": "Should import FtCreateOptions from ft_create_options module, not use ft.FtCreateOptions"
+    },
+    {
+      "name": "Uses DistanceMetricType.COSINE",
+      "description": "Should use DistanceMetricType.COSINE for distance metric"
+    },
+    {
+      "name": "Uses keyword arguments",
+      "description": "Should use keyword arguments for ft.create(client=..., index_name=..., schema=..., options=...)"
+    },
+    {
+      "name": "Handles existing index error",
+      "description": "Should handle the case where index already exists (catch RequestError or similar)"
+    },
+    {
+      "name": "Uses async context manager",
+      "description": "Should use 'async with GlideClient' for cleanup"
+    }
+  ]
+}

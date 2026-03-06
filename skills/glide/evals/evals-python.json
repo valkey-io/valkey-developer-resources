@@ -1,0 +1,53 @@
+{
+  "skill_name": "glide",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I'm building a Python FastAPI service that needs to search documents stored in Valkey using vector embeddings. Write a function that takes a query embedding (as a list of floats) and returns the top 5 similar documents. The index is called 'docs_idx' and I need to handle the binary data correctly. Also make sure to decode the results properly so I can return them as JSON from my API endpoint.",
+      "expected_output": "Should load python.md and python-anti-patterns.md, use async client with context manager, use FtSearchOptions with params, decode bytes to strings (referencing python-decode-docs.md), skip binary embedding field, handle TimeoutError specifically",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Write a Python script that connects to my Valkey cluster at redis.mycompany.internal:6379 (password: 'prod-secret-key') and does a health check by pinging it. Then scan through all keys matching 'user:*' pattern and print them. Make sure to handle errors properly.",
+      "expected_output": "Should recognize ping() returns b'PONG' not bool, scan() requires string cursor '0' not integer 0, use async context manager, catch specific exceptions (ConnectionError, TimeoutError), use ServerCredentials for auth",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "I need to batch-fetch user profiles from Valkey in my Django view. Write Python code that gets 100 user keys (user:1 through user:100) efficiently using the synchronous GLIDE client. Handle timeouts and return a dict mapping user IDs to their data.",
+      "expected_output": "Should use glide_sync (not glide), use Batch with raise_on_error=True, catch TimeoutError specifically, use context manager or explicit close(), decode bytes if needed",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Review this Python code for issues:\n\n```python\nfrom valkey import Valkey\n\nclient = Valkey(host='localhost', port=6379)\nresult = client.ft().search('idx', '@vector:[VECTOR 10 $vec]')\nfor doc in result.docs:\n    print(doc.id, doc.title)\n```",
+      "expected_output": "Should identify: wrong package (valkey instead of glide_sync/glide), wrong API pattern (client.ft().search instead of ft.search(client, ...)), missing FtSearchOptions wrapper, missing byte decoding, no error handling, no client cleanup",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "I'm writing unit tests for my Python service that uses GLIDE. Show me how to properly mock the GlideClient for testing. My service is in a file called cache_service.py and imports GlideClient at the top.",
+      "expected_output": "Should reference python-anti-patterns.md mocking section, mock at usage location (cache_service.GlideClient) not definition location (glide_sync.GlideClient), mock the create() class method, show proper test structure",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "Write a Python function using GLIDE that creates a vector search index for product embeddings. The index should be called 'products_idx', use COSINE distance, and have a 768-dimensional vector field called 'embedding'. Include proper error handling and make sure the imports are correct.",
+      "expected_output": "Should import FtCreateOptions from ft_create_options module (not ft.FtCreateOptions), use DistanceMetricType.COSINE, use keyword arguments for ft.create(), handle exceptions, use async context manager",
+      "files": []
+    },
+    {
+      "id": 7,
+      "prompt": "I have a Python script that needs to atomically update multiple keys for the same user in a Valkey cluster. Write code that updates user:123:profile, user:123:settings, and user:123:last_seen using a batch operation. Make sure it works in cluster mode.",
+      "expected_output": "Should use ClusterBatch (not Batch), use hash tags {user:123} for same slot, use raise_on_error=True for atomic behavior, use async context manager, handle CROSSSLOT errors",
+      "files": []
+    },
+    {
+      "id": 8,
+      "prompt": "Create a Python class for managing user sessions in Valkey. It should have methods to create_session(user_id, data), get_session(session_id), and delete_session(session_id). Use proper design patterns and avoid common anti-patterns.",
+      "expected_output": "Should use Protocol-based abstraction (not tight coupling), inject client dependency (not create in __init__), use module-level functions or proper class (not static-only class), return status dicts (not exceptions for control flow), use async context manager",
+      "files": []
+    }
+  ]
+}

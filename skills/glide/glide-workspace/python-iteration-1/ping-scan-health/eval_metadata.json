@@ -1,0 +1,27 @@
+{
+  "eval_id": 2,
+  "eval_name": "ping-scan-health",
+  "prompt": "Write a Python script that connects to my Valkey cluster at redis.mycompany.internal:6379 (password: 'prod-secret-key') and does a health check by pinging it. Then scan through all keys matching 'user:*' pattern and print them. Make sure to handle errors properly.",
+  "assertions": [
+    {
+      "name": "Checks ping() returns bytes",
+      "description": "Should check ping() result against b'PONG' (bytes), not True (bool)"
+    },
+    {
+      "name": "Uses string cursor for scan()",
+      "description": "Should use cursor='0' (string) not cursor=0 (integer)"
+    },
+    {
+      "name": "Uses ServerCredentials for auth",
+      "description": "Should use ServerCredentials('prod-secret-key') in config"
+    },
+    {
+      "name": "Uses async context manager",
+      "description": "Should use 'async with GlideClusterClient' for cleanup"
+    },
+    {
+      "name": "Catches specific exceptions",
+      "description": "Should catch ConnectionError, TimeoutError, or RequestError specifically, not generic Exception"
+    }
+  ]
+}
