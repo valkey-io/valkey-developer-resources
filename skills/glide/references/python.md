@@ -407,45 +407,18 @@ distance_map = {
 
 ## Common Pitfalls
 
-### 1. Using Redis Fork Instead of GLIDE
-**Problem:** Importing from `valkey` package instead of `glide_sync` or `glide`
-**Solution:** Always use `valkey-glide-sync` (sync) or `valkey-glide` (async) packages
-
-### 2. Incorrect Function Call Pattern
-**Problem:** Calling `client.ft.search()` instead of `ft.search(client, ...)`
-**Solution:** GLIDE uses module-level functions, not client methods
-
-### 3. Missing Keyword Arguments
-**Problem:** Using positional arguments for `ft.search(client, index, query, options)`
-**Solution:** Use keyword arguments: `ft.search(client=client, index_name=index, query=query, options=options)`
-
-### 4. Wrong FtCreateOptions Import
-**Problem:** Using `ft.FtCreateOptions(...)` instead of `FtCreateOptions(...)`
-**Solution:** Import `FtCreateOptions` from `ft_create_options` and use directly
-
-### 5. Missing FtSearchOptions
-**Problem:** Passing params directly to `ft.search()`
-**Solution:** Wrap params in `FtSearchOptions(params={...})`
-
-### 6. Wrong Mock Location
-**Problem:** Mocking `glide_sync.GlideClient` or `glide.GlideClient` instead of where it's imported
-**Solution:** Mock at the usage location (e.g., `your_module.GlideClient`)
-
-### 7. Adding .sort_by() to KNN Queries
-**Problem:** Trying to sort KNN results manually
-**Solution:** KNN results are pre-sorted by score, don't add sorting
-
-### 8. Not Decoding Bytes in Results
-**Problem:** GLIDE returns bytes for keys and values, causing JSON serialization errors
-**Solution:** Decode bytes to strings: `key.decode() if isinstance(key, bytes) else key`
-
-### 9. Expecting ping() to Return Bool
-**Problem:** Assuming `client.ping()` returns `True` for success
-**Solution:** `ping()` returns `b'PONG'` (bytes), not a boolean. Check with `== b'PONG'`
-
-### 10. Using Integer Cursor with scan()
-**Problem:** Passing integer cursor to `scan()`: `cursor = 0`
-**Solution:** `scan()` requires string cursor: `cursor = "0"`
+| Description | Problem | Solution |
+|-------------|---------|----------|
+| Using Redis Fork Instead of GLIDE | Importing from `valkey` package instead of `glide_sync` or `glide` | Always use `valkey-glide-sync` (sync) or `valkey-glide` (async) packages |
+| Incorrect Function Call Pattern | Calling `client.ft.search()` instead of `ft.search(client, ...)` | GLIDE uses module-level functions, not client methods |
+| Missing Keyword Arguments | Using positional arguments for `ft.search(client, index, query, options)` | Use keyword arguments: `ft.search(client=client, index_name=index, query=query, options=options)` |
+| Wrong FtCreateOptions Import | Using `ft.FtCreateOptions(...)` instead of `FtCreateOptions(...)` | Import `FtCreateOptions` from `ft_create_options` and use directly |
+| Missing FtSearchOptions | Passing params directly to `ft.search()` | Wrap params in `FtSearchOptions(params={...})` |
+| Wrong Mock Location | Mocking `glide_sync.GlideClient` or `glide.GlideClient` instead of where it's imported | Mock at the usage location (e.g., `your_module.GlideClient`) |
+| Adding .sort_by() to KNN Queries | Trying to sort KNN results manually | KNN results are pre-sorted by score, don't add sorting |
+| Not Decoding Bytes in Results | GLIDE returns bytes for keys and values, causing JSON serialization errors | Decode bytes to strings: `key.decode() if isinstance(key, bytes) else key` |
+| Expecting ping() to Return Bool | Assuming `client.ping()` returns `True` for success | `ping()` returns `b'PONG'` (bytes), not a boolean. Check with `== b'PONG'` |
+| Using Integer Cursor with scan() | Passing integer cursor to `scan()`: `cursor = 0` | `scan()` requires string cursor: `cursor = "0"` |
 
 ---
 
