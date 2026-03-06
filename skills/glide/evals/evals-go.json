@@ -1,0 +1,41 @@
+{
+  "skill_name": "glide",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I'm building a Go service that needs to connect to Valkey at localhost:6379. Write a function that creates a GlideClient with proper resource management and a 10-second request timeout. Make sure to handle errors correctly and use context.",
+      "expected_output": "Should use context.Context, defer client.Close(), set RequestTimeout in config, check errors explicitly with if err != nil",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Write a Go function that batch-fetches 50 user keys (user:1 through user:50) from Valkey using GLIDE. Use efficient batch operations and handle timeouts properly. Return a map[string]string mapping user IDs to their data.",
+      "expected_output": "Should use MGet for batch fetch, pass context.Context, check errors explicitly, dereference pointers for values, return map[string]string",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Review this Go code for issues:\n\n```go\nclient, _ := api.NewGlideClient(config)\nresult, _ := client.Set(ctx, \"key\", \"value\")\nvalue, _ := client.Get(ctx, \"key\")\nfmt.Println(value)\n```",
+      "expected_output": "Should identify: ignoring errors with _, missing defer client.Close(), not dereferencing pointer for value, no error handling",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Write a Go function that atomically updates multiple keys for the same user in a Valkey cluster. Update user:123:profile, user:123:settings, and user:123:last_seen using batch operations. Make sure it works in cluster mode.",
+      "expected_output": "Should use NewGlideClusterClient, use hash tags {user:123} for same slot, use Transaction or batch, pass context.Context, check errors",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "I need to handle binary data in Go GLIDE. Write a function that stores and retrieves a byte slice. Show me how to properly work with binary keys and values.",
+      "expected_output": "Should use []byte for keys and values, pass context.Context, check errors, dereference pointer results",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "Write a Go function that scans all keys matching 'user:*' pattern. Make sure to handle the cursor correctly and iterate through all results.",
+      "expected_output": "Should use Scan with cursor, start with cursor \"0\", loop until cursor returns \"0\", pass context.Context, check errors",
+      "files": []
+    }
+  ]
+}
