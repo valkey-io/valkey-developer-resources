@@ -1,9 +1,9 @@
 # General Go Guidelines
 
 ## External Resources
-- [go-package-selection.md](go-package-selection.md) - Installation and selecting appropriate packages for GLIDE integration
-- [go-config.go](../assets/go-config.go) - Optimized templates for production web applications
-- [ANTI_PATTERNS.md](go-anti-patterns.md) - Anti-patterns to avoid in Go GLIDE development including cluster slot patterns and CROSSSLOT errors, type assertion, and Hash vs JSON performance, and more
+- `go-package-selection.md` - Installation and selecting appropriate packages for GLIDE integration
+- `../assets/go-config.go` - Optimized templates for production web applications
+- `go-anti-patterns.md` - Anti-patterns to avoid in Go GLIDE development including cluster slot patterns and CROSSSLOT errors, type assertion, and Hash vs JSON performance, and more
 
 ## Core Principles
 
@@ -375,7 +375,7 @@ func main() {
 
 # Performance Optimization
 
-Config templates: [`assets/go-config.go`](../assets/go-config.go)
+Config templates: `../assets/go-config.go`
 
 `inflightRequestsLimit` not exposed in Go — managed at Rust core level (default: 1000). Focus on batching and concurrency.
 
@@ -527,4 +527,4 @@ logger.SetLoggerConfig(logger.Warn, "glide.log")  // Production
 logger.SetLoggerConfig(logger.Error, "")           // Max performance
 ```
 
-Server-side config: [`references/server-configuration-guide.md`](server-configuration-guide.md)
+Server-side config: `server-configuration-guide.md`

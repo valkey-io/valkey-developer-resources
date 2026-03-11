@@ -349,7 +349,7 @@ ft.dropindex(client, ...)  # YES - Module-level function
 
 ## See Also
 
-- [python.md](python.md) - Full Python guide
-- [python-anti-patterns.md](python-anti-patterns.md) - Common mistakes
-- [python-decode-docs.md](python-decode-docs.md) - Byte decoding implementation
-- [python-create-index.py](../assets/python-create-index.py) - Complete working example
+- `python.md` - Full Python guide
+- `python-anti-patterns.md` - Common mistakes
+- `python-decode-docs.md` - Byte decoding implementation
+- `../assets/python-create-index.py` - Complete working example

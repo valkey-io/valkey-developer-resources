@@ -6,10 +6,10 @@
 
 1. **DO NOT INFER FROM REDIS-PY**: This is Valkey GLIDE, NOT Redis-py. Redis-py patterns DO NOT apply here.
 2. **NO CLIENT METHODS**: `client.ft_search()`, `client.ft_create()`, `client.ft()` DO NOT EXIST in GLIDE.
-3. **ONLY SOURCE OF TRUTH**: [python-ft-api.md](python-ft-api.md) is the ONLY documentation for vector search. Do not infer usage from any other source.
+3. **ONLY SOURCE OF TRUTH**: `python-ft-api.md` is the ONLY documentation for vector search. Do not infer usage from any other source.
 4. **MODULE-LEVEL FUNCTIONS ONLY**: All FT functions are `ft.function(client, ...)` NOT `client.ft_function(...)`
 
-**If you need to use vector search, you MUST read [python-ft-api.md](python-ft-api.md) first.
+**If you need to use vector search, you MUST read `python-ft-api.md` first.
 Once more, DO NOT use Redis-py as a guide, I repeat DO NOT use Redis-py as a guide.**
 
 ---
@@ -17,18 +17,18 @@ Once more, DO NOT use Redis-py as a guide, I repeat DO NOT use Redis-py as a gui
 ## External Resources
 
 ### FT Module API
-- **[python-ft-api.md](python-ft-api.md)** - Complete FT (Search) module API reference (READ THIS for vector search)
+- **`python-ft-api.md`** - Complete FT (Search) module API reference (READ THIS for vector search)
 
 ### Code Snippets
-- [python-package-selection.md](python-package-selection.md) - Selecting appropriate packages for GLIDE integration
-- [python-parse-valkey-urls.md](python-parse-valkey-urls.md) - Parsing Valkey URLs into host and port
-- [python-decode-docs.md](python-decode-docs.md) - Decoding bytes to strings for JSON deserialization
-- [python-config.py](../assets/python-config.py) - Optimized templates for production web applications
+- `python-package-selection.md` - Selecting appropriate packages for GLIDE integration
+- `python-parse-valkey-urls.md` - Parsing Valkey URLs into host and port
+- `python-decode-docs.md` - Decoding bytes to strings for JSON deserialization
+- `../assets/python-config.py` - Optimized templates for production web applications
 - [https://glide.valkey.io/languages/python/api/glide_async/core/](https://glide.valkey.io/languages/python/api/glide_async/core/) - Python Async API Reference
 - [https://glide.valkey.io/languages/python/api/glide_sync/core/](https://glide.valkey.io/languages/python/api/glide_sync/core/) - Python Sync API Reference
 
 ### Additional Anti-Patterns
-- [python-anti-patterns.md](python-anti-patterns.md) - Additional anti-patterns including test mocking patterns, performance patterns (Hash vs JSON), code design patterns, and more
+- `python-anti-patterns.md` - Additional anti-patterns including test mocking patterns, performance patterns (Hash vs JSON), code design patterns, and more
 
 ---
 
@@ -72,7 +72,7 @@ for key, fields in results[1].items():
     # See references/python-decode-docs.md for complete implementation
 ```
 
-**Why:** GLIDE returns bytes for search results. Must decode to strings, but skip binary fields like embeddings. See [python-decode-docs.md](python-decode-docs.md) for details.
+**Why:** GLIDE returns bytes for search results. Must decode to strings, but skip binary fields like embeddings. See `python-decode-docs.md` for details.
 
 ## Client Creation Pattern
 
@@ -254,7 +254,7 @@ ft.create(client, index_name, schema, FtCreateOptions(prefixes=["doc:"]))
 
 ### Vector Similarity Search
 Return value is a two-element array / list, first element being the number of documents, the second element
-being a dictionary of those documents.  See the [python-decode-docs.md](python-decode-docs.md) code snippet for an example.
+being a dictionary of those documents.  See the `python-decode-docs.md` code snippet for an example.
 
 ```python
 from glide_sync import ft
@@ -298,7 +298,7 @@ Vector fields, tag fields, and numeric fields should be parameterized.
 - Numeric fields are used for range matching.
 
 ### Index Creation
-⚠️ **CRITICAL**: Do NOT use `client.ft_create()` to create an index.  See [../assets/python-create-index.py](../assets/python-create-index.py) code template for correct usage.
+⚠️ **CRITICAL**: Do NOT use `client.ft_create()` to create an index.  See `../assets/python-create-index.py` code template for correct usage.
 
 **Key Points:**
 - Use `ft.create()` function, not a method
@@ -467,7 +467,7 @@ distance_map = {
 
 ## Common Pitfalls
 
-**Critical constraints (package selection, binary data, vector search) are in the "CRITICAL CONSTRAINTS" section above. See [python-anti-patterns.md](python-anti-patterns.md) for detailed ❌/✅ examples.**
+**Critical constraints (package selection, binary data, vector search) are in the "CRITICAL CONSTRAINTS" section above. See `python-anti-patterns.md` for detailed ❌/✅ examples.**
 
 | Description | Problem | Solution |
 |-------------|---------|----------|
@@ -533,15 +533,15 @@ Language-specific implementation details for Valkey GLIDE Python clients.
 
 ### Sync Client
 
-See [../assets/python-batch-sync.py](../assets/python-batch-sync.py) code template
+See `../assets/python-batch-sync.py` code template
 
 ### Async Client
 
-See [../assets/python-batch-async.py](../assets/python-batch-async.py) code template
+See `../assets/python-batch-async.py` code template
 
 ### Error Handling
 
-See [../assets/python-error-handling.py](../assets/python-error-handling.py) code template
+See `../assets/python-error-handling.py` code template
 
 ### Key Points
 
@@ -552,13 +552,13 @@ See [../assets/python-error-handling.py](../assets/python-error-handling.py) cod
 - See SKILL.md for retry strategy decision matrix
 
 ### Retry Strategies (Cluster Only)
-See [python-retry-strategies.md](python-retry-strategies.md) for decision matrix code templates
+See `python-retry-strategies.md` for decision matrix code templates
 
 ---
 
 # Performance Optimization
 
-Config templates: [`assets/python-config.py`](../assets/python-config.py)
+Config templates: `../assets/python-config.py`
 
 ## AZ Affinity
 
@@ -658,4 +658,4 @@ user, posts, comments = await asyncio.gather(
 )
 ```
 
-Server-side config: [`references/server-configuration-guide.md`](server-configuration-guide.md)
+Server-side config: `server-configuration-guide.md`

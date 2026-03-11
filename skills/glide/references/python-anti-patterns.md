@@ -1,6 +1,6 @@
 # Python GLIDE Anti-Patterns
 
-This document contains additional anti-patterns specific to Python GLIDE development. **Critical constraints (package selection, binary data handling, vector search) are documented in [python.md](python.md).**
+This document contains additional anti-patterns specific to Python GLIDE development. **Critical constraints (package selection, binary data handling, vector search) are documented in `python.md`.**
 
 ---
 
