@@ -330,26 +330,19 @@ ft.create(
 ---
 
 ## Add Document Pattern
-Documents can be added using `HSET`, the example implies a vector field named `embedding`.
+Documents are stored via `HSET` with vector bytes:
 
 ```python
-    # Convert vector to bytes
-    embedding_buffer = struct.pack(f"{len(embedding)}f", *embedding)
-
-    # Build field dict
-    fields = {"embedding": embedding_buffer}
-    if metadata:
-        fields.update(metadata)
-
-    # Store document
-    client.hset(key, fields)
+embedding_buffer = struct.pack(f"{len(embedding)}f", *embedding)
+fields = {"embedding": embedding_buffer}
+if metadata:
+    fields.update(metadata)
+client.hset(key, fields)
 ```
 
 ---
 
-## FT.INFO and FT.DROPINDEX
-
-### Check Index Exists
+## Check Index Exists / Drop Index
 
 ```python
 from glide_sync import ft
@@ -360,13 +353,6 @@ try:
     index_exists = True
 except RequestError:
     index_exists = False
-```
-
-### Drop Index
-
-```python
-from glide_sync import ft
-from glide_shared.exceptions import RequestError
 
 try:
     ft.dropindex(client, index_name)
@@ -374,10 +360,7 @@ except RequestError:
     pass  # Index didn't exist
 ```
 
-**Key Points:**
-- `ft.info()` raises `RequestError` when index doesn't exist
-- Catch `RequestError` specifically, not broad exceptions
-- `RequestError` is the base class for all request-related errors
+`ft.info()` and `ft.dropindex()` raise `RequestError` when the index doesn't exist. Catch `RequestError` specifically, not broad exceptions.
 
 ---
 
