@@ -488,20 +488,15 @@ distance_map = {
 
 ## Common Pitfalls
 
-**Critical constraints (package selection, binary data, vector search) are in the "CRITICAL CONSTRAINTS" section above. See `python-anti-patterns.md` for detailed ❌/✅ examples.**
+**Package selection, binary data decoding, and FT module API are covered in sections above and in `python-ft-api.md`. Mock patterns are in `python-anti-patterns.md`. The table below lists pitfalls NOT covered elsewhere.**
 
 | Description | Problem | Solution |
 |-------------|---------|----------|
-| Using Redis Fork Instead of GLIDE | Importing from `valkey` package instead of `glide_sync` or `glide` | Always use `valkey-glide-sync` (sync) or `valkey-glide` (async) packages |
-| Incorrect Function Call Pattern | Calling `client.ft.search()` instead of `ft.search(client, ...)` | GLIDE uses module-level functions, not client methods |
-| Using client.ft_search() Method | Calling `client.ft_search()` or `client.ft_create()` | Use module-level functions: `ft.search(client, ...)` or `ft.create(client, ...)` |
-| Using client.ft_create() Method | Calling `client.ft_create()` for index creation | Use `ft.create(client, index_name, schema, options)` |
+| Wrong FT API Pattern | Using `client.ft_search()`, `client.ft_create()`, or `client.ft.search()` | All FT functions are module-level: `ft.function(client, ...)` — see `python-ft-api.md` |
 | Missing Keyword Arguments | Using positional arguments for `ft.search(client, index, query, options)` | Use keyword arguments: `ft.search(client=client, index_name=index, query=query, options=options)` |
 | Wrong FtCreateOptions Import | Using `ft.FtCreateOptions(...)` instead of `FtCreateOptions(...)` | Import `FtCreateOptions` from `ft_create_options` and use directly |
 | Missing FtSearchOptions | Passing params directly to `ft.search()` | Wrap params in `FtSearchOptions(params={...})` |
-| Wrong Mock Location | Mocking `glide_sync.GlideClient` or `glide.GlideClient` instead of where it's imported | Mock at the usage location (e.g., `your_module.GlideClient`) |
 | Adding .sort_by() to KNN Queries | Trying to sort KNN results manually | KNN results are pre-sorted by score, don't add sorting |
-| Not Decoding Bytes in Results | GLIDE returns bytes for keys and values, causing JSON serialization errors | Decode bytes to strings: `key.decode() if isinstance(key, bytes) else key` |
 | Expecting ping() to Return Bool | Assuming `client.ping()` returns `True` for success | `ping()` returns `b'PONG'` (bytes), not a boolean. Check with `== b'PONG'` |
 | Using Integer Cursor with scan() | Passing integer cursor to `scan()`: `cursor = 0` | `scan()` requires bytes cursor: `cursor = b"0"` and returns bytes |
 
