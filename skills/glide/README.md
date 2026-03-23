@@ -71,8 +71,6 @@ These skills provide:
 - User is working with cluster mode or distributed caching
 - User encounters errors like CROSSSLOT, connection timeouts, or resource leaks
 - User asks about async patterns for database operations
-
-**Target Use Cases:**
 - Building REST APIs with caching layers
 - Implementing session storage for web applications
 - Creating batch processing pipelines
