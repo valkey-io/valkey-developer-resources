@@ -22,6 +22,20 @@ from glide import ft, GlideClient
 # client.ft_search  # NO
 ```
 
+## Distance Metrics Mapping
+
+```python
+from glide_shared.commands.server_modules.ft_options.ft_create_options import (
+    DistanceMetricType,
+)
+
+distance_map = {
+    "COSINE": DistanceMetricType.COSINE,
+    "L2": DistanceMetricType.L2,
+    "IP": DistanceMetricType.IP,
+}
+```
+
 ## Core Functions
 
 ### ft.create()

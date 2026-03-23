@@ -466,24 +466,6 @@ async def some_function():
 
 ---
 
-## Testing Patterns
-
-## Distance Metrics Mapping
-
-```python
-from glide_shared.commands.server_modules.ft_options.ft_create_options import (
-    DistanceMetricType,
-)
-
-distance_map = {
-    "COSINE": DistanceMetricType.COSINE,
-    "L2": DistanceMetricType.L2,
-    "IP": DistanceMetricType.IP,
-}
-```
-
----
-
 ## Best Practices
 
 ## Common Pitfalls
