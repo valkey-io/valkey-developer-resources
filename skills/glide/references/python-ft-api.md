@@ -157,7 +157,7 @@ results = ft.search(
 # Decode results (they are bytes)
 for key, fields in results[1].items():
     str_key = key.decode() if isinstance(key, bytes) else key
-    # See references/python-decode-docs.md for complete decoding
+    # See the section on 'Binary Data Handling' for complete decoding
 ```
 
 **Common Mistakes:**

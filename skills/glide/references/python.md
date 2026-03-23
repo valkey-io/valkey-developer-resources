@@ -22,7 +22,6 @@ Once more, DO NOT use Redis-py as a guide, I repeat DO NOT use Redis-py as a gui
 ### Code Snippets
 - `python-package-selection.md` - Selecting appropriate packages for GLIDE integration
 - `python-parse-valkey-urls.md` - Parsing Valkey URLs into host and port
-- `python-decode-docs.md` - Decoding bytes to strings for JSON deserialization
 - `../assets/python-config.py` - Optimized templates for production web applications
 - `python-batch-*.py` - Python batch and pipelining code examples
 - [https://glide.valkey.io/languages/python/api/glide_async/core/](https://glide.valkey.io/languages/python/api/glide_async/core/) - Python Async API Reference
@@ -70,10 +69,38 @@ print(results[1].keys())  # b'doc:1' instead of 'doc:1'
 ```python
 for key, fields in results[1].items():
     str_key = key.decode() if isinstance(key, bytes) else key
-    # See references/python-decode-docs.md for complete implementation
+    # See the section on 'Binary Data Handling' for complete implementation
 ```
 
-**Why:** GLIDE returns bytes for search results. Must decode to strings, but skip binary fields like embeddings. See `python-decode-docs.md` for details.
+**Why:** GLIDE returns bytes for search results. Must decode to strings, but skip binary fields like embeddings:
+
+```python
+from typing import Any
+
+
+def _decode_docs(results) -> list[dict[str, Any]]:
+    """Decode documents from the search results."""
+
+    count = results[0]
+    docs = []
+    # Iterates results; decodes fields; skips binary embeddings
+    if count > 0 and len(results) > 1:
+        for key, fields in results[1].items():
+            str_key = key.decode() if isinstance(key, bytes) else key
+            str_fields = {}
+            for field_key, field_value in fields.items():
+                str_field_key = field_key.decode() if isinstance(field_key, bytes) else field_key
+                # Skip binary fields (like vector embeddings)
+                if str_field_key == "embedding":
+                    continue
+                try:
+                    str_field_value = field_value.decode() if isinstance(field_value, bytes) else field_value
+                    str_fields[str_field_key] = str_field_value
+                except (UnicodeDecodeError, AttributeError):
+                    pass  # Skip binary fields
+            docs.append({"key": str_key, **str_fields})
+    return docs
+```
 
 ## Client Creation Pattern
 
@@ -181,7 +208,7 @@ ft.create(client, index_name, schema, FtCreateOptions(prefixes=["doc:"]))
 
 ### Vector Similarity Search
 Return value is a two-element array / list, first element being the number of documents, the second element
-being a dictionary of those documents.  See the `python-decode-docs.md` code snippet for an example.
+being a dictionary of those documents.  See the section on *Binary Data Handling* for an example.
 
 ```python
 from glide_sync import ft
