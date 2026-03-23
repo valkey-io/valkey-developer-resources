@@ -20,7 +20,6 @@ Once more, DO NOT use Redis-py as a guide, I repeat DO NOT use Redis-py as a gui
 - **`python-ft-api.md`** - Complete FT (Search) module API reference (READ THIS for vector search)
 
 ### Code Snippets
-- `python-package-selection.md` - Selecting appropriate packages for GLIDE integration
 - `python-parse-valkey-urls.md` - Parsing Valkey URLs into host and port
 - `../assets/python-config.py` - Optimized templates for production web applications
 - `python-batch-*.py` - Python batch and pipelining code examples
@@ -41,21 +40,52 @@ Once more, DO NOT use Redis-py as a guide, I repeat DO NOT use Redis-py as a gui
 
 ### Package Selection
 
-**❌ NEVER use the Redis fork:**
+#### ❌ NEVER use the Redis fork
 ```python
 # NEVER use these imports
 from valkey import Valkey
 from valkey.commands.search import Search
 ```
 
-**✅ ALWAYS use GLIDE:**
+#### ✅ ALWAYS use GLIDE
+
+**Synchronous (for sync applications):**
 ```python
 from glide_sync import GlideClient, GlideClusterClient, ft
-# or
-from glide import GlideClient, GlideClusterClient, ft
+from glide_sync import GlideClientConfiguration, GlideClusterClientConfiguration, NodeAddress
+from glide_shared.commands.server_modules.ft_options.ft_search_options import FtSearchOptions
+from glide_shared.commands.server_modules.ft_options.ft_create_options import (
+    DistanceMetricType,
+    VectorField,
+    VectorFieldAttributesFlat,
+    VectorAlgorithm,
+    VectorType,
+    TagField,
+    NumericField,
+)
 ```
+**Package:** `valkey-glide-sync>=2.0.0`
 
-**Why:** GLIDE is the official recommended client with better performance and active development.
+**Asynchronous (for async applications):**
+```python
+from glide import GlideClient, GlideClusterClient, ft
+from glide import GlideClientConfiguration, GlideClusterClientConfiguration, NodeAddress
+from glide_shared.commands.server_modules.ft_options.ft_search_options import FtSearchOptions
+from glide_shared.commands.server_modules.ft_options.ft_create_options import (
+    DistanceMetricType,
+    VectorField,
+    VectorFieldAttributesFlat,
+    VectorAlgorithm,
+    VectorType,
+    TagField,
+    NumericField,
+)
+```
+**Package:** `valkey-glide>=2.0.0`
+
+**Note:** `glide_shared` is used by both sync and async packages for shared types and options.
+
+---
 
 ### Binary Data Handling
 
