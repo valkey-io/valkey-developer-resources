@@ -24,6 +24,7 @@ Once more, DO NOT use Redis-py as a guide, I repeat DO NOT use Redis-py as a gui
 - `python-parse-valkey-urls.md` - Parsing Valkey URLs into host and port
 - `python-decode-docs.md` - Decoding bytes to strings for JSON deserialization
 - `../assets/python-config.py` - Optimized templates for production web applications
+- `python-batch-*.py` - Python batch and pipelining code examples
 - [https://glide.valkey.io/languages/python/api/glide_async/core/](https://glide.valkey.io/languages/python/api/glide_async/core/) - Python Async API Reference
 - [https://glide.valkey.io/languages/python/api/glide_sync/core/](https://glide.valkey.io/languages/python/api/glide_sync/core/) - Python Sync API Reference
 
@@ -496,15 +497,15 @@ Language-specific implementation details for Valkey GLIDE Python clients.
 
 ### Sync Client
 
-See `../assets/python-batch-sync.py` code template
+See `python-batch-sync.py` code template
 
 ### Async Client
 
-See `../assets/python-batch-async.py` code template
+See `python-batch-async.py` code template
 
 ### Error Handling
 
-See `../assets/python-error-handling.py` code template
+See `python-batch-error-handling.py` code template
 
 ### Key Points
 
