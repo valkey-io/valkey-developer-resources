@@ -130,12 +130,12 @@ await client.exec(batch)  # Success!
 
 | Language | Status | Key Features |
 |----------|--------|--------------|
-| [Python](references/python.md) | ✅ Complete | Async/await, type hints, anti-patterns, performance optimization |
-| [Java](references/java.md) | ✅ Complete | CompletableFuture, try-with-resources, anti-patterns, performance optimization |
-| [Node.js](references/nodejs.md) | ✅ Complete | Promises, GlideFt, Decoder.Bytes, performance optimization |
-| [Go](references/go.md) | ✅ Complete | context.Context, error handling, anti-patterns, performance optimization |
-| [PHP](references/php.md) | ✅ Complete | Synchronous API, SOLID principles, anti-patterns, performance optimization |
-| [C#](references/csharp.md) | ✅ Complete | Task<T>, await using, StackExchange.Redis compatibility |
+| [Python](references/python.md) | Async/await, type hints, anti-patterns, performance optimization |
+| [Java](references/java.md) | CompletableFuture, try-with-resources, anti-patterns, performance optimization |
+| [Node.js](references/nodejs.md) | Promises, GlideFt, Decoder.Bytes, performance optimization |
+| [Go](references/go.md) | context.Context, error handling, anti-patterns, performance optimization |
+| [PHP](references/php.md) | Synchronous API, SOLID principles, anti-patterns, performance optimization |
+| [C#](references/csharp.md) | Task<T>, await using, StackExchange.Redis compatibility |
 
 ## Performance Optimization
 
