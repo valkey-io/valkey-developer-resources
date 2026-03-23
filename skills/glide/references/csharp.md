@@ -285,18 +285,21 @@ var config = new StandaloneClientConfigurationBuilder()
     .Build();
 ```
 
-## Testing Patterns
+## Client Lifecycle Management
 
-### Test Configuration
+**ASP.NET Core:**
+
+Setup client:
 ```csharp
-var config = new StandaloneClientConfigurationBuilder()
-    .WithAddress("localhost", 6379)
-    .WithClientName("test-client")
-    .WithRequestTimeout(TimeSpan.FromSeconds(2))
-    .Build();
+// Program.cs
+builder.Services.AddSingleton<GlideClient>(_ =>
+    GlideClient.CreateClient(config).GetAwaiter().GetResult());
+
+// Shutdown via IHostedService.StopAsync or await using for scripts
+await using var client = await GlideClient.CreateClient(config);
 ```
 
-### Cleanup Pattern
+Clean-up resources:
 ```csharp
 await using var client = await GlideClient.CreateClient(config);
 try
@@ -309,35 +312,6 @@ finally
     await client.Del(["test:key"]);
 }
 ```
-
-## Common Pitfalls
-
-## Client Lifecycle Management
-
-**ASP.NET Core:**
-```csharp
-// Program.cs
-builder.Services.AddSingleton<GlideClient>(_ =>
-    GlideClient.CreateClient(config).GetAwaiter().GetResult());
-
-// Shutdown via IHostedService.StopAsync or await using for scripts
-await using var client = await GlideClient.CreateClient(config);
-```
-
----
-
-## Language Comparison
-
-| Feature | Node.js | Java | C# |
-|---------|---------|------|-----|
-| Package | `@valkey/valkey-glide` | `io.valkey:valkey-glide` | `Valkey.Glide` |
-| Client creation | `await GlideClient.createClient()` | `GlideClient.createClient().get()` | `await GlideClient.CreateClient()` |
-| Async model | Promises | CompletableFuture | Task<T> |
-| Resource cleanup | `client.close()` | try-with-resources | `await using` |
-| Naming | camelCase | camelCase | PascalCase |
-| Exception handling | Direct | Wrapped in ExecutionException | Direct |
-| Batch constructor | `new Batch(false)` | `new Batch(false)` | `new Batch(isAtomic: false)` |
-| Binary data | `Buffer` | `GlideString` | `GlideString` / `byte[]` |
 
 ---
 
