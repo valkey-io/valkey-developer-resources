@@ -15,8 +15,8 @@ This document contains additional anti-patterns specific to Python GLIDE develop
 ### ✅ CORRECT: Mock at import location
 ```python
 # ✅ CORRECT: Mock at the import location
-@patch("langchain_aws.utilities.valkey.GlideClient")
-@patch("langchain_aws.utilities.valkey.GlideClusterClient")
+@patch("org.someproject.utilities.valkey.GlideClient")
+@patch("org.someproject.utilities.valkey.GlideClusterClient")
 def test_something(mock_cluster, mock_client):
     # Mock the create() class method
     mock_client.create.return_value = MagicMock()
