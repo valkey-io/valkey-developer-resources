@@ -25,6 +25,28 @@ These skills provide:
 - ✅ **Best practices** distilled from production experience
 - ✅ **Quick-start guides** to get productive immediately
 
+### Core Documentation
+- **{LANGUAGE}.md** - Comprehensive skill guide with patterns and examples
+- **LESSONS_LEARNED.md** - Development insights and gotchas (retained for reference)
+
+### Anti-Patterns (Python, Java, Go, PHP)
+- Demonstrations of common mistakes
+- Explanations of why they're wrong
+- Correct alternatives with examples
+
+### Working Examples
+- Basic operations (strings, hashes, lists, sets)
+- Batch/pipeline operations (atomic vs non-atomic)
+- Cluster operations (hash tags, slot management)
+- Vector search (where supported)
+
+### Performance Optimization (all languages)
+- Production config templates (timeouts, retry, throughput, AZ affinity)
+- Monitoring (OpenTelemetry, logging)
+- Serverless/Lambda patterns
+- Data structure optimization
+- Performance checklist
+
 ## Why Use This?
 
 **For Developers:**
@@ -366,32 +388,6 @@ Console.WriteLine($"Value: {value}");
 - See [csharp.md](references/csharp.md) for complete guide
 
 ---
-
-## What's Included
-
-Each language skill contains:
-
-### Core Documentation
-- **{LANGUAGE}.md** - Comprehensive skill guide with patterns and examples
-- **LESSONS_LEARNED.md** - Development insights and gotchas (retained for reference)
-
-### Anti-Patterns (Python, Java, Go, PHP)
-- Demonstrations of common mistakes
-- Explanations of why they're wrong
-- Correct alternatives with examples
-
-### Working Examples
-- Basic operations (strings, hashes, lists, sets)
-- Batch/pipeline operations (atomic vs non-atomic)
-- Cluster operations (hash tags, slot management)
-- Vector search (where supported)
-
-### Performance Optimization (all languages)
-- Production config templates (timeouts, retry, throughput, AZ affinity)
-- Monitoring (OpenTelemetry, logging)
-- Serverless/Lambda patterns
-- Data structure optimization
-- Performance checklist
 
 ## Testing
 
