@@ -99,7 +99,7 @@ for key, fields in results[1].items():
     # See the section on 'Binary Data Handling' for complete implementation
 ```
 
-**Why:** GLIDE returns bytes for search results. Must decode to strings, but skip binary fields like embeddings:
+Must decode to strings, but skip binary fields like embeddings, complete example below:
 
 ```python
 from typing import Any
