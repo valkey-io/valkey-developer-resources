@@ -4,6 +4,21 @@ description: Production-ready patterns for Valkey GLIDE clients across 6 languag
 ---
 
 ## Language-Specific Guides
+**Activation Triggers** - Use this skill when:
+- User mentions "Valkey", "GLIDE", or "Valkey GLIDE"
+- User asks about Redis/Valkey client libraries
+- User needs help with caching, key-value storage, or in-memory databases
+- User is implementing batch operations, pipelines, or transactions
+- User is working with cluster mode or distributed caching
+- User encounters errors like CROSSSLOT, connection timeouts, or resource leaks
+- User asks about async patterns for database operations
+- Building REST APIs with caching layers
+- Implementing session storage for web applications
+- Creating batch processing pipelines
+- Developing microservices with distributed caching
+- Migrating from Redis to Valkey
+- Setting up cluster mode for high availability
+- Implementing vector search for AI/ML applications
 
 ### ⚠️ CRITICAL: Language-Specific Guide Loading
 **BEFORE generating any code, you MUST:**
