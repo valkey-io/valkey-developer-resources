@@ -223,8 +223,45 @@ Vector fields, tag fields, and numeric fields should be parameterized.
 - Tag fields are used for exact matching.
 - Numeric fields are used for range matching.
 
+```python
+from glide_sync import ft
+from glide_shared.commands.server_modules.ft_options.ft_create_options import (
+    DistanceMetricType,
+    VectorField,
+    VectorFieldAttributesFlat,
+    VectorAlgorithm,
+    VectorType,
+    TagField,
+    NumericField,
+    FtCreateOptions,
+)
+
+# Build schema
+schema = [
+    VectorField(
+        "content_vector",
+        VectorAlgorithm.FLAT,  # or VectorAlgorithm.HNSW
+        VectorFieldAttributesFlat(
+            dimensions=1536,
+            distance_metric=DistanceMetricType.COSINE,
+            type=VectorType.FLOAT32,
+        ),
+    ),
+    TagField("category"),
+    NumericField("year"),
+]
+
+# Create index
+ft.create(
+    client,
+    index_name,
+    schema,
+    FtCreateOptions(prefixes=["doc:"]),
+)
+```
+
 ### Index Creation
-⚠️ **CRITICAL**: Do NOT use `client.ft_create()` to create an index.  See `../assets/python-create-index.py` code template for correct usage.
+⚠️ **CRITICAL**: Do NOT use `client.ft_create()` to create an index.
 
 **Key Points:**
 - Use `ft.create()` function, not a method
