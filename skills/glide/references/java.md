@@ -274,7 +274,7 @@ import glide.api.models.exceptions.ConnectionException;   // Connection issues
 
 ## Common Pitfalls
 
-### 1. Using Jedis/Lettuce Instead of GLIDE
+### 1. Using Jedis/Lettuce When Working with GLIDE applications
 **Problem:** Using legacy Redis clients
 **Solution:** Always use `valkey-glide` package
 

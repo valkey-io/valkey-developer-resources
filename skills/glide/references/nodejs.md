@@ -335,7 +335,7 @@ Always close clients in finally blocks to ensure cleanup even if errors occur.
 **Problem:** Atomic operations with keys in different slots
 **Solution:** Use hash tags `{tag}` to ensure same slot
 
-### 4. Wrong Method Name
+### 4. Wrong Casing
 **Problem:** Case-sensitive method names
 **Solution:** Use correct casing (e.g., `dropindex` not `dropIndex`)
 
