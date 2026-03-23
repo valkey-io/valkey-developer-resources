@@ -20,6 +20,7 @@
 - `python-parse-valkey-urls.md` - Parsing Valkey URLs into host and port
 - `../assets/python-config.py` - Optimized templates for production web applications
 - `python-batch-*.py` - Python batch and pipelining code examples
+- `python-tls-auth.md` - TLS and authentication and AWS IAM code examples
 - [https://glide.valkey.io/languages/python/api/glide_async/core/](https://glide.valkey.io/languages/python/api/glide_async/core/) - Python Async API Reference
 - [https://glide.valkey.io/languages/python/api/glide_sync/core/](https://glide.valkey.io/languages/python/api/glide_sync/core/) - Python Sync API Reference
 
@@ -180,10 +181,6 @@ def get_client(valkey_url: str, **kwargs) -> GlideClient | GlideClusterClient:
 - Add `request_timeout` to prevent hanging
 - Use `await` for async client operations
 - Async client requires `await` on `.create()`
-
-### Authentication and TLS
-
-Refer to `python-tls-auth.md` for details and code templates + AWS IAM.
 
 ---
 
