@@ -4,6 +4,7 @@
 - `java-package-selection.md` - Selecting appropriate packages for GLIDE integration
 - `../assets/java-config.java` - Optimized templates for production web applications
 - `java-anti-patterns.md` - Anti-patterns to avoid in Java GLIDE development, including exception handling, Hash vs JSON performance, thread safety, and more.
+- `java-tls-auth.md` - TLS and authentication for secure GLIDE connections
 
 ## Core Principles
 
@@ -98,12 +99,6 @@ try (GlideClient client = GlideClient.createClient(config).get()) {
 - Blocking: Call `.get()` or `.join()` to block thread
 - Always set explicit `requestTimeout()` (default may be too short)
 - Use try-with-resources for automatic cleanup in blocking mode
-
----
-
-## Authentication and TLS
-
-Refer to `java-tls-auth.md` for details and code templates + AWS IAM.
 
 ---
 
