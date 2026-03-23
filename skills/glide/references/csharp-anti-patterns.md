@@ -17,8 +17,6 @@ var value = client.StringGetAsync("key");  // Task<ValkeyValue>
 var value = await client.StringGetAsync("key");  // ValkeyValue
 ```
 
-**Why:** Without await, you get a Task object instead of the actual value.
-
 ---
 
 ### ❌ INCORRECT: Synchronous Blocking
@@ -31,8 +29,6 @@ var value = client.StringGetAsync("key").Result;
 ```csharp
 var value = await client.StringGetAsync("key");
 ```
-
-**Why:** Blocking async code with .Result or .Wait() can cause deadlocks, especially in ASP.NET contexts.
 
 ---
 
