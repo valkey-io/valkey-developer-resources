@@ -89,7 +89,20 @@ import glide.api.models.exceptions.ConnectionException;
 
 Otherwise, use standalone client.
 
-### Async Pattern (Recommended for Production)
+## Async vs Blocking
+
+### When to Use Async (Recommended)
+- Production applications
+- High concurrency requirements
+- Non-blocking I/O frameworks (Netty, etc.)
+- Better thread utilization
+
+### When to Use Blocking
+- Simple scripts or demos
+- Sequential processing requirements
+- Simpler code for prototypes
+
+### Async Pattern
 Use async method chaining, and narrow exception checking via `instanceof` in `exceptionally` handlers.
 
 ```java
@@ -123,7 +136,7 @@ GlideClient.createClient(config).thenCompose(client -> {
 }).join(); // Only block at the end
 ```
 
-### Blocking Pattern (Simple Scripts/Demos Only)
+### Blocking Pattern
 
 ```java
 GlideClientConfiguration config = GlideClientConfiguration.builder()
@@ -150,19 +163,6 @@ try (GlideClient client = GlideClient.createClient(config).get()) {
 - Use try-with-resources for automatic cleanup in blocking mode
 
 ---
-
-## Async vs Blocking
-
-### When to Use Async (Recommended)
-- Production applications
-- High concurrency requirements
-- Non-blocking I/O frameworks (Netty, etc.)
-- Better thread utilization
-
-### When to Use Blocking
-- Simple scripts or demos
-- Sequential processing requirements
-- Simpler code for prototypes
 
 ### Exception Handling Differences
 These catch an `ExecutionException`, branch on the enclosed narrower exception, perform any narrow-specific processing, and then rethrows it.
