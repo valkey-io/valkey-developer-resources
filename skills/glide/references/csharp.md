@@ -1,9 +1,8 @@
 # C# GLIDE Skill
 
 ## External Resources
-- `../assets/csharp-config.cs` - Optimized templates for production web applications
+- `../assets/csharp-config.cs` - Client connection config templates, TLS/SSL, authentication (password, username, AWS IAM), cluster, standalone, database selection, protocol version, etc.
 - `csharp-anti-patterns.md` - Anti-patterns to avoid in C# GLIDE development including CROSSSLOT error patterns, Hash vs JSON performance, and more.
-- `csharp-config.md` - C# GLIDE connection configuration patterns (retry, protocol, client name, cluster, TLS, auth, etc.)
 
 > **Status:** Preview - C# GLIDE is available on NuGet but still has features being implemented before GA. See [official documentation](https://valkey.io/valkey-glide/) for latest updates.
 

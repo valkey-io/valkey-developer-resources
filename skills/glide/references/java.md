@@ -2,9 +2,8 @@
 
 ## External Resources
 - `java-package-selection.md` - Selecting appropriate packages for GLIDE integration
-- `../assets/java-config.java` - Optimized templates for production web applications
+- `../assets/java-config.java` - Client connection config templates, TLS/SSL, authentication (password, username, AWS IAM), cluster, standalone, etc.
 - `java-anti-patterns.md` - Anti-patterns to avoid in Java GLIDE development, including exception handling, Hash vs JSON performance, thread safety, and more.
-- `java-tls-auth.md` - TLS and authentication for secure GLIDE connections
 
 ## Core Principles
 

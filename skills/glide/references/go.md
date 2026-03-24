@@ -2,9 +2,8 @@
 
 ## External Resources
 - `go-package-selection.md` - Installation and selecting appropriate packages for GLIDE integration
-- `../assets/go-config.go` - Optimized templates for production web applications
+- `../assets/go-config.go` - Client connection config templates, TLS/SSL, authentication (password, username, AWS IAM), cluster, standalone, etc.
 - `go-anti-patterns.md` - Anti-patterns to avoid in Go GLIDE development including cluster slot patterns and CROSSSLOT errors, type assertion, and Hash vs JSON performance, and more
-- `go-config.md` - Client creation patterns (cluster, standalone, auth, TLS, etc.)
 
 ## Core Principles
 

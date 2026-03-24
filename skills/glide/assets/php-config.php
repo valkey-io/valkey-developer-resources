@@ -1,8 +1,18 @@
 <?php
 // PHP GLIDE Configuration Template
 // Optimized for production web applications
+//
+// This file contains all client connection patterns:
+//   - Standalone and cluster configs
+//   - PHPRedis compatibility aliases
+//   - Password and username/password authentication
+//   - TLS with CA-signed certificates
+//   - AWS ElastiCache/MemoryDB IAM authentication (GLIDE 2.2+)
+//   - Production tuning (timeouts, retry, throughput, AZ affinity)
 
+// ===========================================================================
 // Standalone Client Configuration
+// ===========================================================================
 // ValkeyGlide uses a two-step pattern: construct (no args), then connect()
 // connect() supports both PHPRedis-style positional params and GLIDE-style named params.
 function createStandaloneClient(): ValkeyGlide {
@@ -40,7 +50,9 @@ function createStandaloneClient(): ValkeyGlide {
     return $client;
 }
 
+// ===========================================================================
 // Cluster Client Configuration
+// ===========================================================================
 // ValkeyGlideCluster uses a one-step pattern: all config in constructor.
 // The constructor supports both PHPRedis RedisCluster-style positional params
 // ($name, $seeds, $timeout, $read_timeout, $persistent, $auth, $context)
@@ -83,7 +95,81 @@ function createClusterClient(): ValkeyGlideCluster {
     );
 }
 
+// ===========================================================================
+// PHPRedis Compatibility (PHP 8.3+)
+// ===========================================================================
+// Register aliases so PHPRedis class names (Redis, RedisCluster) map to GLIDE.
+// ValkeyGlide::registerPHPRedisAliases();
+// $client = new Redis();
+// $client->connect(addresses: [['host' => 'localhost', 'port' => 6379]]);
+
+// ===========================================================================
+// Authentication Patterns
+// ===========================================================================
+
+// Password-only authentication
+function createClientWithPassword(): ValkeyGlide {
+    $client = new ValkeyGlide();
+    $client->connect(
+        addresses: [['host' => 'localhost', 'port' => 6379]],
+        credentials: ['password' => 'mypassword'],
+    );
+    return $client;
+}
+
+// Username + password authentication
+function createClientWithUsernamePassword(): ValkeyGlide {
+    $client = new ValkeyGlide();
+    $client->connect(
+        addresses: [['host' => 'localhost', 'port' => 6379]],
+        credentials: ['username' => 'myuser', 'password' => 'mypassword'],
+    );
+    return $client;
+}
+
+// ===========================================================================
+// TLS / SSL Patterns
+// ===========================================================================
+
+// TLS with CA-signed certificate (production)
+// NOTE: PHP GLIDE v1.0.0 may not support insecure TLS for self-signed certs.
+// Use proper CA-signed certificates in production.
+function createClientWithTls(): ValkeyGlide {
+    $client = new ValkeyGlide();
+    $client->connect(
+        addresses: [['host' => 'localhost', 'port' => 6379]],
+        use_tls: true,
+        credentials: ['password' => 'mypassword'],
+    );
+    return $client;
+}
+
+// ===========================================================================
+// AWS ElastiCache / MemoryDB IAM Authentication (GLIDE 2.2+)
+// ===========================================================================
+// Use ValkeyGlide::IAM_SERVICE_ELASTICACHE or ValkeyGlide::IAM_SERVICE_MEMORYDB
+// IAM requires username in credentials and TLS enabled.
+// Always call $client->close() when done.
+function createClientWithIam(): ValkeyGlide {
+    $client = new ValkeyGlide();
+    $client->connect(
+        addresses: [['host' => 'my-cluster.cache.amazonaws.com', 'port' => 6379]],
+        use_tls: true,
+        credentials: [
+            'username' => 'myUser',
+            'iamConfig' => [
+                ValkeyGlide::IAM_CONFIG_CLUSTER_NAME => 'my-cluster',
+                ValkeyGlide::IAM_CONFIG_REGION => 'us-east-1',
+                ValkeyGlide::IAM_CONFIG_SERVICE => ValkeyGlide::IAM_SERVICE_ELASTICACHE,
+            ],
+        ],
+    );
+    return $client;
+}
+
+// ===========================================================================
 // Global client instances (reuse across requests in PHP-FPM)
+// ===========================================================================
 global $glide_standalone, $glide_cluster;
 
 if (!isset($glide_standalone)) {

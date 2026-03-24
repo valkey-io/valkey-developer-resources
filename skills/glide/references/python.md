@@ -18,11 +18,10 @@
 
 ### Code Snippets
 - `python-parse-valkey-urls.md` - Parsing Valkey URLs into host and port
-- `../assets/python-config.py` - Optimized templates for production web applications
+- `../assets/python-config.py` - Client connection config templates, TLS/SSL, authentication (password, username, AWS IAM), cluster, standalone, sync, async, etc.
 - `python-batch-*.py` - Python batch and pipelining code examples
-- `python-tls-auth.md` - TLS and authentication and AWS IAM code examples
-- [https://glide.valkey.io/languages/python/api/glide_async/core/](https://glide.valkey.io/languages/python/api/glide_async/core/) - Python Async API Reference
-- [https://glide.valkey.io/languages/python/api/glide_sync/core/](https://glide.valkey.io/languages/python/api/glide_sync/core/) - Python Sync API Reference
+- https://glide.valkey.io/languages/python/api/glide_async/core/ - Python Async API Reference
+- https://glide.valkey.io/languages/python/api/glide_sync/core/ - Python Sync API Reference
 
 ### Additional Anti-Patterns
 - `python-anti-patterns.md` - Additional anti-patterns including test mocking patterns, performance patterns (Hash vs JSON), code design patterns, and more

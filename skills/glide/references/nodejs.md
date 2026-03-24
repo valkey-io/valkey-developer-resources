@@ -1,9 +1,8 @@
 # Node.js GLIDE Skill
 
 ## External Resources
-- `../assets/nodejs-config.ts` - Optimized templates for production web applications
+- `../assets/nodejs-config.ts` - Client connection config templates, TLS/SSL, authentication (password, username, AWS IAM), cluster, standalone, etc.
 - `nodejs-anti-patterns.md` - Anti-patterns to avoid in JavaScript/TypeScript GLIDE development including async iteration, Hash vs JSON performance patterns, and more.
-- `nodejs-config.md` - Client creation patterns (cluster, standalone, auth, TLS, etc.)
 
 
 ## Package Selection

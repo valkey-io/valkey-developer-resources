@@ -1,7 +1,7 @@
 # PHP GLIDE Skill
 
 ## External Resources
-- `../assets/php-config.php` - Optimized templates for production web applications
+- `../assets/php-config.php` - Client connection config templates, TLS/SSL, authentication (password, username, AWS IAM), cluster, standalone, PHPRedis compatibility, etc.
 - `php-anti-patterns.md` - Anti-patterns to avoid in PHP GLIDE development including Hash vs JSON performance patterns, and more
 
 ## Package Selection
