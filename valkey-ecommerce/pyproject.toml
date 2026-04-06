@@ -1,0 +1,23 @@
+[project]
+name = "valkey-ecommerce"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "valkey-glide-sync",
+    "numpy",
+    "sentence-transformers",
+    "torch",
+]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[dependency-groups]
+dev = ["pytest", "hypothesis", "httpx"]

@@ -1,20 +1,40 @@
-# IDE
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / editor settings
 .vscode/
 .idea/
 *.iml
 .metals
 
-# Gradle
+# Java / Gradle / Maven
 .gradle/
+**/gradle*
 build/
 bin/
-
-# Local dev build artifacts
 **/.m2/
 **/target/
 
-# OS
-.DS_Store
-Thumbs.db
+# Node
+node_modules/
 
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+.hypothesis/
+.pytest_cache/
 
+# Frontend build
+dist/
+
+# Valkey
+dump.rdb
+
+# Personal configs
+.kiro/
+
+# Ingestion data
+valkey-ecommerce/scripts/data/
