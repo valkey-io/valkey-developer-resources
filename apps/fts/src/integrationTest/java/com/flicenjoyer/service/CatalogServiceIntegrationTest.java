@@ -30,7 +30,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * Integration tests proving ValkeySearch FTS capabilities against a live Valkey 9.1.0 instance.
  * These serve as proof-of-concept for the production code.
  *
- * <p>Requires {@code valkey-search-test:9.1.0-rc1} Docker image built locally and {@code
+ * <p>Requires {@code valkey/valkey-bundle:unstable} Docker image and {@code
  * FLICENJOYER_INTEGRATION_TESTS=true}.
  */
 @Testcontainers
@@ -40,7 +40,7 @@ class CatalogServiceIntegrationTest {
 
   @Container
   static GenericContainer<?> valkey =
-      new GenericContainer<>("valkey-search-test:9.1.0-rc1")
+      new GenericContainer<>("valkey/valkey-bundle:unstable")
           .withExposedPorts(6379)
           .waitingFor(Wait.forLogMessage(".*Ready to accept connections.*", 1));
 

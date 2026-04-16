@@ -15,7 +15,7 @@ apps/fts/
 ├── src/integrationTest/java/           # Integration tests (Testcontainers)
 ├── src/integrationTest/resources/      # docker-java.properties for Testcontainers
 ├── docker-compose.yml                  # Local Valkey + ValkeySearch
-├── docker/                              # Docker build context (Dockerfile for Valkey + ValkeySearch)
+├── docker-compose.yml                   # Valkey + ValkeySearch via valkey-bundle image
 ├── config.yaml                         # Application config (Valkey host/port, etc.)
 ├── build.gradle.kts                    # Gradle build config
 └── README.md

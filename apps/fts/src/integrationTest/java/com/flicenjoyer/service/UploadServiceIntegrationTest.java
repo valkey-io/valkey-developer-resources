@@ -24,7 +24,7 @@ class UploadServiceIntegrationTest {
 
   @Container
   static GenericContainer<?> valkey =
-      new GenericContainer<>("valkey-search-test:9.1.0-rc1")
+      new GenericContainer<>("valkey/valkey-bundle:unstable")
           .withExposedPorts(6379)
           .waitingFor(Wait.forLogMessage(".*Ready to accept connections.*", 1));
 

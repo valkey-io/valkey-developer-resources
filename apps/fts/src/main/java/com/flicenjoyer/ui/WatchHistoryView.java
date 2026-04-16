@@ -96,7 +96,10 @@ public class WatchHistoryView {
     // Status badge
     var badge = new Label(entry.completed() ? "Completed" : "In Progress");
     var badgeColor = entry.completed() ? "rgba(82,183,136,0.9)" : "rgba(244,162,97,0.9)";
-    badge.setStyle("-fx-background-color: " + badgeColor + "; -fx-text-fill: #1a1a2e; -fx-padding: 2 8; -fx-background-radius: 3; -fx-font-size: 10; -fx-font-weight: bold;");
+    badge.setStyle(
+        "-fx-background-color: "
+            + badgeColor
+            + "; -fx-text-fill: #1a1a2e; -fx-padding: 2 8; -fx-background-radius: 3; -fx-font-size: 10; -fx-font-weight: bold;");
     StackPane.setAlignment(badge, Pos.TOP_LEFT);
     StackPane.setMargin(badge, new Insets(6, 0, 0, 6));
     thumb.getChildren().add(badge);

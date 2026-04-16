@@ -1,10 +1,6 @@
 services:
   valkey:
-    build:
-      context: ./docker
-      dockerfile: Dockerfile
-      args:
-        BUILD_JOBS: 4
+    image: valkey/valkey-bundle:unstable
     container_name: flicenjoyer-valkey
     restart: unless-stopped
     ports:

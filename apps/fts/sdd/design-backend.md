@@ -287,7 +287,7 @@ Results displayed in `BenchmarkView` and printed to stdout for README documentat
 
 Integration tests live in `src/integrationTest/java/` and use Testcontainers to run against a live Valkey instance. Run with `gradle integrationTest` — not part of the unit test suite or coverage gate.
 
-Currently gated behind `FLICENJOYER_INTEGRATION_TESTS=true` environment variable. Requires the `valkey-search-test:9.1.0-rc1` Docker image built locally from ValkeySearch `main` branch (FTS functional as of commit `923430d`). Build via `docker/Dockerfile` (also used by `docker-compose.yml`) with `--jobs=8` to cap memory on high-core-count machines. The `docker-java.properties` file in `src/integrationTest/resources/` sets `api.version=1.44` for Docker 29+ compatibility with Testcontainers.
+Currently gated behind `FLICENJOYER_INTEGRATION_TESTS=true` environment variable. Uses the `valkey/valkey-bundle:unstable` Docker image via Testcontainers, which bundles ValkeySearch with FTS support. The `docker-java.properties` file in `src/integrationTest/resources/` sets `api.version=1.44` for Docker 29+ compatibility with Testcontainers.
 
 ### Proven capabilities
 

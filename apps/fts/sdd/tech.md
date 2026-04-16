@@ -41,8 +41,8 @@ However, prioritize using [glide-vss-1.2-api.md](glide-vss-1.2-api.md) for speci
 
 ## Valkey Server Requirements
 
-- Base image: `valkey/valkey:9.1.0-rc1` (core server, does not bundle ValkeySearch)
-- ValkeySearch >= 1.2 required for FTS and FT.AGGREGATE — loaded as a module via `docker/Dockerfile`
+- Base image: `valkey/valkey-bundle:unstable` — bundles Valkey server with ValkeySearch, JSON, Bloom, and other modules pre-loaded
+- ValkeySearch >= 1.2 required for FTS and FT.AGGREGATE — included in the bundle image
 - `docker compose up` builds and runs the custom image automatically
 - Reference: https://hub.docker.com/r/valkey/valkey
 
@@ -55,13 +55,13 @@ However, prioritize using [glide-vss-1.2-api.md](glide-vss-1.2-api.md) for speci
 - JaCoCo for code coverage enforcement (minimum 70% line coverage on service/valkey/model layers; UI package and app entry points excluded from the gate)
 - Spotless with google-java-format for consistent code formatting
 - Docker Compose for local Valkey server with ValkeySearch module
-- Testcontainers (`org.testcontainers:testcontainers` + `junit-jupiter`) for integration tests against a custom Docker image based on `valkey/valkey:9.1.0-rc1` with ValkeySearch. Integration testing is non-trivial due to bleeding-edge dependencies — see [design-backend.md](design-backend.md#integration-testing) for details on image builds, API version workarounds, and current blockers.
+- Testcontainers (`org.testcontainers:testcontainers` + `junit-jupiter`) for integration tests against `valkey/valkey-bundle:unstable`. See [design-backend.md](design-backend.md#integration-testing) for details.
 
 ## Packaging & Distribution
 
 - Single Gradle project using Kotlin DSL
 - Gradle `application` plugin for local development (`./gradlew run`)
-- Turnkey `docker-compose` stack: `docker compose up` spins up Valkey with ValkeySearch module pre-loaded, ready for the app to connect. See `docker/Dockerfile` and `docker-compose.yml`.
+- Turnkey `docker-compose` stack: `docker compose up` pulls `valkey/valkey-bundle:unstable` with all modules pre-loaded, ready for the app to connect.
 
 ## Compatibility
 
