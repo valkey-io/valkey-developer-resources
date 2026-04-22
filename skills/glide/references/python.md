@@ -24,7 +24,7 @@
 - https://glide.valkey.io/languages/python/api/glide_sync/core/ - Python Sync API Reference
 
 ### Additional Anti-Patterns
-- `python-anti-patterns.md` - Additional anti-patterns including test mocking patterns, performance patterns (Hash vs JSON), code design patterns, and more
+- `python-anti-patterns.md` - Additional anti-patterns including test mocking patterns (sync and async), AsyncMock for async functions, GLIDE client event loop binding, pytest-asyncio fixture scope deadlocks, performance patterns (Hash vs JSON), code design patterns, and more
 
 ---
 
@@ -337,23 +337,29 @@ client.hset(key, fields)
 
 ## Check Index Exists / Drop Index
 
+**⚠️ Use `ft.list()` — not `ft.info()` — to check index existence.** `ft.info()` raises `RequestError` on missing indices, which can crash MCP server transports. `ft.list()` always returns cleanly.
+
 ```python
 from glide_sync import ft
-from glide_shared.exceptions import RequestError
 
-try:
-    ft.info(client, index_name)
-    index_exists = True
-except RequestError:
-    index_exists = False
-
-try:
-    ft.dropindex(client, index_name)
-except RequestError:
-    pass  # Index didn't exist
+async def index_exists(client, index_name: str) -> bool:
+    """Safe index existence check — never raises."""
+    existing = await ft.list(client)
+    names = {i.decode() if isinstance(i, bytes) else str(i) for i in (existing or [])}
+    return index_name in names
 ```
 
-`ft.info()` and `ft.dropindex()` raise `RequestError` when the index doesn't exist. Catch `RequestError` specifically, not broad exceptions.
+**Drop index safely:**
+```python
+if await index_exists(client, index_name):
+    ft.dropindex(client, index_name)
+```
+
+**Create index safely:**
+```python
+if not await index_exists(client, index_name):
+    ft.create(client, index_name, schema, options)
+```
 
 ---
 
@@ -402,6 +408,9 @@ if TYPE_CHECKING:
 | Adding .sort_by() to KNN Queries | Trying to sort KNN results manually | KNN results are pre-sorted by score, don't add sorting |
 | Expecting ping() to Return Bool | Assuming `client.ping()` returns `True` for success | `ping()` returns `b'PONG'` (bytes), not a boolean. Check with `== b'PONG'` |
 | Using Integer Cursor with scan() | Passing integer cursor to `scan()`: `cursor = 0` | `scan()` requires bytes cursor: `cursor = b"0"` and returns bytes |
+| Wrong FtSearch Pagination | `FtSearchOptions(first_result=0, limit=10)` — TypeError | Use `FtSearchOptions(limit=FtSearchLimit(offset=0, count=10))` — see `python-ft-api.md` |
+| Missing LOAD in FT.AGGREGATE | SUM/AVG/MIN/MAX return 0 | Add `loadFields=["@field"]` to `FtAggregateOptions` — see `python-ft-api.md` |
+| Wrong FT.AGGREGATE Response Format | Assuming `raw[0]` is count like valkey-py | GLIDE returns flat `List[dict]`, no leading count — see `python-ft-api.md` |
 
 ---
 

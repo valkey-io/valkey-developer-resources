@@ -230,11 +230,30 @@ Detect module usage via command patterns and provide optimization guidance.
 
 ### Module Anti-Patterns
 
-**Valkey-Search**: Missing index definitions before queries; wildcard prefix searches; no pagination; not using `FT.AGGREGATE` for aggregations.
+**Valkey-Search**: Missing index definitions before queries; wildcard prefix searches; no pagination; not using `FT.AGGREGATE` for aggregations; missing `LOAD` clause in `FT.AGGREGATE` — reducers (SUM, AVG, MIN, MAX) silently return 0 without explicit `LOAD` of the fields they operate on (COUNT is the exception); `FT.AGGREGATE` rejects wildcard `*` query (use a field filter like `@price:[0 inf]` instead); `FT.SEARCH` rejects `*` after a filter expression (use the filter alone for match-all); auto-detecting search mode (semantic vs text) based on provider availability without allowing an explicit `mode` override — user intent must take priority over auto-detection.
 
-**Valkey-JSON**: Full document `JSON.GET` instead of path-based queries; not using `JSON.MGET` for batching; documents >100KB without splitting; missing `JSON.NUMINCRBY` for atomic updates.
+**Valkey-JSON**: Full document `JSON.GET` instead of path-based queries; not using `JSON.MGET` for batching; documents >100KB without splitting; missing `JSON.NUMINCRBY` for atomic updates; skipping `json.dumps()` encoding for `JSON.SET` sub-path values (all paths require JSON-encoded values); calling `JSON.ARRPOP`/`JSON.ARRTRIM`/`JSON.ARRAPPEND` without pre-validating key existence and type.
 
 **Valkey-BloomFilter**: Wrong false-positive rate; undersized initial capacity; not using Cuckoo Filters (`CF.*`) when deletions needed; sequential `BF.ADD` instead of `BF.MADD`.
+
+### Safe vs Unsafe Operations
+
+Operations that raise `RequestError` can crash MCP/server framework transports. Pre-validate before calling unsafe operations.
+
+| Operation | Safe? | Notes |
+|-----------|-------|-------|
+| `ft.list(client)` | ✅ Safe | Always returns a list |
+| `ft.search(client, idx, ...)` | ⚠️ Pre-validate | Raises if index doesn't exist |
+| `ft.info(client, idx)` | ⚠️ Pre-validate | Raises if index doesn't exist |
+| `ft.create(client, idx, ...)` | ⚠️ Pre-validate | Raises if index already exists |
+| `ft.dropindex(client, idx)` | ⚠️ Pre-validate | Raises if index doesn't exist |
+| `FT.AGGREGATE` via custom_command | ⚠️ Pre-validate | Raises on invalid query (e.g., `*`) |
+| `client.exists([key])` | ✅ Safe | Returns 0 or 1 |
+| `client.hget(key, field)` | ✅ Safe | Returns None if missing |
+| `JSON.GET` | ✅ Safe | Returns None if missing |
+| `JSON.SET` | ✅ Safe | Creates key if missing |
+| `JSON.ARRPOP` / `JSON.ARRTRIM` | ⚠️ Pre-validate | Raises on non-existent key |
+| `JSON.ARRAPPEND` | ⚠️ Pre-validate | Raises on non-array target |
 
 ### Pattern-to-Module Recommendations
 - `GET` + JSON parse + modify + `SET` → use `JSON.SET` with path syntax

@@ -174,6 +174,31 @@ for key, fields in results[1].items():
     # See the section on 'Binary Data Handling' for complete decoding
 ```
 
+**⚠️ FT.SEARCH: Wildcard `*` cannot follow a filter expression**
+
+When combining a filter with a text query, `*` after a filter is rejected as invalid syntax.
+
+```python
+# ❌ WRONG — raises RequestError: Invalid wildcard '*' markers
+query = "(@category:{Electronics}) *"
+
+# ✅ CORRECT — filter alone acts as match-all within the filter
+query = "@category:{Electronics}"
+
+# ✅ CORRECT — combine filter with actual text query
+query = "(@category:{Electronics}) headphones"
+```
+
+**Helper pattern:**
+```python
+def build_text_query(query_text: str, filter_expr: str | None) -> str:
+    if filter_expr and query_text.strip() == '*':
+        return filter_expr
+    if filter_expr:
+        return f'({filter_expr}) {query_text}'
+    return query_text
+```
+
 **Common Mistakes:**
 ```python
 # ❌ WRONG - Method does not exist
@@ -184,6 +209,26 @@ results = client.ft.search("idx", "*")
 
 # ✅ CORRECT - Module-level function
 results = ft.search(client, "idx", "*")
+```
+
+**Pagination with FtSearchLimit:**
+
+`FtSearchOptions` does not accept `offset` or `limit` as direct keyword arguments. Pagination requires wrapping in `FtSearchLimit`.
+
+```python
+# ❌ WRONG — TypeError: unexpected keyword argument
+FtSearchOptions(first_result=0, limit=10)
+```
+
+```python
+# ✅ CORRECT — use FtSearchLimit
+from glide_shared.commands.server_modules.ft_options.ft_search_options import (
+    FtSearchLimit,
+    FtSearchOptions,
+)
+
+options = FtSearchOptions(limit=FtSearchLimit(offset=0, count=10))
+results = ft.search(client=client, index_name="idx", query="*", options=options)
 ```
 
 ### ft.dropindex()
@@ -246,6 +291,110 @@ ft.aggregate(
     query: str,
     options: Optional[FtAggregateOptions] = None
 ) -> FtAggregateResponse
+```
+
+**Parameters:**
+- `client`: GlideClient instance (first parameter, always required)
+- `index_name`: Name of the index to aggregate
+- `query`: Search query string — **NOT the same as FT.SEARCH**. See wildcard warning below.
+- `options`: FtAggregateOptions with LOAD, GROUPBY, REDUCE, SORTBY, etc.
+
+**⚠️ CRITICAL: FT.AGGREGATE rejects wildcard `*` query**
+
+Unlike FT.SEARCH, FT.AGGREGATE does not accept `*` as a match-all query. It raises `RequestError: Invalid query string syntax`.
+
+```python
+# ❌ WRONG — raises RequestError
+ft.aggregate(client, "idx", "*", options)
+
+# ✅ CORRECT — use a field filter as match-all
+ft.aggregate(client, "idx", "@price:[0 inf]", options)  # numeric range
+ft.aggregate(client, "idx", "@category:{*}", options)    # tag wildcard (if applicable)
+```
+
+Use a numeric range `[0 inf]` on any indexed NUMERIC field, or a TAG filter. There is no universal match-all for FT.AGGREGATE.
+
+**Return Format:**
+```python
+# Returns: List[Mapping[bytes, Any]] — a flat list of row dicts
+# There is NO leading integer count (unlike FT.SEARCH and unlike valkey-py).
+# Example:
+[
+    {b'category': b'electronics', b'total': b'1500'},
+    {b'category': b'books', b'total': b'320'},
+]
+```
+
+**⚠️ CRITICAL: LOAD is required for reducer fields**
+
+FT.AGGREGATE does not automatically load document fields for REDUCE operations.
+Fields used in SUM, AVG, MIN, MAX, etc. must be explicitly loaded with `loadFields`
+before the GROUPBY stage. Without LOAD, reducers silently return 0.
+COUNT is the only exception — it counts rows, not field values.
+
+**❌ WRONG — SUM returns 0 because `price` is not loaded:**
+```python
+results = ft.aggregate(
+    client=client,
+    index_name="products_idx",
+    query="@price:[0 500]",
+    options=FtAggregateOptions(
+        clauses=[
+            FtAggregateGroupBy(
+                ["@category"],
+                [FtAggregateReducer("SUM", ["@price"], "total")],
+            )
+        ]
+    ),
+)
+# Every row has total = '0'!
+```
+
+**✅ CORRECT — LOAD the field first:**
+```python
+from glide_sync import ft
+from glide_shared.commands.server_modules.ft_options.ft_aggregate_options import (
+    FtAggregateOptions,
+    FtAggregateGroupBy,
+    FtAggregateReducer,
+)
+
+results = ft.aggregate(
+    client=client,
+    index_name="products_idx",
+    query="@price:[0 500]",
+    options=FtAggregateOptions(
+        loadFields=["@price"],  # ← Required for SUM/AVG/MIN/MAX
+        clauses=[
+            FtAggregateGroupBy(
+                ["@category"],
+                [FtAggregateReducer("SUM", ["@price"], "total")],
+            )
+        ]
+    ),
+)
+# results: [{b'category': b'electronics', b'total': b'1500'}, ...]
+```
+
+Use `loadAll=True` to load all indexed fields (convenient but less efficient).
+
+**⚠️ Response format differs from valkey-py**
+
+GLIDE's `ft.aggregate()` returns a flat `List[Mapping[bytes, Any]]`. There is no leading
+integer count element. This is different from valkey-py which returns `[count, row1, row2, ...]`.
+
+**❌ WRONG — assuming valkey-py format:**
+```python
+raw = ft.aggregate(client, "idx", "*", options)
+total = raw[0]        # This is a dict, not an int!
+rows = raw[1:]        # Off by one — you're skipping the first result
+```
+
+**✅ CORRECT — GLIDE format:**
+```python
+raw = ft.aggregate(client, "idx", "*", options)
+rows = raw            # Flat list of dicts
+total = len(raw)      # Count them yourself
 ```
 
 ### ft.profile()
@@ -328,7 +477,23 @@ from glide_shared.commands.server_modules.ft_options.ft_create_options import (
 from glide_sync import ft
 from glide_shared.commands.server_modules.ft_options.ft_search_options import (
     FtSearchOptions,
+    FtSearchLimit,
     ReturnField
+)
+```
+
+### For ft.aggregate():
+```python
+from glide_sync import ft
+from glide_shared.commands.server_modules.ft_options.ft_aggregate_options import (
+    FtAggregateOptions,
+    FtAggregateGroupBy,
+    FtAggregateReducer,
+    FtAggregateFilter,
+    FtAggregateSortBy,
+    FtAggregateSortProperty,
+    FtAggregateLimit,
+    FtAggregateApply,
 )
 ```
 
@@ -360,6 +525,9 @@ ft.dropindex(client, ...)  # YES - Module-level function
 4. **Not decoding bytes**: Search results return bytes - must decode to strings
 5. **Positional args**: Use keyword arguments for clarity
 6. **Inferring from Redis-py**: This is NOT Redis-py - do not use Redis-py patterns
+7. **Wrong pagination args**: `FtSearchOptions(first_result=0, limit=10)` does not work - use `FtSearchOptions(limit=FtSearchLimit(offset=0, count=10))`
+8. **Missing LOAD in FT.AGGREGATE**: SUM/AVG/MIN/MAX return 0 without `loadFields` - add `loadFields=["@field"]` to `FtAggregateOptions`
+9. **Wrong FT.AGGREGATE response format**: GLIDE returns `List[dict]` (flat), not `[count, row1, ...]` like valkey-py
 
 ## See Also
 
