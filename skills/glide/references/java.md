@@ -396,6 +396,14 @@ client.hset(GlideString.of("doc:1"), doc).get();
 ```
 
 ### Vector Search
+
+**⚠️ SECURITY:** The `=>` token in FT.SEARCH syntax separates a filter from a KNN clause. If user-controlled input (e.g., a filter parameter) contains `=>`, an attacker can inject a KNN query that bypasses all filters and returns all documents. Reject `=>` in any user-supplied filter or field name before interpolating into query strings:
+```java
+if (userFilter != null && userFilter.contains("=>")) {
+    throw new IllegalArgumentException("Filter must not contain '=>'");
+}
+```
+
 ```java
 String query = "*=>[KNN 5 @embedding $vector AS score]";
 FTSearchOptions opts = FTSearchOptions.builder()

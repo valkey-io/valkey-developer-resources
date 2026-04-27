@@ -172,3 +172,25 @@ const name = await client.hget("user:123", "name");
 **Why:** Fetching only needed fields reduces network transfer and parsing overhead.
 
 ---
+
+---
+
+## FT.SEARCH Query Injection via `=>` Delimiter
+
+The `=>` token in FT.SEARCH syntax separates a filter from a KNN vector clause. If user-controlled input is interpolated into query strings without sanitization, an attacker can inject a KNN clause that bypasses all filters and returns all documents.
+
+### ❌ INCORRECT: Interpolating user input without sanitization
+```javascript
+// ❌ VULNERABLE — userFilter could contain "=>[KNN ...]"
+const query = `(${userFilter}) ${searchText}`;
+```
+
+### ✅ CORRECT: Reject `=>` before query construction
+```javascript
+if (userFilter && userFilter.includes("=>")) {
+  throw new Error("Filter must not contain '=>'");
+}
+const query = `(${userFilter}) ${searchText}`;
+```
+
+**Why:** There is no built-in escaping in Valkey Search syntax. Treat `=>` as a reserved delimiter and reject it in all user-controlled query fragments.

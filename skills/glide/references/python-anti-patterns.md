@@ -104,6 +104,38 @@ async def client():
 
 ---
 
+## Query Injection via `=>` Delimiter
+
+The `=>` token in FT.SEARCH syntax separates a filter expression from a KNN vector clause. When user-controlled input is interpolated into query strings without sanitization, an attacker can inject a KNN clause that bypasses all filters and returns all documents. In MCP server contexts, the attacker is an AI agent manipulated via prompt injection.
+
+### ❌ VULNERABLE: Interpolating user input into query without sanitization
+```python
+# ❌ DANGEROUS — filter_expression comes from user/agent input
+def build_query(filter_expression: str, query_text: str) -> str:
+    if filter_expression and query_text.strip() == '*':
+        return filter_expression  # ← attacker sends "*=>[KNN 9999 @embedding $vector AS score]"
+    return f'({filter_expression}) {query_text}'
+
+# Attacker bypasses year filter, gets ALL documents including secrets
+```
+
+### ✅ CORRECT: Reject `=>` in user-supplied input before query construction
+```python
+# ✅ SAFE — reject injection payload before building query
+def build_query(filter_expression: str | None, query_text: str) -> str | dict:
+    if filter_expression and '=>' in filter_expression:
+        return {'status': 'error', 'reason': "filter must not contain '=>'"}
+    if filter_expression and query_text.strip() == '*':
+        return filter_expression
+    if filter_expression:
+        return f'({filter_expression}) {query_text}'
+    return query_text
+```
+
+**Why:** The `=>` delimiter is not documented as security-sensitive and there is no built-in escaping in Valkey Search syntax. Any application that interpolates user input into FT.SEARCH queries must treat `=>` as a reserved token and reject it in user-controlled fragments (filter expressions, vector field names, query text). This applies to all languages, not just Python.
+
+---
+
 ## MCP / Server Framework Patterns
 
 GLIDE raises `RequestError` for Valkey errors. These are normal Python exceptions, but in MCP server frameworks (e.g., FastMCP), unhandled exceptions during concurrent tool calls can crash the entire transport (stdio pipe closes, server dies). The crash is in the framework's async dispatch, not in GLIDE's native layer.

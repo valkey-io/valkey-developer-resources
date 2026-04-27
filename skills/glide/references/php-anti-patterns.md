@@ -233,3 +233,25 @@ class UserService {
 **Why:** Tight coupling makes testing difficult and prevents swapping implementations.
 
 ---
+
+---
+
+## FT.SEARCH Query Injection via `=>` Delimiter
+
+The `=>` token in FT.SEARCH syntax separates a filter from a KNN vector clause. If user-controlled input is interpolated into query strings without sanitization, an attacker can inject a KNN clause that bypasses all filters and returns all documents.
+
+### ❌ INCORRECT: Interpolating user input without sanitization
+```php
+// ❌ VULNERABLE — $userFilter could contain "=>[KNN ...]"
+$query = "({$userFilter}) {$searchText}";
+```
+
+### ✅ CORRECT: Reject `=>` before query construction
+```php
+if ($userFilter && str_contains($userFilter, '=>')) {
+    throw new \InvalidArgumentException("Filter must not contain '=>'");
+}
+$query = "({$userFilter}) {$searchText}";
+```
+
+**Why:** There is no built-in escaping in Valkey Search syntax. Treat `=>` as a reserved delimiter and reject it in all user-controlled query fragments.

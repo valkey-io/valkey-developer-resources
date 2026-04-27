@@ -199,6 +199,29 @@ def build_text_query(query_text: str, filter_expr: str | None) -> str:
     return query_text
 ```
 
+**⚠️ SECURITY: Sanitize user input before query construction**
+
+The `=>` token in FT.SEARCH syntax separates a filter expression from a KNN vector clause. If user-controlled input (e.g., a filter parameter from an API or MCP tool) contains `=>`, an attacker can inject a KNN vector search that bypasses all intended filters and returns all documents. This is a confirmed query injection vulnerability.
+
+**Always reject `=>` in user-supplied filter expressions and vector field names:**
+```python
+def sanitize_search_input(filter_expr: str | None, vector_field: str | None = None) -> dict | None:
+    """Returns error dict if input contains injection payload, None if safe."""
+    if filter_expr and '=>' in filter_expr:
+        return {'status': 'error', 'reason': "filter must not contain '=>'"}
+    if vector_field and '=>' in vector_field:
+        return {'status': 'error', 'reason': "vector_field must not contain '=>'"}
+    return None
+```
+
+Call this before constructing any FT.SEARCH query from user input:
+```python
+err = sanitize_search_input(filter_expr, vector_field)
+if err:
+    return err
+query = build_text_query(query_text, filter_expr)
+```
+
 **Common Mistakes:**
 ```python
 # ❌ WRONG - Method does not exist

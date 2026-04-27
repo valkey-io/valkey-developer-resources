@@ -209,3 +209,25 @@ name, _ := client.HGet(ctx, "user:123", "name")
 **Why:** Fetching only needed fields reduces network transfer and parsing overhead.
 
 ---
+
+---
+
+## FT.SEARCH Query Injection via `=>` Delimiter
+
+The `=>` token in FT.SEARCH syntax separates a filter from a KNN vector clause. If user-controlled input is interpolated into query strings without sanitization, an attacker can inject a KNN clause that bypasses all filters and returns all documents.
+
+### ❌ INCORRECT: Interpolating user input without sanitization
+```go
+// ❌ VULNERABLE — userFilter could contain "=>[KNN ...]"
+query := fmt.Sprintf("(%s) %s", userFilter, searchText)
+```
+
+### ✅ CORRECT: Reject `=>` before query construction
+```go
+if strings.Contains(userFilter, "=>") {
+    return nil, fmt.Errorf("filter must not contain '=>'")
+}
+query := fmt.Sprintf("(%s) %s", userFilter, searchText)
+```
+
+**Why:** There is no built-in escaping in Valkey Search syntax. Treat `=>` as a reserved delimiter and reject it in all user-controlled query fragments.

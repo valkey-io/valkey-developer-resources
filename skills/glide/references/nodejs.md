@@ -151,6 +151,14 @@ await client.hset("product:1", {
 ```
 
 ### Search
+
+**⚠️ SECURITY:** The `=>` token in FT.SEARCH syntax separates a filter from a KNN clause. If user-controlled input (e.g., a filter parameter) contains `=>`, an attacker can inject a KNN query that bypasses all filters and returns all documents. Reject `=>` in any user-supplied filter or field name before interpolating into query strings:
+```javascript
+if (userFilter && userFilter.includes("=>")) {
+  throw new Error("Filter must not contain '=>'");
+}
+```
+
 ```javascript
 const queryVector = Buffer.from(new Float32Array([1.5, 2.5, 3.5]).buffer);
 

@@ -237,6 +237,14 @@ being a dictionary of those documents.  See the section on *Binary Data Handling
 from glide_sync import ft
 from glide_shared.commands.server_modules.ft_options.ft_search_options import FtSearchOptions
 
+# ⚠️ SECURITY: Sanitize user-supplied filter and vector_field before interpolation.
+# The '=>' token delimits filter from KNN clause — if user input contains '=>',
+# an attacker can inject a KNN query that bypasses all filters.
+if filter and '=>' in filter:
+    raise ValueError("filter must not contain '=>'")
+if '=>' in vector_field:
+    raise ValueError("vector_field must not contain '=>'")
+
 # Build KNN query, using `vector_field` to identify the vector field
 base_query = f"*=>[KNN {k} @{vector_field} $vector AS score]"
 
