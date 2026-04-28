@@ -17,7 +17,6 @@
 - **`python-ft-api.md`** - Complete FT (Search) module API reference (READ THIS for vector search)
 
 ### Code Snippets
-- `python-parse-valkey-urls.md` - Parsing Valkey URLs into host and port
 - `../assets/python-config.py` - Client connection config templates, TLS/SSL, authentication (password, username, AWS IAM), cluster, standalone, sync, async, etc.
 - `python-batch-*.py` - Python batch and pipelining code examples
 - https://glide.valkey.io/languages/python/api/glide_async/core/ - Python Async API Reference
