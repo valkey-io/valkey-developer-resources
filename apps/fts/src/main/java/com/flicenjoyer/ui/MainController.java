@@ -1,10 +1,12 @@
 package com.flicenjoyer.ui;
 
+import com.flicenjoyer.model.Movie;
 import com.flicenjoyer.service.CatalogService;
 import com.flicenjoyer.service.UploadService;
 import com.flicenjoyer.service.WatchHistoryService;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -46,27 +48,12 @@ public class MainController {
     var searchView = new SearchView(catalogService);
 
     catalogView.setWatchHistoryService(watchHistoryService);
-    catalogView.setOnPlayMovie(
-        movie -> {
-          playerView.setBackNavigation(ViewId.BROWSE, () -> showView(ViewId.BROWSE));
-          playerView.loadMovie(movie);
-          showView(ViewId.PLAYER);
-        });
+    catalogView.setOnPlayMovie(playMovieFrom(playerView, ViewId.BROWSE));
 
-    historyView.setOnResumeMovie(
-        movie -> {
-          playerView.setBackNavigation(ViewId.HISTORY, () -> showView(ViewId.HISTORY));
-          playerView.loadMovie(movie);
-          showView(ViewId.PLAYER);
-        });
+    historyView.setOnResumeMovie(playMovieFrom(playerView, ViewId.HISTORY));
 
     searchView.setWatchHistoryService(watchHistoryService);
-    searchView.setOnPlayMovie(
-        movie -> {
-          playerView.setBackNavigation(ViewId.SEARCH, () -> showView(ViewId.SEARCH));
-          playerView.loadMovie(movie);
-          showView(ViewId.PLAYER);
-        });
+    searchView.setOnPlayMovie(playMovieFrom(playerView, ViewId.SEARCH));
 
     views.put(ViewId.SEARCH, searchView.getRoot());
     views.put(ViewId.UPLOAD, uploadForm.getRoot());
@@ -217,6 +204,14 @@ public class MainController {
     if (callback != null) callback.run();
     currentView = viewId;
     if (navMenu.isVisible()) toggleMenu();
+  }
+
+  private Consumer<Movie> playMovieFrom(PlayerView playerView, ViewId sourceView) {
+    return movie -> {
+      playerView.setBackNavigation(sourceView, () -> showView(sourceView));
+      playerView.loadMovie(movie);
+      showView(ViewId.PLAYER);
+    };
   }
 
   public BorderPane getRoot() {

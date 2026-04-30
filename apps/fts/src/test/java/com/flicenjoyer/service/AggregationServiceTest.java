@@ -2,15 +2,37 @@ package com.flicenjoyer.service;
 
 import static glide.api.models.GlideString.gs;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 import com.flicenjoyer.model.AggregationResult;
+import glide.api.BaseClient;
+import glide.api.GlideClient;
+import glide.api.commands.servermodules.FT;
+import glide.api.models.Batch;
 import glide.api.models.GlideString;
+import glide.api.models.commands.FT.FTAggregateOptions;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.junit.jupiter.MockitoExtension;
 
+@ExtendWith(MockitoExtension.class)
 class AggregationServiceTest {
+
+  @Mock GlideClient client;
+  AggregationService service;
+
+  @BeforeEach
+  void setUp() {
+    service = new AggregationService(client);
+  }
 
   @Test
   void parseAggregateResultsExtractsLabelAndMetrics() {
@@ -62,5 +84,65 @@ class AggregationServiceTest {
 
     List<AggregationResult> results = AggregationService.parseAggregateResults(raw, "title");
     assertTrue(results.isEmpty());
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  void topTitlesByViewersBatchFetchesTitles() throws Exception {
+    Map<GlideString, Object>[] aggResult = new Map[1];
+    Map<GlideString, Object> row = new LinkedHashMap<>();
+    row.put(gs("catalogId"), gs("vid1"));
+    row.put(gs("viewerCount"), gs("5"));
+    aggResult[0] = row;
+
+    Map<GlideString, GlideString> catalogFields = new LinkedHashMap<>();
+    catalogFields.put(gs("title"), gs("Inception"));
+
+    when(client.exec(any(Batch.class), eq(false)))
+        .thenReturn(CompletableFuture.completedFuture(new Object[] {catalogFields}));
+
+    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
+      ft.when(
+              () ->
+                  FT.aggregate(
+                      any(BaseClient.class),
+                      any(String.class),
+                      any(String.class),
+                      any(FTAggregateOptions.class)))
+          .thenReturn(CompletableFuture.completedFuture(aggResult));
+
+      var results = service.topTitlesByViewers(10);
+      assertEquals(1, results.size());
+      assertEquals("Inception", results.getFirst().label());
+      assertEquals("5", results.getFirst().metrics().get("viewerCount"));
+      verify(client).exec(any(Batch.class), eq(false)); // batched, not N+1
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  void catalogSummaryByGenreReturnsResults() throws Exception {
+    Map<GlideString, Object>[] aggResult = new Map[1];
+    Map<GlideString, Object> row = new LinkedHashMap<>();
+    row.put(gs("genre"), gs("Action"));
+    row.put(gs("titleCount"), gs("10"));
+    row.put(gs("avgRating"), gs("7.5"));
+    aggResult[0] = row;
+
+    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
+      ft.when(
+              () ->
+                  FT.aggregate(
+                      any(BaseClient.class),
+                      any(String.class),
+                      any(String.class),
+                      any(FTAggregateOptions.class)))
+          .thenReturn(CompletableFuture.completedFuture(aggResult));
+
+      var results = service.catalogSummaryByGenre();
+      assertEquals(1, results.size());
+      assertEquals("Action", results.getFirst().label());
+      assertEquals("10", results.getFirst().metrics().get("titleCount"));
+    }
   }
 }

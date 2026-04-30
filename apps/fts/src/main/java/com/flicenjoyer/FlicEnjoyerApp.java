@@ -45,7 +45,7 @@ public class FlicEnjoyerApp extends Application {
     var uploadService = new UploadService(client);
     var catalogService = new CatalogService(client);
     var watchHistoryService = new WatchHistoryService(client, profileManager);
-    var aggregationService = new com.flicenjoyer.service.AggregationService(client, catalogService);
+    var aggregationService = new com.flicenjoyer.service.AggregationService(client);
     var mainController =
         new MainController(
             primaryStage,
@@ -69,6 +69,7 @@ public class FlicEnjoyerApp extends Application {
     if (valkeyProvider != null) valkeyProvider.close();
   }
 
+  @SuppressWarnings("unused") // JVM entry point
   public static void main(String[] args) {
     try (var is = FlicEnjoyerApp.class.getResourceAsStream("/logging.properties")) {
       if (is != null) {

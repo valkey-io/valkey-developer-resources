@@ -9,6 +9,7 @@ import glide.api.models.commands.FT.FTCreateOptions.FieldInfo;
 import glide.api.models.commands.FT.FTCreateOptions.NumericField;
 import glide.api.models.commands.FT.FTCreateOptions.TagField;
 import glide.api.models.commands.FT.FTCreateOptions.TextField;
+import glide.api.models.exceptions.RequestException;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -34,9 +35,16 @@ public class IndexManager {
               .map(GlideString::toString)
               .collect(Collectors.toSet());
     } catch (ExecutionException e) {
-      LOG.warning(
-          "WARNING: ValkeySearch module not available — FTS indexes not created. "
-              + "Search, browse, and reports will not work until ValkeySearch is loaded.");
+      var cause = e.getCause();
+      if (cause instanceof RequestException
+          && cause.getMessage() != null
+          && cause.getMessage().contains("unknown command")) {
+        LOG.warning(
+            "WARNING: ValkeySearch module not available — FTS indexes not created. "
+                + "Search, browse, and reports will not work until ValkeySearch is loaded.");
+      } else {
+        throw e; // Connection/timeout error — propagate
+      }
       return;
     }
 

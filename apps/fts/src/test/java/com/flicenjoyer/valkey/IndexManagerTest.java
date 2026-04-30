@@ -1,6 +1,7 @@
 package com.flicenjoyer.valkey;
 
 import static glide.api.models.GlideString.gs;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -55,10 +56,20 @@ class IndexManagerTest {
       ft.when(() -> FT.list(client))
           .thenReturn(
               CompletableFuture.failedFuture(
-                  new ExecutionException(new RuntimeException("unknown command"))));
+                  new glide.api.models.exceptions.RequestException("unknown command")));
 
-      // Should not throw
+      // Should not throw — ValkeySearch not available is handled gracefully
       new IndexManager(client).ensureIndexes();
+    }
+  }
+
+  @Test
+  void ensureIndexesPropagatesConnectionErrors() {
+    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
+      ft.when(() -> FT.list(client))
+          .thenReturn(CompletableFuture.failedFuture(new RuntimeException("Connection refused")));
+
+      assertThrows(ExecutionException.class, () -> new IndexManager(client).ensureIndexes());
     }
   }
 }

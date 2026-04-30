@@ -83,15 +83,12 @@ public class WatchHistoryView {
   }
 
   private VBox createCard(WatchHistoryEntry entry, Movie movie) {
-    var card = new VBox();
-    card.getStyleClass().add("card");
-    card.setPrefWidth(180);
-
-    var thumb = new StackPane();
-    thumb.setPrefHeight(100);
-    thumb.getStyleClass().add("card-thumb");
-
-    PlaybackState.loadThumbnail(thumb, movie != null ? movie.thumbnailPath() : "", 180, 100);
+    double durationMin = movie != null ? movie.durationMinutes() : 0;
+    long resumeSec = entry.completed() ? (long) (durationMin * 60) : entry.resumeTimestamp();
+    var card =
+        MovieCard.createBase(
+            movie != null ? movie.thumbnailPath() : "", 180, 100, resumeSec, durationMin);
+    var thumb = MovieCard.thumb(card);
 
     // Status badge
     var badge = new Label(entry.completed() ? "Completed" : "In Progress");
@@ -105,11 +102,11 @@ public class WatchHistoryView {
     thumb.getChildren().add(badge);
 
     // Timestamp overlay for in-progress
-    if (!entry.completed() && movie != null && movie.durationMinutes() > 0) {
+    if (!entry.completed() && durationMin > 0) {
       var timeText =
           PlaybackState.formatTime(entry.resumeTimestamp())
               + " / "
-              + PlaybackState.formatTime((long) (movie.durationMinutes() * 60));
+              + PlaybackState.formatTime((long) (durationMin * 60));
       var timeLabel = new Label(timeText);
       timeLabel.setStyle(
           "-fx-background-color: rgba(0,0,0,0.7); -fx-text-fill: #ccc; -fx-padding: 2 6; -fx-background-radius: 3; -fx-font-size: 10;");
@@ -117,21 +114,6 @@ public class WatchHistoryView {
       StackPane.setMargin(timeLabel, new Insets(0, 6, 6, 0));
       thumb.getChildren().add(timeLabel);
     }
-
-    // Progress bar
-    var progressBar = new Region();
-    progressBar.setMaxHeight(3);
-    progressBar.setMinHeight(3);
-    progressBar.setStyle("-fx-background-color: #e94560;");
-    double pct = 0;
-    if (movie != null && movie.durationMinutes() > 0) {
-      pct = Math.min(entry.resumeTimestamp() / (movie.durationMinutes() * 60.0), 1.0);
-    }
-    if (entry.completed()) pct = 1.0;
-    double finalPct = pct;
-    progressBar.maxWidthProperty().bind(thumb.widthProperty().multiply(finalPct));
-    StackPane.setAlignment(progressBar, Pos.BOTTOM_LEFT);
-    thumb.getChildren().add(progressBar);
 
     // Card body
     var title = new Label(entry.title());
@@ -145,23 +127,18 @@ public class WatchHistoryView {
 
     var body = new VBox(2, title, meta);
     body.setPadding(new Insets(8));
-
-    card.getChildren().addAll(thumb, body);
+    card.getChildren().add(body);
 
     // Action button based on watch state
     if (movie != null) {
       var action = PlaybackState.resolve(movie, watchHistoryService);
       if (action != PlaybackState.Action.PLAY) {
-        var actionBtn = PlaybackState.createButton(action);
-        actionBtn.setMaxWidth(Double.MAX_VALUE);
-        actionBtn.setOnAction(
-            e -> {
+        MovieCard.addActionButton(
+            card,
+            action,
+            () -> {
               if (onResumeMovie != null) onResumeMovie.accept(movie);
             });
-        var btnBox = new HBox(actionBtn);
-        btnBox.setPadding(new Insets(0, 8, 8, 8));
-        HBox.setHgrow(actionBtn, Priority.ALWAYS);
-        card.getChildren().add(btnBox);
       }
     }
 

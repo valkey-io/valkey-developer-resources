@@ -71,7 +71,13 @@ public class PlaybackState {
   /** Adds a 2px progress bar using a pre-fetched resume point. */
   public static void addProgressBar(StackPane thumb, Movie movie, long resumeSec) {
     if (movie == null || movie.durationMinutes() <= 0 || resumeSec <= 0) return;
-    var pct = Math.min(resumeSec / (movie.durationMinutes() * 60.0), 1.0);
+    addProgressBar(thumb, movie.durationMinutes(), resumeSec);
+  }
+
+  /** Adds a 2px progress bar given duration in minutes and resume position in seconds. */
+  public static void addProgressBar(StackPane thumb, double durationMinutes, long resumeSec) {
+    if (durationMinutes <= 0 || resumeSec <= 0) return;
+    var pct = Math.min(resumeSec / (durationMinutes * 60.0), 1.0);
     var bar = new Region();
     bar.setMaxHeight(2);
     bar.setMinHeight(2);

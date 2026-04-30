@@ -27,7 +27,6 @@ public class PlayerView {
   private static final Logger LOG = Logger.getLogger(PlayerView.class.getName());
 
   private final StackPane rootStack = new StackPane();
-  private final VBox root = new VBox(8);
   private final NotificationBanner banner = new NotificationBanner(NotificationBanner.Style.BUBBLE);
   private final WatchHistoryService watchHistoryService;
   private final CatalogService catalogService;
@@ -57,6 +56,7 @@ public class PlayerView {
   public PlayerView(WatchHistoryService watchHistoryService, CatalogService catalogService) {
     this.watchHistoryService = watchHistoryService;
     this.catalogService = catalogService;
+    var root = new VBox(8);
     root.setPadding(new Insets(20));
 
     backBtn.getStyleClass().add("btn-outline");
@@ -320,15 +320,11 @@ public class PlayerView {
           var actualMinutes = total / 60.0;
           if (Math.abs(movie.durationMinutes() - actualMinutes) > 0.01) {
             var mid = movie.id();
-            var am = actualMinutes;
-            java.util.concurrent.CompletableFuture.runAsync(
+            asyncSafe(
+                "Failed to update duration",
                 () -> {
-                  try {
-                    catalogService.updateDuration(mid, am);
-                    LOG.info("[player] Updated duration to " + am + " min");
-                  } catch (Exception ex) {
-                    LOG.warning("[player] Failed to update duration: " + ex.getMessage());
-                  }
+                  catalogService.updateDuration(mid, actualMinutes);
+                  LOG.info("[player] Updated duration to " + actualMinutes + " min");
                 });
           }
 
@@ -356,14 +352,9 @@ public class PlayerView {
           // Start watching entry if new
           var mid2 = movie.id();
           var mtitle = movie.title();
-          java.util.concurrent.CompletableFuture.runAsync(
-              () -> {
-                try {
-                  watchHistoryService.startWatching(mid2, mtitle);
-                } catch (Exception ex) {
-                  LOG.warning("[player] Failed to create watch entry: " + ex.getMessage());
-                }
-              });
+          asyncSafe(
+              "Failed to create watch entry",
+              () -> watchHistoryService.startWatching(mid2, mtitle));
 
           player.play();
           updatePlayBtnIcon("pause");
@@ -389,14 +380,11 @@ public class PlayerView {
           persistResumePoint();
           var mid3 = movie.id();
           var mt3 = movie.title();
-          java.util.concurrent.CompletableFuture.runAsync(
+          asyncSafe(
+              "Failed to mark completed",
               () -> {
-                try {
-                  watchHistoryService.markCompleted(mid3);
-                  LOG.info("[player] Marked completed: " + mt3);
-                } catch (Exception ex) {
-                  LOG.warning("[player] Failed to mark completed: " + ex.getMessage());
-                }
+                watchHistoryService.markCompleted(mid3);
+                LOG.info("[player] Marked completed: " + mt3);
               });
         });
 
@@ -416,14 +404,8 @@ public class PlayerView {
       updatePlayBtnIcon("pause");
       startAutoSave();
       var rid = currentMovie.id();
-      java.util.concurrent.CompletableFuture.runAsync(
-          () -> {
-            try {
-              watchHistoryService.updateResumePoint(rid, 0);
-            } catch (Exception ex) {
-              LOG.warning("[player] Failed to reset resume point: " + ex.getMessage());
-            }
-          });
+      asyncSafe(
+          "Failed to reset resume point", () -> watchHistoryService.updateResumePoint(rid, 0));
     } else if (player.getStatus() == MediaPlayer.Status.PLAYING) {
       player.pause();
       updatePlayBtnIcon("play");
@@ -456,14 +438,11 @@ public class PlayerView {
     if (currentMovie == null) return;
     var id = currentMovie.id();
     var title = currentMovie.title();
-    java.util.concurrent.CompletableFuture.runAsync(
+    asyncSafe(
+        "Failed to save rating",
         () -> {
-          try {
-            catalogService.updateRating(id, rating);
-            LOG.info("[player] Rating set to " + rating + " for " + title);
-          } catch (Exception ex) {
-            LOG.warning("[player] Failed to save rating: " + ex.getMessage());
-          }
+          catalogService.updateRating(id, rating);
+          LOG.info("[player] Rating set to " + rating + " for " + title);
         });
   }
 
@@ -475,14 +454,11 @@ public class PlayerView {
   private void persistResumePoint(long seconds) {
     if (currentMovie == null) return;
     var id = currentMovie.id();
-    java.util.concurrent.CompletableFuture.runAsync(
+    asyncSafe(
+        "Failed to save resume point",
         () -> {
-          try {
-            watchHistoryService.updateResumePoint(id, seconds);
-            LOG.fine("[player] Resume point saved: " + PlaybackState.formatTime(seconds));
-          } catch (Exception ex) {
-            LOG.warning("[player] Failed to save resume point: " + ex.getMessage());
-          }
+          watchHistoryService.updateResumePoint(id, seconds);
+          LOG.fine("[player] Resume point saved: " + PlaybackState.formatTime(seconds));
         });
   }
 
@@ -534,5 +510,21 @@ public class PlayerView {
 
   public StackPane getRoot() {
     return rootStack;
+  }
+
+  private static void asyncSafe(String label, ThrowingRunnable task) {
+    java.util.concurrent.CompletableFuture.runAsync(
+        () -> {
+          try {
+            task.run();
+          } catch (Exception ex) {
+            LOG.warning("[player] " + label + ": " + ex.getMessage());
+          }
+        });
+  }
+
+  @FunctionalInterface
+  private interface ThrowingRunnable {
+    void run() throws Exception;
   }
 }

@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.logging.Logger;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
-import javafx.scene.layout.*;
+import javafx.scene.layout.VBox;
 
 /** FT.AGGREGATE analytics reports — top titles by viewers and catalog summary by genre. */
 public class ReportsView {
@@ -23,126 +23,89 @@ public class ReportsView {
     this.aggregationService = aggregationService;
     root.setPadding(new Insets(20));
 
-    // Top Titles section
-    var topHeader = new HBox(8);
-    var topLabel = new Label("Top Titles by Viewers");
-    topLabel.setStyle("-fx-text-fill: #ccc; -fx-font-size: 14; -fx-font-weight: bold;");
-    var topBtn = new Button(" Generate");
-    topBtn.getStyleClass().add("btn-primary");
-    topBtn.setStyle("-fx-font-size: 11;");
-    topBtn.setOnAction(e -> loadTopTitles());
-    var topSpacer = new Region();
-    HBox.setHgrow(topSpacer, Priority.ALWAYS);
-    topHeader.getChildren().addAll(topLabel, topSpacer, topBtn);
-
     var separator = new Separator();
     separator.setStyle("-fx-background-color: #333;");
 
-    // Genre Summary section
-    var genreHeader = new HBox(8);
-    var genreLabel = new Label("Catalog Summary by Genre");
-    genreLabel.setStyle("-fx-text-fill: #ccc; -fx-font-size: 14; -fx-font-weight: bold;");
-    var genreBtn = new Button(" Generate");
-    genreBtn.getStyleClass().add("btn-primary");
-    genreBtn.setStyle("-fx-font-size: 11;");
-    genreBtn.setOnAction(e -> loadGenreSummary());
-    var genreSpacer = new Region();
-    HBox.setHgrow(genreSpacer, Priority.ALWAYS);
-    genreHeader.getChildren().addAll(genreLabel, genreSpacer, genreBtn);
-
-    root.getChildren().addAll(topHeader, topTitlesBox, separator, genreHeader, genreSummaryBox);
+    root.getChildren()
+        .addAll(
+            UiFactory.sectionHeader("Top Titles by Viewers", this::loadTopTitles),
+            topTitlesBox,
+            separator,
+            UiFactory.sectionHeader("Catalog Summary by Genre", this::loadGenreSummary),
+            genreSummaryBox);
   }
 
-  private void loadTopTitles() {
-    topTitlesBox.getChildren().clear();
+  private interface ReportSupplier {
+    List<AggregationResult> get() throws Exception;
+  }
+
+  private void loadReport(
+      VBox container,
+      String emptyMsg,
+      String[] columns,
+      ReportSupplier supplier,
+      java.util.function.Function<AggregationResult, String[]> rowMapper) {
+    container.getChildren().clear();
     var spinner = new ProgressIndicator();
     spinner.setPrefSize(30, 30);
-    topTitlesBox.getChildren().add(spinner);
+    container.getChildren().add(spinner);
 
     new BackgroundTask() {
       private List<AggregationResult> results;
 
       @Override
       protected void execute() throws Exception {
-        results = aggregationService.topTitlesByViewers(20);
+        results = supplier.get();
       }
 
       @Override
       protected void onSuccess() {
-        topTitlesBox.getChildren().clear();
+        container.getChildren().clear();
         if (results.isEmpty()) {
-          topTitlesBox.getChildren().add(new Label("No watch data yet."));
+          container.getChildren().add(new Label(emptyMsg));
           return;
         }
-        var table = createTable(new String[] {"Title", "Viewers"});
-        for (var r : results) {
-          table
-              .getItems()
-              .add(
-                  new String[] {
-                    r.label(), r.metrics().getOrDefault("viewerCount", "0").toString()
-                  });
-        }
-        topTitlesBox.getChildren().add(table);
+        var table = createTable(columns);
+        for (var r : results) table.getItems().add(rowMapper.apply(r));
+        container.getChildren().add(table);
       }
 
       @Override
       protected void onFailure(Exception ex) {
-        LOG.warning("[reports] Top titles failed: " + ex.getMessage());
-        topTitlesBox.getChildren().clear();
-        topTitlesBox.getChildren().add(new Label("Failed to generate report."));
+        LOG.warning("[reports] Failed: " + ex.getMessage());
+        container.getChildren().clear();
+        container.getChildren().add(new Label("Failed to generate report."));
       }
     }.start();
   }
 
+  private void loadTopTitles() {
+    loadReport(
+        topTitlesBox,
+        "No watch data yet.",
+        new String[] {"Title", "Viewers"},
+        () -> aggregationService.topTitlesByViewers(20),
+        r -> new String[] {r.label(), r.metrics().getOrDefault("viewerCount", "0").toString()});
+  }
+
   private void loadGenreSummary() {
-    genreSummaryBox.getChildren().clear();
-    var spinner = new ProgressIndicator();
-    spinner.setPrefSize(30, 30);
-    genreSummaryBox.getChildren().add(spinner);
-
-    new BackgroundTask() {
-      private List<AggregationResult> results;
-
-      @Override
-      protected void execute() throws Exception {
-        results = aggregationService.catalogSummaryByGenre();
-      }
-
-      @Override
-      protected void onSuccess() {
-        genreSummaryBox.getChildren().clear();
-        if (results.isEmpty()) {
-          genreSummaryBox.getChildren().add(new Label("No catalog data yet."));
-          return;
-        }
-        var table = createTable(new String[] {"Genre", "Titles", "Avg Rating"});
-        for (var r : results) {
+    loadReport(
+        genreSummaryBox,
+        "No catalog data yet.",
+        new String[] {"Genre", "Titles", "Avg Rating"},
+        aggregationService::catalogSummaryByGenre,
+        r -> {
           var avgRating = r.metrics().getOrDefault("avgRating", "0").toString();
           try {
             avgRating = String.format("%.1f", Double.parseDouble(avgRating));
           } catch (Exception ignored) {
           }
-          table
-              .getItems()
-              .add(
-                  new String[] {
-                    r.label(), r.metrics().getOrDefault("titleCount", "0").toString(), avgRating
-                  });
-        }
-        genreSummaryBox.getChildren().add(table);
-      }
-
-      @Override
-      protected void onFailure(Exception ex) {
-        LOG.warning("[reports] Genre summary failed: " + ex.getMessage());
-        genreSummaryBox.getChildren().clear();
-        genreSummaryBox.getChildren().add(new Label("Failed to generate report."));
-      }
-    }.start();
+          return new String[] {
+            r.label(), r.metrics().getOrDefault("titleCount", "0").toString(), avgRating
+          };
+        });
   }
 
-  @SuppressWarnings("unchecked")
   private TableView<String[]> createTable(String[] columns) {
     var table = new TableView<String[]>();
     table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);

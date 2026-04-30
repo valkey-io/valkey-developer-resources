@@ -43,6 +43,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 class AggregateIntegrationTest {
 
   @Container
+  @SuppressWarnings("resource") // Lifecycle managed by Testcontainers @Container
   static GenericContainer<?> valkey =
       new GenericContainer<>("valkey/valkey-bundle:unstable")
           .withExposedPorts(6379)
@@ -315,14 +316,13 @@ class AggregateIntegrationTest {
   void benchmarkSearchLatency() throws Exception {
     var result =
         BenchmarkService.benchmark(
-            () -> {
-              FT.search(
-                      client,
-                      "idx:agg_catalog",
-                      "@genre:{Sci\\-Fi}",
-                      glide.api.models.commands.FT.FTSearchOptions.builder().build())
-                  .get();
-            },
+            () ->
+                FT.search(
+                        client,
+                        "idx:agg_catalog",
+                        "@genre:{Sci\\-Fi}",
+                        glide.api.models.commands.FT.FTSearchOptions.builder().build())
+                    .get(),
             100);
 
     assertTrue(result.medianMs() >= 0);
@@ -342,19 +342,18 @@ class AggregateIntegrationTest {
   void benchmarkAggregateLatency() throws Exception {
     var result =
         BenchmarkService.benchmark(
-            () -> {
-              FT.aggregate(
-                      client,
-                      "idx:agg_catalog",
-                      "@releaseYear:[0 9999]",
-                      FTAggregateOptions.builder()
-                          .addClause(
-                              new GroupBy(
-                                  new String[] {"@genre"},
-                                  new Reducer[] {new Reducer("COUNT", new String[] {}, "cnt")}))
-                          .build())
-                  .get();
-            },
+            () ->
+                FT.aggregate(
+                        client,
+                        "idx:agg_catalog",
+                        "@releaseYear:[0 9999]",
+                        FTAggregateOptions.builder()
+                            .addClause(
+                                new GroupBy(
+                                    new String[] {"@genre"},
+                                    new Reducer[] {new Reducer("COUNT", new String[] {}, "cnt")}))
+                            .build())
+                    .get(),
             100);
 
     assertTrue(result.medianMs() >= 0);
@@ -509,8 +508,7 @@ class AggregateIntegrationTest {
   @Test
   @Order(8)
   void serviceTopTitlesByViewers() throws Exception {
-    var catalogService = new CatalogService(client);
-    var aggService = new AggregationService(client, catalogService);
+    var aggService = new AggregationService(client);
     var results = aggService.topTitlesByViewers(10);
 
     assertFalse(results.isEmpty(), "Should return at least 1 result");
@@ -522,8 +520,7 @@ class AggregateIntegrationTest {
   @Test
   @Order(9)
   void serviceCatalogSummaryByGenre() throws Exception {
-    var catalogService = new CatalogService(client);
-    var aggService = new AggregationService(client, catalogService);
+    var aggService = new AggregationService(client);
     var results = aggService.catalogSummaryByGenre();
 
     assertFalse(results.isEmpty(), "Should return at least 1 genre group");

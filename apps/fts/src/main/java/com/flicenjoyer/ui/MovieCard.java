@@ -16,19 +16,34 @@ public final class MovieCard {
   private static final double THUMB_HEIGHT = 100;
 
   /**
+   * Creates a card skeleton with thumbnail and progress bar. Callers add their own body/overlays.
+   */
+  public static VBox createBase(
+      String thumbnailPath, double width, double height, long resumeSec, double durationMinutes) {
+    var card = new VBox();
+    card.getStyleClass().add("card");
+    card.setPrefWidth(width);
+
+    var thumb = new StackPane();
+    thumb.setPrefHeight(height);
+    thumb.getStyleClass().add("card-thumb");
+    PlaybackState.loadThumbnail(thumb, thumbnailPath, width, height);
+    if (durationMinutes > 0 && resumeSec > 0) {
+      PlaybackState.addProgressBar(thumb, durationMinutes, resumeSec);
+    }
+
+    card.getChildren().add(thumb);
+    return card;
+  }
+
+  /**
    * Creates a card with thumbnail, title, genre/year meta, and rating. Callers can add overlays to
    * the returned thumb pane or append children to the card VBox.
    */
   public static VBox create(Movie movie, long resumeSec) {
-    var card = new VBox();
-    card.getStyleClass().add("card");
-    card.setPrefWidth(CARD_WIDTH);
-
-    var thumb = new StackPane();
-    thumb.setPrefHeight(THUMB_HEIGHT);
-    thumb.getStyleClass().add("card-thumb");
-    PlaybackState.loadThumbnail(thumb, movie.thumbnailPath(), CARD_WIDTH, THUMB_HEIGHT);
-    PlaybackState.addProgressBar(thumb, movie, resumeSec);
+    var card =
+        createBase(
+            movie.thumbnailPath(), CARD_WIDTH, THUMB_HEIGHT, resumeSec, movie.durationMinutes());
 
     var title = new Label(movie.title());
     title.getStyleClass().add("card-title");
@@ -39,7 +54,7 @@ public final class MovieCard {
 
     var body = new VBox(2, title, meta, rating);
     body.setPadding(new Insets(8));
-    card.getChildren().addAll(thumb, body);
+    card.getChildren().add(body);
     return card;
   }
 

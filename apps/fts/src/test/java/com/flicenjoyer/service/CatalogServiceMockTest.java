@@ -17,6 +17,7 @@ import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -97,6 +98,125 @@ class CatalogServiceMockTest {
 
     service.updateThumbnail("abc", "/new/thumb.jpg");
     verify(client).hset(any(GlideString.class), any());
+  }
+
+  private Object[] emptySearchResult() {
+    return new Object[] {0L};
+  }
+
+  private Object[] singleMovieResult(String title) {
+    Map<GlideString, GlideString> fields = new LinkedHashMap<>();
+    fields.put(gs("title"), gs(title));
+    fields.put(gs("genre"), gs("Action"));
+    fields.put(gs("description"), gs(""));
+    fields.put(gs("tags"), gs(""));
+    fields.put(gs("releaseYear"), gs("2020"));
+    fields.put(gs("rating"), gs("7"));
+    fields.put(gs("durationMinutes"), gs("90"));
+    fields.put(gs("videoPath"), gs(""));
+    fields.put(gs("thumbnailPath"), gs(""));
+    Map<GlideString, Map<GlideString, GlideString>> docs = new LinkedHashMap<>();
+    docs.put(gs("catalog:1"), fields);
+    return new Object[] {1L, docs};
+  }
+
+  @Test
+  void searchPrefixBuildsCorrectQuery() throws Exception {
+    var queryCaptor = ArgumentCaptor.forClass(String.class);
+
+    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
+      ft.when(
+              () ->
+                  FT.search(
+                      any(BaseClient.class),
+                      any(String.class),
+                      any(String.class),
+                      any(FTSearchOptions.class)))
+          .thenReturn(CompletableFuture.completedFuture(singleMovieResult("Alien")));
+
+      service.searchPrefix("ali", 10);
+
+      ft.verify(
+          () ->
+              FT.search(
+                  any(BaseClient.class),
+                  eq("idx:catalog"),
+                  queryCaptor.capture(),
+                  any(FTSearchOptions.class)));
+      var query = queryCaptor.getValue();
+      assertTrue(query.contains("ali*"), "Should have prefix wildcard: " + query);
+      assertTrue(query.contains("@title:"), "Should search title field: " + query);
+    }
+  }
+
+  @Test
+  void searchFuzzyBuildsCorrectQuery() throws Exception {
+    var queryCaptor = ArgumentCaptor.forClass(String.class);
+
+    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
+      ft.when(
+              () ->
+                  FT.search(
+                      any(BaseClient.class),
+                      any(String.class),
+                      any(String.class),
+                      any(FTSearchOptions.class)))
+          .thenReturn(CompletableFuture.completedFuture(singleMovieResult("Alien")));
+
+      service.searchFuzzy("alien", 10);
+
+      ft.verify(
+          () ->
+              FT.search(
+                  any(BaseClient.class),
+                  eq("idx:catalog"),
+                  queryCaptor.capture(),
+                  any(FTSearchOptions.class)));
+      var query = queryCaptor.getValue();
+      assertTrue(query.contains("%%alien%%"), "Should have fuzzy markers: " + query);
+    }
+  }
+
+  @Test
+  void browseByGenreBuildsTagQuery() throws Exception {
+    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
+      ft.when(
+              () ->
+                  FT.search(
+                      any(BaseClient.class),
+                      any(String.class),
+                      any(String.class),
+                      any(FTSearchOptions.class)))
+          .thenReturn(CompletableFuture.completedFuture(emptySearchResult()));
+
+      service.browseByGenre("Sci-Fi", "title", FTSearchOptions.SortOrder.ASC, 20);
+
+      ft.verify(
+          () ->
+              FT.search(
+                  any(BaseClient.class),
+                  eq("idx:catalog"),
+                  eq("@genre:{Sci\\-Fi}"),
+                  any(FTSearchOptions.class)));
+    }
+  }
+
+  @Test
+  void searchPrefixReturnsMovies() throws Exception {
+    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
+      ft.when(
+              () ->
+                  FT.search(
+                      any(BaseClient.class),
+                      any(String.class),
+                      any(String.class),
+                      any(FTSearchOptions.class)))
+          .thenReturn(CompletableFuture.completedFuture(singleMovieResult("Inception")));
+
+      var movies = service.searchPrefix("incep", 10);
+      assertEquals(1, movies.size());
+      assertEquals("Inception", movies.getFirst().title());
+    }
   }
 
   @Test

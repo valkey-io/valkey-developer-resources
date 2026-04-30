@@ -3,9 +3,11 @@ package com.flicenjoyer.service;
 import static glide.api.models.GlideString.gs;
 
 import com.flicenjoyer.model.AggregationResult;
+import com.flicenjoyer.valkey.HashParser;
 import com.flicenjoyer.valkey.ValkeyKeys;
 import glide.api.GlideClient;
 import glide.api.commands.servermodules.FT;
+import glide.api.models.Batch;
 import glide.api.models.GlideString;
 import glide.api.models.commands.FT.FTAggregateOptions;
 import glide.api.models.commands.FT.FTAggregateOptions.GroupBy;
@@ -29,16 +31,14 @@ public class AggregationService {
   private static final String ALL_YEARS = "@releaseYear:[0 9999]";
 
   private final GlideClient client;
-  private final CatalogService catalogService;
 
-  public AggregationService(GlideClient client, CatalogService catalogService) {
+  public AggregationService(GlideClient client) {
     this.client = client;
-    this.catalogService = catalogService;
   }
 
   /**
    * Top videos by viewer count. Groups watch entries by catalogId (TAG field), counts viewers, then
-   * resolves titles via CatalogService.
+   * resolves titles via batch HGETALL.
    */
   public List<AggregationResult> topTitlesByViewers(int limit)
       throws ExecutionException, InterruptedException {
@@ -60,23 +60,37 @@ public class AggregationService {
                     .build())
             .get();
 
-    // Resolve catalogId → title
+    // Batch-fetch all catalog entries in one round-trip
+    var catalogIds =
+        Arrays.stream(raw)
+            .map(row -> row.getOrDefault(gs("catalogId"), gs("")).toString())
+            .filter(id -> !id.isEmpty())
+            .toList();
+
+    Map<String, String> titleMap = new HashMap<>();
+    if (!catalogIds.isEmpty()) {
+      try {
+        Batch batch = new Batch(false);
+        for (var id : catalogIds) batch.hgetall(gs(ValkeyKeys.catalogKey(id)));
+        Object[] results = client.exec(batch, false).get();
+        for (int i = 0; i < catalogIds.size(); i++) {
+          @SuppressWarnings("unchecked")
+          var fields = (Map<GlideString, GlideString>) results[i];
+          if (fields != null && !fields.isEmpty()) {
+            titleMap.put(catalogIds.get(i), HashParser.str(fields, "title"));
+          }
+        }
+      } catch (ExecutionException | InterruptedException ex) {
+        LOG.warning("[aggregate] Failed to batch-fetch titles: " + ex.getMessage());
+      }
+    }
+
     return Arrays.stream(raw)
         .map(
             row -> {
               var catalogId = row.getOrDefault(gs("catalogId"), gs("")).toString();
               var viewerCount = row.getOrDefault(gs("viewerCount"), gs("0")).toString();
-              String title = catalogId;
-              try {
-                var movie = catalogService.getById(catalogId);
-                if (movie != null) title = movie.title();
-              } catch (Exception ex) {
-                LOG.warning(
-                    "[aggregate] Failed to resolve title for "
-                        + catalogId
-                        + ": "
-                        + ex.getMessage());
-              }
+              var title = titleMap.getOrDefault(catalogId, catalogId);
               return new AggregationResult(
                   title, Map.of("viewerCount", viewerCount, "catalogId", catalogId));
             })
@@ -103,6 +117,7 @@ public class AggregationService {
                     .addClause(
                         new SortBy(
                             new SortProperty[] {new SortProperty("@titleCount", SortOrder.DESC)}))
+                    .addClause(new Limit(0, 100))
                     .build())
             .get();
 
