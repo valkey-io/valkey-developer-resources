@@ -118,34 +118,40 @@ public class CatalogService {
   }
 
   /**
-   * Fallback browse using KEYS + HGETALL — works without ValkeySearch. Filters and sorts
-   * client-side. Will be replaced by FT.SEARCH once ValkeySearch 1.2 is available.
+   * Browse catalog using FT.SEARCH on idx:catalog. Filters by genre server-side when possible,
+   * sorts client-side for "Other" genre (requires checking all genres).
    */
   public List<Movie> browseAll(String genreFilter, String sortField, boolean descending)
       throws ExecutionException, InterruptedException {
-    var keys = client.keys(gs(ValkeyKeys.CATALOG_PREFIX + "*")).get();
-    var movies = new ArrayList<Movie>();
-    for (var key : keys) {
-      var fields = client.hgetall(key).get();
-      if (fields.isEmpty()) continue;
-      var movie = HashParser.toMovie(key.toString(), fields);
-      if (genreFilter != null && !genreFilter.isEmpty() && !genreFilter.equals("All")) {
-        if (genreFilter.equals("Other")) {
-          if (Genre.isKnown(movie.genre())) continue;
-        } else if (!movie.genre().equalsIgnoreCase(genreFilter)) {
-          continue;
-        }
-      }
-      movies.add(movie);
+    boolean isOther = genreFilter != null && genreFilter.equals("Other");
+    boolean hasGenre =
+        genreFilter != null && !genreFilter.isEmpty() && !genreFilter.equals("All") && !isOther;
+
+    var query = hasGenre ? "@genre:{" + escapeTag(genreFilter) + "}" : "@releaseYear:[0 inf]";
+    var sortOrder = descending ? SortOrder.DESC : SortOrder.ASC;
+    String resolvedSort = sortField != null ? sortField : "title";
+
+    var opts = FTSearchOptions.builder().limit(0, 1000);
+    if (!isOther) {
+      opts.sortBy(resolvedSort, sortOrder);
     }
-    Comparator<Movie> cmp =
-        switch (sortField != null ? sortField : "title") {
-          case "rating" -> Comparator.comparingDouble(Movie::rating);
-          case "releaseYear" -> Comparator.comparingInt(Movie::releaseYear);
-          default -> Comparator.comparing(Movie::title, String.CASE_INSENSITIVE_ORDER);
-        };
-    if (descending) cmp = cmp.reversed();
-    movies.sort(cmp);
+    var result = FT.search(client, ValkeyKeys.CATALOG_INDEX, query, opts.build()).get();
+    var movies = new ArrayList<>(parseSearchResults(result));
+
+    if (isOther) {
+      movies.removeIf(m -> Genre.isKnown(m.genre()));
+    }
+
+    if (isOther) {
+      Comparator<Movie> cmp =
+          switch (resolvedSort) {
+            case "rating" -> Comparator.comparingDouble(Movie::rating);
+            case "releaseYear" -> Comparator.comparingInt(Movie::releaseYear);
+            default -> Comparator.comparing(Movie::title, String.CASE_INSENSITIVE_ORDER);
+          };
+      if (descending) cmp = cmp.reversed();
+      movies.sort(cmp);
+    }
     return movies;
   }
 

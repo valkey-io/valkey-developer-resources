@@ -6,14 +6,19 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.flicenjoyer.valkey.UserProfileManager;
+import glide.api.BaseClient;
 import glide.api.GlideClient;
+import glide.api.commands.servermodules.FT;
 import glide.api.models.GlideString;
+import glide.api.models.commands.FT.FTSearchOptions;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -75,34 +80,55 @@ class WatchHistoryServiceMockTest {
 
   @Test
   void getUserHistoryReturnsEntries() throws Exception {
-    when(client.keys(any(GlideString.class)))
-        .thenReturn(CompletableFuture.completedFuture(new GlideString[] {gs("watch:user1:vid1")}));
+    Map<GlideString, GlideString> fields = new LinkedHashMap<>();
+    fields.put(gs("userId"), gs("user1"));
+    fields.put(gs("catalogId"), gs("vid1"));
+    fields.put(gs("title"), gs("Test"));
+    fields.put(gs("resumeTimestamp"), gs("100"));
+    fields.put(gs("completed"), gs("false"));
+    fields.put(gs("lastWatched"), gs("9999"));
 
-    Map<GlideString, GlideString> fields =
-        Map.of(
-            gs("userId"), gs("user1"),
-            gs("catalogId"), gs("vid1"),
-            gs("title"), gs("Test"),
-            gs("resumeTimestamp"), gs("100"),
-            gs("completed"), gs("false"),
-            gs("lastWatched"), gs("9999"));
-    when(client.hgetall(any(GlideString.class)))
-        .thenReturn(CompletableFuture.completedFuture(fields));
+    Map<GlideString, Map<GlideString, GlideString>> docs = new LinkedHashMap<>();
+    docs.put(gs("watch:user1:vid1"), fields);
+    Object[] searchResult = new Object[] {1L, docs};
 
-    var entries = service.getUserHistory();
-    assertEquals(1, entries.size());
-    assertEquals("vid1", entries.getFirst().catalogId());
+    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
+      ft.when(
+              () ->
+                  FT.search(
+                      any(BaseClient.class),
+                      any(String.class),
+                      any(String.class),
+                      any(FTSearchOptions.class)))
+          .thenReturn(CompletableFuture.completedFuture(searchResult));
+
+      var entries = service.getUserHistory();
+      assertEquals(1, entries.size());
+      assertEquals("vid1", entries.getFirst().catalogId());
+    }
   }
 
   @Test
   void deleteWatchHistoryForVideoDeletesKeys() throws Exception {
-    when(client.keys(any(GlideString.class)))
-        .thenReturn(
-            CompletableFuture.completedFuture(
-                new GlideString[] {gs("watch:u1:vid1"), gs("watch:u2:vid1")}));
-    when(client.del(any(GlideString[].class))).thenReturn(CompletableFuture.completedFuture(1L));
+    Map<GlideString, Map<GlideString, GlideString>> docs = new LinkedHashMap<>();
+    docs.put(gs("watch:u1:vid1"), new LinkedHashMap<>());
+    docs.put(gs("watch:u2:vid1"), new LinkedHashMap<>());
+    Object[] searchResult = new Object[] {2L, docs};
 
-    service.deleteWatchHistoryForVideo("vid1");
-    verify(client, times(2)).del(any(GlideString[].class));
+    when(client.del(any(GlideString[].class))).thenReturn(CompletableFuture.completedFuture(2L));
+
+    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
+      ft.when(
+              () ->
+                  FT.search(
+                      any(BaseClient.class),
+                      any(String.class),
+                      any(String.class),
+                      any(FTSearchOptions.class)))
+          .thenReturn(CompletableFuture.completedFuture(searchResult));
+
+      service.deleteWatchHistoryForVideo("vid1");
+      verify(client, times(1)).del(any(GlideString[].class)); // single batched call
+    }
   }
 }

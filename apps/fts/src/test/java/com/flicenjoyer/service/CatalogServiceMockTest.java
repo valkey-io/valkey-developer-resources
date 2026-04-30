@@ -3,10 +3,14 @@ package com.flicenjoyer.service;
 import static glide.api.models.GlideString.gs;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import glide.api.BaseClient;
 import glide.api.GlideClient;
+import glide.api.commands.servermodules.FT;
 import glide.api.models.GlideString;
+import glide.api.models.commands.FT.FTSearchOptions;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -14,6 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -96,9 +101,6 @@ class CatalogServiceMockTest {
 
   @Test
   void browseAllReturnsMovies() throws Exception {
-    when(client.keys(any(GlideString.class)))
-        .thenReturn(CompletableFuture.completedFuture(new GlideString[] {gs("catalog:1")}));
-
     Map<GlideString, GlideString> fields = new LinkedHashMap<>();
     fields.put(gs("title"), gs("Movie A"));
     fields.put(gs("genre"), gs("Action"));
@@ -110,21 +112,106 @@ class CatalogServiceMockTest {
     fields.put(gs("videoPath"), gs(""));
     fields.put(gs("thumbnailPath"), gs(""));
 
-    when(client.hgetall(any(GlideString.class)))
-        .thenReturn(CompletableFuture.completedFuture(fields));
+    Map<GlideString, Map<GlideString, GlideString>> docs = new LinkedHashMap<>();
+    docs.put(gs("catalog:1"), fields);
+    Object[] searchResult = new Object[] {1L, docs};
 
-    var movies = service.browseAll(null, "title", false);
-    assertEquals(1, movies.size());
-    assertEquals("Movie A", movies.getFirst().title());
+    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
+      ft.when(
+              () ->
+                  FT.search(
+                      any(BaseClient.class),
+                      any(String.class),
+                      any(String.class),
+                      any(FTSearchOptions.class)))
+          .thenReturn(CompletableFuture.completedFuture(searchResult));
+
+      var movies = service.browseAll(null, "title", false);
+      assertEquals(1, movies.size());
+      assertEquals("Movie A", movies.getFirst().title());
+    }
+  }
+
+  @Test
+  void browseAllNullFilterUsesRangeQuery() throws Exception {
+    Object[] searchResult = new Object[] {0L};
+
+    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
+      ft.when(
+              () ->
+                  FT.search(
+                      any(BaseClient.class),
+                      any(String.class),
+                      any(String.class),
+                      any(FTSearchOptions.class)))
+          .thenReturn(CompletableFuture.completedFuture(searchResult));
+
+      service.browseAll(null, "title", false);
+
+      ft.verify(
+          () ->
+              FT.search(
+                  any(BaseClient.class),
+                  eq("idx:catalog"),
+                  eq("@releaseYear:[0 inf]"),
+                  any(FTSearchOptions.class)));
+    }
+  }
+
+  @Test
+  void browseAllAllFilterUsesRangeQuery() throws Exception {
+    Object[] searchResult = new Object[] {0L};
+
+    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
+      ft.when(
+              () ->
+                  FT.search(
+                      any(BaseClient.class),
+                      any(String.class),
+                      any(String.class),
+                      any(FTSearchOptions.class)))
+          .thenReturn(CompletableFuture.completedFuture(searchResult));
+
+      service.browseAll("All", "title", false);
+
+      ft.verify(
+          () ->
+              FT.search(
+                  any(BaseClient.class),
+                  eq("idx:catalog"),
+                  eq("@releaseYear:[0 inf]"),
+                  any(FTSearchOptions.class)));
+    }
+  }
+
+  @Test
+  void browseAllGenreFilterUsesTagQuery() throws Exception {
+    Object[] searchResult = new Object[] {0L};
+
+    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
+      ft.when(
+              () ->
+                  FT.search(
+                      any(BaseClient.class),
+                      any(String.class),
+                      any(String.class),
+                      any(FTSearchOptions.class)))
+          .thenReturn(CompletableFuture.completedFuture(searchResult));
+
+      service.browseAll("Action", "title", false);
+
+      ft.verify(
+          () ->
+              FT.search(
+                  any(BaseClient.class),
+                  eq("idx:catalog"),
+                  eq("@genre:{Action}"),
+                  any(FTSearchOptions.class)));
+    }
   }
 
   @Test
   void browseAllFiltersGenre() throws Exception {
-    when(client.keys(any(GlideString.class)))
-        .thenReturn(
-            CompletableFuture.completedFuture(
-                new GlideString[] {gs("catalog:1"), gs("catalog:2")}));
-
     Map<GlideString, GlideString> action = new LinkedHashMap<>();
     action.put(gs("title"), gs("Action Movie"));
     action.put(gs("genre"), gs("Action"));
@@ -136,30 +223,54 @@ class CatalogServiceMockTest {
     action.put(gs("videoPath"), gs(""));
     action.put(gs("thumbnailPath"), gs(""));
 
-    Map<GlideString, GlideString> scifi = new LinkedHashMap<>();
-    scifi.put(gs("title"), gs("Sci-Fi Movie"));
-    scifi.put(gs("genre"), gs("Sci-Fi"));
-    scifi.put(gs("description"), gs(""));
-    scifi.put(gs("tags"), gs(""));
-    scifi.put(gs("releaseYear"), gs("2021"));
-    scifi.put(gs("rating"), gs("8"));
-    scifi.put(gs("durationMinutes"), gs("120"));
-    scifi.put(gs("videoPath"), gs(""));
-    scifi.put(gs("thumbnailPath"), gs(""));
+    Map<GlideString, Map<GlideString, GlideString>> docs = new LinkedHashMap<>();
+    docs.put(gs("catalog:1"), action);
+    Object[] searchResult = new Object[] {1L, docs};
 
-    when(client.hgetall(gs("catalog:1"))).thenReturn(CompletableFuture.completedFuture(action));
-    when(client.hgetall(gs("catalog:2"))).thenReturn(CompletableFuture.completedFuture(scifi));
+    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
+      ft.when(
+              () ->
+                  FT.search(
+                      any(BaseClient.class),
+                      any(String.class),
+                      any(String.class),
+                      any(FTSearchOptions.class)))
+          .thenReturn(CompletableFuture.completedFuture(searchResult));
 
-    var movies = service.browseAll("Action", "title", false);
-    assertEquals(1, movies.size());
-    assertEquals("Action Movie", movies.getFirst().title());
+      var movies = service.browseAll("Action", "title", false);
+      assertEquals(1, movies.size());
+      assertEquals("Action Movie", movies.getFirst().title());
+    }
+  }
+
+  @Test
+  void browseAllOtherFilterUsesRangeQuery() throws Exception {
+    Object[] searchResult = new Object[] {0L};
+
+    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
+      ft.when(
+              () ->
+                  FT.search(
+                      any(BaseClient.class),
+                      any(String.class),
+                      any(String.class),
+                      any(FTSearchOptions.class)))
+          .thenReturn(CompletableFuture.completedFuture(searchResult));
+
+      service.browseAll("Other", "title", false);
+
+      ft.verify(
+          () ->
+              FT.search(
+                  any(BaseClient.class),
+                  eq("idx:catalog"),
+                  eq("@releaseYear:[0 inf]"),
+                  any(FTSearchOptions.class)));
+    }
   }
 
   @Test
   void browseAllOtherFilterExcludesKnownGenres() throws Exception {
-    when(client.keys(any(GlideString.class)))
-        .thenReturn(CompletableFuture.completedFuture(new GlideString[] {gs("catalog:1")}));
-
     Map<GlideString, GlideString> fields = new LinkedHashMap<>();
     fields.put(gs("title"), gs("Weird Movie"));
     fields.put(gs("genre"), gs("Action"));
@@ -171,10 +282,22 @@ class CatalogServiceMockTest {
     fields.put(gs("videoPath"), gs(""));
     fields.put(gs("thumbnailPath"), gs(""));
 
-    when(client.hgetall(any(GlideString.class)))
-        .thenReturn(CompletableFuture.completedFuture(fields));
+    Map<GlideString, Map<GlideString, GlideString>> docs = new LinkedHashMap<>();
+    docs.put(gs("catalog:1"), fields);
+    Object[] searchResult = new Object[] {1L, docs};
 
-    var movies = service.browseAll("Other", "title", false);
-    assertEquals(0, movies.size()); // Action is a known genre, excluded by "Other"
+    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
+      ft.when(
+              () ->
+                  FT.search(
+                      any(BaseClient.class),
+                      any(String.class),
+                      any(String.class),
+                      any(FTSearchOptions.class)))
+          .thenReturn(CompletableFuture.completedFuture(searchResult));
+
+      var movies = service.browseAll("Other", "title", false);
+      assertEquals(0, movies.size()); // Action is a known genre, excluded by "Other"
+    }
   }
 }

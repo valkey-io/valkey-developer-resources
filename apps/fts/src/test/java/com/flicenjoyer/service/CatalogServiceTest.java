@@ -167,4 +167,13 @@ class CatalogServiceTest {
     // Non-ASCII characters get escaped for safety
     assertEquals("caf\\é", CatalogService.escapeQuery("café"));
   }
+
+  @Test
+  void escapeQueryBlocksArrowInjection() {
+    // => is the FT.SEARCH filter-to-KNN delimiter — must be neutralized
+    assertEquals("\\=\\>", CatalogService.escapeQuery("=>"));
+    assertEquals(
+        "\\*\\=\\>\\[KNN 5 \\@embedding \\$vector\\]",
+        CatalogService.escapeQuery("*=>[KNN 5 @embedding $vector]"));
+  }
 }

@@ -7,7 +7,9 @@ import com.flicenjoyer.valkey.HashParser;
 import com.flicenjoyer.valkey.UserProfileManager;
 import com.flicenjoyer.valkey.ValkeyKeys;
 import glide.api.GlideClient;
+import glide.api.commands.servermodules.FT;
 import glide.api.models.GlideString;
+import glide.api.models.commands.FT.FTSearchOptions;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -24,17 +26,18 @@ public class WatchHistoryService {
     this.profileManager = profileManager;
   }
 
+  @SuppressWarnings("unchecked")
   public List<WatchHistoryEntry> getUserHistory() throws ExecutionException, InterruptedException {
-    // Fallback: scan watch keys directly (works without ValkeySearch)
-    var keys = client.keys(gs(ValkeyKeys.WATCH_PREFIX + profileManager.getUserId() + ":*")).get();
-    var entries = new java.util.ArrayList<WatchHistoryEntry>();
-    for (var key : keys) {
-      var fields = client.hgetall(key).get();
-      if (fields.isEmpty()) continue;
-      entries.add(HashParser.toWatchEntry(fields));
-    }
-    entries.sort(java.util.Comparator.comparingLong(WatchHistoryEntry::lastWatched).reversed());
-    return entries;
+    var query = "@userId:{" + CatalogService.escapeTag(profileManager.getUserId()) + "}";
+    var opts =
+        FTSearchOptions.builder()
+            .limit(0, 1000)
+            .sortBy("lastWatched", FTSearchOptions.SortOrder.DESC)
+            .build();
+    var result = FT.search(client, ValkeyKeys.WATCH_INDEX, query, opts).get();
+    if (result.length < 2) return List.of();
+    var docs = (Map<GlideString, Map<GlideString, GlideString>>) result[1];
+    return docs.values().stream().map(HashParser::toWatchEntry).toList();
   }
 
   public long getResumePoint(String catalogId) throws ExecutionException, InterruptedException {
@@ -79,11 +82,16 @@ public class WatchHistoryService {
   }
 
   /** Deletes watch history for a video across ALL users. */
+  @SuppressWarnings("unchecked")
   public void deleteWatchHistoryForVideo(String catalogId)
       throws ExecutionException, InterruptedException {
-    var keys = client.keys(gs(ValkeyKeys.WATCH_PREFIX + "*:" + catalogId)).get();
-    for (var key : keys) {
-      client.del(new GlideString[] {key}).get();
-    }
+    var query = "@catalogId:{" + CatalogService.escapeTag(catalogId) + "}";
+    var opts = FTSearchOptions.builder().limit(0, 1000).build();
+    var result = FT.search(client, ValkeyKeys.WATCH_INDEX, query, opts).get();
+    if (result.length < 2) return;
+    var docs = (Map<GlideString, Map<GlideString, GlideString>>) result[1];
+    if (docs.isEmpty()) return;
+    var keys = docs.keySet().toArray(new GlideString[0]);
+    client.del(keys).get();
   }
 }
