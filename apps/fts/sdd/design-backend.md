@@ -278,6 +278,10 @@ Results displayed in `BenchmarkView` and printed to stdout for README documentat
 - `UploadService` validates required fields before writing to Valkey
 - Service methods wrap Valkey exceptions in domain-specific exceptions with context
 
+## Known Limitations
+
+- **Volume/mute delay (~500ms)** — JavaFX `MediaPlayer` applies volume and mute changes asynchronously to its internal audio buffer. This causes a noticeable ~500ms delay between adjusting the volume slider or toggling mute and hearing the effect. The delay is present during playback and is especially noticeable when changing volume while paused and then resuming. This is a JavaFX platform limitation with no available workaround.
+
 ## Utilities
 
 - `ResetData` — CLI utility (`./gradlew resetData`) that deletes all `catalog:*` and `watch:*` keys from Valkey and removes `~/.flicenjoyer/media/`. Uses `AppConfig` for connection settings.

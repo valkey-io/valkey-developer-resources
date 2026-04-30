@@ -109,6 +109,10 @@ src/main/java/com/flicenjoyer/
 | `~/.flicenjoyer/profile.yaml` | Home dir | User identity (name + UUID) |
 | `~/.flicenjoyer/media/` | Home dir | Uploaded videos and thumbnails |
 
+## Known Limitations
+
+- **Volume/mute delay (~500ms)** — JavaFX `MediaPlayer` applies volume and mute changes asynchronously to its internal audio buffer. This causes a noticeable ~500ms delay between adjusting the volume slider or toggling mute and hearing the effect. The delay is present during playback and is especially noticeable when changing volume while paused and then resuming. This is a JavaFX platform limitation with no available workaround.
+
 ## Design Documents
 
 See `sdd/` for the full steering design documents:
