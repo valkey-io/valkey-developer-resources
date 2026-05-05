@@ -1,0 +1,105 @@
+{
+  "trackName": "RAG Pipelines",
+  "cookbooks": [
+    {
+      "num": "01",
+      "source": "01-getting-started.md",
+      "output": "01-getting-started.html",
+      "title": "Getting Started with RAG",
+      "h1": "Getting Started with RAG",
+      "breadcrumb": "Getting Started",
+      "difficulty": "Beginner",
+      "time": "15 min",
+      "next": {
+        "file": "02-semantic-caching.html",
+        "title": "02 - Semantic Caching"
+      }
+    },
+    {
+      "num": "02",
+      "source": "02-semantic-caching.md",
+      "output": "02-semantic-caching.html",
+      "title": "Semantic Caching for RAG",
+      "h1": "Semantic Caching for RAG",
+      "breadcrumb": "Semantic Caching",
+      "difficulty": "Intermediate",
+      "time": "20 min",
+      "prev": {
+        "file": "01-getting-started.html",
+        "title": "01 - Getting Started"
+      },
+      "next": {
+        "file": "03-vector-search.html",
+        "title": "03 - Vector Search"
+      }
+    },
+    {
+      "num": "03",
+      "source": "03-vector-search.md",
+      "output": "03-vector-search.html",
+      "title": "Vector Search for RAG",
+      "h1": "Vector Search for RAG",
+      "breadcrumb": "Vector Search",
+      "difficulty": "Intermediate",
+      "time": "20 min",
+      "prev": {
+        "file": "02-semantic-caching.html",
+        "title": "02 - Semantic Caching"
+      },
+      "next": {
+        "file": "04-cache-invalidation.html",
+        "title": "04 - Invalidation"
+      }
+    },
+    {
+      "num": "04",
+      "source": "04-cache-invalidation.md",
+      "output": "04-cache-invalidation.html",
+      "title": "Cache Invalidation",
+      "h1": "Cache Invalidation",
+      "breadcrumb": "Invalidation",
+      "difficulty": "Advanced",
+      "time": "20 min",
+      "prev": {
+        "file": "03-vector-search.html",
+        "title": "03 - Vector Search"
+      },
+      "next": {
+        "file": "05-scaling-production.html",
+        "title": "05 - Scaling"
+      }
+    },
+    {
+      "num": "05",
+      "source": "05-scaling-production.md",
+      "output": "05-scaling-production.html",
+      "title": "Scaling for Production",
+      "h1": "Scaling for Production",
+      "breadcrumb": "Scaling",
+      "difficulty": "Advanced",
+      "time": "25 min",
+      "prev": {
+        "file": "04-cache-invalidation.html",
+        "title": "04 - Invalidation"
+      },
+      "next": {
+        "file": "06-monitoring.html",
+        "title": "06 - Monitoring"
+      }
+    },
+    {
+      "num": "06",
+      "source": "06-monitoring.md",
+      "output": "06-monitoring.html",
+      "title": "Monitoring",
+      "h1": "Monitoring",
+      "breadcrumb": "Monitoring",
+      "difficulty": "Advanced",
+      "time": "25 min",
+      "prev": {
+        "file": "05-scaling-production.html",
+        "title": "05 - Scaling"
+      }
+    }
+  ]
+}
