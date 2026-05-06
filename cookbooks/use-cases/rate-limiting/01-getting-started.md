@@ -1,3 +1,5 @@
+# Getting Started with Rate Limiting
+
 ## Prerequisites
 
   * Docker installed (or a running Valkey instance)

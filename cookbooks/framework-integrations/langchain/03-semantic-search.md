@@ -1,3 +1,5 @@
+# Semantic Search
+
 ## Why Semantic Search?
 
 "How do I reset my password?" and "I forgot my password, help!" mean the same thing. Exact-match caching misses this. `ValkeyStore` uses vector similarity to match by meaning:

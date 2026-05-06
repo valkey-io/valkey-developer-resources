@@ -1,3 +1,7 @@
+# Production Patterns
+
+> Threshold tuning, uncertain hit strategies, per-category overrides, TTL management, invalidation, and built-in Prometheus metrics.
+
 ## Pattern 1: Threshold Tuning
 
 The `defaultThreshold` controls the trade-off between hit rate and answer quality. It is a **cosine distance** (0–2 scale).

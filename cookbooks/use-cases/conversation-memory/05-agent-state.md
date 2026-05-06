@@ -1,3 +1,5 @@
+# Agent State
+
 ## The Problem
 
 AI agents run multi-step workflows: plan → search → analyze → respond. If the process crashes at step 3, you lose everything and start over. Worse, if the agent calls the same expensive tool twice, you pay double. You need:

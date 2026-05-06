@@ -1,3 +1,5 @@
+# Getting Started with Feature Store
+
 ## Why Valkey for Feature Stores?
 
 ML models need features at inference time. A feature store bridges offline training and online serving. Valkey is the ideal online store because:

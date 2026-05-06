@@ -1,3 +1,7 @@
+# LangGraph Checkpointing
+
+> Persist LangGraph agent state on vanilla Valkey 7+ with BetterDBSaver - no Redis 8, no RedisJSON, no RediSearch modules required.
+
 `BetterDBSaver` is a LangGraph checkpoint saver backed by `@betterdb/agent-cache`. It stores graph state on **vanilla Valkey 7+** with no modules required.
 
 ## Why BetterDBSaver vs langgraph-checkpoint-redis

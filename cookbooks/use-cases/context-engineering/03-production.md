@@ -1,3 +1,7 @@
+# Production Context Management
+
+> Short-term vs long-term memory, context pruning, multi-user isolation, monitoring, and the right Valkey data structure for each context type.
+
 ## Short-term vs Long-term Memory
 
 The memory layer is the foundation of context engineering at scale. Valkey supports both memory types through TTL management:

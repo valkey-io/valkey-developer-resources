@@ -1,3 +1,5 @@
+# Multi-User Memory
+
 ## Memory Isolation
 
 Mem0 supports three levels of memory isolation via TAG fields in Valkey:

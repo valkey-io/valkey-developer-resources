@@ -1,3 +1,5 @@
+# Production Patterns
+
 ## Pattern 1: Feature Freshness Monitoring
 
 Every feature Hash includes an `_updated_at` timestamp. Use it to detect stale features before they poison your model:

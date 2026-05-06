@@ -1,3 +1,5 @@
+# Semantic Caching
+
 ## The Problem
 
 LLM API calls are expensive ($0.01-$0.10+ per call) and slow (1-10 seconds). Users often ask similar questions with different wording:

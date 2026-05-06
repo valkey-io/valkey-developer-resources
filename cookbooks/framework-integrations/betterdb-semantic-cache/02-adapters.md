@@ -1,3 +1,7 @@
+# LangChain & Vercel AI Adapters
+
+> Drop semantic caching into LangChain or the Vercel AI SDK with one import. No check/store loops - the adapter handles hit/miss transparently.
+
 Cookbook 01 showed the direct `check()` / `store()` API. For applications already using LangChain or the Vercel AI SDK, the package ships with first-class adapters that plug semantic caching in at the framework level - no manual hit/miss loops required.
 
 ## LangChain Adapter

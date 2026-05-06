@@ -1,3 +1,7 @@
+# Building the Context Assembly Pipeline
+
+> Build a complete context assembly system that gathers conversation history, retrieved knowledge, user preferences, and tool outputs from Valkey before every LLM call.
+
 ## The Context Assembly Function
 
 Before every LLM call, an agent needs to assemble context from multiple sources. This function is the core of context engineering - it gathers everything the LLM needs into a structured prompt.

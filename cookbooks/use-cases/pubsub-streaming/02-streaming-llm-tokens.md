@@ -1,3 +1,5 @@
+# Streaming LLM Tokens
+
 ## The Problem
 
 When streaming from an LLM (OpenAI, Anthropic, etc.), tokens arrive one at a time. If you have multiple clients watching the same response, you need to fan out each token to all of them. Valkey Pub/Sub is perfect for this:

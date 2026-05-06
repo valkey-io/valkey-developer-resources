@@ -1,3 +1,7 @@
+# Production Patterns
+
+> Similarity threshold tuning, cache hit rate monitoring, eviction strategies, TTL management, and cost tracking for production semantic caches.
+
 ## Pattern 1: Similarity Threshold Tuning
 
 The threshold controls the trade-off between hit rate and answer quality:

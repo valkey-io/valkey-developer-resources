@@ -1,3 +1,5 @@
+# Streaming Updates
+
 ## The Architecture
 
 Instead of writing features directly to Hashes, publish them to a Valkey Stream. A consumer reads the stream and writes to the online store. This decouples producers from consumers and enables:

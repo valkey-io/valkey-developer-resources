@@ -1,3 +1,7 @@
+# Getting Started with Semantic Caching
+
+> Build a semantic cache that stores LLM responses and returns cached answers for semantically similar prompts - cutting costs by 60%+ and latency from seconds to milliseconds.
+
 ## How Semantic Caching Works
 
 ```python

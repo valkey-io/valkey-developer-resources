@@ -1,3 +1,5 @@
+# Memory Storage
+
 ## The MemoryRecord Model
 
 Each memory is a structured record with content, scope, categories, importance, and an embedding vector:

@@ -1,3 +1,5 @@
+# Fan-Out Patterns
+
 ## Pattern 1: Pub/Sub Fan-Out (Live)  
 
 ```python

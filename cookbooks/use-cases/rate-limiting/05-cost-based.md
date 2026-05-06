@@ -1,3 +1,5 @@
+# Cost-Based Rate Limiting
+
 ## Model Pricing Table  
 
 ```python

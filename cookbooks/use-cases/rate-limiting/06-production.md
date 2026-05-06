@@ -1,3 +1,5 @@
+# Production Patterns
+
 ## Pattern 1: Retry-After Headers  
   
 Always tell clients **when** to retry:

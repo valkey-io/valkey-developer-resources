@@ -1,3 +1,5 @@
+# Semantic Search with Embeddings
+
 ## The Architecture
 
 ```python

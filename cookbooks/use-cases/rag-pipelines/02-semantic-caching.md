@@ -1,3 +1,5 @@
+# Semantic Caching for RAG
+
 [← All RAG Cookbooks](./)
 
 # Semantic Caching Patterns

@@ -1,3 +1,5 @@
+# Real-time Aggregations
+
 ## Why In-Valkey Aggregations?
 
 Traditional feature stores compute aggregations in batch (Spark, Flink) and write results to the online store. But for fraud detection, recommendation ranking, and real-time personalization, you need features that reflect the _last few minutes_ , not the last ETL run. Valkey's atomic data structures make this possible:

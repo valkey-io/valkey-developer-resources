@@ -1,3 +1,7 @@
+# LLM & Tool Cache
+
+> Cache exact LLM responses and tool call results. Track cost savings per model. Use toolEffectiveness() to tune per-tool TTLs automatically.
+
 ## LLM Cache Tier
 
 The LLM cache stores full LLM responses by exact match on all parameters that affect the output.

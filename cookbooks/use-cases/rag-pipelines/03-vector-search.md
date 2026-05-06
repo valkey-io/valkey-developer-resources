@@ -1,3 +1,5 @@
+# Vector Search for RAG
+
 [← All RAG Cookbooks](./)
 
 # Vector Search Deep Dive

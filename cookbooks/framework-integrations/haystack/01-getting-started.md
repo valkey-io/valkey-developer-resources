@@ -1,3 +1,7 @@
+# Getting Started with Haystack + Valkey
+
+> Connect Haystack to Valkey, store documents with embeddings, and run your first vector similarity search - all in under 10 minutes.
+
 Haystack is a framework for building RAG pipelines and search applications. Valkey replaces external vector databases with a single in-memory store that handles both document storage and similarity search, cutting infrastructure complexity and query latency.
 
 ## Prerequisites

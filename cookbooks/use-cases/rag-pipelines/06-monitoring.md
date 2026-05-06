@@ -1,3 +1,5 @@
+# Monitoring
+
 [← All RAG Cookbooks](./)
 
 # Monitoring & Observability

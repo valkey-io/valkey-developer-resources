@@ -1,3 +1,5 @@
+# Getting Started with Vector Search
+
 ## Prerequisites
 
   * Valkey server with the **valkey-search** module loaded

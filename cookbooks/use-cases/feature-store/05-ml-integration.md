@@ -1,3 +1,5 @@
+# ML Integration
+
 ## The Prediction Pipeline
 
 At inference time, your model needs a feature vector. The pipeline looks like:

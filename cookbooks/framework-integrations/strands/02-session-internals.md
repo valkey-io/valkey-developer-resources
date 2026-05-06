@@ -1,3 +1,7 @@
+# Managing Session Data
+
+> Understand exactly what strands-valkey-session-manager stores in Valkey - the key structure, the shape of each object, and how to use the built-in API methods to inspect and manage session data.
+
 ## What Gets Stored Per Session
 
 ### Session Record

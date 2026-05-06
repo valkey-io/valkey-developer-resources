@@ -1,3 +1,5 @@
+# Semantic Memory
+
 ## The Problem
 
 Cookbook 01-02 gave us ordered chat history. But what if a user asks "How do I deploy?" and three weeks ago they discussed deployment in a different session? `LRANGE` can't find that - it only reads the current session. You need **semantic search** : finding messages by meaning, not position.
