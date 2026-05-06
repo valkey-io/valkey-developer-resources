@@ -1,5 +1,7 @@
 # Valkey Streams
 
+**Intermediate** · Python · ~20 min
+
 ## Pub/Sub vs Streams  
   
 Feature| Pub/Sub| Streams  

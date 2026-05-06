@@ -1,5 +1,7 @@
 # Getting Started with Pub/Sub
 
+**Beginner** · Python · ~15 min
+
 ## What is Pub/Sub?
 
 Valkey Pub/Sub is a fire-and-forget messaging system. Publishers send messages to **channels** , and any number of subscribers listening on that channel receive them instantly. It's perfect for:

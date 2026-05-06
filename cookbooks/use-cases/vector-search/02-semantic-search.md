@@ -1,5 +1,7 @@
 # Semantic Search with Embeddings
 
+**Intermediate** · Python · ~20 min
+
 ## The Architecture
 
 ```python

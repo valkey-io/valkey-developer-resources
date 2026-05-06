@@ -2,6 +2,8 @@
 
 > Build a semantic cache that stores LLM responses and returns cached answers for semantically similar prompts - cutting costs by 60%+ and latency from seconds to milliseconds.
 
+**Beginner** · Python · ~15 min
+
 ## How Semantic Caching Works
 
 ```python

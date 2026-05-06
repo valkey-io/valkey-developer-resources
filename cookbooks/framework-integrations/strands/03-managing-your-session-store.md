@@ -2,6 +2,8 @@
 
 > Delete sessions on logout, query raw keys to see exactly what's in Valkey, and share a single session across multiple agents in an orchestrator pattern.
 
+**Intermediate** · Python · ~15 min
+
 ## Share a Session Across Multiple Agents
 
 A single session can hold state for multiple agents - each gets its own agent key and message keys under the same session ID. This is the foundation for orchestrator/subagent patterns where agents need to share context:

@@ -2,6 +2,8 @@
 
 > Build a full retrieval-augmented generation pipeline with Valkey as the vector store. Embed your documents once, then answer questions grounded in your data - not the LLM's training set.
 
+**Intermediate** · Python · ~20 min
+
 ## How RAG Works
 
 ```

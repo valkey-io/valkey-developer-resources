@@ -1,5 +1,7 @@
 # Multi-User Memory
 
+**Intermediate** · Python · ~20 min
+
 ## Memory Isolation
 
 Mem0 supports three levels of memory isolation via TAG fields in Valkey:

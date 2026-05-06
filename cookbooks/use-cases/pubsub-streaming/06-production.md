@@ -1,5 +1,7 @@
 # Production Patterns
 
+**Advanced** · Python · ~25 min
+
 ## Pattern 1: Backpressure with MAXLEN  
 
 ```python

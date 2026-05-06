@@ -1,5 +1,7 @@
 # Semantic Caching for RAG
 
+**Intermediate** · Python · ~20 min
+
 [← All RAG Cookbooks](./)
 
 # Semantic Caching Patterns

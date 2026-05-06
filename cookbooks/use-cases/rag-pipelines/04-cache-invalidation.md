@@ -1,5 +1,7 @@
 # Cache Invalidation
 
+**Advanced** · Python · ~20 min
+
 [← All RAG Cookbooks](./)
 
 # Cache Invalidation

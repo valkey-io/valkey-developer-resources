@@ -1,5 +1,7 @@
 # Getting Started with Mem0 + Valkey
 
+**Beginner** · Python · ~15 min
+
 ## What is Mem0?
 
 [Mem0](<https://github.com/mem0ai/mem0>) ("mem-zero") is an open-source memory layer for AI applications (YC S24). It has a **dedicated Valkey connector** (`provider: "valkey"`) that uses the `valkey` Python client with native `FT.CREATE`/`FT.SEARCH` for vector-based memory storage and retrieval.

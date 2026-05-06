@@ -1,5 +1,7 @@
 # Agent Rate Limiting
 
+**Intermediate** · Python · ~20 min
+
 ## The Problem  
 
 ```python

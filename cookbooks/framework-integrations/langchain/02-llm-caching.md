@@ -1,5 +1,7 @@
 # LLM Caching
 
+**Intermediate** · Python · ~20 min
+
 ## The Problem
 
 LLM API calls are expensive ($0.003–$0.10+ per call) and slow (2–10 seconds). Users often send identical or near-identical prompts:

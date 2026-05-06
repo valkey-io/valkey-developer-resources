@@ -1,5 +1,7 @@
 # Cost-Based Rate Limiting
 
+**Advanced** · Python · ~25 min
+
 ## Model Pricing Table  
 
 ```python

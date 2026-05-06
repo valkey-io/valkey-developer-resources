@@ -2,6 +2,8 @@
 
 > Persist per-agent state with per-field TTL and sliding-window refresh. Store intent, intermediate results, and reasoning chains across invocations.
 
+**Intermediate** · TypeScript · ~20 min
+
 The session tier is a per-thread key-value store for agent state. It is designed for the patterns that come up in multi-step, multi-turn agents: storing user intent, intermediate reasoning, extracted entities, and tool call context between invocations.
 
 ## How It Works

@@ -1,5 +1,7 @@
 # Hierarchical Rate Limiting
 
+**Advanced** · Python · ~20 min
+
 ## The Problem
 
 ```python

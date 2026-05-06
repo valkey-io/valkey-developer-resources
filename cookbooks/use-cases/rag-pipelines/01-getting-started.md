@@ -1,5 +1,7 @@
 # Getting Started with RAG
 
+**Beginner** · Python · ~15 min
+
 [← All RAG Cookbooks](./)
 
 # Getting Started with RAG Cache

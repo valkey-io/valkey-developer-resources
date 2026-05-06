@@ -2,6 +2,8 @@
 
 > Cache not just single prompts, but full conversation contexts. When a user asks a follow-up question in a similar conversation flow, return the cached response instead of calling the LLM again.
 
+**Intermediate** · Python · ~20 min
+
 ## The Challenge
 
 Single-prompt caching works well for stateless queries. But in multi-turn conversations, the same user message means different things depending on context:

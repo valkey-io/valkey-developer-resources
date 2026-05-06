@@ -1,5 +1,7 @@
 # Getting Started with Vector Search
 
+**Beginner** · Python · ~15 min
+
 ## Prerequisites
 
   * Valkey server with the **valkey-search** module loaded

@@ -1,5 +1,7 @@
 # ML Integration
 
+**Advanced** · Python · ~25 min
+
 ## The Prediction Pipeline
 
 At inference time, your model needs a feature vector. The pipeline looks like:

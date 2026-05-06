@@ -1,5 +1,7 @@
 # Monitoring
 
+**Advanced** · Python · ~25 min
+
 [← All RAG Cookbooks](./)
 
 # Monitoring & Observability

@@ -1,5 +1,7 @@
 # Scaling for Production
 
+**Advanced** · Python · ~25 min
+
 [← All RAG Cookbooks](./)
 
 # Scaling for Production

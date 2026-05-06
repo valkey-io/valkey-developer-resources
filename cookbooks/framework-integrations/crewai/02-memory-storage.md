@@ -1,5 +1,7 @@
 # Memory Storage
 
+**Intermediate** · Python · ~20 min
+
 ## The MemoryRecord Model
 
 Each memory is a structured record with content, scope, categories, importance, and an embedding vector:

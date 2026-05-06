@@ -2,6 +2,8 @@
 
 > Install the first Valkey-native semantic cache. Connect, store a response, and serve the next semantically similar prompt from cache - no LLM call needed.
 
+**Beginner** · TypeScript · ~15 min
+
 `@betterdb/semantic-cache` is a standalone semantic cache for LLM applications backed by Valkey. It uses the `valkey-search` module for vector similarity matching so semantically similar prompts - "What is Valkey?" and "Can you explain Valkey?" - return the same cached response without calling the LLM again.
 
 Unlike other semantic cache libraries it is **Valkey-native** (handles `valkey-search` API differences from Redis), **standalone** (no LangChain or LiteLLM dependency), and ships with **built-in OpenTelemetry tracing and Prometheus metrics** at the cache-operation level, not just at the HTTP level.

@@ -1,5 +1,7 @@
 # Vector Search for RAG
 
+**Intermediate** · Python · ~20 min
+
 [← All RAG Cookbooks](./)
 
 # Vector Search Deep Dive

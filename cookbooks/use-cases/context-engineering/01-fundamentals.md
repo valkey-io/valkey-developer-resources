@@ -2,6 +2,8 @@
 
 > Context engineering is the discipline of systematically selecting, structuring, and delivering the right context to an LLM. Learn how Valkey serves as the unified memory layer for all five context sources.
 
+**Beginner** · Python · ~20 min
+
 ## What is Context Engineering?
 
 Context engineering is the discipline of **systematically selecting, structuring, and delivering the right context** to an LLM to improve reliability and performance.

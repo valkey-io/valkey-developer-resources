@@ -1,5 +1,7 @@
 # Fan-Out Patterns
 
+**Advanced** · Python · ~25 min
+
 ## Pattern 1: Pub/Sub Fan-Out (Live)  
 
 ```python

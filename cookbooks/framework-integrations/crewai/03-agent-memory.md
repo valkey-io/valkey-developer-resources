@@ -1,5 +1,7 @@
 # Agent Memory
 
+**Intermediate** · Python · ~20 min
+
 ## Step 1: Configure Memory with Bedrock
 
 ```python

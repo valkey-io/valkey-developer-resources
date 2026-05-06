@@ -2,6 +2,8 @@
 
 > Three cache tiers - LLM responses, tool results, and session state - behind one connection. Works on vanilla Valkey 7+ with no modules.
 
+**Beginner** · TypeScript · ~15 min
+
 `@betterdb/agent-cache` is a multi-tier exact-match cache for AI agent workloads backed by Valkey. It combines three cache tiers behind one connection:
 
 - **LLM tier** - caches full LLM responses by exact match on model + messages + params

@@ -1,5 +1,7 @@
 # Token-Aware Rate Limiting
 
+**Intermediate** · Python · ~20 min
+
 ## The Problem
 
 ```python

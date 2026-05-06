@@ -1,5 +1,7 @@
 # Session Management
 
+**Intermediate** · Python · ~20 min
+
 ## The Problem
 
 Cookbook 01 stored messages in a LIST. But in production you also need to know: _who_ is this session for? _How many tokens_ have been used? _Which model_? _When_ was the last activity? Storing this metadata alongside the conversation enables session management, billing, and debugging.

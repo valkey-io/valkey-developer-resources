@@ -1,5 +1,7 @@
 # Hybrid Search
 
+**Intermediate** · Python · ~20 min
+
 ## Why Hybrid Search?
 
 Pure vector search returns the most similar items globally. But often you need to filter first - "find similar articles, but only in the _tech_ category" or "similar products under $50." Hybrid search lets you combine vector KNN with traditional filters in a single query.

@@ -1,5 +1,7 @@
 # Getting Started with Conversation Memory
 
+**Beginner** · Python · ~15 min
+
 ## Why Valkey for Conversation Memory?
 
 LLMs are stateless - every API call starts from scratch. Conversation memory bridges the gap. Valkey is ideal because:

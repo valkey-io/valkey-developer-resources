@@ -1,5 +1,7 @@
 # Full Agent
 
+**Advanced** · Python · ~25 min
+
 ## Architecture
 
 ```python

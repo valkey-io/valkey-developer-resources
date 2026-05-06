@@ -1,5 +1,7 @@
 # Getting Started with Rate Limiting
 
+**Beginner** · Python · ~15 min
+
 ## Prerequisites
 
   * Docker installed (or a running Valkey instance)
