@@ -1,4 +1,4 @@
-# Valkey withHaystack
+# Valkey with Haystack
 
 > Build production RAG pipelines using Valkey as a high-performance vector store inside Haystack. From first connection to a full retrieval-augmented generation pipeline.
 

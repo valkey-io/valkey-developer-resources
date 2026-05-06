@@ -1,4 +1,4 @@
-# CrewAI +Valkey
+# CrewAI + Valkey
 
 > 3 cookbooks for giving CrewAI agents persistent, searchable memory backed by Valkey. Custom ValkeyStorage backend with GLIDE client, vector search, and Amazon Bedrock embeddings.
 

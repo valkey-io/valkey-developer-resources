@@ -1,4 +1,4 @@
-# Mem0 +Valkey
+# Mem0 + Valkey
 
 > 3 cookbooks for using Mem0's intelligent memory layer with Valkey as the native vector store. From basic memory operations to production with ElastiCache.
 

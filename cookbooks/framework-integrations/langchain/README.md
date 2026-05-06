@@ -1,4 +1,4 @@
-# LangChain +Valkey
+# LangChain + Valkey
 
 > 4 cookbooks for using Valkey as the complete persistence layer for LangGraph agents - checkpointing, semantic caching, and vector search through the official langgraph-checkpoint-aws package.
 

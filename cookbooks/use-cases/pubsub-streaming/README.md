@@ -1,4 +1,4 @@
-# Pub/Sub &Streaming
+# Pub/Sub & Streaming
 
 > 6 production-ready cookbooks for real-time messaging with Valkey. From basic PUBLISH/SUBSCRIBE to distributed consumer groups with Valkey Streams.
 

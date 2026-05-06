@@ -1,4 +1,4 @@
-# SemanticCaching
+# Semantic Caching
 
 > 3 cookbooks for building semantic caches that cut LLM costs by 60%+ using vector similarity with the valkey-search module.
 

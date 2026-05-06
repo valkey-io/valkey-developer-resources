@@ -1,4 +1,4 @@
-# Token-AwareRate Limiting
+# Token-Aware Rate Limiting
 
 > 6 production-ready cookbooks for rate limiting AI workloads with Valkey. From basic fixed windows to enterprise hierarchical limits.
 

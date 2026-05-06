@@ -1,4 +1,4 @@
-# Strands +Valkey
+# Strands + Valkey
 
 > 3 cookbooks for using the official strands-valkey-session-manager community package to back Strands agents with Valkey - persisting conversation history, session metadata, and agent state.
 

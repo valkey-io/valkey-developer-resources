@@ -1,4 +1,4 @@
-# RAG PipelineCookbooks
+# RAG Pipeline Cookbooks
 
 ## Cookbooks
 

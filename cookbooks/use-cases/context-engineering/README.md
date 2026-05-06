@@ -1,4 +1,4 @@
-# ContextEngineering
+# Context Engineering
 
 > 3 cookbooks for building the unified memory and context layer that powers reliable AI agents - from fundamentals to production patterns.
 

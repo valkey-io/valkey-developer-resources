@@ -1,4 +1,4 @@
-# Real-TimeFeature Store
+# Real-Time Feature Store
 
 > 6 production-ready cookbooks for building a real-time ML feature store with Valkey. From basic HSET/HGET to streaming pipelines and production monitoring.
 
