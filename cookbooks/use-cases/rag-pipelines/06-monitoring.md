@@ -165,6 +165,6 @@ Error Rate| >1%| >5%
 
 You've learned the fundamentals of RAG with Valkey. Ready to build?
 
-[Try the Demo →](https://valkeyforai.com/demo/rag-pipeline.html) [View on GitHub →](<https://github.com/meet-bhagdev/valkeyforai>)
+[Try the Demo →](https://valkeyforai.com/demo/rag-pipeline.html) [View on ValkeyForAI →](<https://github.com/meet-bhagdev/valkeyforai>)
 
 [← Scaling](05-scaling-production.md) [All Cookbooks](./)

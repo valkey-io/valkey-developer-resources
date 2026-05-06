@@ -110,4 +110,4 @@ tcp-keepalive 300
 timeout 0
 ```
 
-**Full Series Complete!** You now have everything you need to implement production-grade rate limiting for AI workloads. All code is open source - [clone the repo](<https://github.com/meet-bhagdev/valkeyforai/tree/main>) and start shipping.
+**Full Series Complete!** You now have everything you need to implement production-grade rate limiting for AI workloads. All code is open source - see the [original ValkeyForAI repository](<https://github.com/meet-bhagdev/valkeyforai/tree/main>) for runnable demos.
