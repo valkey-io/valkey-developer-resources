@@ -1,6 +1,6 @@
 # Conversation Memory + Valkey
 
-> 5 cookbooks covering every aspect of conversation memory with Valkey - from basic chat history to semantic search, caching, and agent state management.
+> Scalable, low-latency session storage for chatbot and agent conversations. Six Valkey data structures - LIST, HASH, JSON, STRING, STREAM, and FT.SEARCH - powering a complete AI memory system.
 
 ## Cookbooks
 

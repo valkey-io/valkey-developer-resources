@@ -1,6 +1,6 @@
 # Vector Search
 
-> 3 cookbooks for building vector search with the valkey-search module. From basic KNN queries to hybrid search with filters.
+> Native vector similarity search with the valkey-search module. HNSW indexing, KNN queries, hybrid filters, and sub-millisecond nearest-neighbor lookups.
 
 ## Cookbooks
 

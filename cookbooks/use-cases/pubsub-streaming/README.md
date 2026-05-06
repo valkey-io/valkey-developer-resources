@@ -1,6 +1,6 @@
 # Pub/Sub & Streaming
 
-> 6 production-ready cookbooks for real-time messaging with Valkey. From basic PUBLISH/SUBSCRIBE to distributed consumer groups with Valkey Streams.
+> Real-time messaging for AI workloads. Broadcast LLM tokens, fan out agent events, and build durable task queues - all with Valkey Pub/Sub and Streams.
 
 ## Cookbooks
 

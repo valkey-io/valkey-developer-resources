@@ -1,6 +1,6 @@
 # Token-Aware Rate Limiting
 
-> 6 production-ready cookbooks for rate limiting AI workloads with Valkey. From basic fixed windows to enterprise hierarchical limits.
+> Token-aware, cost-based, and hierarchical rate limiting for production AI workloads. Protect your APIs, control spend, and keep your LLM integrations reliable.
 
 ## Cookbooks
 

@@ -1,6 +1,6 @@
 # Semantic Caching
 
-> 3 cookbooks for building semantic caches that cut LLM costs by 60%+ using vector similarity with the valkey-search module.
+> Cache LLM responses by meaning, not exact match. Cut API costs by 60%+ and slash latency from seconds to milliseconds using vector similarity with the valkey-search module.
 
 ## Cookbooks
 
