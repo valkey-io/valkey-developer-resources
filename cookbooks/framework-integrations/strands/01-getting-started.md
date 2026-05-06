@@ -73,3 +73,8 @@ agent = Agent(
 response = agent("My name is Alex and I'm building a RAG pipeline.")
 print(response)
 ```
+
+
+---
+
+[02 - Managing Session Data →](02-session-internals.md)

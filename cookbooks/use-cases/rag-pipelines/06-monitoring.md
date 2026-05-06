@@ -170,3 +170,8 @@ You've learned the fundamentals of RAG with Valkey. Ready to build?
 [Try the Demo →](https://valkeyforai.com/demo/rag-pipeline.html) [View on ValkeyForAI →](<https://github.com/meet-bhagdev/valkeyforai>)
 
 [← Scaling](05-scaling-production.md) [All Cookbooks](./)
+
+
+---
+
+[← 05 - Scaling](05-scaling-production.md)

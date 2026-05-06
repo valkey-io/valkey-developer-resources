@@ -231,3 +231,8 @@ Group read| `XREADGROUP GROUP name consumer ...`| ~0.1ms + block
 Acknowledge| `XACK stream group id`| ~0.1ms  
   
 **Next up:** Learn how to serve feature vectors directly to ML models - scikit-learn, PyTorch, and LLM chains - with a FastAPI integration example.
+
+
+---
+
+[← 03 - Aggregations](03-realtime-aggregations.md) | [05 - ML Integration →](05-ml-integration.md)

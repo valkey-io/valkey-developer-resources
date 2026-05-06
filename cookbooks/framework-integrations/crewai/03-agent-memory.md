@@ -115,3 +115,8 @@ FT.SEARCH memory_idx
 Your agents now have persistent, searchable memory backed by Valkey. To deploy to production, see the [ElastiCache for Valkey Getting Started guide](<https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/WhatIs.html>) - set `VALKEY_HOST` and `VALKEY_TLS=true` and your `ValkeyStorage` connects to ElastiCache automatically.
 
 [← Back to CrewAI Cookbooks](./)
+
+
+---
+
+[← 02 - Memory Storage](02-memory-storage.md)

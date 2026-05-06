@@ -164,3 +164,8 @@ Invalidate entry| `DEL llmcache:{id}`| ~0.1ms
 Flush all cache| `FT.DROPINDEX cache_idx`| ~1ms  
   
 **Next up:** We've covered conversation history, session management, semantic memory, and caching. In the final cookbook, we'll add agent state - checkpointing multi-step reasoning and logging tool calls with Valkey Streams.
+
+
+---
+
+[← 03 - Semantic Memory](03-semantic-memory.md) | [05 - Agent State →](05-agent-state.md)

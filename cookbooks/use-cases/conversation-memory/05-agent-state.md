@@ -204,3 +204,8 @@ Cookbook| Data Structure| Purpose
 05 Agent State| `HASH` \+ `STRING` \+ `STREAM`| Checkpoints, tool cache, event log  
   
 **One Valkey instance. Six data structures. Complete AI memory infrastructure.**
+
+
+---
+
+[← 04 - Semantic Caching](04-semantic-caching.md)

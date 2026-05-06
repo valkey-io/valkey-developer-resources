@@ -102,3 +102,8 @@ def track_agent_spend(agent_id: str, tokens: int, model: str = "gpt-4"):
 ```
 
 **Key Patterns:** Call rate limit (Hash token bucket), tool-weighted costs (Lua script), concurrent agents (Sorted Set + TTL), budget tracking (INCRBYFLOAT).
+
+
+---
+
+[← 02 - Token-Aware](02-token-aware.md) | [04 - Hierarchical →](04-hierarchical.md)

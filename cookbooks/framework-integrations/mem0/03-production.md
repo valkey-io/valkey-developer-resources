@@ -90,3 +90,8 @@ Memory limits| Use maxmemory-policy to handle full memory
 Monitoring| Track FT.INFO for index size + memory usage  
   
 **Source:** Mem0's Valkey connector: [valkey.py](<https://github.com/mem0ai/mem0/blob/main/mem0/vector_stores/valkey.py>) and config: [ValkeyConfig](<https://github.com/mem0ai/mem0/blob/main/mem0/configs/vector_stores/valkey.py>)
+
+
+---
+
+[← 02 - Multi-User Memory](02-multi-user-memory.md)

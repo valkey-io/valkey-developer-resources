@@ -141,3 +141,8 @@ NUMERIC ≤| `@field:[-inf max]`| `@price:[-inf 50]`
 Combined AND| `(@filter1 @filter2)`| `(@category:{tech} @year:[2024 +inf])`  
   
 **Filter + KNN pattern:** `"FILTER_EXPRESSION=>[KNN k @vector $param]"`. The filter runs first (pre-filtering), then KNN finds the nearest neighbors within the filtered set.
+
+
+---
+
+[← 02 - Semantic Search](02-semantic-search.md)

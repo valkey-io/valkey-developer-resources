@@ -147,3 +147,8 @@ Structure your context from general to specific - background first, then narrowi
 ```
 
 > **Reference:** This approach is described in the [Redis context engineering blog](https://redis.io/blog/context-engineering-best-practices-for-an-emerging-discipline/) and draws on guidance from Andrej Karpathy, Tobi Lutke (Shopify CEO), and Philipp Schmid (Google DeepMind).
+
+
+---
+
+[02 - Context Assembly Pipeline →](02-assembly-pipeline.md)

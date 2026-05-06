@@ -196,3 +196,8 @@ print(f"Source: {result3['source']}, Latency: {result3['latency_ms']}ms")
 | LLM call (miss) | OpenAI API | 500-3000ms |
 
 > **Cost savings:** Every cache hit saves an LLM API call. At $0.03/1K tokens for GPT-4, a 60% hit rate on 10,000 daily requests saves ~$180/day. The Valkey lookup costs effectively nothing.
+
+
+---
+
+[02 - Multi-Turn Conversation Caching →](02-multiturn-caching.md)

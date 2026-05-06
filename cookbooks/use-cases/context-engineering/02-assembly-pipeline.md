@@ -154,3 +154,8 @@ for msg in budgeted:
 | 6 | Current message | (from input) | What the user just said |
 
 > **Key insight from Philipp Schmid (Google DeepMind):** "Context engineering is a system, not a string. Context isn't just a static prompt template - it's the output of a system that runs before the main LLM call."
+
+
+---
+
+[← 01 - Fundamentals](01-fundamentals.md) | [03 - Production Context Management →](03-production.md)

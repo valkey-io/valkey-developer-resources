@@ -131,3 +131,8 @@ Trim conversation| `LTRIM chat:{id} -50 -1`| ~0.1ms
 Scan for sessions| `SCAN 0 MATCH meta:* COUNT 100`| ~1ms  
   
 **Next up:** Messages are stored, sessions are tracked. But how do you find _relevant_ past conversations? In the next cookbook, we'll add semantic memory - vector search over conversation history using Valkey's FT.SEARCH.
+
+
+---
+
+[← 01 - Getting Started](01-getting-started.md) | [03 - Semantic Memory →](03-semantic-memory.md)

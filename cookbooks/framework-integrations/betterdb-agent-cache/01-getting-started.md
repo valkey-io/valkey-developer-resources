@@ -160,3 +160,8 @@ await cache.llm.invalidateByModel('gpt-4o-mini');
 // Close the client when done
 await client.quit();
 ```
+
+
+---
+
+[02 - LLM & Tool Cache →](02-llm-and-tool-cache.md)

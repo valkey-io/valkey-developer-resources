@@ -149,3 +149,8 @@ Metric| Best For| Range| Lower = Better?
 `IP`| Inner product (dot product)| -∞ to ∞| No (higher = more similar)  
   
 **Use COSINE for OpenAI embeddings.** OpenAI's embeddings are normalized, so cosine similarity is the correct metric. A score of 0 = identical, 2 = opposite.
+
+
+---
+
+[← 01 - Getting Started](01-getting-started.md) | [03 - Hybrid Search →](03-hybrid-search.md)

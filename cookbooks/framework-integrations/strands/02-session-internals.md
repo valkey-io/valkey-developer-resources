@@ -149,3 +149,8 @@ session:{session_id}                                         # Session metadata
 session:{session_id}:agent:{agent_id}                        # Agent state
 session:{session_id}:agent:{agent_id}:message:{message_id}   # Individual messages
 ```
+
+
+---
+
+[← 01 - Getting Started](01-getting-started.md) | [03 - Managing Your Session Store →](03-managing-your-session-store.md)

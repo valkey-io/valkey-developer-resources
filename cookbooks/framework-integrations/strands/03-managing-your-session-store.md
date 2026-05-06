@@ -67,3 +67,8 @@ for k in sorted(keys):
 # session:user-42:agent:default:message:<uuid>                 (TTL: 3596s)
 # session:user-42:agent:default:message:<uuid>                 (TTL: 3596s)
 ```
+
+
+---
+
+[← 02 - Managing Session Data](02-session-internals.md)

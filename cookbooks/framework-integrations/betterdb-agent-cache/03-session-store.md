@@ -166,3 +166,8 @@ await cache.session.set(threadId, 'preferred_seat', 'aisle', {
 ```
 
 The per-call TTL overrides `tierDefaults.session.ttl` for that specific field.
+
+
+---
+
+[← 02 - LLM & Tool Cache](02-llm-and-tool-cache.md) | [04 - LangGraph Checkpointing →](04-langgraph.md)

@@ -167,3 +167,8 @@ print(f"Expires in {ttl} seconds")
 ```
 
 **Next up:** Learn how to compute real-time aggregation features (sliding window counts, rolling averages, cardinality) directly in Valkey.
+
+
+---
+
+[← 01 - Getting Started](01-getting-started.md) | [03 - Aggregations →](03-realtime-aggregations.md)

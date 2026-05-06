@@ -75,3 +75,8 @@ Command| Purpose| Latency
 `XRANGE`| Read range / replay| ~0.1ms  
 `XLEN`| Stream length| ~0.1ms  
 `XTRIM`| Cap stream size| ~0.1ms
+
+
+---
+
+[← 02 - LLM Tokens](02-streaming-llm-tokens.md) | [04 - Consumer Groups →](04-consumer-groups.md)

@@ -135,3 +135,8 @@ The middleware intercepts `doGenerate()` calls before they reach OpenAI. On a hi
 | Best for | Custom pipelines | LangChain agents | Next.js / AI SDK apps |
 
 Use the direct API when you need fine-grained control - for example, to pass per-request TTLs, categories, or to handle uncertain hits differently. Use an adapter when you want zero-boilerplate caching for an existing LangChain or Vercel AI SDK application.
+
+
+---
+
+[← 01 - Getting Started](01-getting-started.md) | [03 - Production Patterns →](03-production.md)

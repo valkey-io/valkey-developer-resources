@@ -49,3 +49,8 @@ Pub/Sub| All subscribers| None| Live dashboards
 Stream + 1 group| One worker per msg| Persistent| Task queues  
 Stream + N groups| All groups| Persistent| Event sourcing  
 Hybrid| Both| Both| Full coverage
+
+
+---
+
+[← 04 - Consumer Groups](04-consumer-groups.md) | [06 - Production →](06-production.md)

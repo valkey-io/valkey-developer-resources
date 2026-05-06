@@ -173,3 +173,8 @@ console.log(`Saved $${(stats.costSavedMicros / 1_000_000).toFixed(4)} so far`);
 ```
 
 > **Note:** `active_sessions` in Prometheus metrics is approximate - it uses an in-memory counter that resets on process restart. For exact session counts, use `SCAN betterdb_ac:session:*` directly.
+
+
+---
+
+[← 03 - Session Store](03-session-store.md)

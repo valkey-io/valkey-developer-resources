@@ -165,3 +165,8 @@ print(f"Source: {result['source']}, Latency: {result['latency_ms']}ms")
 | Per-session | `@session_id:{sess_abc}` | Short-lived chats |
 | Global (shared) | No filter (`*`) | FAQ bots, common queries |
 | Per-model | `@model:{gpt-4}` | Multi-model deployments |
+
+
+---
+
+[← 01 - Getting Started](01-getting-started.md) | [03 - Production Patterns →](03-production.md)

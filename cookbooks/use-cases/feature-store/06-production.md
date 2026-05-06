@@ -296,3 +296,8 @@ Memory| Maxmemory policy| Set `maxmemory-policy allkeys-lru` in production
 Persistence| RDB/AOF| Enable RDB snapshots for feature store durability  
   
 **Congratulations!** You've completed all 6 cookbooks. You now know how to build, serve, stream, integrate, and operate a production feature store with Valkey. Check out the [interactive demo](https://valkeyforai.com/demo/feature-store.html) to experiment with these patterns in your browser.
+
+
+---
+
+[← 05 - ML Integration](05-ml-integration.md)

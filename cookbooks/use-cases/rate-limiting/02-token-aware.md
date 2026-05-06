@@ -138,3 +138,8 @@ Pattern| When to Use
 Token-only limiting| When request count doesn't matter (batch jobs)  
 Dual (request + token)| Production API gateways  
 Pre-estimate + post-adjust| High-accuracy budget tracking
+
+
+---
+
+[← 01 - Getting Started](01-getting-started.md) | [03 - Agent Limiting →](03-agent-limiting.md)

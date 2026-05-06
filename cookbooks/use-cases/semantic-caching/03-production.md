@@ -153,3 +153,8 @@ invalidate_by_topic("pricing")
 | Index | HNSW with COSINE for OpenAI/Bedrock embeddings |
 
 > **Reference:** This pattern is described in the official AWS documentation for [ElastiCache semantic caching use cases](https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/elasticache-use-cases.html), and was featured in the AWS re:Invent session on semantic caching for multi-turn agents with ElastiCache.
+
+
+---
+
+[← 02 - Multi-Turn Caching](02-multiturn-caching.md)

@@ -152,3 +152,8 @@ def get_avg_assembly_time(pattern: str = "metrics:context:*") -> float:
 | Freshness | Use EXPIRE to auto-clean stale context |
 
 > **Reference:** Based on best practices from the [Redis context engineering blog](https://redis.io/blog/context-engineering-best-practices-for-an-emerging-discipline/), drawing on insights from Andrej Karpathy, Lance Martin (LangChain), and Salvatore Sanfilippo (Redis founder).
+
+
+---
+
+[← 02 - Assembly Pipeline](02-assembly-pipeline.md)

@@ -113,3 +113,8 @@ timeout 0
 ```
 
 **Full Series Complete!** You now have everything you need to implement production-grade rate limiting for AI workloads. All code is open source - see the [original ValkeyForAI repository](<https://github.com/meet-bhagdev/valkeyforai/tree/main>) for runnable demos.
+
+
+---
+
+[← 05 - Cost-Based](05-cost-based.md)

@@ -150,3 +150,8 @@ const info = await cache.indexInfo();
 console.log(info);
 // { name: 'betterdb_scache', numDocs: 48, dimension: 1536, indexingState: 'ready' }
 ```
+
+
+---
+
+[02 - LangChain & Vercel AI Adapters →](02-adapters.md)

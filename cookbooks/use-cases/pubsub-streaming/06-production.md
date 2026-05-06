@@ -79,3 +79,8 @@ Scaling| Add consumers to groups for horizontal scale
 Memory| Use XTRIM or MAXLEN to bound stream size  
   
 **Congrats!** You completed all 6 Pub/Sub & Streaming cookbooks. Check out the [interactive demo](https://valkeyforai.com/demo/pubsub-streaming.html) to experiment.
+
+
+---
+
+[← 05 - Fan-Out](05-fan-out-patterns.md)

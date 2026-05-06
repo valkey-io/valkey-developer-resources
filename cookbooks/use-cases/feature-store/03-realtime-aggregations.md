@@ -179,3 +179,8 @@ Unique count| HyperLogLog| `PFADD` \+ `PFCOUNT`| 12KB fixed| ~0.81% error
 Max/Min value| Sorted Set| `ZADD` \+ `ZRANGE`| ~64 bytes/event| Exact  
   
 **Next up:** Learn how to build real-time streaming feature pipelines with Valkey Streams - publish feature updates from any service and have them materialize instantly.
+
+
+---
+
+[← 02 - Online Serving](02-online-serving.md) | [04 - Streaming →](04-streaming-updates.md)

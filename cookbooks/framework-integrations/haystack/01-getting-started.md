@@ -120,3 +120,8 @@ Score: 0.743 | Vector search finds semantically similar documents.
 | `SentenceTransformersDocumentEmbedder` | Generates embeddings for documents at index time |
 | `SentenceTransformersTextEmbedder` | Generates embedding for the query at search time |
 | `ValkeyEmbeddingRetriever` | Runs KNN search and returns ranked documents |
+
+
+---
+
+[02 - RAG Pipeline →](02-rag-pipeline.md)

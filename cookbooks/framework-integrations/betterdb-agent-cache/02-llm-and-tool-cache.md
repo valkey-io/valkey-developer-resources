@@ -182,3 +182,8 @@ console.log(effectiveness);
 | `increase_ttl` | Hit rate > 80% and TTL < 1 hour | Extend TTL - results are stable and reused frequently |
 | `optimal` | Hit rate 40–80% | No change needed |
 | `decrease_ttl_or_disable` | Hit rate < 40% | Results change too fast or are rarely repeated - consider disabling cache for this tool |
+
+
+---
+
+[← 01 - Getting Started](01-getting-started.md) | [03 - Session Store →](03-session-store.md)

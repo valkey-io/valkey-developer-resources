@@ -203,3 +203,8 @@ Combine vector search with metadata filters in a single query:
 Filters are applied _before_ the vector search, so they're fast - Valkey only computes distances for matching documents.
 
 **Next up:** Semantic memory finds relevant past conversations. But what about avoiding redundant LLM calls? In the next cookbook, we'll build a semantic cache that returns cached responses when a similar question was already answered.
+
+
+---
+
+[← 02 - Sessions](02-session-management.md) | [04 - Semantic Caching →](04-semantic-caching.md)

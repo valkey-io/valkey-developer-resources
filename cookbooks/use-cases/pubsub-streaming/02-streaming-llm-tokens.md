@@ -157,3 +157,8 @@ Delivery to 1 subscriber| ~0.1ms
 Delivery to 100 subscribers| ~0.5ms  
 Max subscribers per channel| Unlimited  
 Message size limit| 512MB (practical: keep small)
+
+
+---
+
+[← 01 - Getting Started](01-getting-started.md) | [03 - Streams →](03-valkey-streams.md)

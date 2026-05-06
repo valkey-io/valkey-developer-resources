@@ -153,3 +153,8 @@ EXPIRE checkpoint:user-42:__empty__:cp_001 3600
 You now have a complete LangGraph agent with Valkey-backed checkpointing, semantic caching, and vector search. To deploy to production, see the [ElastiCache for Valkey Getting Started guide](<https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/WhatIs.html>) - just swap `valkey://localhost:6379` for `valkeys://your-cluster.amazonaws.com:6379`.
 
 [← Back to LangChain Cookbooks](./)
+
+
+---
+
+[← 03 - Semantic Search](03-semantic-search.md)

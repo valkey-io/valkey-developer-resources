@@ -223,3 +223,8 @@ rate(semantic_cache_requests_total{result="uncertain_hit"}[5m])
 | Metrics | Expose `/metrics` and alert on hit rate drop > 20% |
 | Cluster | Avoid `flush()` in cluster mode - SCAN only covers one node |
 | Streaming | Accumulate full response before calling `store()` |
+
+
+---
+
+[← 02 - Adapters](02-adapters.md)

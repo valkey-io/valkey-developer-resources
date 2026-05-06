@@ -87,3 +87,8 @@ Tiers| Pipeline Commands| Round Trips| Latency
 3| 6 GET + 12 INCR/EXPIRE| 2| ~0.3ms  
 5| 10 GET + 20 INCR/EXPIRE| 2| ~0.5ms  
 7| 14 GET + 28 INCR/EXPIRE| 2| ~0.7ms
+
+
+---
+
+[← 03 - Agent Limiting](03-agent-limiting.md) | [05 - Cost-Based →](05-cost-based.md)

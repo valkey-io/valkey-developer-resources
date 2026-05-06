@@ -58,3 +58,8 @@ Command| Purpose
 `XACK`| Acknowledge processing  
 `XPENDING`| List unacknowledged  
 `XCLAIM`| Reassign stuck messages
+
+
+---
+
+[← 03 - Streams](03-valkey-streams.md) | [05 - Fan-Out →](05-fan-out-patterns.md)
