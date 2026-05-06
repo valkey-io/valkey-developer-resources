@@ -1,4 +1,4 @@
-[← All RAG Cookbooks](/cookbooks/rag-pipelines/)
+[← All RAG Cookbooks](./)
 
 # Getting Started with RAG Cache
 
@@ -141,4 +141,4 @@ print(results)
 - Storing documents with embeddings
 - Running KNN semantic search queries
 
-[Next: Semantic Caching →](02-semantic-caching.html)
+[Next: Semantic Caching →](02-semantic-caching.md)

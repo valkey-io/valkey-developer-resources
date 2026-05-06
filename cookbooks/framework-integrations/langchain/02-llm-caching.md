@@ -6,7 +6,7 @@ LLM API calls are expensive ($0.003–$0.10+ per call) and slow (2–10 seconds)
   * Retry logic re-sending the same prompt
   * Agents re-invoking the same tool with the same input
 
-Exact-match caching eliminates redundant calls. (For meaning-based matching, see [Guide 03](<03-semantic-search.html>).)
+Exact-match caching eliminates redundant calls. (For meaning-based matching, see [Guide 03](03-semantic-search.md).)
 
 **Upstream Contribution:** The `ValkeyCache` integration was contributed to `langchain-ai/langchain-aws` in [PR #717](<https://github.com/langchain-ai/langchain-aws/pull/717>) by the Valkey team.
 
@@ -143,4 +143,4 @@ DEL llm_cache:a1b2c3d4e5f6g7h8 ...
 
 Exact-match caching is powerful but misses paraphrased queries. Next, we'll add semantic search to match by meaning.
 
-[Next: 03 Semantic Search with ValkeyStore →](<03-semantic-search.html>)
+[Next: 03 Semantic Search with ValkeyStore →](03-semantic-search.md)

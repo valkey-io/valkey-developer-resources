@@ -1,4 +1,4 @@
-[← All RAG Cookbooks](</cookbooks/rag-pipelines/>)
+[← All RAG Cookbooks](./)
 
 # Scaling for Production
 
@@ -129,4 +129,4 @@ cluster = ValkeyCluster(
 )
 ```
 
-[← Cache Invalidation](<04-cache-invalidation.html>) [Next: Monitoring →](<06-monitoring.html>)
+[← Cache Invalidation](04-cache-invalidation.md) [Next: Monitoring →](06-monitoring.md)

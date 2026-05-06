@@ -92,4 +92,4 @@ asyncio.run(test_connection())
 
 Connection works. Next, we'll build the `ValkeyStorage` backend that implements CrewAI's storage protocol.
 
-[Next: 02 Memory Storage Backend →](02-memory-storage.html)
+[Next: 02 Memory Storage Backend →](02-memory-storage.md)

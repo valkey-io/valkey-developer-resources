@@ -1,4 +1,4 @@
-[← All RAG Cookbooks](</cookbooks/rag-pipelines/>)
+[← All RAG Cookbooks](./)
 
 # Vector Search Deep Dive
 
@@ -133,4 +133,4 @@ def hybrid_search(query_text, category=None, date_range=None, k=5):
     return client.ft("idx:docs").search(q, {"vec": query_bytes})
 ```
 
-[← Semantic Caching](<02-semantic-caching.html>) [Next: Cache Invalidation →](<04-cache-invalidation.html>)
+[← Semantic Caching](02-semantic-caching.md) [Next: Cache Invalidation →](04-cache-invalidation.md)

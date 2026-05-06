@@ -123,4 +123,4 @@ with ValkeySaver.from_conn_string("valkey://localhost:6379") as checkpointer:
 
 **Source:** [`langgraph-checkpoint-aws`](https://github.com/langchain-ai/langgraph-checkpoint-aws) - The official LangGraph checkpointer for Valkey.
 
-[Next: 02 LLM Response Caching →](02-llm-caching.html)
+[Next: 02 LLM Response Caching →](02-llm-caching.md)

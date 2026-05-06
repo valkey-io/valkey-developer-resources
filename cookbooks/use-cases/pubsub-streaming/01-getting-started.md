@@ -140,4 +140,4 @@ Count subscribers| `PUBSUB NUMSUB channel`| ~0.1ms
   
 **Next up:** In the next cookbook, we'll use Pub/Sub to stream LLM tokens in real-time - broadcasting each token as it arrives from the model to multiple connected clients.
 
-[ Next → 02 - Streaming LLM Tokens ](<02-streaming-llm-tokens.html>)
+[ Next → 02 - Streaming LLM Tokens ](02-streaming-llm-tokens.md)

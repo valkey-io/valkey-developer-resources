@@ -154,4 +154,4 @@ Read specific features| `HMGET key field1 field2`| ~0.1ms
   
 **Next up:** In the next cookbook, we'll cover batch serving - fetching features for 100+ entities in a single round-trip using Valkey pipelines.
 
-[ Next → 02 - Online Feature Serving ](<02-online-serving.html>)
+[ Next → 02 - Online Feature Serving ](02-online-serving.md)

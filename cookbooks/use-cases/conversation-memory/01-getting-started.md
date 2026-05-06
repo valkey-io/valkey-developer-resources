@@ -177,5 +177,5 @@ Everything else stays the same. GLIDE handles the connection, TLS, and cluster t
 
 **Next up:** In the next cookbook, we'll add session metadata - tracking user IDs, token counts, and model info alongside the conversation history using Valkey Hashes.
 
-[ Next → 02 - Session Management ](<02-session-management.html>)
+[ Next → 02 - Session Management ](02-session-management.md)
 

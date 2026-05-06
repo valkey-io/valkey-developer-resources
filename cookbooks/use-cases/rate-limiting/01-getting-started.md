@@ -83,4 +83,4 @@ Operation| Valkey Command| Time
 Increment counter| `INCR`| ~0.1ms  
 Set expiry| `EXPIRE`| ~0.1ms  
 Pipeline (both)| 1 round-trip| ~0.2ms total  
-[ Next → 02 - Token-Aware Limiting ](<02-token-aware.html>)
+[ Next → 02 - Token-Aware Limiting ](02-token-aware.md)

@@ -173,4 +173,4 @@ async def search(client, query_embedding, scope: str = None, categories: list = 
 
 The storage backend is complete. Next we wire it into CrewAI's `Memory` system and run real agents.
 
-[Next: 03 Agent Memory in Action →](<03-agent-memory.html>)
+[Next: 03 Agent Memory in Action →](03-agent-memory.md)

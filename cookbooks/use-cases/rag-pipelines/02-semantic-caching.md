@@ -1,4 +1,4 @@
-[← All RAG Cookbooks](</cookbooks/rag-pipelines/>)
+[← All RAG Cookbooks](./)
 
 # Semantic Caching Patterns
 
@@ -144,4 +144,4 @@ class SemanticCache:
 
 **⚠️ Watch out:** Semantic caching can return cached answers for queries that seem similar but need different responses. Always validate with real user queries before production. 
 
-[← Getting Started](<01-getting-started.html>) [Next: Vector Search →](<03-vector-search.html>)
+[← Getting Started](01-getting-started.md) [Next: Vector Search →](03-vector-search.md)

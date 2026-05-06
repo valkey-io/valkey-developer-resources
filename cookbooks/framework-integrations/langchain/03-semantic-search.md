@@ -126,4 +126,4 @@ store = ValkeyStore.from_conn_string(
 
 Now you have all three components: `ValkeySaver` (checkpoints), `ValkeyCache` (exact caching), and `ValkeyStore` (semantic search). Time to wire them all together.
 
-[Next: 04 Full Agent - All Three Components →](<04-full-agent.html>)
+[Next: 04 Full Agent - All Three Components →](04-full-agent.md)

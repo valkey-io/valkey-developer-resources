@@ -147,4 +147,4 @@ Drop index| `FT.DROPINDEX idx`| Removes index (not data)
   
 **Important:** Vectors MUST be binary FLOAT32 data, not strings. Always use `np.array(vec, dtype=np.float32).tobytes()` or `struct.pack(f'{len(vec)}f', *vec)` to serialize.
 
-[Next →02 - Semantic Search with Embeddings](<02-semantic-search.html>)
+[Next →02 - Semantic Search with Embeddings](02-semantic-search.md)

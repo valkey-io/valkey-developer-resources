@@ -1,4 +1,4 @@
-[← All RAG Cookbooks](</cookbooks/rag-pipelines/>)
+[← All RAG Cookbooks](./)
 
 # Cache Invalidation
 
@@ -139,4 +139,4 @@ class SmartCache:
         self.client.incr("cache:version")
 ```
 
-[← Vector Search](<03-vector-search.html>) [Next: Scaling →](<05-scaling-production.html>)
+[← Vector Search](03-vector-search.md) [Next: Scaling →](05-scaling-production.md)

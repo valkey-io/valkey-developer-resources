@@ -141,4 +141,4 @@ Index creation| Automatic on init| `FT.CREATE` with HNSW + TAG fields
   
 **Source:** [mem0/vector_stores/valkey.py](<https://github.com/mem0ai/mem0/blob/main/mem0/vector_stores/valkey.py>) - The official Valkey connector in the Mem0 repository.
 
-[Next →02 - Multi-User Memory](<02-multi-user-memory.html>)
+[Next →02 - Multi-User Memory](02-multi-user-memory.md)

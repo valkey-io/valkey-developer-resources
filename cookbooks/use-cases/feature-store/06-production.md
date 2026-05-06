@@ -293,4 +293,4 @@ Monitoring| Health checks| Ping + write/read test on `/health` endpoint
 Memory| Maxmemory policy| Set `maxmemory-policy allkeys-lru` in production  
 Persistence| RDB/AOF| Enable RDB snapshots for feature store durability  
   
-**Congratulations!** You've completed all 6 cookbooks. You now know how to build, serve, stream, integrate, and operate a production feature store with Valkey. Check out the [interactive demo](</demo/feature-store.html>) to experiment with these patterns in your browser.
+**Congratulations!** You've completed all 6 cookbooks. You now know how to build, serve, stream, integrate, and operate a production feature store with Valkey. Check out the [interactive demo](https://valkeyforai.com/demo/feature-store.html) to experiment with these patterns in your browser.
