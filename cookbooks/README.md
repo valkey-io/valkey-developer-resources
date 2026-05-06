@@ -2,6 +2,8 @@
 
 > Cookbooks, demos, and production patterns for semantic caching, vector search, RAG, agent memory, and more.
 
+**New to Valkey for AI?** Start with [Semantic Caching → Getting Started](use-cases/semantic-caching/01-getting-started.md) or [LangChain → Getting Started](framework-integrations/langchain/01-getting-started.md).
+
 ---
 
 ## Use Cases
