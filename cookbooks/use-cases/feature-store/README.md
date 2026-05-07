@@ -1,6 +1,6 @@
 # Real-Time Feature Store
 
-> Sub-millisecond feature serving for ML models. Batch pipelines, streaming updates, and production monitoring - all built on Valkey Hashes.
+> 6 production-ready cookbooks for building a real-time ML feature store with Valkey. From basic HSET/HGET to streaming pipelines and production monitoring.
 
 ## Cookbooks
 
