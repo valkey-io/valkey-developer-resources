@@ -1,0 +1,105 @@
+{
+  "trackName": "Rate Limiting",
+  "cookbooks": [
+    {
+      "num": "01",
+      "source": "01-getting-started.md",
+      "output": "01-getting-started.html",
+      "title": "Getting Started with Rate Limiting",
+      "h1": "Getting Started with Rate Limiting",
+      "breadcrumb": "Getting Started",
+      "difficulty": "Beginner",
+      "time": "15 min",
+      "next": {
+        "file": "02-token-aware.html",
+        "title": "02 - Token-Aware"
+      }
+    },
+    {
+      "num": "02",
+      "source": "02-token-aware.md",
+      "output": "02-token-aware.html",
+      "title": "Token-Aware Rate Limiting",
+      "h1": "Token-Aware Rate Limiting",
+      "breadcrumb": "Token-Aware",
+      "difficulty": "Intermediate",
+      "time": "20 min",
+      "prev": {
+        "file": "01-getting-started.html",
+        "title": "01 - Getting Started"
+      },
+      "next": {
+        "file": "03-agent-limiting.html",
+        "title": "03 - Agent Limiting"
+      }
+    },
+    {
+      "num": "03",
+      "source": "03-agent-limiting.md",
+      "output": "03-agent-limiting.html",
+      "title": "Agent Rate Limiting",
+      "h1": "Agent Rate Limiting",
+      "breadcrumb": "Agent Limiting",
+      "difficulty": "Intermediate",
+      "time": "20 min",
+      "prev": {
+        "file": "02-token-aware.html",
+        "title": "02 - Token-Aware"
+      },
+      "next": {
+        "file": "04-hierarchical.html",
+        "title": "04 - Hierarchical"
+      }
+    },
+    {
+      "num": "04",
+      "source": "04-hierarchical.md",
+      "output": "04-hierarchical.html",
+      "title": "Hierarchical Rate Limiting",
+      "h1": "Hierarchical Rate Limiting",
+      "breadcrumb": "Hierarchical",
+      "difficulty": "Advanced",
+      "time": "20 min",
+      "prev": {
+        "file": "03-agent-limiting.html",
+        "title": "03 - Agent Limiting"
+      },
+      "next": {
+        "file": "05-cost-based.html",
+        "title": "05 - Cost-Based"
+      }
+    },
+    {
+      "num": "05",
+      "source": "05-cost-based.md",
+      "output": "05-cost-based.html",
+      "title": "Cost-Based Rate Limiting",
+      "h1": "Cost-Based Rate Limiting",
+      "breadcrumb": "Cost-Based",
+      "difficulty": "Advanced",
+      "time": "25 min",
+      "prev": {
+        "file": "04-hierarchical.html",
+        "title": "04 - Hierarchical"
+      },
+      "next": {
+        "file": "06-production.html",
+        "title": "06 - Production"
+      }
+    },
+    {
+      "num": "06",
+      "source": "06-production.md",
+      "output": "06-production.html",
+      "title": "Production Patterns",
+      "h1": "Production Patterns",
+      "breadcrumb": "Production",
+      "difficulty": "Advanced",
+      "time": "25 min",
+      "prev": {
+        "file": "05-cost-based.html",
+        "title": "05 - Cost-Based"
+      }
+    }
+  ]
+}

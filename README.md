@@ -19,6 +19,16 @@
 
 </div>
 
+## Cookbooks
+
+Step-by-step guides for building AI applications with Valkey, migrated from [ValkeyForAI](https://github.com/meet-bhagdev/valkeyforai):
+
+| Section | Description |
+| --- | --- |
+| [📖 All Cookbooks](cookbooks/) | Main index — use cases and framework integrations |
+| [Use Cases](cookbooks/use-cases/) | Semantic caching, conversation memory, vector search, RAG pipelines, rate limiting, pub/sub streaming, feature store, context engineering |
+| [Framework Integrations](cookbooks/framework-integrations/) | Mem0, LangChain/LangGraph, CrewAI, Strands, Haystack, BetterDB |
+
 <hr>
 
 ## MCP Servers

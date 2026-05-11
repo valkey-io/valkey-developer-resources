@@ -1,0 +1,105 @@
+{
+  "trackName": "Pub/Sub & Streaming",
+  "cookbooks": [
+    {
+      "num": "01",
+      "source": "01-getting-started.md",
+      "output": "01-getting-started.html",
+      "title": "Getting Started with Pub/Sub",
+      "h1": "Getting Started with Pub/Sub",
+      "breadcrumb": "Getting Started",
+      "difficulty": "Beginner",
+      "time": "15 min",
+      "next": {
+        "file": "02-streaming-llm-tokens.html",
+        "title": "02 - LLM Tokens"
+      }
+    },
+    {
+      "num": "02",
+      "source": "02-streaming-llm-tokens.md",
+      "output": "02-streaming-llm-tokens.html",
+      "title": "Streaming LLM Tokens",
+      "h1": "Streaming LLM Tokens",
+      "breadcrumb": "LLM Tokens",
+      "difficulty": "Intermediate",
+      "time": "20 min",
+      "prev": {
+        "file": "01-getting-started.html",
+        "title": "01 - Getting Started"
+      },
+      "next": {
+        "file": "03-valkey-streams.html",
+        "title": "03 - Streams"
+      }
+    },
+    {
+      "num": "03",
+      "source": "03-valkey-streams.md",
+      "output": "03-valkey-streams.html",
+      "title": "Valkey Streams",
+      "h1": "Valkey Streams",
+      "breadcrumb": "Streams",
+      "difficulty": "Intermediate",
+      "time": "20 min",
+      "prev": {
+        "file": "02-streaming-llm-tokens.html",
+        "title": "02 - LLM Tokens"
+      },
+      "next": {
+        "file": "04-consumer-groups.html",
+        "title": "04 - Consumer Groups"
+      }
+    },
+    {
+      "num": "04",
+      "source": "04-consumer-groups.md",
+      "output": "04-consumer-groups.html",
+      "title": "Consumer Groups",
+      "h1": "Consumer Groups",
+      "breadcrumb": "Consumer Groups",
+      "difficulty": "Advanced",
+      "time": "20 min",
+      "prev": {
+        "file": "03-valkey-streams.html",
+        "title": "03 - Streams"
+      },
+      "next": {
+        "file": "05-fan-out-patterns.html",
+        "title": "05 - Fan-Out"
+      }
+    },
+    {
+      "num": "05",
+      "source": "05-fan-out-patterns.md",
+      "output": "05-fan-out-patterns.html",
+      "title": "Fan-Out Patterns",
+      "h1": "Fan-Out Patterns",
+      "breadcrumb": "Fan-Out",
+      "difficulty": "Advanced",
+      "time": "25 min",
+      "prev": {
+        "file": "04-consumer-groups.html",
+        "title": "04 - Consumer Groups"
+      },
+      "next": {
+        "file": "06-production.html",
+        "title": "06 - Production"
+      }
+    },
+    {
+      "num": "06",
+      "source": "06-production.md",
+      "output": "06-production.html",
+      "title": "Production Patterns",
+      "h1": "Production Patterns",
+      "breadcrumb": "Production",
+      "difficulty": "Advanced",
+      "time": "25 min",
+      "prev": {
+        "file": "05-fan-out-patterns.html",
+        "title": "05 - Fan-Out"
+      }
+    }
+  ]
+}
