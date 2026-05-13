@@ -7,7 +7,7 @@
 [DB-GPT](https://github.com/eosphoros-ai/DB-GPT) is an open-source framework for building AI-native data applications with multi-model management, RAG pipelines, and multi-agent orchestration. Valkey plugs in as:
 
 - **Vector Store** — sub-millisecond similarity search for RAG via HNSW indexes
-- **LLM Cache** — cache model responses to slash latency and inference costs
+- **LLM Cache** — cache model responses to reduce latency and inference costs
 
 DB-GPT uses a plugin system with `@register_resource` decorators and a registry, making Valkey a drop-in backend alongside ChromaDB, Milvus, and others.
 
@@ -141,6 +141,19 @@ cache = ValkeyCacheStorage(
 
 - [02 - Vector Store for RAG →](02-vector-store.md) — load documents, create HNSW indexes, and run similarity searches
 - [03 - LLM Response Caching →](03-llm-caching.md) — cache expensive LLM calls with automatic TTL
+
+## Authentication Options
+
+`valkey-glide` supports multiple authentication methods depending on your deployment:
+
+| Method | Use Case | Documentation |
+|--------|----------|---------------|
+| **Username/Password (ACL)** | Self-managed Valkey with ACL users configured | [Authentication Guide](https://glide.valkey.io/how-to/security/authentication/) |
+| **Password only (`requirepass`)** | Simple deployments with a single shared password | [Authentication Guide](https://glide.valkey.io/how-to/security/authentication/) |
+| **TLS / mTLS** | Encrypt in-transit data; verify client identity with certificates | [TLS Guide](https://glide.valkey.io/how-to/security/tls/) |
+| **AWS IAM** | Amazon ElastiCache / MemoryDB clusters (auto token rotation) | [IAM Integration](https://glide.valkey.io/how-to/security/iam-integration/) |
+
+> **Note**: DB-GPT's `ValkeyStore` and `ValkeyCacheStorage` currently pass `host`, `port`, and `password` to the underlying `valkey-glide` client. For TLS or IAM auth you'll need to instantiate the `GlideClient` directly and pass it to the storage class. See the linked guides above for connection examples.
 
 ## Troubleshooting
 
