@@ -8,7 +8,7 @@ PraisonAI is a multi-agent orchestration framework built around OpenAI-compatibl
 
 [PraisonAI](https://docs.praison.ai/) handles the agent logic and Valkey handles the memory:
 
-- **Blazing-fast reads** — state recall via GLIDE's Rust core
+- **Sub-millisecond reads** — state recall via GLIDE's Rust core
 - **Vector search** — `FT.SEARCH` with HNSW for semantic knowledge retrieval
 - **Hash storage** — structured agent metadata in Valkey hashes
 - **TTL** — state entries auto-expire with `EXPIRE`

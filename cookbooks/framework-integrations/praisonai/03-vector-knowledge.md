@@ -48,7 +48,6 @@ from praisonaiagents import Agent
 from praisonai.persistence.knowledge.valkey_vector import ValkeyVectorKnowledgeStore
 from praisonai.persistence.knowledge.base import KnowledgeDocument
 
-OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 VALKEY_HOST = os.environ.get("VALKEY_HOST", "localhost")
 VALKEY_PORT = int(os.environ.get("VALKEY_PORT", "6379"))
 VALKEY_PASSWORD = os.environ.get("VALKEY_PASSWORD") or None
@@ -145,7 +144,7 @@ python 03_vector_knowledge.py
 
 ## Key Design Decisions
 
-**Idempotent ingestion** — `create_collection` silently ignores the "already exists" error, so re-running the script only inserts new documents without duplicating the index.
+**Idempotent ingestion** — `create_collection` silently ignores the "already exists" error, so re-running the script overwrites existing documents (HSET is idempotent) and skips index creation.
 
 **Collection names** — must contain only alphanumerics and underscores (e.g. `agent_kb`, not `agent-kb`).
 

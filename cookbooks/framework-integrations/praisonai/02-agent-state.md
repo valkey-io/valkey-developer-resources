@@ -30,7 +30,6 @@ import os
 from praisonaiagents import Agent
 from praisonai.persistence.state.valkey import ValkeyStateStore
 
-OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 VALKEY_HOST = os.environ.get("VALKEY_HOST", "localhost")
 VALKEY_PORT = int(os.environ.get("VALKEY_PORT", "6379"))
 VALKEY_PASSWORD = os.environ.get("VALKEY_PASSWORD") or None
