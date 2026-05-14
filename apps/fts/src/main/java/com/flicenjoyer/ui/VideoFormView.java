@@ -29,7 +29,6 @@ public class VideoFormView {
   }
 
   private final StackPane rootStack = new StackPane();
-  private final VBox root = new VBox(20);
   private final NotificationBanner banner = new NotificationBanner();
   private final Stage stage;
   private final Mode mode;
@@ -44,9 +43,9 @@ public class VideoFormView {
 
   private File selectedVideo;
   private File selectedThumbnail;
-  private Button submitBtn;
-  private ProgressIndicator submitSpinner;
-  private HBox formPane;
+  private final Button submitBtn;
+  private final ProgressIndicator submitSpinner;
+  private final HBox formPane;
   private BackgroundTask currentTask;
 
   // For edit mode
@@ -58,6 +57,7 @@ public class VideoFormView {
   public VideoFormView(Stage stage, Mode mode) {
     this.stage = stage;
     this.mode = mode;
+    var root = new VBox(20);
     root.setPadding(new Insets(20));
     thumbPreview.setFitWidth(120);
     thumbPreview.setFitHeight(68);
@@ -152,7 +152,7 @@ public class VideoFormView {
     banner.attachTo(rootStack);
   }
 
-  private Button backBtn;
+  private final Button backBtn;
   private Runnable onBack;
 
   public void setBackNavigation(ViewId viewId, Runnable action) {
@@ -206,9 +206,7 @@ public class VideoFormView {
   // --- private helpers ---
 
   private VBox labeled(String text, javafx.scene.Node control) {
-    var label = new Label(text);
-    label.getStyleClass().add("field-label");
-    return new VBox(4, label, control);
+    return new VBox(4, UiFactory.styledLabel(text), control);
   }
 
   private void pickVideo() {
@@ -258,9 +256,11 @@ public class VideoFormView {
 
       var captured = new java.util.concurrent.atomic.AtomicBoolean(false);
 
+      var seekFraction = new double[] {0.05 + Math.random() * 0.9};
       player.setOnReady(
           () -> {
-            player.seek(player.getTotalDuration().multiply(0.1));
+            seekFraction[0] = 0.05 + Math.random() * 0.9;
+            player.seek(player.getTotalDuration().multiply(seekFraction[0]));
             player.play();
           });
 
@@ -269,7 +269,7 @@ public class VideoFormView {
           .addListener(
               (obs, oldTime, newTime) -> {
                 if (captured.get()) return;
-                var seekTarget = player.getTotalDuration().multiply(0.1);
+                var seekTarget = player.getTotalDuration().multiply(seekFraction[0]);
                 if (newTime.greaterThanOrEqualTo(
                     seekTarget.subtract(javafx.util.Duration.millis(500)))) {
                   if (captured.compareAndSet(false, true)) {
@@ -285,7 +285,7 @@ public class VideoFormView {
                             // Clean up previous temp thumbnail
                             if (selectedThumbnail != null
                                 && selectedThumbnail.getName().startsWith("thumb-")) {
-                              selectedThumbnail.delete();
+                              var ignored = selectedThumbnail.delete();
                             }
                             var tempFile = java.io.File.createTempFile("thumb-", ".png");
                             tempFile.deleteOnExit();
@@ -458,7 +458,9 @@ public class VideoFormView {
               java.nio.file.Files.copy(
                   thumb.toPath(), target, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
               catalogService.updateThumbnail(id, target.toAbsolutePath().toString());
-              if (oldThumb != null && !oldThumb.isEmpty())
+              if (oldThumb != null
+                  && !oldThumb.isEmpty()
+                  && !java.nio.file.Path.of(oldThumb).equals(target))
                 java.nio.file.Files.deleteIfExists(java.nio.file.Path.of(oldThumb));
             }
           }
