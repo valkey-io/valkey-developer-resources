@@ -62,6 +62,12 @@ Edit `.env` and set:
 VECTOR_STORE=valkey
 VALKEY_HOST=localhost
 VALKEY_PORT=6379
+# VALKEY_PASSWORD=
+# VALKEY_USE_TLS=false
+# VALKEY_INDEX_NAME=docsgpt
+# VALKEY_PREFIX=doc:
+# VALKEY_DISTANCE_METRIC=cosine
+# VALKEY_VECTOR_ALGORITHM=hnsw
 ```
 
 ## Step 3: Install Dependencies
@@ -72,7 +78,7 @@ source .venv/bin/activate
 pip install -r application/requirements.txt
 ```
 
-This installs `valkey-glide-sync` which provides the synchronous GLIDE client for Valkey.
+This installs `valkey-glide-sync` (≥ 2.3.1 required) which provides the synchronous GLIDE client for Valkey.
 
 ## Step 4: Verify the Connection
 
@@ -131,6 +137,9 @@ When you ask a question:
 | `VALKEY_USE_TLS` | `false` | Enable TLS connections |
 | `VALKEY_INDEX_NAME` | `docsgpt` | Name of the search index |
 | `VALKEY_PREFIX` | `doc:` | Key prefix for document hashes |
+| `VALKEY_DISTANCE_METRIC` | `cosine` | Distance metric for vector similarity (`cosine`, `l2`, `ip`) |
+| `VALKEY_VECTOR_TYPE` | `float32` | Vector element type (`float32`, `float64`) |
+| `VALKEY_VECTOR_ALGORITHM` | `hnsw` | Index algorithm (`hnsw` for speed, `flat` for exact recall) |
 
 ## What's Next
 

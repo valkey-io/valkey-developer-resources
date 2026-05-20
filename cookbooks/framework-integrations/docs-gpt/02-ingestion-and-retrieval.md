@@ -26,6 +26,14 @@ from application.vectorstore.valkey import ValkeyStore
 store = ValkeyStore(source_id="my-docs", embeddings_key="embeddings")
 ```
 
+`ValkeyStore` supports context manager usage for automatic connection cleanup:
+
+```python
+with ValkeyStore(source_id="my-docs", embeddings_key="embeddings") as store:
+    results = store.search("How does vector search work?", k=3)
+# Connection is released automatically when the block exits
+```
+
 On creation, `ValkeyStore`:
 1. Connects to Valkey using the synchronous GLIDE client
 2. Creates an HNSW index (if it doesn't exist) with schema:
@@ -33,7 +41,7 @@ On creation, `ValkeyStore`:
    - `source_id` — TAG field (exact match filtering)
    - `embedding` — VECTOR field (HNSW, cosine distance, FLOAT32)
 
-> **Important**: Remember to call `store.close()` when done to release the connection, or use try/finally blocks in production code.
+> **Important**: If not using the context manager, remember to call `store.close()` when done to release the connection, or use try/finally blocks in production code.
 
 ## Step 2: Ingest Documents
 
