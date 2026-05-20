@@ -1,0 +1,54 @@
+{
+  "trackName": "AgentScope",
+  "cookbooks": [
+    {
+      "num": "01",
+      "source": "01-getting-started.md",
+      "output": "01-getting-started.html",
+      "title": "Getting Started with AgentScope + Valkey",
+      "h1": "Getting Started with AgentScope + Valkey",
+      "breadcrumb": "Getting Started",
+      "lead": "Use ValkeyStore to give AgentScope agents vector similarity search backed by Valkey's Search module with HNSW indexing via the valkey-glide async client.",
+      "difficulty": "Beginner",
+      "time": "15 min",
+      "next": {
+        "file": "02-rag-pipeline.html",
+        "title": "02 - RAG Pipeline"
+      }
+    },
+    {
+      "num": "02",
+      "source": "02-rag-pipeline.md",
+      "output": "02-rag-pipeline.html",
+      "title": "Building a RAG Pipeline",
+      "h1": "Building a RAG Pipeline with AgentScope + Valkey",
+      "breadcrumb": "RAG Pipeline",
+      "lead": "Chunk documents, generate embeddings, store them in Valkey, and retrieve relevant context for an AgentScope LLM agent using ValkeyStore.",
+      "difficulty": "Intermediate",
+      "time": "20 min",
+      "prev": {
+        "file": "01-getting-started.html",
+        "title": "01 - Getting Started"
+      },
+      "next": {
+        "file": "03-production.html",
+        "title": "03 - Production Configuration"
+      }
+    },
+    {
+      "num": "03",
+      "source": "03-production.md",
+      "output": "03-production.html",
+      "title": "Production Configuration",
+      "h1": "Production Configuration for AgentScope + Valkey",
+      "breadcrumb": "Production",
+      "lead": "Configure cluster mode, TLS, HNSW tuning parameters, metadata filtering, and batch operations for production deployments.",
+      "difficulty": "Intermediate",
+      "time": "15 min",
+      "prev": {
+        "file": "02-rag-pipeline.html",
+        "title": "02 - RAG Pipeline"
+      }
+    }
+  ]
+}
