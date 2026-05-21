@@ -134,7 +134,7 @@ cache = ValkeyCacheStorage(
 
 | Component | Purpose | Valkey Features Used |
 |-----------|---------|---------------------|
-| ValkeyStore | RAG embeddings + similarity search | FT.CREATE, FT.SEARCH, HSET, JSON.SET |
+| ValkeyStore | RAG embeddings + similarity search | FT.CREATE, FT.SEARCH, HSET |
 | ValkeyCacheStorage | LLM response caching | GET, SET, EXPIRE |
 
 ## What's Next

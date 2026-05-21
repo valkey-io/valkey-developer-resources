@@ -123,22 +123,12 @@ cache.close()
 `ValkeyCacheStorage` supports native async for use in DB-GPT's async pipelines:
 
 ```python
-"""Async cache operations."""
+"""Async cache operations — reuses JsonSerializer from Step 3."""
 import asyncio
-import json
 import time
 from dbgpt.core.interface.llm import ModelOutput
-from dbgpt.core.interface.serialization import Serializer
 from dbgpt.storage.cache.llm_cache import LLMCacheKey, LLMCacheValue
 from dbgpt_ext.storage.cache.valkey_cache import ValkeyCacheStorage
-
-
-class JsonSerializer(Serializer):
-    def serialize(self, obj):
-        return json.dumps(obj.to_dict()).encode()
-
-    def deserialize(self, data, cls):
-        return cls(**json.loads(data))
 
 
 async def demo_async_cache():
@@ -177,21 +167,13 @@ asyncio.run(demo_async_cache())
 ## Step 5: Benchmark Cache vs No-Cache
 
 ```python
-"""Compare latency: cached vs uncached LLM calls."""
-import json
+"""Compare latency: cached vs uncached LLM calls.
+Uses JsonSerializer from Step 3.
+"""
 import time
 from dbgpt.core.interface.llm import ModelOutput
-from dbgpt.core.interface.serialization import Serializer
 from dbgpt.storage.cache.llm_cache import LLMCacheKey, LLMCacheValue
 from dbgpt_ext.storage.cache.valkey_cache import ValkeyCacheStorage
-
-
-class JsonSerializer(Serializer):
-    def serialize(self, obj):
-        return json.dumps(obj.to_dict()).encode()
-
-    def deserialize(self, data, cls):
-        return cls(**json.loads(data))
 
 
 cache = ValkeyCacheStorage(host="localhost", port=6379, ttl_seconds=3600)
@@ -294,20 +276,12 @@ cache_storage = ValkeyCacheStorage(
 Use context managers for clean resource management:
 
 ```python
-"""Context manager for automatic cleanup."""
-import json
+"""Context manager for automatic cleanup.
+Uses JsonSerializer from Step 3.
+"""
 from dbgpt.core.interface.llm import ModelOutput
-from dbgpt.core.interface.serialization import Serializer
 from dbgpt.storage.cache.llm_cache import LLMCacheKey, LLMCacheValue
 from dbgpt_ext.storage.cache.valkey_cache import ValkeyCacheStorage
-
-
-class JsonSerializer(Serializer):
-    def serialize(self, obj):
-        return json.dumps(obj.to_dict()).encode()
-
-    def deserialize(self, data, cls):
-        return cls(**json.loads(data))
 
 
 # Sync context manager

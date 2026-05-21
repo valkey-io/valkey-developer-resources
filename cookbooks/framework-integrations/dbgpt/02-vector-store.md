@@ -157,6 +157,8 @@ This single call:
 2. Generates embeddings for all chunk content
 3. Stores each chunk as a Valkey hash with content, metadata, and vector fields
 
+> **Note**: Steps 5–7 below assume you still have the `store` instance open from Step 4. When you're done searching, call `store.close()` as shown in Step 8.
+
 ## Step 5: Similarity Search
 
 ```python
