@@ -63,9 +63,9 @@ The Valkey adapter uses `valkey-glide` which supports TLS natively. For ElastiCa
 # For ElastiCache, modify the adapter connection:
 # set use_tls=True in GlideClientConfiguration
 
-# If using IAM auth, configure via environment:
-os.environ["AWS_ACCESS_KEY_ID"] = "..."
-os.environ["AWS_SECRET_ACCESS_KEY"] = "..."
+# Authentication: use IAM roles, instance profiles, or environment variables.
+# Never hardcode credentials in application code.
+# See: https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
 ```
 
 ## Step 4: HNSW Tuning
@@ -139,13 +139,13 @@ async def safe_cognify(documents: list[str]):
         try:
             await add(doc)
         except Exception as e:
-            logging.error(f"Failed to add document: {e}")
+            logging.error("Failed to add document: %s", e)
             continue
 
     try:
         await cognify()
     except Exception as e:
-        logging.error(f"Cognify failed: {e}")
+        logging.error("Cognify failed: %s", e)
         raise
 
 async def safe_search(query: str) -> list[str]:
@@ -156,7 +156,7 @@ async def safe_search(query: str) -> list[str]:
             query_text=query,
         )
     except Exception as e:
-        logging.warning(f"Graph search failed, falling back to chunks: {e}")
+        logging.warning("Graph search failed, falling back to chunks: %s", e)
         return await search(
             query_type=SearchType.CHUNKS,
             query_text=query,

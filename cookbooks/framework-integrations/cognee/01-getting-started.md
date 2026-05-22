@@ -35,15 +35,15 @@ import pathlib
 from os import path
 
 # Disable multi-user access control (Valkey adapter doesn't support it yet)
-os.environ["ENABLE_BACKEND_ACCESS_CONTROL"] = "false"
+os.environ.setdefault("ENABLE_BACKEND_ACCESS_CONTROL", "false")
 
 # Configure AWS Bedrock as the LLM and embedding provider
-os.environ["LLM_PROVIDER"] = "bedrock"
-os.environ["LLM_MODEL"] = "bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0"
-os.environ["EMBEDDING_PROVIDER"] = "bedrock"
-os.environ["EMBEDDING_MODEL"] = "bedrock/amazon.titan-embed-text-v2:0"
-os.environ["EMBEDDING_DIMENSIONS"] = "1024"
-os.environ["AWS_REGION"] = "us-east-1"
+os.environ.setdefault("LLM_PROVIDER", "bedrock")
+os.environ.setdefault("LLM_MODEL", "bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0")
+os.environ.setdefault("EMBEDDING_PROVIDER", "bedrock")
+os.environ.setdefault("EMBEDDING_MODEL", "bedrock/amazon.titan-embed-text-v2:0")
+os.environ.setdefault("EMBEDDING_DIMENSIONS", "1024")
+os.environ.setdefault("AWS_REGION", "us-east-1")
 
 from cognee import config
 
@@ -70,6 +70,8 @@ from cognee_community_vector_adapter_valkey import register  # noqa: F401
 Importing `register` hooks the Valkey adapter into Cognee's plugin system. No further configuration needed.
 
 ## Step 5: Add Documents and Build Knowledge Graph
+
+> **Note**: Steps 5 and 6 below are shown as separate snippets for clarity. See `sample/quick_start.py` for a complete runnable script.
 
 ```python
 import asyncio

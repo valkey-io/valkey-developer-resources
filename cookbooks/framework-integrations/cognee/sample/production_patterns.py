@@ -39,6 +39,7 @@ async def safe_add(documents: list[str]) -> int:
             await add(doc)
             added += 1
         except Exception as e:
+            # In production, narrow this to Cognee/Valkey-specific exceptions
             logger.error("Failed to add document: %s", e)
     return added
 
