@@ -16,11 +16,15 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <!-- langchain4j.version: core langchain4j released on Maven Central -->
+        <!--
+            Version strategy:
+            - langchain4j.version: core langchain4j (released on Maven Central)
+            - langchain4j-community.version: community modules incl. valkey store (beta track)
+            - langchain4j-beta.version: extension modules released as beta (embeddings, etc.)
+            Update all three when langchain4j-community-valkey reaches a stable Maven Central release.
+        -->
         <langchain4j.version>1.15.0</langchain4j.version>
-        <!-- langchain4j-community.version: community modules (valkey embedding store) -->
         <langchain4j-community.version>1.15.0-beta25</langchain4j-community.version>
-        <!-- langchain4j-beta.version: langchain4j-* extension modules released as beta -->
         <langchain4j-beta.version>1.15.0-beta25</langchain4j-beta.version>
     </properties>
 

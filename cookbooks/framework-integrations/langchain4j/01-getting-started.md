@@ -44,6 +44,8 @@ docker exec valkey valkey-cli PING
 implementation 'dev.langchain4j:langchain4j-community-valkey:1.15.0-beta25'
 ```
 
+> **Note:** The sample [`pom.xml`](sample/pom.xml) is the source of truth for tested version combinations. The core `langchain4j` artifact uses a separate release track (`1.15.0`) from the community modules (`1.15.0-beta25`). See the pom.xml `<properties>` block for details.
+
 This pulls in `valkey-glide` (the official Valkey Java client) transitively.
 
 ## Step 3: Connect and Create the Store

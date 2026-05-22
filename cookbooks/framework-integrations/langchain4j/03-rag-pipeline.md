@@ -26,10 +26,10 @@ A complete Retrieval-Augmented Generation pipeline:
     <dependency>
         <groupId>dev.langchain4j</groupId>
         <artifactId>langchain4j</artifactId>
-        <version>1.15.0-beta25</version>
+        <version>1.15.0</version>
     </dependency>
 
-    <!-- Valkey embedding store -->
+    <!-- Valkey embedding store (community module — beta track) -->
     <dependency>
         <groupId>dev.langchain4j</groupId>
         <artifactId>langchain4j-community-valkey</artifactId>
@@ -40,7 +40,7 @@ A complete Retrieval-Augmented Generation pipeline:
     <dependency>
         <groupId>dev.langchain4j</groupId>
         <artifactId>langchain4j-bedrock</artifactId>
-        <version>1.15.0-beta25</version>
+        <version>1.15.0</version>
     </dependency>
 
     <!-- Document loading and splitting -->
@@ -51,6 +51,8 @@ A complete Retrieval-Augmented Generation pipeline:
     </dependency>
 </dependencies>
 ```
+
+> **Note:** The sample [`pom.xml`](sample/pom.xml) is the source of truth for tested version combinations. Core `langchain4j` and `langchain4j-bedrock` use the stable release (`1.15.0`), while community and extension modules use the beta track (`1.15.0-beta25`).
 
 ## Step 2: Connect to Valkey and Bedrock
 

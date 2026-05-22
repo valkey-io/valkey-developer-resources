@@ -215,18 +215,24 @@ public class ProductionPatternsExample {
         // ============================================================
         System.out.println("\n--- Cleanup ---");
 
-        // Drop test indexes before closing the client
+        // Remove data first, then drop indexes, then close
+        try {
+            store.removeAll();
+        } catch (Exception e) { /* best-effort */ }
+        try {
+            ragStore.close();
+        } catch (Exception e) { /* best-effort */ }
+        try {
+            cacheStore.close();
+        } catch (Exception e) { /* best-effort */ }
+
         try {
             client.customCommand(new String[]{"FT.DROPINDEX", "production-index"}).get();
             client.customCommand(new String[]{"FT.DROPINDEX", "rag-store"}).get();
             client.customCommand(new String[]{"FT.DROPINDEX", "cache-store"}).get();
-        } catch (Exception e) {
-            // Ignore cleanup errors
-        }
+        } catch (Exception e) { /* best-effort */ }
 
-        // Remove data and close all stores
-        // Note: close() on any store closes the shared client, so only call it once
-        store.removeAll();
+        // close() on the store closes the shared client — call last
         store.close();
 
         System.out.println("\nDone! All production patterns demonstrated.");
