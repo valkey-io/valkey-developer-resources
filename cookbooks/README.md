@@ -36,5 +36,7 @@ Production-ready integrations for popular AI agent frameworks. Checkpointing, ca
 | <nobr>[Strands Agents](framework-integrations/strands/)</nobr> | Use the official `strands-valkey-session-manager` community package to back Strands agents with Valkey - persisting conversation history, session metadata, and agent state across invocations. |
 | <nobr>[Haystack](framework-integrations/haystack/)</nobr> | Use `ValkeyDocumentStore` and `ValkeyEmbeddingRetriever` as first-class Haystack pipeline components for sub-millisecond RAG retrieval. |
 | <nobr>[LangChain4j](framework-integrations/langchain4j/)</nobr> | Java vector search and RAG with `ValkeyEmbeddingStore` — HNSW indexing, metadata filtering, and Bedrock integration via the `langchain4j-community-valkey` package. |
+| <nobr>[DB-GPT](framework-integrations/dbgpt/)</nobr> | Use Valkey as a vector store for RAG pipelines and an LLM response cache in DB-GPT. HNSW indexing, metadata filtering, and sub-millisecond cache reads via `valkey-glide`. |
+| <nobr>[DocsGPT](framework-integrations/docs-gpt/)</nobr> | Use Valkey as the vector store backend in DocsGPT for document retrieval (RAG). HNSW indexing, source isolation via TAG filtering, and bulk ingestion with `valkey-glide`. |
 | <nobr>[BetterDB](framework-integrations/betterdb-agent-cache/)</nobr> | Two packages for Valkey-backed LLM caching. `@betterdb/semantic-cache` — Valkey-native vector similarity cache. `@betterdb/agent-cache` — multi-tier LLM, tool, and session cache with LangGraph support. |
 
