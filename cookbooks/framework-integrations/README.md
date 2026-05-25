@@ -12,3 +12,4 @@ Production-ready integrations for popular AI agent frameworks. Checkpointing, ca
 | <nobr>[DB-GPT](dbgpt/)</nobr> | Use Valkey as a vector store for RAG pipelines and an LLM response cache in DB-GPT. HNSW indexing, metadata filtering, and sub-millisecond cache reads via `valkey-glide`. |
 | <nobr>[DocsGPT](docs-gpt/)</nobr> | Use Valkey as the vector store backend in DocsGPT for document retrieval (RAG). HNSW indexing, source isolation via TAG filtering, and bulk ingestion with `valkey-glide`. |
 | <nobr>[BetterDB](betterdb-agent-cache/)</nobr> | Two packages for Valkey-backed LLM caching. `@betterdb/semantic-cache` — Valkey-native vector similarity cache. `@betterdb/agent-cache` — multi-tier LLM, tool, and session cache with LangGraph support. |
+| <nobr>[Genkit](genkit/)</nobr> | Use Valkey as the vector store for Genkit AI applications. Index documents, retrieve by meaning, and filter by metadata through the official `genkitx-valkey` plugin. |

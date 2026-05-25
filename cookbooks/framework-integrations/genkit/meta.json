@@ -1,0 +1,51 @@
+{
+  "trackName": "Genkit",
+  "cookbooks": [
+    {
+      "num": "01",
+      "source": "01-getting-started.md",
+      "output": "01-getting-started.html",
+      "title": "Getting Started with Genkit + Valkey",
+      "h1": "Getting Started with Genkit + Valkey",
+      "breadcrumb": "Getting Started",
+      "difficulty": "Beginner",
+      "time": "15 min",
+      "next": {
+        "file": "02-rag.html",
+        "title": "02 - Retrieval-Augmented Generation"
+      }
+    },
+    {
+      "num": "02",
+      "source": "02-rag.md",
+      "output": "02-rag.html",
+      "title": "Retrieval-Augmented Generation",
+      "h1": "Retrieval-Augmented Generation",
+      "breadcrumb": "RAG",
+      "difficulty": "Intermediate",
+      "time": "20 min",
+      "prev": {
+        "file": "01-getting-started.html",
+        "title": "01 - Getting Started"
+      },
+      "next": {
+        "file": "03-metadata-filtering.html",
+        "title": "03 - Metadata Filtering"
+      }
+    },
+    {
+      "num": "03",
+      "source": "03-metadata-filtering.md",
+      "output": "03-metadata-filtering.html",
+      "title": "Metadata Filtering",
+      "h1": "Metadata Filtering",
+      "breadcrumb": "Metadata Filtering",
+      "difficulty": "Intermediate",
+      "time": "20 min",
+      "prev": {
+        "file": "02-rag.html",
+        "title": "02 - RAG"
+      }
+    }
+  ]
+}
