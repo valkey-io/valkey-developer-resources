@@ -68,12 +68,12 @@ For authenticated clusters, add credentials:
 extra_config:
   valkey_mode: "cluster"
   tls_enable: true
-  valkey_username: "${VALKEY_USERNAME}"
-  valkey_password: "${VALKEY_PASSWORD}"
+  valkey_username: "your-username"
+  valkey_password: "your-password"
   valkey_num_workers: 32
 ```
 
-> **Security:** Never hardcode credentials in config files. Use environment variables or a secrets manager. LMCache reads these values at startup.
+> **Security:** Never hardcode credentials in config files checked into source control. LMCache also supports setting configuration via environment variables (prefixed with `LMCACHE_`). For credentials, prefer injecting them at deploy time via templating, secrets managers, or mounting the config file from a secure store.
 
 ## Performance Tuning
 
@@ -176,7 +176,7 @@ For Qwen3-8B (32 layers, hidden_dim 4096):
 
 With `cachegen` compression (~4× reduction): ~32 MB per chunk.
 
-Plan Valkey capacity based on your expected unique prompt prefix count × chunk size.
+Plan Valkey capacity based on your expected unique prompt prefix count × chunk size. Add ~10-15% overhead for Valkey's internal data structures (hash table entries, key metadata).
 
 ## Full Production Configuration
 

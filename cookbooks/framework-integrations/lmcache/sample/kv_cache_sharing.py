@@ -141,10 +141,13 @@ def main() -> None:
 
     finally:
         print("\nShutting down servers...")
-        proc_a.terminate()
-        proc_b.terminate()
-        proc_a.wait(timeout=10)
-        proc_b.wait(timeout=10)
+        for proc in (proc_a, proc_b):
+            proc.terminate()
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
         CONFIG_FILE.unlink(missing_ok=True)
 
 

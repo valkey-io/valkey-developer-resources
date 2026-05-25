@@ -8,6 +8,7 @@
       "title": "Getting Started with LMCache + Valkey",
       "h1": "Getting Started with LMCache + Valkey",
       "breadcrumb": "Getting Started",
+      "lead": "Install LMCache + vLLM, connect to Valkey as a remote KV cache backend, and demonstrate TTFT improvement on repeated prompts.",
       "difficulty": "Beginner",
       "time": "15 min",
       "next": {
@@ -22,6 +23,7 @@
       "title": "KV Cache Sharing Across Instances",
       "h1": "KV Cache Sharing Across Instances",
       "breadcrumb": "KV Cache Sharing",
+      "lead": "Share KV caches across multiple vLLM instances through a centralized Valkey store, enabling fleet-wide cache reuse.",
       "difficulty": "Intermediate",
       "time": "20 min",
       "prev": {
@@ -40,6 +42,7 @@
       "title": "Production Deployment",
       "h1": "Production Deployment",
       "breadcrumb": "Production",
+      "lead": "Deploy with cluster mode, TLS, ElastiCache Serverless, worker tuning, and cache-hit monitoring.",
       "difficulty": "Advanced",
       "time": "20 min",
       "prev": {

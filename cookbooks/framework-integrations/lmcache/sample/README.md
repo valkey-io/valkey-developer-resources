@@ -10,6 +10,7 @@ Runnable code for the [LMCache + Valkey cookbook series](../README.md).
 2. **Docker** (for Valkey)
 3. **Python 3.10+**
 4. **Sufficient GPU memory** — Qwen3-8B requires ~16 GB VRAM
+5. **valkey-cli** in PATH (for `production_deployment.py --monitor` only)
 
 ## Setup
 

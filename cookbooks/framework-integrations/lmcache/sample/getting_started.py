@@ -71,7 +71,8 @@ def main() -> None:
     print(f"Warm run:  {warm_ms:.0f}ms")
     print(f"  Output: {outputs[0].outputs[0].text!r}\n")
 
-    print(f"Speedup: {cold_ms / warm_ms:.1f}x")
+    if warm_ms > 0:
+        print(f"Speedup: {cold_ms / warm_ms:.1f}x")
 
     # Cleanup
     LMCacheEngineBuilder.destroy(ENGINE_NAME)
