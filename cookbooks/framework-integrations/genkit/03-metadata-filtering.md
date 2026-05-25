@@ -23,24 +23,25 @@ import { valkeyPlugin, valkeyIndexerRef, valkeyRetrieverRef } from 'genkitx-valk
 
 const INDEX_NAME = 'product-docs';
 
+const valkey = valkeyPlugin([
+  {
+    indexName: INDEX_NAME,
+    embedder: googleAI.embedder('text-embedding-004'),
+    dimension: 768,
+    clientConfig: { addresses: [{ host: 'localhost', port: 6379 }] },
+    metadataFields: [
+      { name: 'category', type: 'TAG' },
+      { name: 'language', type: 'TAG' },
+      { name: 'year', type: 'NUMERIC' },
+    ],
+  },
+]);
+
 const ai = genkit({
-  plugins: [
-    googleAI(),
-    valkeyPlugin([
-      {
-        indexName: INDEX_NAME,
-        embedder: googleAI.embedder('text-embedding-004'),
-        dimension: 768,
-        clientConfig: { addresses: [{ host: 'localhost', port: 6379 }] },
-        metadataFields: [
-          { name: 'category', type: 'TAG' },
-          { name: 'language', type: 'TAG' },
-          { name: 'year', type: 'NUMERIC' },
-        ],
-      },
-    ]),
-  ],
+  plugins: [googleAI(), valkey.plugin],
 });
+
+// Call valkey.close() during shutdown to release client connections.
 ```
 
 **Python**
@@ -129,7 +130,7 @@ docs := []*ai.Document{
     ai.DocumentFromText("Cómo configurar TLS en Valkey.",
         map[string]any{"category": "tutorial", "language": "es", "year": float64(2024)}),
 }
-if err := valkeyplugin.Index(ctx, docs, ds); err != nil {
+if err := ds.Index(ctx, docs); err != nil {
     log.Fatalf("Index: %v", err)
 }
 fmt.Println("✅ Indexed 4 documents with metadata")

@@ -80,21 +80,22 @@ import { valkeyPlugin, valkeyIndexerRef, valkeyRetrieverRef } from 'genkitx-valk
 
 const INDEX_NAME = 'my-docs';
 
+const valkey = valkeyPlugin([
+  {
+    indexName: INDEX_NAME,
+    embedder: googleAI.embedder('text-embedding-004'),
+    dimension: 768,
+    clientConfig: {
+      addresses: [{ host: 'localhost', port: 6379 }],
+    },
+  },
+]);
+
 const ai = genkit({
-  plugins: [
-    googleAI(),
-    valkeyPlugin([
-      {
-        indexName: INDEX_NAME,
-        embedder: googleAI.embedder('text-embedding-004'),
-        dimension: 768,
-        clientConfig: {
-          addresses: [{ host: 'localhost', port: 6379 }],
-        },
-      },
-    ]),
-  ],
+  plugins: [googleAI(), valkey.plugin],
 });
+
+// Call valkey.close() during shutdown to release client connections.
 ```
 
 **Python**
@@ -194,7 +195,7 @@ docs := []*ai.Document{
     ai.DocumentFromText("HNSW stands for Hierarchical Navigable Small World.", nil),
     ai.DocumentFromText("Vector search finds semantically similar documents.", nil),
 }
-if err := valkeyplugin.Index(ctx, docs, ds); err != nil {
+if err := ds.Index(ctx, docs); err != nil {
     log.Fatalf("Index: %v", err)
 }
 fmt.Println("✅ Indexed 3 documents")

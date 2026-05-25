@@ -25,19 +25,20 @@ import { Document } from 'genkit';
 
 const INDEX_NAME = 'knowledge-base';
 
+const valkey = valkeyPlugin([
+  {
+    indexName: INDEX_NAME,
+    embedder: googleAI.embedder('text-embedding-004'),
+    dimension: 768,
+    clientConfig: { addresses: [{ host: 'localhost', port: 6379 }] },
+  },
+]);
+
 const ai = genkit({
-  plugins: [
-    googleAI(),
-    valkeyPlugin([
-      {
-        indexName: INDEX_NAME,
-        embedder: googleAI.embedder('text-embedding-004'),
-        dimension: 768,
-        clientConfig: { addresses: [{ host: 'localhost', port: 6379 }] },
-      },
-    ]),
-  ],
+  plugins: [googleAI(), valkey.plugin],
 });
+
+// Call valkey.close() during shutdown to release client connections.
 ```
 
 **Python**
@@ -146,7 +147,7 @@ docs := []*ai.Document{
     ai.DocumentFromText("HSET stores multiple field-value pairs in a hash at a given key.", map[string]any{"source": "valkey-docs"}),
     ai.DocumentFromText("Valkey Cluster distributes data across multiple nodes automatically.", map[string]any{"source": "valkey-docs"}),
 }
-if err := valkeyplugin.Index(ctx, docs, ds); err != nil {
+if err := ds.Index(ctx, docs); err != nil {
     log.Fatalf("Index: %v", err)
 }
 fmt.Println("✅ Knowledge base indexed")
