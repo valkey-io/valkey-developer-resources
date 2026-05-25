@@ -8,6 +8,7 @@
       "title": "Getting Started with CocoIndex + Valkey",
       "h1": "Getting Started with CocoIndex + Valkey",
       "breadcrumb": "Getting Started",
+      "lead": "Install CocoIndex with Valkey support, configure the connector, and run your first incremental indexing pipeline in under 15 minutes.",
       "difficulty": "Beginner",
       "time": "15 min",
       "next": {
@@ -22,6 +23,7 @@
       "title": "RAG Pipeline with Incremental Sync",
       "h1": "RAG Pipeline with Incremental Sync",
       "breadcrumb": "RAG Pipeline",
+      "lead": "Build a production-ready RAG pipeline: chunk documents, embed with sentence-transformers, store in Valkey with HNSW indexing, and query with KNN vector search — all with incremental updates.",
       "difficulty": "Intermediate",
       "time": "20 min",
       "prev": {

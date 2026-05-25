@@ -1,0 +1,32 @@
+services:
+  valkey:
+    image: valkey/valkey-bundle:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - valkey_data:/data
+    command: valkey-server --save 60 1 --loglevel warning
+
+  cocoindex-pipeline:
+    build: .
+    environment:
+      - COCOINDEX_DB=postgres://cocoindex:cocoindex@postgres/cocoindex
+      - VALKEY_HOST=valkey
+      - VALKEY_PORT=6379
+    depends_on:
+      - valkey
+      - postgres
+    command: cocoindex update -L main
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=cocoindex
+      - POSTGRES_PASSWORD=cocoindex
+      - POSTGRES_DB=cocoindex
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+volumes:
+  valkey_data:
+  pg_data:

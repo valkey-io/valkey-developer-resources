@@ -31,7 +31,7 @@ version = "0.1.0"
 description = "CocoIndex RAG pipeline with Valkey vector store"
 requires-python = ">=3.11"
 dependencies = [
-    "cocoindex[valkey,sentence_transformers]>=1.0.4",
+    "cocoindex[valkey,sentence_transformers]>=1.0.4,<2",
     "numpy",
     "python-dotenv>=1.0.1",
 ]
@@ -40,9 +40,10 @@ dependencies = [
 packages = []
 ```
 
-Create `.env`:
+Create `.env.example` (copy to `.env` before running):
 
 ```env
+# Copy this file to .env and customize as needed
 COCOINDEX_DB=./cocoindex.db
 PYTORCH_ENABLE_MPS_FALLBACK=1
 ```
@@ -106,6 +107,8 @@ Valkey, Neo4j, FalkorDB, Kafka, and more as target stores.
 
 ## Step 3: Build the Pipeline
 
+> **Note:** The full working code is available in [`example/main.py`](example/main.py). The code below is kept in sync with that file.
+
 Create `main.py`:
 
 ```python
@@ -134,6 +137,8 @@ from dotenv import load_dotenv
 from glide import GlideClient
 from glide.async_commands import ft
 from glide.async_commands.ft import FtSearchOptions
+# NOTE: ReturnField lives in glide_shared today; import path may change in future
+# valkey-glide releases. Pin your valkey-glide version to avoid surprises.
 from glide_shared.commands.server_modules.ft_options.ft_search_options import ReturnField
 
 import cocoindex as coco
@@ -224,12 +229,16 @@ async def process_file(
 @coco.fn
 async def app_main(sourcedir: pathlib.Path) -> None:
     """Declare the pipeline: source -> transform -> target."""
-    # Declare the Valkey index target
+    # Declare the Valkey index target with indexed fields for hybrid search
     target_index = await valkey.mount_index_target(
         VALKEY_DB,
         INDEX_NAME,
         await valkey.IndexSchema.create(
             vectors=valkey.VectorDef(schema=EMBEDDER, distance="cosine"),
+            fields=[
+                valkey.FieldDef("filename", "tag"),
+                valkey.FieldDef("text", "text"),
+            ],
         ),
     )
 
@@ -264,12 +273,19 @@ async def query_once(
     query_text: str,
     *,
     top_k: int = TOP_K,
+    filter_filename: str | None = None,
 ) -> None:
-    """Run a KNN vector search against the Valkey index."""
+    """Run a KNN vector search against the Valkey index.
+
+    Args:
+        filter_filename: Optional TAG filter for hybrid search, e.g. "valkey.md".
+    """
     query_vec = await embedder.embed(query_text)
     vec_blob = struct.pack(f"<{len(query_vec)}f", *query_vec.tolist())
 
-    knn_query = f"*=>[KNN {top_k} @vector $query_vec AS score]"
+    # Hybrid search: combine optional TAG filter with KNN vector search
+    pre_filter = f"@filename:{{{filter_filename}}}" if filter_filename else "*"
+    knn_query = f"{pre_filter}=>[KNN {top_k} @vector $query_vec AS score]"
 
     results = await ft.search(
         client,
@@ -324,6 +340,11 @@ async def query(initial_query: str | None = None) -> None:
     try:
         if initial_query is not None:
             await query_once(client, embedder, initial_query)
+            # Demonstrate hybrid search (vector + TAG filter)
+            print("\n\n--- Hybrid search (filtered to valkey.md only) ---")
+            await query_once(
+                client, embedder, initial_query, filter_filename="valkey.md"
+            )
             return
 
         while True:

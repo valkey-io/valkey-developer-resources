@@ -11,4 +11,5 @@ Production-ready integrations for popular AI agent frameworks. Checkpointing, ca
 | <nobr>[Haystack](haystack/)</nobr> | Use `ValkeyDocumentStore` and `ValkeyEmbeddingRetriever` as first-class Haystack pipeline components for sub-millisecond RAG retrieval. |
 | <nobr>[DB-GPT](dbgpt/)</nobr> | Use Valkey as a vector store for RAG pipelines and an LLM response cache in DB-GPT. HNSW indexing, metadata filtering, and sub-millisecond cache reads via `valkey-glide`. |
 | <nobr>[DocsGPT](docs-gpt/)</nobr> | Use Valkey as the vector store backend in DocsGPT for document retrieval (RAG). HNSW indexing, source isolation via TAG filtering, and bulk ingestion with `valkey-glide`. |
+| <nobr>[CocoIndex](cocoindex/)</nobr> | Build incremental RAG pipelines with Valkey as the vector store target. Declarative indexing with automatic HNSW search, incremental sync (only Δ reprocessed), and semantic queries via `valkey-glide`. |
 | <nobr>[BetterDB](betterdb-agent-cache/)</nobr> | Two packages for Valkey-backed LLM caching. `@betterdb/semantic-cache` — Valkey-native vector similarity cache. `@betterdb/agent-cache` — multi-tier LLM, tool, and session cache with LangGraph support. |
