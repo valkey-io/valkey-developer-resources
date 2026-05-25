@@ -131,6 +131,8 @@ After running the example, Cognee creates:
 - **JSON documents** (`JSON.SET`) containing embeddings and metadata
 - **Key prefix** pattern: `vdb:<collection_name>:<id>`
 
+> **Module requirement**: Cognee stores documents as JSON and creates vector indices, so both the `valkey-search` and `valkey-json` modules are required. The `valkey/valkey-bundle` Docker image includes both modules out of the box.
+
 You can inspect with:
 
 ```bash

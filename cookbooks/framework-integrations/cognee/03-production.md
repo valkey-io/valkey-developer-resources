@@ -56,17 +56,29 @@ config.set_vector_db_config({
 
 ## Step 3: TLS Configuration
 
-The Valkey adapter uses `valkey-glide` which supports TLS natively. For ElastiCache Serverless, TLS is mandatory:
+The Valkey adapter uses `valkey-glide` which supports TLS natively. For ElastiCache Serverless, TLS is mandatory — use the `valkeys://` scheme (note the trailing 's'):
 
 ```python
-# The adapter's GlideClientConfiguration supports TLS
-# For ElastiCache, modify the adapter connection:
-# set use_tls=True in GlideClientConfiguration
+import os
+from cognee import config
+from cognee_community_vector_adapter_valkey import register  # noqa: F401
 
-# Authentication: use IAM roles, instance profiles, or environment variables.
+# Use valkeys:// for TLS connections (ElastiCache Serverless requires TLS)
+config.set_vector_db_config({
+    "vector_db_provider": "valkey",
+    "vector_db_url": "valkeys://cognee-vectors-xxxxx.serverless.use1.cache.amazonaws.com:6379",
+})
+
+# Authentication: use IAM roles, instance profiles, or externally-set env vars.
 # Never hardcode credentials in application code.
+# AWS SDK picks up credentials automatically from:
+#   - IAM instance profiles (EC2/ECS)
+#   - Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+#   - ~/.aws/credentials
 # See: https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
 ```
+
+> **Scheme reference**: Use `valkey://` for plaintext connections (local dev) and `valkeys://` for TLS connections (ElastiCache, production).
 
 ## Step 4: HNSW Tuning
 
