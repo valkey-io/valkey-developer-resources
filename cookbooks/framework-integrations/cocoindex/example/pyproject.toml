@@ -1,0 +1,13 @@
+[project]
+name = "cocoindex-valkey-rag"
+version = "0.1.0"
+description = "CocoIndex RAG pipeline with Valkey vector store"
+requires-python = ">=3.11"
+dependencies = [
+    "cocoindex[valkey,sentence_transformers]>=1.0.4",
+    "numpy",
+    "python-dotenv>=1.0.1",
+]
+
+[tool.setuptools]
+packages = []
