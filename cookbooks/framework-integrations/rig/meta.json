@@ -1,0 +1,54 @@
+{
+  "trackName": "Rig",
+  "cookbooks": [
+    {
+      "num": "01",
+      "source": "01-getting-started.md",
+      "output": "01-getting-started.html",
+      "title": "Getting Started with Rig + Valkey",
+      "h1": "Getting Started with Rig + Valkey",
+      "breadcrumb": "Getting Started",
+      "lead": "Use the rig-redis vector store crate to connect a Rig agent to Valkey for high-performance KNN vector similarity search.",
+      "difficulty": "Beginner",
+      "time": "15 min",
+      "next": {
+        "file": "02-vector-search.html",
+        "title": "02 - Vector Search"
+      }
+    },
+    {
+      "num": "02",
+      "source": "02-vector-search.md",
+      "output": "02-vector-search.html",
+      "title": "Vector Search with Rig + Valkey",
+      "h1": "Vector Search with Rig + Valkey",
+      "breadcrumb": "Vector Search",
+      "lead": "Insert documents with embeddings, run KNN queries with top_n and top_n_ids, apply score thresholds, and wire vector search into a Rig RAG agent.",
+      "difficulty": "Intermediate",
+      "time": "20 min",
+      "prev": {
+        "file": "01-getting-started.html",
+        "title": "01 - Getting Started"
+      },
+      "next": {
+        "file": "03-filters-and-production.html",
+        "title": "03 - Filters & Production"
+      }
+    },
+    {
+      "num": "03",
+      "source": "03-filters-and-production.md",
+      "output": "03-filters-and-production.html",
+      "title": "Filters & Production",
+      "h1": "Filters & Production",
+      "breadcrumb": "Filters & Production",
+      "lead": "Use RediSearch filter syntax for metadata filtering, combine filters with AND/OR/NOT, and configure rig-redis for production with connection management and TLS.",
+      "difficulty": "Intermediate",
+      "time": "15 min",
+      "prev": {
+        "file": "02-vector-search.html",
+        "title": "02 - Vector Search"
+      }
+    }
+  ]
+}

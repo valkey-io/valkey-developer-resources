@@ -9,4 +9,5 @@ Production-ready integrations for popular AI agent frameworks. Checkpointing, ca
 | <nobr>[CrewAI](crewai/)</nobr> | Give CrewAI agents persistent, searchable memory backed by Valkey. Custom `ValkeyStorage` backend with GLIDE client, vector search, and Amazon Bedrock embeddings. |
 | <nobr>[Strands Agents](strands/)</nobr> | Use the official `strands-valkey-session-manager` community package to back Strands agents with Valkey - persisting conversation history, session metadata, and agent state across invocations. |
 | <nobr>[Haystack](haystack/)</nobr> | Use `ValkeyDocumentStore` and `ValkeyEmbeddingRetriever` as first-class Haystack pipeline components for sub-millisecond RAG retrieval. |
+| <nobr>[Rig](rig/)</nobr> | Use `rig-redis` to add Valkey-backed vector similarity search to Rig agents. KNN queries via `FT.SEARCH`, metadata filtering, and sub-millisecond retrieval for RAG pipelines in Rust. |
 | <nobr>[BetterDB](betterdb-agent-cache/)</nobr> | Two packages for Valkey-backed LLM caching. `@betterdb/semantic-cache` — Valkey-native vector similarity cache. `@betterdb/agent-cache` — multi-tier LLM, tool, and session cache with LangGraph support. |
