@@ -229,7 +229,11 @@ async function main() {
       const blockDuration = Math.min(overageMultiplier * 60, 3600);
 
       if (blockDuration > 0) {
-        await escalatingLimiter.block(key, blockDuration);
+        try {
+          await escalatingLimiter.block(key, blockDuration);
+        } catch (blockErr) {
+          console.error("Failed to apply escalating block:", blockErr);
+        }
       }
 
       res.status(429).json({

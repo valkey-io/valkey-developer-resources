@@ -55,7 +55,7 @@ function rateLimitMiddleware(
       next();
     } catch (rlRes: unknown) {
       if (rlRes instanceof Error) return next(rlRes);
-      if (!isRateLimiterRes(rlRes)) return next(new Error(`Unexpected rate limiter rejection: ${String(rlRes)}`));
+      if (!isRateLimiterRes(rlRes)) return next(new Error("Unexpected rate limiter rejection"));
       setRateLimitHeaders(res, rlRes, limiter);
       res.set("Retry-After", String(Math.ceil(rlRes.msBeforeNext / 1000)));
       res.status(429).json({
@@ -139,7 +139,7 @@ async function main() {
       });
     } catch (rlRes: unknown) {
       if (rlRes instanceof Error) return next(rlRes);
-      if (!isRateLimiterRes(rlRes)) return next(new Error(`Unexpected rate limiter rejection: ${String(rlRes)}`));
+      if (!isRateLimiterRes(rlRes)) return next(new Error("Unexpected rate limiter rejection"));
       setRateLimitHeaders(res, rlRes, batchLimiter);
       res.set("Retry-After", String(Math.ceil(rlRes.msBeforeNext / 1000)));
       res.status(429).json({
@@ -147,6 +147,12 @@ async function main() {
         retryAfterMs: rlRes.msBeforeNext,
       });
     }
+  });
+
+  // Express error-handling middleware (must have 4 parameters)
+  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+    console.error("Unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   });
 
   app.listen(PORT, () => {
