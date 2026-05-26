@@ -101,7 +101,7 @@ async def bulk_ingest(vectors, ids, chunks, doc_ids, doc_names):
 The provider computes an MD5 hash of each chunk's content (`chunk_content_hash`). Use this to avoid re-indexing identical content:
 
 ```python
-async def ingest_with_dedup(provider, chunk_text, chunk_id, vector):
+async def ingest_with_dedup(provider, chunk_text, chunk_id, vector, doc_id, doc_name):
     """Skip chunks that already exist in the index."""
     import hashlib
     content_hash = hashlib.md5(chunk_text.encode()).hexdigest()
@@ -114,6 +114,8 @@ async def ingest_with_dedup(provider, chunk_text, chunk_id, vector):
         vectors=[vector],
         ids=[chunk_id],
         chunks=[chunk_text],
+        document_ids=[doc_id],
+        document_names=[doc_name],
     )
 ```
 
@@ -188,12 +190,14 @@ At 1M chunks: ~4 GB Valkey memory.
 The provider raises specific exceptions for different failure modes:
 
 ```python
+import logging
 from upsonic.utils.package.exception import (
     VectorDBConnectionError,
     CollectionDoesNotExistError,
     SearchError,
-    UpsertError,
 )
+
+logger = logging.getLogger(__name__)
 
 async def safe_search(provider, query_vector):
     """Search with proper error handling."""

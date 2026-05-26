@@ -79,7 +79,8 @@ async def index_documents():
         document_ids=["doc_1", "doc_1", "doc_2"],
         document_names=["valkey_intro.md", "valkey_intro.md", "vector_search.md"],
     )
-    print(f"Indexed 3 chunks")
+    print("Indexed 3 chunks")
+    await provider.adisconnect()
 
 asyncio.run(index_documents())
 ```
@@ -131,7 +132,7 @@ provider.upsert(
 import time
 time.sleep(0.3)  # Allow index to update
 
-results = provider.search(query_vector=[0.15] * 384, top_k=2)
+results = provider.dense_search(query_vector=[0.15] * 384, top_k=2)
 for r in results:
     print(f"[{r.score:.3f}] {r.id}: {r.text}")
 

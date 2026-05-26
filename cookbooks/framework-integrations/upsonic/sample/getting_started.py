@@ -15,7 +15,6 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-import time
 
 from upsonic.vectordb import ValkeyConfig, ValkeyProvider
 from upsonic.vectordb.config import ConnectionConfig, DistanceMetric, Mode
