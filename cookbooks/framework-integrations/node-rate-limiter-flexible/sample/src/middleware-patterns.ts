@@ -43,6 +43,8 @@ function setRateLimitHeaders(
 /** Create reusable rate-limit middleware for a given limiter. */
 function rateLimitMiddleware(
   limiter: RateLimiterValkeyGlide,
+  // Behind a reverse proxy? Configure: app.set('trust proxy', 1)
+  // so req.ip reflects the real client IP. See Express docs on trust proxy.
   keyFn: (req: Request) => string = (req) => req.ip ?? "unknown",
 ) {
   return async (req: Request, res: Response, next: NextFunction) => {
@@ -53,7 +55,7 @@ function rateLimitMiddleware(
       next();
     } catch (rlRes: unknown) {
       if (rlRes instanceof Error) return next(rlRes);
-      if (!isRateLimiterRes(rlRes)) throw rlRes;
+      if (!isRateLimiterRes(rlRes)) return next(new Error(`Unexpected rate limiter rejection: ${String(rlRes)}`));
       setRateLimitHeaders(res, rlRes, limiter);
       res.set("Retry-After", String(Math.ceil(rlRes.msBeforeNext / 1000)));
       res.status(429).json({
@@ -103,7 +105,7 @@ async function main() {
   const app = express();
   app.use(express.json());
 
-  // General API rate limit
+  // General API rate limit (applies to all /api/* routes as a global safety net)
   app.use("/api", rateLimitMiddleware(generalLimiter));
 
   app.get("/api/data", (_req, res) => {
@@ -116,6 +118,8 @@ async function main() {
   });
 
   // LLM proxy — expensive calls, tighter limit
+  // NOTE: /api/chat is intentionally double-limited — general (100/min) + LLM-specific (20/min).
+  // The general limiter acts as a global safety net across all /api/* routes.
   app.post("/api/chat", rateLimitMiddleware(llmLimiter), (_req, res) => {
     res.json({ message: "Chat response (demo)", model: "gpt-4" });
   });
@@ -135,7 +139,7 @@ async function main() {
       });
     } catch (rlRes: unknown) {
       if (rlRes instanceof Error) return next(rlRes);
-      if (!isRateLimiterRes(rlRes)) throw rlRes;
+      if (!isRateLimiterRes(rlRes)) return next(new Error(`Unexpected rate limiter rejection: ${String(rlRes)}`));
       setRateLimitHeaders(res, rlRes, batchLimiter);
       res.set("Retry-After", String(Math.ceil(rlRes.msBeforeNext / 1000)));
       res.status(429).json({

@@ -64,10 +64,10 @@ const glideClient = await GlideClient.createClient({
   addresses: [{ host: "localhost", port: 6379 }],
 });
 
-// Budget: 100,000 tokens per minute per user
+// Budget: 10,000 tokens per minute per user
 const tokenLimiter = new RateLimiterValkeyGlide({
   storeClient: glideClient,
-  points: 100_000,
+  points: 10_000,
   duration: 60,
   keyPrefix: "rl:tokens",
 });

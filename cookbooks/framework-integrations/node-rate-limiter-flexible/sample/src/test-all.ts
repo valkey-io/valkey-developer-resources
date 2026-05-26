@@ -13,6 +13,7 @@ import {
   RateLimiterValkeyGlide,
   RateLimiterMemory,
 } from "rate-limiter-flexible";
+import { isRateLimiterRes } from "./rate-limiter-guard.js";
 
 async function main() {
   const glideClient = await GlideClient.createClient({
@@ -101,8 +102,8 @@ async function main() {
       assert(false, "Should be blocked");
     } catch (e: unknown) {
       if (e instanceof Error) throw e;
-      const result = e as { msBeforeNext: number };
-      assert(result.msBeforeNext > 4000, "Blocked for ~5 seconds");
+      if (!isRateLimiterRes(e)) throw e;
+      assert(e.msBeforeNext > 4000, "Blocked for ~5 seconds");
     }
   }
 

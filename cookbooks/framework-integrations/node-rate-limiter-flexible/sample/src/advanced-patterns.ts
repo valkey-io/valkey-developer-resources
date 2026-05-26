@@ -20,12 +20,29 @@ import { GlideClient } from "@valkey/valkey-glide";
 import {
   RateLimiterValkeyGlide,
   RateLimiterMemory,
-  RateLimiterRes,
 } from "rate-limiter-flexible";
 import express from "express";
 import { isRateLimiterRes } from "./rate-limiter-guard.js";
 
 const PORT = 3002;
+
+/** Handle rate limiter errors safely — never leaks internal details to clients. */
+function handleRateLimiterError(rlRes: unknown, res: express.Response): void {
+  if (rlRes instanceof Error) {
+    console.error("Rate limiter error:", rlRes);
+    res.status(500).json({ error: "Service temporarily unavailable" });
+    return;
+  }
+  if (!isRateLimiterRes(rlRes)) {
+    console.error("Unexpected rate limiter rejection:", rlRes);
+    res.status(500).json({ error: "Service temporarily unavailable" });
+    return;
+  }
+  res.status(429).json({
+    error: "Too Many Requests",
+    retryAfterMs: rlRes.msBeforeNext,
+  });
+}
 
 async function main() {
   const glideClient = await GlideClient.createClient({
@@ -90,15 +107,7 @@ async function main() {
         note: "This endpoint falls back to in-memory limiting if Valkey is down",
       });
     } catch (rlRes: unknown) {
-      if (rlRes instanceof Error) {
-        res.status(500).json({ error: rlRes.message });
-        return;
-      }
-      if (!isRateLimiterRes(rlRes)) throw rlRes;
-      res.status(429).json({
-        error: "Too Many Requests",
-        retryAfterMs: rlRes.msBeforeNext,
-      });
+      handleRateLimiterError(rlRes, res);
     }
   });
 
@@ -114,10 +123,14 @@ async function main() {
       });
     } catch (rlRes: unknown) {
       if (rlRes instanceof Error) {
-        res.status(500).json({ error: rlRes.message });
+        console.error("Rate limiter error:", rlRes);
+        res.status(500).json({ error: "Service temporarily unavailable" });
         return;
       }
-      if (!isRateLimiterRes(rlRes)) throw rlRes;
+      if (!isRateLimiterRes(rlRes)) {
+        res.status(500).json({ error: "Service temporarily unavailable" });
+        return;
+      }
       res.status(429).json({
         error: "Blocked",
         retryAfterMs: rlRes.msBeforeNext,
@@ -128,6 +141,9 @@ async function main() {
 
   // Pattern 3: Token-aware limiting
   app.post("/api/token-limit", async (req, res) => {
+    // ⚠️ PRODUCTION: userId MUST come from an authenticated session (e.g., req.user.id
+    // from auth middleware), NOT from the request body. This sample uses body.userId
+    // for demo simplicity only.
     // NOTE: Production code should use Zod or similar for runtime schema validation.
     const body: unknown = req.body;
     const prompt =
@@ -146,7 +162,9 @@ async function main() {
 
     // Simple token estimation: ~4 chars per token, estimate 3x for output
     const estimatedInputTokens = Math.ceil(prompt.length / 4);
-    const estimatedTotal = estimatedInputTokens * 3;
+    // Cap estimated total to the limiter's budget to prevent a single large prompt
+    // from consuming the entire budget in one shot
+    const estimatedTotal = Math.min(estimatedInputTokens * 3, tokenLimiter.points);
 
     try {
       const rlRes = await tokenLimiter.consume(userId, estimatedTotal);
@@ -168,10 +186,14 @@ async function main() {
       });
     } catch (rlRes: unknown) {
       if (rlRes instanceof Error) {
-        res.status(500).json({ error: rlRes.message });
+        console.error("Rate limiter error:", rlRes);
+        res.status(500).json({ error: "Service temporarily unavailable" });
         return;
       }
-      if (!isRateLimiterRes(rlRes)) throw rlRes;
+      if (!isRateLimiterRes(rlRes)) {
+        res.status(500).json({ error: "Service temporarily unavailable" });
+        return;
+      }
       res.status(429).json({
         error: "Token budget exceeded",
         retryAfterMs: rlRes.msBeforeNext,
@@ -193,10 +215,14 @@ async function main() {
       });
     } catch (rlRes: unknown) {
       if (rlRes instanceof Error) {
-        res.status(500).json({ error: rlRes.message });
+        console.error("Rate limiter error:", rlRes);
+        res.status(500).json({ error: "Service temporarily unavailable" });
         return;
       }
-      if (!isRateLimiterRes(rlRes)) throw rlRes;
+      if (!isRateLimiterRes(rlRes)) {
+        res.status(500).json({ error: "Service temporarily unavailable" });
+        return;
+      }
 
       // Escalate: more overage = longer block
       const overageMultiplier = Math.floor(rlRes.consumedPoints / 5);

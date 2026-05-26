@@ -49,10 +49,14 @@ async function main() {
       });
     } catch (rlRes: unknown) {
       if (rlRes instanceof Error) {
-        res.status(500).json({ error: rlRes.message });
+        console.error("Rate limiter error:", rlRes);
+        res.status(500).json({ error: "Service temporarily unavailable" });
         return;
       }
-      if (!isRateLimiterRes(rlRes)) throw rlRes;
+      if (!isRateLimiterRes(rlRes)) {
+        res.status(500).json({ error: "Unexpected rate limiter error" });
+        return;
+      }
       res.set("Retry-After", String(Math.ceil(rlRes.msBeforeNext / 1000)));
       res.set("X-RateLimit-Limit", "10");
       res.set("X-RateLimit-Remaining", "0");
