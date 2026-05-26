@@ -1,0 +1,20 @@
+# IDE
+.vscode/
+.idea/
+*.iml
+.metals
+
+# Gradle
+.gradle/
+build/
+bin/
+
+# Local dev build artifacts
+**/.m2/
+**/target/
+
+# OS
+.DS_Store
+Thumbs.db
+
+
