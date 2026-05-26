@@ -92,7 +92,7 @@ async def demo_error_handling(provider: ValkeyProvider) -> None:
 
 
 async def demo_delete_operations(provider: ValkeyProvider) -> None:
-    """Demonstrate delete by ID and by field."""
+    """Demonstrate delete by ID and by document name."""
     print("\n--- Delete Operations ---")
 
     # Delete specific chunks
@@ -100,7 +100,7 @@ async def demo_delete_operations(provider: ValkeyProvider) -> None:
     print("  Deleted batch_0")
 
     # Delete all chunks from a document
-    await provider.adelete_by_field(field="document_name", value="batch_test.md")
+    await provider.adelete_by_document_name(document_name="batch_test.md")
     print("  Deleted all chunks from batch_test.md")
 
 

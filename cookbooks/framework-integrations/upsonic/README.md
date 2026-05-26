@@ -4,6 +4,8 @@
 
 > **⚠️ Blocked:** This cookbook depends on [Upsonic PR #607](https://github.com/Upsonic/Upsonic/pull/607) which adds the Valkey Search provider. Do not merge until that PR lands and `pip install "upsonic[valkey]"` is available on PyPI.
 
+> **✅ Tested:** Sample code validated against Valkey 9.1 with valkey-search module v1.2.
+
 ## Cookbooks
 
 | # | Cookbook | Description | Tags |

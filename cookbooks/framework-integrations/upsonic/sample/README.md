@@ -4,6 +4,8 @@ Runnable code for the [Upsonic + Valkey cookbook series](../README.md).
 
 > **⚠️ Blocked:** Requires [Upsonic PR #607](https://github.com/Upsonic/Upsonic/pull/607) to be merged and released. `pip install "upsonic[valkey]"` will not work until then.
 
+> **✅ Tested:** All scripts validated against Valkey 9.1 with valkey-search module v1.2 using a local editable install of the Upsonic PR branch.
+
 ## Prerequisites
 
 1. **Python 3.10+**

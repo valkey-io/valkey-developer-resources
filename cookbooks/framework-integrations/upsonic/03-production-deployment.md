@@ -135,10 +135,10 @@ Remove all chunks belonging to a document:
 
 ```python
 # Delete all chunks from a specific document
-await provider.adelete_by_field(field="document_name", value="outdated_doc.md")
+await provider.adelete_by_document_name(document_name="outdated_doc.md")
 
 # Delete by document ID
-await provider.adelete_by_field(field="document_id", value="doc_123")
+await provider.adelete_by_document_id(document_id="doc_123")
 ```
 
 ### Drop the Entire Index
