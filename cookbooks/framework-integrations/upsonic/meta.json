@@ -1,0 +1,54 @@
+{
+  "trackName": "Upsonic",
+  "cookbooks": [
+    {
+      "num": "01",
+      "source": "01-getting-started.md",
+      "output": "01-getting-started.html",
+      "title": "Getting Started with Upsonic + Valkey",
+      "h1": "Getting Started with Upsonic + Valkey",
+      "breadcrumb": "Getting Started",
+      "lead": "Install the Valkey provider, connect to a running instance, create a vector index, and run your first similarity search.",
+      "difficulty": "Beginner",
+      "time": "10 min",
+      "next": {
+        "file": "02-search-strategies.html",
+        "title": "02 - Search Strategies"
+      }
+    },
+    {
+      "num": "02",
+      "source": "02-search-strategies.md",
+      "output": "02-search-strategies.html",
+      "title": "Search Strategies",
+      "h1": "Search Strategies",
+      "breadcrumb": "Search Strategies",
+      "lead": "Dense KNN, full-text, hybrid (RRF), and tag-filtered search with tuning guidance.",
+      "difficulty": "Intermediate",
+      "time": "15 min",
+      "prev": {
+        "file": "01-getting-started.html",
+        "title": "01 - Getting Started"
+      },
+      "next": {
+        "file": "03-production-deployment.html",
+        "title": "03 - Production Deployment"
+      }
+    },
+    {
+      "num": "03",
+      "source": "03-production-deployment.md",
+      "output": "03-production-deployment.html",
+      "title": "Production Deployment",
+      "h1": "Production Deployment",
+      "breadcrumb": "Production",
+      "lead": "Cluster mode, ElastiCache, batch sizing, deduplication, and monitoring.",
+      "difficulty": "Advanced",
+      "time": "15 min",
+      "prev": {
+        "file": "02-search-strategies.html",
+        "title": "02 - Search Strategies"
+      }
+    }
+  ]
+}

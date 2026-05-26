@@ -40,4 +40,5 @@ Production-ready integrations for popular AI agent frameworks. Checkpointing, ca
 | <nobr>[DocsGPT](framework-integrations/docs-gpt/)</nobr> | Use Valkey as the vector store backend in DocsGPT for document retrieval (RAG). HNSW indexing, source isolation via TAG filtering, and bulk ingestion with `valkey-glide`. |
 | <nobr>[BetterDB](framework-integrations/betterdb-agent-cache/)</nobr> | Two packages for Valkey-backed LLM caching. `@betterdb/semantic-cache` — Valkey-native vector similarity cache. `@betterdb/agent-cache` — multi-tier LLM, tool, and session cache with LangGraph support. |
 | <nobr>[Cognee](framework-integrations/cognee/)</nobr> | AI memory system that builds knowledge graphs from your data. Uses `valkey-glide` with Valkey Search for vector storage, providing more accurate context than traditional RAG. |
+| <nobr>[Upsonic](framework-integrations/upsonic/)</nobr> | Valkey Search as a vector database backend for Upsonic AI agents. Dense, full-text, and hybrid (RRF) search with tag filtering, content deduplication, and cluster mode via `valkey-glide`. |
 
