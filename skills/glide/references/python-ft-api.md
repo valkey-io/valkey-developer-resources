@@ -10,30 +10,100 @@
 ## Import Pattern
 
 ```python
-# Sync
-from glide_sync import ft, GlideClient
+# Sync — top-level imports (preferred in v2.3+)
+from glide_sync import (
+    ft, GlideClient,
+    FtCreateOptions, DataType, DistanceMetricType,
+    VectorField, VectorFieldAttributesFlat, VectorFieldAttributesHnsw,
+    VectorAlgorithm, VectorType,
+    TagField, NumericField, TextField,
+    FtSearchOptions, FtSearchLimit, ReturnField,
+)
 
-# Async  
-from glide import ft, GlideClient
+# Async — same names from glide
+from glide import (
+    ft, GlideClient,
+    FtCreateOptions, DataType, DistanceMetricType,
+    VectorField, VectorFieldAttributesFlat, VectorFieldAttributesHnsw,
+    VectorAlgorithm, VectorType,
+    TagField, NumericField, TextField,
+    FtSearchOptions, FtSearchLimit, ReturnField,
+)
+
+# Deep imports also work (legacy, still valid):
+from glide_shared.commands.server_modules.ft_options.ft_create_options import (
+    FtCreateOptions, TextField, VectorField, VectorFieldAttributesFlat,
+    VectorFieldAttributesHnsw, VectorAlgorithm, DistanceMetricType, VectorType, DataType,
+)
+from glide_shared.commands.server_modules.ft_options.ft_search_options import (
+    FtSearchOptions, FtSearchLimit, ReturnField,
+)
 
 # WRONG - These do not exist:
-# from glide_sync import FT  # NO
+# from glide_sync import FT  # NO — lowercase 'ft' only
 # client.ft  # NO
 # client.ft_search  # NO
+# ft.FtCreateOptions  # NO — not public API; import FtCreateOptions directly
 ```
 
 ## Distance Metrics Mapping
 
 ```python
-from glide_shared.commands.server_modules.ft_options.ft_create_options import (
-    DistanceMetricType,
-)
+from glide_sync import DistanceMetricType  # top-level import (v2.3+)
 
 distance_map = {
     "COSINE": DistanceMetricType.COSINE,
     "L2": DistanceMetricType.L2,
     "IP": DistanceMetricType.IP,
 }
+```
+
+## Field Constructor Signatures
+
+### TextField
+```python
+TextField(
+    name: TEncodable,
+    alias: Optional[TEncodable] = None,
+    nostem: bool = False,
+    weight: Optional[float] = None,
+    withsuffixtrie: bool = False,
+    nosuffixtrie: bool = False,
+    sortable: bool = False,
+)
+```
+
+### TagField
+```python
+TagField(
+    name: TEncodable,
+    alias: Optional[TEncodable] = None,
+    separator: Optional[TEncodable] = None,
+    case_sensitive: bool = False,
+    sortable: bool = False,
+)
+```
+
+### NumericField
+```python
+NumericField(
+    name: TEncodable,
+    alias: Optional[TEncodable] = None,
+    sortable: bool = False,
+)
+```
+
+### The `sortable` Parameter
+
+All three field types accept `sortable: bool = False`. When set to `True`, the field value can be used for SORTBY in FT.SEARCH results. This enables sorting search results by that field's value.
+
+```python
+# Example: create index with sortable fields
+schema = [
+    TextField("title", sortable=True),
+    NumericField("price", sortable=True),
+    TagField("category", sortable=True),
+]
 ```
 
 ## Core Functions
@@ -59,20 +129,15 @@ ft.create(
 
 **Complete Example:**
 ```python
-from glide_sync import ft, GlideClient
-from glide_shared.commands.server_modules.ft_options.ft_create_options import (
-    FtCreateOptions,
-    TextField,
-    VectorField,
-    VectorFieldAttributesFlat,
-    VectorAlgorithm,
-    DistanceMetricType,
-    VectorType,
-    DataType
+from glide_sync import (
+    ft, GlideClient,
+    FtCreateOptions, TextField, VectorField,
+    VectorFieldAttributesFlat, VectorFieldAttributesHnsw,
+    VectorAlgorithm, DistanceMetricType, VectorType, DataType,
 )
 
-# Define schema
-schema = [
+# Define schema with FLAT algorithm
+schema_flat = [
     TextField("title"),
     VectorField(
         "embedding",
@@ -85,11 +150,28 @@ schema = [
     )
 ]
 
+# Define schema with HNSW algorithm
+schema_hnsw = [
+    TextField("title"),
+    VectorField(
+        "embedding",
+        VectorAlgorithm.HNSW,
+        VectorFieldAttributesHnsw(
+            dimensions=768,
+            distance_metric=DistanceMetricType.COSINE,
+            type=VectorType.FLOAT32,
+            number_of_edges=16,
+            vectors_examined_on_construction=200,
+            vectors_examined_on_runtime=10,
+        )
+    )
+]
+
 # Create index - NOTE: ft.create(client, ...) NOT client.ft_create(...)
 result = ft.create(
     client=client,
     index_name="products_idx",
-    schema=schema,
+    schema=schema_hnsw,
     options=FtCreateOptions(data_type=DataType.HASH, prefixes=["product:"])
 )
 # Returns: "OK"
@@ -481,42 +563,49 @@ ft.explaincli(
 
 ### For ft.create():
 ```python
+# Preferred (v2.3+) — top-level
+from glide_sync import (
+    ft, FtCreateOptions, TextField, TagField, NumericField,
+    VectorField, VectorFieldAttributesFlat, VectorFieldAttributesHnsw,
+    VectorAlgorithm, DistanceMetricType, VectorType, DataType,
+)
+
+# Legacy (still works)
 from glide_sync import ft
 from glide_shared.commands.server_modules.ft_options.ft_create_options import (
-    FtCreateOptions,
-    Field,
-    TextField,
-    VectorField,
-    VectorFieldAttributesFlat,
-    VectorAlgorithm,
-    DistanceMetricType,
-    VectorType,
-    DataType
+    FtCreateOptions, Field, TextField, VectorField,
+    VectorFieldAttributesFlat, VectorFieldAttributesHnsw,
+    VectorAlgorithm, DistanceMetricType, VectorType, DataType,
 )
 ```
 
 ### For ft.search():
 ```python
+# Preferred (v2.3+) — top-level
+from glide_sync import ft, FtSearchOptions, FtSearchLimit, ReturnField
+
+# Legacy (still works)
 from glide_sync import ft
 from glide_shared.commands.server_modules.ft_options.ft_search_options import (
-    FtSearchOptions,
-    FtSearchLimit,
-    ReturnField
+    FtSearchOptions, FtSearchLimit, ReturnField,
 )
 ```
 
 ### For ft.aggregate():
 ```python
+# Preferred (v2.3+) — top-level
+from glide_sync import (
+    ft, FtAggregateOptions, FtAggregateGroupBy, FtAggregateReducer,
+    FtAggregateFilter, FtAggregateSortBy, FtAggregateSortProperty,
+    FtAggregateLimit, FtAggregateApply,
+)
+
+# Legacy (still works)
 from glide_sync import ft
 from glide_shared.commands.server_modules.ft_options.ft_aggregate_options import (
-    FtAggregateOptions,
-    FtAggregateGroupBy,
-    FtAggregateReducer,
-    FtAggregateFilter,
-    FtAggregateSortBy,
-    FtAggregateSortProperty,
-    FtAggregateLimit,
-    FtAggregateApply,
+    FtAggregateOptions, FtAggregateGroupBy, FtAggregateReducer,
+    FtAggregateFilter, FtAggregateSortBy, FtAggregateSortProperty,
+    FtAggregateLimit, FtAggregateApply,
 )
 ```
 
@@ -528,23 +617,24 @@ client.ft_create(...)      # NO - Not a method
 client.ft_search(...)      # NO - Not a method
 client.ft.create(...)      # NO - No ft attribute
 client.ft.search(...)      # NO - No ft attribute
-ft.FtCreateOptions(...)    # NO - Import from ft_create_options
+ft.FtCreateOptions(...)    # NO - not part of ft's public API (use: from glide_sync import FtCreateOptions)
 ```
 
 ### ✅ CORRECT PATTERNS:
 ```python
-from glide_sync import ft
+from glide_sync import ft, FtCreateOptions, FtSearchOptions  # top-level (v2.3+)
 
 ft.create(client, ...)     # YES - Module-level function
-ft.search(client, ...)     # YES - Module-level function
+ft.search(client, ...)     # YES - Module-level function (positional or keyword args)
 ft.dropindex(client, ...)  # YES - Module-level function
+FtCreateOptions(...)       # YES - Imported directly, not from ft module
 ```
 
 ## Common Mistakes
 
 1. **Using client methods**: `client.ft_search()` does not exist - use `ft.search(client, ...)`
 2. **Using client.ft attribute**: `client.ft.create()` does not exist - use `ft.create(client, ...)`
-3. **Wrong import**: `ft.FtCreateOptions` does not exist - import from `ft_create_options`
+3. **Wrong FtCreateOptions access**: `ft.FtCreateOptions` is not part of ft's public API — import `FtCreateOptions` directly from `glide_sync`
 4. **Not decoding bytes**: Search results return bytes - must decode to strings
 5. **Positional args**: Use keyword arguments for clarity
 6. **Inferring from Redis-py**: This is NOT Redis-py - do not use Redis-py patterns

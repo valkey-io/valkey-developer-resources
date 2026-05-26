@@ -194,13 +194,12 @@ results = ft.search(...).sort_by("score")  # Causes error
 results = ft.search(...)  # Already sorted by score
 ```
 
-**❌ WRONG - Using positional arguments:**
+**Both positional and keyword arguments work for ft.search():**
 ```python
-results = ft.search(client, index_name, query, options=FtSearchOptions(...))
-```
+# Positional — valid
+results = ft.search(client, index_name, query, FtSearchOptions(params={"vector": embedding_buffer}))
 
-**✅ CORRECT - Using keyword arguments:**
-```python
+# Keyword — also valid, more readable
 results = ft.search(
     client=client,
     index_name=index_name,
@@ -213,14 +212,12 @@ results = ft.search(
 ```python
 from glide_sync import ft
 ft.create(client, index_name, schema, ft.FtCreateOptions(prefixes=["doc:"]))
+# ft.FtCreateOptions does NOT exist — FtCreateOptions is a standalone class
 ```
 
 **✅ CORRECT - Import FtCreateOptions directly:**
 ```python
-from glide_sync import ft
-from glide_shared.commands.server_modules.ft_options.ft_create_options import (
-    FtCreateOptions
-)
+from glide_sync import ft, FtCreateOptions  # top-level import (v2.3+)
 ft.create(client, index_name, schema, FtCreateOptions(prefixes=["doc:"]))
 ```
 
@@ -325,7 +322,7 @@ ft.create(
 - Use `ft.create()` function, not a method
 - Import `FtCreateOptions` from ft_create_options
 - Use typed field objects (VectorField, TagField, NumericField)
-- Pass `FtCreateOptions` (not `ft.FtCreateOptions`) as 4th argument
+- Pass `FtCreateOptions` (not `ft.FtCreateOptions`) as 4th argument — import from `glide_sync` directly
 
 ---
 
@@ -409,8 +406,7 @@ if TYPE_CHECKING:
 | Description | Problem | Solution |
 |-------------|---------|----------|
 | Wrong FT API Pattern | Using `client.ft_search()`, `client.ft_create()`, or `client.ft.search()` | All FT functions are module-level: `ft.function(client, ...)` — see `python-ft-api.md` |
-| Missing Keyword Arguments | Using positional arguments for `ft.search(client, index, query, options)` | Use keyword arguments: `ft.search(client=client, index_name=index, query=query, options=options)` |
-| Wrong FtCreateOptions Import | Using `ft.FtCreateOptions(...)` instead of `FtCreateOptions(...)` | Import `FtCreateOptions` from `ft_create_options` and use directly |
+| Wrong FtCreateOptions Access | Using `ft.FtCreateOptions(...)` — does not exist | Import `FtCreateOptions` directly: `from glide_sync import FtCreateOptions` |
 | Missing FtSearchOptions | Passing params directly to `ft.search()` | Wrap params in `FtSearchOptions(params={...})` |
 | Adding .sort_by() to KNN Queries | Trying to sort KNN results manually | KNN results are pre-sorted by score, don't add sorting |
 | Expecting ping() to Return Bool | Assuming `client.ping()` returns `True` for success | `ping()` returns `b'PONG'` (bytes), not a boolean. Check with `== b'PONG'` |

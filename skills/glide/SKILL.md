@@ -3,6 +3,8 @@ name: glide
 description: Production-ready patterns for Valkey GLIDE clients across 6 languages. Activate when generating, reviewing, or debugging Valkey GLIDE code including client creation, batch/pipeline/transaction operations, clustering, authentication, TLS, error handling, and timeout configuration.
 ---
 
+**Based on valkey-glide v2.4.0**
+
 ## Language-Specific Guides
 **Activation Triggers** - Use this skill when:
 - User mentions "Valkey", "GLIDE", or "Valkey GLIDE"

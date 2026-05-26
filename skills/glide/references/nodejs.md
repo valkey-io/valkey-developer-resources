@@ -168,7 +168,7 @@ const [count, documents] = await GlideFt.search(
   "*=>[KNN 10 @vector $vec]",
   {
     params: [{ key: "vec", value: queryVector }],
-    returnAttributes: ["name"],
+    returnFields: [{ fieldIdentifier: "name" }],
     decoder: Decoder.Bytes, // Required for binary data
   }
 );
@@ -178,6 +178,16 @@ documents.forEach(doc => {
   console.log(doc.key); // Buffer
   console.log(doc.value); // Array of field-value pairs
 });
+```
+
+**FtSearchOptions type:**
+```typescript
+type FtSearchOptions = {
+  timeout?: number;
+  returnFields?: { fieldIdentifier: GlideString; alias?: GlideString }[];
+  params?: GlideRecord<GlideString>;
+  nocontent?: boolean;
+};
 ```
 
 ### Drop Index
