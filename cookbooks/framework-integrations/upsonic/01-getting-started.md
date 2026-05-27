@@ -16,7 +16,7 @@
 The Valkey Search module is required for vector indexing. Use `valkey/valkey-bundle` which includes it:
 
 ```bash
-docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:latest
+docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:9.1
 ```
 
 Verify the search module is loaded:
@@ -130,7 +130,7 @@ provider.upsert(
 )
 
 import time
-time.sleep(0.3)  # Allow index to update
+time.sleep(0.3)  # Valkey Search indexes asynchronously; brief pause ensures results are searchable
 
 results = provider.dense_search(query_vector=[0.15] * 384, top_k=2)
 for r in results:

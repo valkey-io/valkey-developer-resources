@@ -8,7 +8,7 @@ Requirements:
     - pip install -r requirements.txt
 
 Usage:
-    docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:latest
+    docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:9.1
     python search_strategies.py
 """
 
@@ -44,7 +44,7 @@ async def main() -> None:
         await provider.adelete_collection()
     await provider.acreate_collection()
 
-    # Index sample data
+    # Index sample data across two knowledge bases
     await provider.aupsert(
         vectors=[
             [0.1] * 384,
@@ -67,6 +67,7 @@ async def main() -> None:
             "vector_search.md", "vector_search.md",
             "hybrid.md",
         ],
+        knowledge_base_ids=["kb_infra", "kb_infra", "kb_ml", "kb_ml", "kb_ml"],
     )
     print("Indexed 5 chunks")
     await asyncio.sleep(0.5)
@@ -101,6 +102,16 @@ async def main() -> None:
         query_vector=query_vector,
         top_k=5,
         filter={"document_name": "valkey_intro.md"},
+    )
+    for r in results:
+        print(f"  [{r.score:.3f}] {r.text[:70]}")
+
+    # --- Filtered by knowledge_base_id ---
+    print("\n--- Filtered Search (knowledge_base_id=kb_ml) ---")
+    results = await provider.adense_search(
+        query_vector=query_vector,
+        top_k=5,
+        filter={"knowledge_base_id": "kb_ml"},
     )
     for r in results:
         print(f"  [{r.score:.3f}] {r.text[:70]}")

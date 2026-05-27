@@ -8,7 +8,7 @@ Requirements:
     - pip install -r requirements.txt
 
 Usage:
-    docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:latest
+    docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:9.1
     python production_deployment.py
 """
 
@@ -52,6 +52,8 @@ async def demo_batch_ingest(provider: ValkeyProvider) -> None:
     skipped = 0
 
     for i, chunk in enumerate(chunks):
+        # MD5 is used as a content fingerprint (not for security) — matches
+        # Upsonic's internal store.py deduplication logic.
         content_hash = hashlib.md5(chunk.encode()).hexdigest()
 
         if await provider.achunk_content_hash_exists(content_hash):

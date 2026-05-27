@@ -8,7 +8,7 @@ Requirements:
     - pip install -r requirements.txt
 
 Usage:
-    docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:latest
+    docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:9.1
     python getting_started.py
 """
 
@@ -56,7 +56,7 @@ async def main() -> None:
     )
     print("Indexed 3 chunks")
 
-    # Allow index to process
+    # Valkey Search indexes asynchronously; brief pause ensures results are searchable
     await asyncio.sleep(0.5)
 
     # Dense search

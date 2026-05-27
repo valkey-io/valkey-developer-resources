@@ -100,6 +100,8 @@ async def bulk_ingest(vectors, ids, chunks, doc_ids, doc_names):
 
 The provider computes an MD5 hash of each chunk's content (`chunk_content_hash`). Use this to avoid re-indexing identical content:
 
+> **Note:** MD5 is used here as a fast content fingerprint for deduplication, not for security. This is dictated by Upsonic's internal `store.py` which uses `hashlib.md5` for all providers.
+
 ```python
 async def ingest_with_dedup(provider, chunk_text, chunk_id, vector, doc_id, doc_name):
     """Skip chunks that already exist in the index."""
@@ -174,13 +176,14 @@ valkey-cli DBSIZE
 
 ```
 Memory per vector ≈ vector_size × 4 bytes (float32) + HNSW graph overhead
-HNSW overhead ≈ vector_size × 4 × m × 2 (bidirectional links)
+HNSW graph overhead ≈ m × 2 × 8 bytes per layer (bidirectional neighbor links)
+Average layers per node ≈ 1/ln(2) ≈ 1.4 (plus internal node bookkeeping)
 ```
 
 For 384-dim vectors with m=16:
-- Vector: 384 × 4 = 1.5 KB
-- HNSW links: ~2 KB
-- Metadata fields: ~0.5 KB
+- Vector data: 384 × 4 = 1,536 bytes (~1.5 KB)
+- HNSW graph links: m × 2 × 8 × ~1.4 layers + overhead ≈ ~2 KB
+- Metadata fields (content, tags, hashes): ~0.5 KB
 - **Total per chunk: ~4 KB**
 
 At 1M chunks: ~4 GB Valkey memory.
