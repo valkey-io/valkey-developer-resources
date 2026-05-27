@@ -5,6 +5,20 @@ description: Production-ready patterns for Valkey GLIDE clients across 6 languag
 
 **Based on valkey-glide v2.4.0**
 
+## ⚠️ CRITICAL: Version Verification
+
+**BEFORE writing or reviewing any GLIDE code, determine the target GLIDE version.**
+
+Detect version from: `package.json` (`@valkey/valkey-glide`), `requirements.txt`/`pyproject.toml` (`valkey-glide`), `pom.xml`/`build.gradle` (`io.valkey:valkey-glide`), `go.mod` (`valkey-glide/go`), `composer.json`, or `.csproj` (`Valkey.Glide`). If no version is pinned, ask the user.
+
+**Version mismatch rules:**
+
+| Situation | Action |
+|-----------|--------|
+| Target version **> v2.4.0** (newer than this skill) | **STOP.** Tell the operator: "The project uses GLIDE vX.Y.Z but this skill only covers up to v2.4.0. The GLIDE skill must be updated before I can reliably generate or review code for this version." Do not proceed until the skill is updated. |
+| Target version **= v2.4.0** | Proceed normally using this skill's guidance. |
+| Target version **< v2.4.0** (older) | Proceed with caution. Note that APIs may differ — the Batch API replaced Transaction/ClusterTransaction in v2.x, older versions use different class names and method signatures. Research the specific version's API via changelogs or docs before generating code. Flag any guidance from this skill that may not apply to the older version. |
+
 ## Language-Specific Guides
 **Activation Triggers** - Use this skill when:
 - User mentions "Valkey", "GLIDE", or "Valkey GLIDE"
