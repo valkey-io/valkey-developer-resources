@@ -48,28 +48,31 @@ async def demo_batch_ingest(provider: ValkeyProvider) -> None:
         "Valkey supports HNSW and FLAT vector indexing algorithms",
     ]
 
-    ingested = 0
+    # NOTE: This check-then-insert pattern is not atomic. For concurrent
+    # ingestion pipelines, use a SET NX lock on the content hash or accept
+    # occasional duplicates with periodic dedup passes.
+
+    # MD5 is used as a content fingerprint (not for security) — matches
+    # Upsonic's internal store.py deduplication logic.
+    to_ingest = []
     skipped = 0
-
     for i, chunk in enumerate(chunks):
-        # MD5 is used as a content fingerprint (not for security) — matches
-        # Upsonic's internal store.py deduplication logic.
         content_hash = hashlib.md5(chunk.encode()).hexdigest()
-
         if await provider.achunk_content_hash_exists(content_hash):
             skipped += 1
-            continue
+        else:
+            to_ingest.append((i, chunk))
 
+    if to_ingest:
         await provider.aupsert(
-            vectors=[[0.1 * (i + 1)] * 384],
-            ids=[f"batch_{i}"],
-            chunks=[chunk],
-            document_ids=["batch_doc"],
-            document_names=["batch_test.md"],
+            vectors=[[0.1 * (i + 1)] * 384 for i, _ in to_ingest],
+            ids=[f"batch_{i}" for i, _ in to_ingest],
+            chunks=[chunk for _, chunk in to_ingest],
+            document_ids=["batch_doc"] * len(to_ingest),
+            document_names=["batch_test.md"] * len(to_ingest),
         )
-        ingested += 1
 
-    print(f"  Ingested: {ingested}, Skipped (duplicates): {skipped}")
+    print(f"  Ingested: {len(to_ingest)}, Skipped (duplicates): {skipped}")
 
 
 async def demo_error_handling(provider: ValkeyProvider) -> None:
@@ -87,8 +90,10 @@ async def demo_error_handling(provider: ValkeyProvider) -> None:
         logger.error("Valkey unreachable — check connection")
         raise
     except CollectionDoesNotExistError:
-        logger.warning("Index missing — recreating")
+        logger.warning("Index missing — recreating and retrying")
         await provider.acreate_collection()
+        results = await provider.adense_search(query_vector=query_vector, top_k=3)
+        print(f"  Search returned {len(results)} results (after recreation)")
     except SearchError as e:
         logger.error("Search failed: %s", e)
 
@@ -120,20 +125,21 @@ async def main() -> None:
 
     provider = ValkeyProvider(config)
     await provider.aconnect()
+    try:
+        # Clean slate
+        if await provider.acollection_exists():
+            await provider.adelete_collection()
+        await provider.acreate_collection()
 
-    # Clean slate
-    if await provider.acollection_exists():
+        await demo_batch_ingest(provider)
+        await asyncio.sleep(0.5)  # Allow index to update
+        await demo_error_handling(provider)
+        await demo_delete_operations(provider)
+
+        # Final cleanup
         await provider.adelete_collection()
-    await provider.acreate_collection()
-
-    await demo_batch_ingest(provider)
-    await asyncio.sleep(0.5)  # Allow index to update
-    await demo_error_handling(provider)
-    await demo_delete_operations(provider)
-
-    # Final cleanup
-    await provider.adelete_collection()
-    await provider.adisconnect()
+    finally:
+        await provider.adisconnect()
     print("\nDone!")
 
 

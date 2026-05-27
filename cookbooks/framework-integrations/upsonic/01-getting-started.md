@@ -44,7 +44,7 @@ from upsonic.vectordb.config import ConnectionConfig, Mode, DistanceMetric
 config = ValkeyConfig(
     vector_size=384,              # Must match your embedding model's dimensions
     collection_name="my_docs",    # Name for the FT index
-    key_prefix="docs:",           # Prefix for hash keys in Valkey
+    key_prefix="doc:",           # Prefix for hash keys in Valkey
     connection=ConnectionConfig(
         mode=Mode.LOCAL,
         host="localhost",
@@ -85,7 +85,7 @@ async def index_documents():
 asyncio.run(index_documents())
 ```
 
-Each chunk is stored as a Valkey Hash key (`docs:chunk_1`, `docs:chunk_2`, etc.) with fields for the vector, content, and metadata. The FT index enables search across all of them.
+Each chunk is stored as a Valkey Hash key (`doc:chunk_1`, `doc:chunk_2`, etc.) with fields for the vector, content, and metadata. The FT index enables search across all of them.
 
 ## Step 5: Search by Vector Similarity
 
@@ -127,6 +127,8 @@ provider.upsert(
     vectors=[[0.1] * 384],
     ids=["chunk_1"],
     chunks=["Valkey is a high-performance in-memory data store"],
+    document_ids=["doc_1"],
+    document_names=["valkey_intro.md"],
 )
 
 import time
@@ -152,7 +154,7 @@ docker exec valkey valkey-cli FT._LIST
 docker exec valkey valkey-cli FT.INFO my_docs
 
 # View a stored document
-docker exec valkey valkey-cli HGETALL docs:chunk_1
+docker exec valkey valkey-cli HGETALL doc:chunk_1
 ```
 
 Each hash key contains:
@@ -169,10 +171,12 @@ Each hash key contains:
 | `collection_name` | — | FT index name |
 | `key_prefix` | `"doc:"` | Prefix for hash keys |
 | `distance_metric` | `COSINE` | `COSINE`, `EUCLIDEAN`, or `DOT_PRODUCT` |
-| `index` | HNSW(m=16, ef=200) | Index type and parameters |
+| `index` | HNSW(m=16, ef_construction=200) | Index type and parameters |
 | `batch_size` | 100 | Max documents per upsert batch |
 | `cluster_mode` | false | Use `GlideClusterClient` |
 | `request_timeout` | None | GLIDE request timeout (ms) |
+| `rrf_k` | 60 | Reciprocal Rank Fusion constant for hybrid search |
+| `ef_runtime` | None | HNSW query-time search width (overrides default for FT.SEARCH) |
 
 ---
 

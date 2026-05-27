@@ -15,11 +15,12 @@ from upsonic.vectordb.config import ConnectionConfig, Mode, DistanceMetric
 config = ValkeyConfig(
     vector_size=1536,
     collection_name="production_docs",
-    key_prefix="prod:",
+    key_prefix="{prod}:",
     connection=ConnectionConfig(
         mode=Mode.CLOUD,
         host="my-cluster.abc123.clustercfg.us-east-1.cache.amazonaws.com",
         port=6379,
+        use_tls=True,
     ),
     distance_metric=DistanceMetric.COSINE,
     cluster_mode=True,  # Use GlideClusterClient
@@ -29,6 +30,10 @@ config = ValkeyConfig(
 
 provider = ValkeyProvider(config)
 ```
+
+> ⚠️ **Cluster mode requires hash-tagged prefixes** (e.g., `{prod}:`) so that all
+> keys and the FT index land on the same shard. Without this, search returns
+> partial results.
 
 Setting `cluster_mode=True` switches from `GlideClient` to `GlideClusterClient`, which auto-discovers cluster topology from the seed node.
 
@@ -40,7 +45,7 @@ For ElastiCache Serverless or any TLS-enabled endpoint, configure the connection
 config = ValkeyConfig(
     vector_size=1536,
     collection_name="production_docs",
-    key_prefix="prod:",
+    key_prefix="{prod}:",
     connection=ConnectionConfig(
         mode=Mode.CLOUD,
         host="my-cache.serverless.us-east-1.cache.amazonaws.com",
@@ -52,7 +57,9 @@ config = ValkeyConfig(
 )
 ```
 
-> **Authentication:** Use IAM roles or instance profiles for ElastiCache authentication. Never hardcode credentials. The GLIDE client picks up credentials from the standard AWS credential chain.
+> **Authentication:** For ElastiCache IAM authentication, configure GLIDE with
+> explicit `IamAuthConfig`. See the [GLIDE IAM integration guide](https://glide.valkey.io/how-to/security/iam-integration/)
+> for setup details. Never hardcode credentials.
 
 ## Batch Operations
 
@@ -77,17 +84,18 @@ provider = ValkeyProvider(config)
 async def bulk_ingest(vectors, ids, chunks, doc_ids, doc_names):
     """Ingest a large dataset. Batching is handled automatically."""
     await provider.aconnect()
-    await provider.acreate_collection()
+    try:
+        await provider.acreate_collection()
 
-    await provider.aupsert(
-        vectors=vectors,
-        ids=ids,
-        chunks=chunks,
-        document_ids=doc_ids,
-        document_names=doc_names,
-    )
-
-    await provider.adisconnect()
+        await provider.aupsert(
+            vectors=vectors,
+            ids=ids,
+            chunks=chunks,
+            document_ids=doc_ids,
+            document_names=doc_names,
+        )
+    finally:
+        await provider.adisconnect()
 ```
 
 | `batch_size` | Trade-off |
@@ -122,6 +130,10 @@ async def ingest_with_dedup(provider, chunk_text, chunk_id, vector, doc_id, doc_
 ```
 
 This is especially useful for incremental ingestion pipelines where documents are re-processed periodically.
+
+> **Note:** This check-then-insert pattern is not atomic. For concurrent ingestion
+> pipelines, use a `SET NX` lock on the content hash or accept occasional duplicates
+> with periodic dedup passes.
 
 ## Delete Operations
 
@@ -236,7 +248,7 @@ from upsonic.vectordb.config import (
 config = ValkeyConfig(
     vector_size=1536,                    # text-embedding-3-small
     collection_name="prod_knowledge",
-    key_prefix="kb:",
+    key_prefix="{kb}:",
     connection=ConnectionConfig(
         mode=Mode.CLOUD,
         host="my-cluster.clustercfg.us-east-1.cache.amazonaws.com",

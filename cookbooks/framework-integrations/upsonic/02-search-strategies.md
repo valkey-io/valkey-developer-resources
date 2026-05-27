@@ -147,6 +147,9 @@ asyncio.run(filtered_example())
 | `document_id` | TAG | Parent document identifier |
 | `knowledge_base_id` | TAG | KnowledgeBase isolation |
 
+> `knowledge_base_id` is populated by passing `knowledge_base_ids` to `aupsert()` (one per chunk).
+> It is also set automatically when ingesting via Upsonic's `KnowledgeBase` API.
+
 Filters use exact TAG matching. Multiple filters are ANDed together:
 
 ```python
