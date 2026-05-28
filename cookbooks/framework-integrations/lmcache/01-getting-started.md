@@ -67,6 +67,7 @@ This configures:
 ## Step 4: Launch vLLM with LMCache
 
 ```bash
+PYTHONHASHSEED=0 \
 LMCACHE_CONFIG_FILE=lmcache_config.yaml \
 vllm serve Qwen/Qwen3-8B \
     --gpu-memory-utilization 0.8 \
@@ -189,7 +190,7 @@ When L1 fills up, LMCache evicts to L2 (Valkey). On a cache miss in L1, it check
 | Key | Default | Description |
 |-----|---------|-------------|
 | `chunk_size` | 256 | Tokens per KV cache chunk |
-| `local_cpu` | false | Enable CPU L1 cache |
+| `local_cpu` | true | Enable CPU L1 cache |
 | `max_local_cpu_size` | 5.0 | L1 capacity in GB |
 | `remote_url` | — | `valkey://host:port` for L2 backend |
 | `remote_serde` | — | Serialization: `naive` (fast) or `cachegen` (compressed) |

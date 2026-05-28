@@ -166,15 +166,15 @@ Monitor the ratio of "hit tokens" to "Total tokens" to gauge effectiveness.
 Estimate Valkey memory requirements:
 
 ```
-Memory per token ≈ 2 × num_layers × hidden_dim × 2 bytes (FP16)
+Memory per token ≈ 2 × num_layers × num_kv_heads × head_dim × 2 bytes (FP16)
 Memory per chunk = chunk_size × memory_per_token
 ```
 
-For Qwen3-8B (32 layers, hidden_dim 4096):
-- Per token: 2 × 32 × 4096 × 2 = 512 KB
-- Per chunk (256 tokens): ~128 MB
+For Qwen3-8B (36 layers, 8 KV heads, head_dim 128):
+- Per token: 2 × 36 × 8 × 128 × 2 = 144 KB
+- Per chunk (256 tokens): ~36 MB
 
-With `cachegen` compression (~4× reduction): ~32 MB per chunk.
+With `cachegen` compression (~4× reduction): ~9 MB per chunk.
 
 Plan Valkey capacity based on your expected unique prompt prefix count × chunk size. Add ~10-15% overhead for Valkey's internal data structures (hash table entries, key metadata).
 
@@ -190,8 +190,10 @@ pre_caching_hash_algorithm: sha256_cbor_64bit
 extra_config:
   valkey_mode: "cluster"
   tls_enable: true
-  valkey_username: "${VALKEY_USERNAME}"
-  valkey_password: "${VALKEY_PASSWORD}"
+  # Replace at deploy time via envsubst, Helm, or secrets manager:
+  # envsubst < lmcache_config.template.yaml > lmcache_config.yaml
+  valkey_username: "actual-username-here"
+  valkey_password: "actual-password-here"
   valkey_num_workers: 32
   request_timeout: 5.0
   connection_timeout: 10.0

@@ -73,13 +73,15 @@ def start_instance(gpu_id: int, port: int) -> subprocess.Popen:
         "--kv-transfer-config",
         '{"kv_connector":"LMCacheConnectorV1","kv_role":"kv_both"}',
     ]
-    return subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return subprocess.Popen(cmd, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
-def wait_for_server(port: int, timeout: int = 300) -> bool:
-    """Wait until the vLLM server is ready."""
+def wait_for_server(port: int, proc: subprocess.Popen, timeout: int = 300) -> bool:
+    """Wait until the vLLM server is ready or the process exits."""
     deadline = time.time() + timeout
     while time.time() < deadline:
+        if proc.poll() is not None:
+            return False  # Process already exited
         try:
             resp = requests.get(f"http://localhost:{port}/health", timeout=2)
             if resp.status_code == 200:
@@ -108,19 +110,21 @@ def main() -> None:
     write_config()
 
     print("Starting Instance A (GPU 0, port 8000)...")
-    proc_a = start_instance(gpu_id=0, port=8000)
-
-    print("Starting Instance B (GPU 1, port 8001)...")
-    proc_b = start_instance(gpu_id=1, port=8001)
+    proc_a = None
+    proc_b = None
 
     try:
+        proc_a = start_instance(gpu_id=0, port=8000)
+
+        print("Starting Instance B (GPU 1, port 8001)...")
+        proc_b = start_instance(gpu_id=1, port=8001)
         print("Waiting for Instance A to be ready...")
-        if not wait_for_server(8000):
+        if not wait_for_server(8000, proc_a):
             print("ERROR: Instance A failed to start.")
             return
 
         print("Waiting for Instance B to be ready...")
-        if not wait_for_server(8001):
+        if not wait_for_server(8001, proc_b):
             print("ERROR: Instance B failed to start.")
             return
 
@@ -142,6 +146,8 @@ def main() -> None:
     finally:
         print("\nShutting down servers...")
         for proc in (proc_a, proc_b):
+            if proc is None:
+                continue
             proc.terminate()
             try:
                 proc.wait(timeout=10)

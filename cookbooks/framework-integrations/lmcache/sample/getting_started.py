@@ -55,7 +55,7 @@ def main() -> None:
         gpu_memory_utilization=0.8,
     )
 
-    sampling_params = SamplingParams(temperature=0, max_tokens=50)
+    sampling_params = SamplingParams(temperature=0, max_tokens=1)
 
     # First run — cold (computes KV cache, stores to Valkey)
     t0 = time.perf_counter()

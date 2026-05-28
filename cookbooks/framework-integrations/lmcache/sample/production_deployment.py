@@ -28,7 +28,6 @@ from __future__ import annotations
 
 import argparse
 import subprocess
-import sys
 import textwrap
 from pathlib import Path
 
@@ -142,7 +141,15 @@ def monitor_cache_stats(host: str = "localhost", port: int = 6379) -> None:
 
 
 def _parse_host(host: str) -> tuple[str, str]:
-    """Parse host:port string, defaulting port to 6379."""
+    """Parse host:port string, defaulting port to 6379.
+
+    Raises:
+        ValueError: If host contains characters unsafe for YAML interpolation.
+    """
+    import re
+
+    if not re.match(r"^[\w.\-]+(:\d{1,5})?$", host):
+        raise ValueError(f"Invalid host format: {host!r}")
     if ":" in host:
         addr, port = host.rsplit(":", 1)
         return addr, port
