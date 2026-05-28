@@ -1,0 +1,19 @@
+{
+  "name": "kilocode-valkey-sample",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Sample scripts for the Kilocode + Valkey cookbook",
+  "type": "module",
+  "scripts": {
+    "inspect": "tsx inspect-index.ts",
+    "vector-store": "tsx standalone-vector-store.ts"
+  },
+  "dependencies": {
+    "@valkey/valkey-glide": "2.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

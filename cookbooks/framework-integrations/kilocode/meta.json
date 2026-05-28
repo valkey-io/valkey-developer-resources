@@ -1,0 +1,54 @@
+{
+  "trackName": "Kilocode",
+  "cookbooks": [
+    {
+      "num": "01",
+      "source": "01-getting-started.md",
+      "output": "01-getting-started.html",
+      "title": "Getting Started with Kilocode + Valkey",
+      "h1": "Getting Started with Kilocode + Valkey",
+      "breadcrumb": "Getting Started",
+      "lead": "Select Valkey as your indexing backend, enter a URL, and get semantic code search in under 10 minutes.",
+      "difficulty": "Beginner",
+      "time": "10 min",
+      "next": {
+        "file": "02-how-it-works.html",
+        "title": "02 - How It Works"
+      }
+    },
+    {
+      "num": "02",
+      "source": "02-how-it-works.md",
+      "output": "02-how-it-works.html",
+      "title": "How It Works",
+      "h1": "How It Works",
+      "breadcrumb": "How It Works",
+      "lead": "ValkeySearch index schema, HNSW vector storage, directory-scoped TAG filtering, and embedding metadata for automatic re-indexing.",
+      "difficulty": "Intermediate",
+      "time": "15 min",
+      "prev": {
+        "file": "01-getting-started.html",
+        "title": "01 - Getting Started"
+      },
+      "next": {
+        "file": "03-production-deployment.html",
+        "title": "03 - Production Deployment"
+      }
+    },
+    {
+      "num": "03",
+      "source": "03-production-deployment.md",
+      "output": "03-production-deployment.html",
+      "title": "Production Deployment",
+      "h1": "Production Deployment",
+      "breadcrumb": "Production",
+      "lead": "Connection security, shared team indexing, error handling, memory sizing, and monitoring.",
+      "difficulty": "Advanced",
+      "time": "15 min",
+      "prev": {
+        "file": "02-how-it-works.html",
+        "title": "02 - How It Works"
+      }
+    }
+  ]
+}
