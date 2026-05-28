@@ -99,32 +99,91 @@ if err != nil {
 
 ## Batch Commands (Go)
 
+### Type Safety: StandaloneBatch vs ClusterBatch
+
+Go enforces batch/client compatibility at **compile time**. Passing the wrong batch type is a type error caught by the compiler — not a runtime error.
+
+```go
+// Constructors
+pipeline.NewStandaloneBatch(isAtomic bool) *StandaloneBatch  // for Client (standalone)
+pipeline.NewClusterBatch(isAtomic bool)   *ClusterBatch      // for ClusterClient (cluster)
+```
+
+**Exec signatures (from source):**
+```go
+// Standalone
+func (client *Client) Exec(ctx context.Context, batch pipeline.StandaloneBatch, raiseOnError bool) ([]any, error)
+func (client *Client) ExecWithOptions(ctx context.Context, batch pipeline.StandaloneBatch, raiseOnError bool, options pipeline.StandaloneBatchOptions) ([]any, error)
+
+// Cluster
+func (client *ClusterClient) Exec(ctx context.Context, batch pipeline.ClusterBatch, raiseOnError bool) ([]any, error)
+func (client *ClusterClient) ExecWithOptions(ctx context.Context, batch pipeline.ClusterBatch, raiseOnError bool, options pipeline.ClusterBatchOptions) ([]any, error)
+```
+
+Misuse won't compile:
+```go
+standaloneBatch := pipeline.NewStandaloneBatch(false)
+clusterClient.Exec(ctx, *standaloneBatch, true) // ❌ COMPILE ERROR: cannot use StandaloneBatch as ClusterBatch
+```
+
+### raiseOnError Semantics
+
+The `raiseOnError` parameter controls how per-command errors are surfaced. Both modes still return the `[]any` results slice.
+
+| `raiseOnError` | `error` return | `[]any` contents |
+|---|---|---|
+| `true` | First command error (after retries) | Results for all commands (including those after the error) |
+| `false` | `nil` | Results for successful commands; `*RequestError` at positions where commands failed |
+
+```go
+// raiseOnError=true: error return is the primary error channel
+results, err := client.Exec(ctx, *batch, true)
+if err != nil {
+	// err is the FIRST command error encountered
+	// results is still populated — use it to identify which command failed
+	log.Printf("batch error: %v", err)
+}
+```
+
+```go
+// raiseOnError=false: errors embedded in results slice
+results, err := client.Exec(ctx, *batch, false)
+// err is nil (unless connection/protocol failure)
+for i, result := range results {
+	if reqErr, ok := result.(*glide.RequestError); ok {
+		log.Printf("command %d failed: %v", i, reqErr)
+	}
+}
+```
+
+**Critical:** With `raiseOnError=true`, discarding the `[]any` return does NOT cause silent failures — the error is raised via the `error` return value. The `[]any` is supplementary (identifies which command), not the primary error channel.
+
 ### Standalone Client
 
 ```go
 // Non-atomic (pipeline)
-pipeline := pipeline.NewStandaloneBatch(false).
+batch := pipeline.NewStandaloneBatch(false).
 	Set("user:1", "Alice").
 	Set("user:2", "Bob").
 	Get("user:1").
 	Get("user:2")
 
-results, err := client.Exec(ctx, *pipeline, true)
+results, err := client.Exec(ctx, *batch, true)
 if err != nil {
-	// Handle error
+	// First command error raised here
 }
 // results is []any: [OK OK Alice Bob]
 ```
 
 ```go
 // Atomic (transaction)
-transaction := pipeline.NewStandaloneBatch(true).
+tx := pipeline.NewStandaloneBatch(true).
 	Set("counter", "0").
 	Incr("counter").
 	Incr("counter").
 	Get("counter")
 
-results, err := client.Exec(ctx, *transaction, true)
+results, err := client.Exec(ctx, *tx, true)
 // results: [OK 1 2 2]
 ```
 
@@ -137,7 +196,7 @@ atomicBatch := pipeline.NewClusterBatch(true).
 	Set("{user}:2", "Bob").
 	Get("{user}:1")
 
-results, err := client.Exec(ctx, *atomicBatch, true)
+results, err := clusterClient.Exec(ctx, *atomicBatch, true)
 ```
 
 ```go
@@ -148,16 +207,15 @@ pipelineBatch := pipeline.NewClusterBatch(false).
 	Get("key1").
 	Get("key2")
 
-results, err := client.Exec(ctx, *pipelineBatch, true)
+results, err := clusterClient.Exec(ctx, *pipelineBatch, true)
 ```
 
 **Key Points:**
-- `pipeline.NewStandaloneBatch(bool)` for standalone
-- `pipeline.NewClusterBatch(bool)` for cluster
+- `pipeline.NewStandaloneBatch(bool)` for standalone, `pipeline.NewClusterBatch(bool)` for cluster
 - Fluent API with method chaining
 - Must dereference with `*` when passing to `Exec()`
-- Second parameter is `raiseOnError` (bool)
-- Returns `([]any, error)` - slice of interface{}
+- Type mismatch (wrong batch type for client) is a **compile-time error**, not runtime
+- Returns `([]any, error)` — see raiseOnError table above
 - See SKILL.md for retry strategy decision matrix
 
 ### Retry Strategies (Cluster Only)
@@ -170,7 +228,7 @@ options := pipeline.NewClusterBatchOptions().
 		WithRetryConnectionError(false))
 
 // Execute with options
-results, err := client.ExecWithOptions(ctx, *batch, true, *options)
+results, err := clusterClient.ExecWithOptions(ctx, *batch, true, *options)
 ```
 
 **API Pattern:**
@@ -178,6 +236,7 @@ results, err := client.ExecWithOptions(ctx, *batch, true, *options)
 - `NewClusterBatchRetryStrategy()` creates retry config
 - Chain `WithRetryServerError()` and `WithRetryConnectionError()`
 - Must dereference options with `*` when passing to `ExecWithOptions()`
+- Retry strategy is NOT supported for atomic batches (transactions) — returns error
 
 ---
 
@@ -239,7 +298,7 @@ results, err := client.Exec(ctx, *atomicBatch, true)
 
 ### 5. Wrong Batch Type
 **Problem:** Using `NewStandaloneBatch` with cluster client
-**Solution:** Use `NewClusterBatch` for cluster, `NewStandaloneBatch` for standalone
+**Solution:** Use `NewClusterBatch` for cluster, `NewStandaloneBatch` for standalone. This is enforced at **compile time** — the code won't build if you pass the wrong type.
 
 ### 6. CROSSSLOT Errors in Cluster Mode
 **Problem:** Atomic batch with keys in different slots

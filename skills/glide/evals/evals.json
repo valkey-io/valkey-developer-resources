@@ -186,6 +186,67 @@
         }
       ],
       "files": []
+    },
+    {
+      "id": 12,
+      "prompt": "Review this Go code using valkey-glide. Is there a bug here?\n```go\nfunc flushUserCache(ctx context.Context, client *glide.Client, userIDs []string) error {\n    batch := pipeline.NewStandaloneBatch(false)\n    for _, id := range userIDs {\n        batch.Del(\"user:\" + id)\n    }\n    _, err := client.Exec(ctx, *batch, true)\n    return err\n}\n```",
+      "expected_output": "Should say this is CORRECT / not a bug. Discarding []any is fine because raiseOnError=true means the first error is raised via the error return value. The _ discard is safe. Should NOT claim 'silent partial failures' or 'errors are lost'.",
+      "assertions": [
+        {
+          "id": "no-silent-failure-claim",
+          "text": "Response does NOT claim silent failures, lost errors, or that discarding results hides errors",
+          "type": "negative_match",
+          "pattern": "(silent.*(fail|error|loss)|errors?.*(lost|hidden|swallow|discard|miss)|discard.*(error|fail)|miss.*(error|fail))"
+        },
+        {
+          "id": "acknowledges-correct",
+          "text": "Response acknowledges the code is correct or that raiseOnError=true surfaces errors via err return",
+          "type": "positive_match",
+          "pattern": "(correct|valid|fine|no bug|not a bug|raiseOnError.*true.*(raise|return|surface|report)|err.*(capture|contain|receive|get|have).*error)"
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 13,
+      "prompt": "What happens if I accidentally use pipeline.NewStandaloneBatch with a ClusterClient in valkey-glide Go? Will it panic at runtime?",
+      "expected_output": "Should say it WON'T COMPILE — Go's type system prevents this at compile time. Client.Exec takes StandaloneBatch, ClusterClient.Exec takes ClusterBatch. Should NOT say 'runtime error', 'panic', or 'will fail at runtime'.",
+      "assertions": [
+        {
+          "id": "says-compile-time",
+          "text": "Response mentions compile-time error, type mismatch, or won't compile",
+          "type": "positive_match",
+          "pattern": "(compile.*(time|error)|won't compile|will not compile|type.*(mismatch|error|system)|does not compile|compilation.*(error|fail))"
+        },
+        {
+          "id": "no-runtime-panic-claim",
+          "text": "Response does NOT affirmatively claim it will panic or fail at runtime (negations OK)",
+          "type": "negative_match",
+          "pattern": "will (likely )?result in a runtime error",
+          "note": "Grading uses context-aware negation check; simple regex may false-positive on 'will not panic at runtime'"
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 14,
+      "prompt": "Write a Go function using valkey-glide that executes a batch of SET commands and logs which specific commands failed without stopping on the first error.",
+      "expected_output": "Should use raiseOnError=false and iterate []any checking for *RequestError at each position. Should NOT use raiseOnError=true for this use case.",
+      "assertions": [
+        {
+          "id": "uses-raise-on-error-false",
+          "text": "Code passes false for raiseOnError parameter in Exec call",
+          "type": "positive_match",
+          "pattern": "Exec(WithOptions)?\\(ctx,.*false"
+        },
+        {
+          "id": "checks-request-error",
+          "text": "Code checks for RequestError in results (type assertion or errors.As)",
+          "type": "positive_match",
+          "pattern": "(RequestError|requestError|request_error)"
+        }
+      ],
+      "files": []
     }
   ]
 }
