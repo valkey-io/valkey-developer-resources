@@ -1,0 +1,54 @@
+{
+  "trackName": "LMCache",
+  "cookbooks": [
+    {
+      "num": "01",
+      "source": "01-getting-started.md",
+      "output": "01-getting-started.html",
+      "title": "Getting Started with LMCache + Valkey",
+      "h1": "Getting Started with LMCache + Valkey",
+      "breadcrumb": "Getting Started",
+      "lead": "Install LMCache + vLLM, connect to Valkey as a remote KV cache backend, and demonstrate TTFT improvement on repeated prompts.",
+      "difficulty": "Beginner",
+      "time": "15 min",
+      "next": {
+        "file": "02-kv-cache-sharing.html",
+        "title": "02 - KV Cache Sharing"
+      }
+    },
+    {
+      "num": "02",
+      "source": "02-kv-cache-sharing.md",
+      "output": "02-kv-cache-sharing.html",
+      "title": "KV Cache Sharing Across Instances",
+      "h1": "KV Cache Sharing Across Instances",
+      "breadcrumb": "KV Cache Sharing",
+      "lead": "Share KV caches across multiple vLLM instances through a centralized Valkey store, enabling fleet-wide cache reuse.",
+      "difficulty": "Intermediate",
+      "time": "20 min",
+      "prev": {
+        "file": "01-getting-started.html",
+        "title": "01 - Getting Started"
+      },
+      "next": {
+        "file": "03-production-deployment.html",
+        "title": "03 - Production Deployment"
+      }
+    },
+    {
+      "num": "03",
+      "source": "03-production-deployment.md",
+      "output": "03-production-deployment.html",
+      "title": "Production Deployment",
+      "h1": "Production Deployment",
+      "breadcrumb": "Production",
+      "lead": "Deploy with cluster mode, TLS, ElastiCache Serverless, worker tuning, and cache-hit monitoring.",
+      "difficulty": "Advanced",
+      "time": "20 min",
+      "prev": {
+        "file": "02-kv-cache-sharing.html",
+        "title": "02 - KV Cache Sharing"
+      }
+    }
+  ]
+}
