@@ -39,7 +39,7 @@ Provide the password in Kilocode's **Valkey Password** field. The password is pa
 const client = await GlideClient.createClient({
   addresses: [{ host: "valkey.example.com", port: 6379 }],
   useTLS: true,
-  credentials: { password: "your-auth-token" },
+  credentials: { password: process.env.VALKEY_PASSWORD! },
   clientName: "kilo-valkey-store",
   requestTimeout: 5000,
 });
@@ -141,6 +141,8 @@ HNSW graph overhead adds roughly 30% on top of raw vector storage. Plan accordin
 - Hash fields (filePath, codeChunk, segments): varies by path length and chunk size
 
 Set `maxmemory` with an appropriate eviction policy, or size your instance to hold the full index with headroom for growth.
+
+> **Important:** Set `maxmemory-policy noeviction` on your Valkey instance. ValkeySearch requires all indexed data to remain in memory — eviction policies that remove keys will corrupt the search index.
 
 ## Step 5: Monitoring
 

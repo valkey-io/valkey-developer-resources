@@ -74,6 +74,8 @@ Edit `kilo.jsonc` directly (located in your XDG config directory or `.kilo/` in 
 }
 ```
 
+> **Note:** Never commit real API keys to version control. Use environment variables or add your config file to `.gitignore`.
+
 ## Step 4: Index Your Project
 
 Open a project in VS Code (or navigate to one in the CLI). Kilocode begins indexing automatically. Progress shows in the status bar:
