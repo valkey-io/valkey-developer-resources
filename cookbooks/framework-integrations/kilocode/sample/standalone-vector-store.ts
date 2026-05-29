@@ -161,7 +161,8 @@ async function main() {
     await client.exec(batch, true);
     console.log(`Upserted ${chunks.length} vectors\n`);
 
-    // Wait for indexing
+    // ValkeySearch HNSW indexing is asynchronous — newly inserted vectors
+    // may not appear in search results immediately.
     await new Promise((r) => setTimeout(r, 500));
 
     // KNN search — all points
@@ -182,7 +183,13 @@ async function main() {
     console.log(`KNN search (top 3, all paths) — ${count} total matches:`);
     if (Array.isArray(documents)) {
       for (const doc of documents) {
-        console.log(`  ${doc.key}`);
+        const fields = new Map<string, GlideString>();
+        for (const entry of doc.value as Array<{key: GlideString, value: GlideString}>) {
+          fields.set(String(entry.key), entry.value);
+        }
+        const score = fields.get("score") ?? "N/A";
+        const filePath = fields.get("filePath") ?? doc.key;
+        console.log(`  ${filePath} (score: ${score})`);
       }
     }
 
@@ -209,7 +216,13 @@ async function main() {
     );
     if (Array.isArray(filteredDocs)) {
       for (const doc of filteredDocs) {
-        console.log(`  ${doc.key}`);
+        const fields = new Map<string, GlideString>();
+        for (const entry of doc.value as Array<{key: GlideString, value: GlideString}>) {
+          fields.set(String(entry.key), entry.value);
+        }
+        const score = fields.get("score") ?? "N/A";
+        const filePath = fields.get("filePath") ?? doc.key;
+        console.log(`  ${filePath} (score: ${score})`);
       }
     }
 
@@ -233,4 +246,7 @@ async function main() {
   }
 }
 
-main().catch(console.error);
+main().catch((err) => {
+  console.error(err);
+  process.exitCode = 1;
+});

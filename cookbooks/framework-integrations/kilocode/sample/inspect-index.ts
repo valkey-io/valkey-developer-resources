@@ -79,11 +79,13 @@ async function main() {
 
       let vectorBuf: Buffer | null = null;
 
-      for (const [field, value] of Object.entries(fields)) {
+      for (const entry of fields as Array<{field: GlideString, value: GlideString}>) {
+        const field = String(entry.field);
+        const value = entry.value;
         if (field === "vector") {
           const buf = Buffer.isBuffer(value)
             ? value
-            : Buffer.from(value as string, "binary");
+            : Buffer.from(value as unknown as string, "binary");
           console.log(`  vector: [FLOAT32 x ${buf.length / 4} dims]`);
           vectorBuf = buf;
         } else {
@@ -115,10 +117,13 @@ async function main() {
         console.log(`\nKNN search (top 5) — ${count} total indexed:`);
         if (Array.isArray(documents)) {
           for (const doc of documents) {
-            const docValue = doc.value as Record<string, GlideString>;
-            const distance = parseFloat(String(docValue["score"] ?? "1"));
+            const fields = new Map<string, GlideString>();
+            for (const entry of doc.value as Array<{key: GlideString, value: GlideString}>) {
+              fields.set(String(entry.key), entry.value);
+            }
+            const distance = parseFloat(String(fields.get("score") ?? "1"));
             const similarity = (1 - distance).toFixed(4);
-            const filePath = String(docValue["filePath"] ?? doc.key);
+            const filePath = String(fields.get("filePath") ?? doc.key);
             console.log(`  [${similarity}] ${filePath}`);
           }
         }
@@ -135,4 +140,7 @@ async function main() {
   }
 }
 
-main().catch(console.error);
+main().catch((err) => {
+  console.error(err);
+  process.exitCode = 1;
+});
