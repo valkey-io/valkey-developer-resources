@@ -39,6 +39,8 @@ configurations["integrationTestRuntimeOnly"].extendsFrom(configurations.runtimeO
 dependencies {
     implementation("io.valkey:valkey-glide:255.255.255:${osdetector.classifier}")
     implementation("org.yaml:snakeyaml:2.3")
+    implementation("org.postgresql:postgresql:42.7.4")
+    implementation("com.zaxxer:HikariCP:6.2.1")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.3")
     testImplementation("org.mockito:mockito-core:5.14.2")
@@ -121,6 +123,13 @@ tasks.register<JavaExec>("resetData") {
     group = "application"
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("com.flicenjoyer.ResetData")
+}
+
+tasks.register<JavaExec>("benchmark") {
+    description = "Runs CLI benchmark comparing DB-direct vs Valkey-cached throughput."
+    group = "application"
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("com.flicenjoyer.BenchmarkCli")
 }
 
 tasks.register<Exec>("dbBackup") {

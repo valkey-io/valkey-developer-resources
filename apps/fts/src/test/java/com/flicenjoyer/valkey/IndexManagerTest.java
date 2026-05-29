@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import com.flicenjoyer.db.CatalogRepository;
+import com.flicenjoyer.db.WatchHistoryRepository;
 import glide.api.GlideClient;
 import glide.api.commands.servermodules.FT;
 import glide.api.models.GlideString;
@@ -20,6 +22,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class IndexManagerTest {
 
   @Mock GlideClient client;
+  @Mock CatalogRepository catalogRepo;
+  @Mock WatchHistoryRepository watchRepo;
 
   @Test
   void ensureIndexesCreatesWhenMissing() throws Exception {
@@ -29,7 +33,7 @@ class IndexManagerTest {
       ft.when(() -> FT.create(eq(client), any(String.class), any(), any()))
           .thenReturn(CompletableFuture.completedFuture("OK"));
 
-      new IndexManager(client).ensureIndexes();
+      new IndexManager(client, catalogRepo, watchRepo).ensureIndexes();
 
       ft.verify(() -> FT.create(eq(client), eq(ValkeyKeys.CATALOG_INDEX), any(), any()));
       ft.verify(() -> FT.create(eq(client), eq(ValkeyKeys.WATCH_INDEX), any(), any()));
@@ -44,7 +48,7 @@ class IndexManagerTest {
               CompletableFuture.completedFuture(
                   new GlideString[] {gs(ValkeyKeys.CATALOG_INDEX), gs(ValkeyKeys.WATCH_INDEX)}));
 
-      new IndexManager(client).ensureIndexes();
+      new IndexManager(client, catalogRepo, watchRepo).ensureIndexes();
 
       ft.verify(() -> FT.create(any(), any(String.class), any(), any()), never());
     }
@@ -58,8 +62,7 @@ class IndexManagerTest {
               CompletableFuture.failedFuture(
                   new glide.api.models.exceptions.RequestException("unknown command")));
 
-      // Should not throw — ValkeySearch not available is handled gracefully
-      new IndexManager(client).ensureIndexes();
+      new IndexManager(client, catalogRepo, watchRepo).ensureIndexes();
     }
   }
 
@@ -69,7 +72,9 @@ class IndexManagerTest {
       ft.when(() -> FT.list(client))
           .thenReturn(CompletableFuture.failedFuture(new RuntimeException("Connection refused")));
 
-      assertThrows(ExecutionException.class, () -> new IndexManager(client).ensureIndexes());
+      assertThrows(
+          ExecutionException.class,
+          () -> new IndexManager(client, catalogRepo, watchRepo).ensureIndexes());
     }
   }
 }

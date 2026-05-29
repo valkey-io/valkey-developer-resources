@@ -2,6 +2,7 @@ package com.flicenjoyer.service;
 
 import static glide.api.models.GlideString.gs;
 
+import com.flicenjoyer.db.CatalogRepository;
 import com.flicenjoyer.model.Genre;
 import com.flicenjoyer.model.Movie;
 import com.flicenjoyer.valkey.AppPaths;
@@ -12,22 +13,28 @@ import glide.api.commands.servermodules.FT;
 import glide.api.models.GlideString;
 import glide.api.models.commands.FT.FTSearchOptions;
 import glide.api.models.commands.FT.FTSearchOptions.SortOrder;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
-/** Catalog search, browse, and CRUD operations backed by ValkeySearch FTS and Valkey hashes. */
+/**
+ * Catalog search, browse, and CRUD operations. Uses ValkeySearch FTS for search, Valkey hashes as
+ * cache, and PostgreSQL as source of truth.
+ */
 public class CatalogService {
 
   private static final java.util.logging.Logger LOG =
       java.util.logging.Logger.getLogger(CatalogService.class.getName());
 
   private final GlideClient client;
+  private final CatalogRepository catalogRepo;
 
-  public CatalogService(GlideClient client) {
+  public CatalogService(GlideClient client, CatalogRepository catalogRepo) {
     this.client = client;
+    this.catalogRepo = catalogRepo;
   }
 
   public List<Movie> searchPrefix(String prefix, int limit)
@@ -42,7 +49,6 @@ public class CatalogService {
       if (i == words.length - 1) sb.append("*");
     }
     var terms = sb.toString();
-    // Match title OR description (TEXT) OR genre (TAG)
     var query =
         "(@title:" + terms + ")|(@description:" + terms + ")|(@genre:{" + escapeTag(prefix) + "})";
     return executeSearch(query, limit, null, null);
@@ -57,7 +63,6 @@ public class CatalogService {
             .filter(w -> !w.isBlank())
             .map(w -> "%%" + w + "%%")
             .collect(java.util.stream.Collectors.joining(" "));
-    // Match title OR description (TEXT fuzzy) OR genre (TAG exact)
     var query =
         "(@title:"
             + fuzzyTerms
@@ -73,7 +78,6 @@ public class CatalogService {
       throws ExecutionException, InterruptedException {
     var prefixResults = searchPrefix(prefix, limit);
     var fuzzyResults = searchFuzzy(prefix, limit);
-    // Merge, prefix results first, deduplicate by ID
     var seen = new java.util.LinkedHashMap<String, Movie>();
     for (var m : prefixResults) seen.putIfAbsent(m.id(), m);
     for (var m : fuzzyResults) seen.putIfAbsent(m.id(), m);
@@ -108,8 +112,6 @@ public class CatalogService {
   }
 
   static String escapeQuery(String input) {
-    // Replace hyphens with spaces (tokenizer treats them as word separators)
-    // then escape remaining special characters
     return input.replace('-', ' ').replaceAll("[^a-zA-Z0-9 ]", "\\\\$0");
   }
 
@@ -117,10 +119,7 @@ public class CatalogService {
     return input.replaceAll("[^a-zA-Z0-9 ]", "\\\\$0");
   }
 
-  /**
-   * Browse catalog using FT.SEARCH on idx:catalog. Filters by genre server-side when possible,
-   * sorts client-side for "Other" genre (requires checking all genres).
-   */
+  /** Browse catalog using FT.SEARCH on idx:catalog. */
   public List<Movie> browseAll(String genreFilter, String sortField, boolean descending)
       throws ExecutionException, InterruptedException {
     boolean isOther = genreFilter != null && genreFilter.equals("Other");
@@ -140,9 +139,6 @@ public class CatalogService {
 
     if (isOther) {
       movies.removeIf(m -> Genre.isKnown(m.genre()));
-    }
-
-    if (isOther) {
       Comparator<Movie> cmp =
           switch (resolvedSort) {
             case "rating" -> Comparator.comparingDouble(Movie::rating);
@@ -155,19 +151,62 @@ public class CatalogService {
     return movies;
   }
 
+  /** Cache-aside: check Valkey cache first, fall back to DB on miss. */
   public Movie getById(String catalogId) throws ExecutionException, InterruptedException {
     var fields = client.hgetall(gs(ValkeyKeys.catalogKey(catalogId))).get();
-    if (fields.isEmpty()) return null;
-    return HashParser.toMovie(ValkeyKeys.catalogKey(catalogId), fields);
+    if (!fields.isEmpty()) {
+      return HashParser.toMovie(ValkeyKeys.catalogKey(catalogId), fields);
+    }
+    // Cache miss — query DB
+    try {
+      var movie = catalogRepo.findById(catalogId).orElse(null);
+      if (movie != null) {
+        // Populate cache
+        client.hset(gs(ValkeyKeys.catalogKey(catalogId)), HashParser.movieToHash(movie)).get();
+      }
+      return movie;
+    } catch (SQLException e) {
+      throw new RuntimeException("DB lookup failed for catalog " + catalogId, e);
+    }
+  }
+
+  /** Direct DB lookup — bypasses cache. Used for benchmark comparison. */
+  public Movie getByIdFromDb(String catalogId) {
+    try {
+      return catalogRepo.findById(catalogId).orElse(null);
+    } catch (SQLException e) {
+      throw new RuntimeException("DB lookup failed for catalog " + catalogId, e);
+    }
+  }
+
+  /** Direct DB write — bypasses cache. Matches DB work of updateRating (1 DB write). */
+  public void updateRatingInDbOnly(String catalogId, double rating) {
+    try {
+      catalogRepo.updateRating(catalogId, rating);
+    } catch (SQLException e) {
+      throw new RuntimeException("DB update failed", e);
+    }
   }
 
   public void updateDuration(String catalogId, double durationMinutes)
       throws ExecutionException, InterruptedException {
+    // Write to DB first
+    try {
+      catalogRepo.updateDuration(catalogId, durationMinutes);
+    } catch (SQLException e) {
+      throw new RuntimeException("DB update failed", e);
+    }
+    // Update cache
     setField(catalogId, "durationMinutes", String.valueOf(durationMinutes));
   }
 
   public void updateRating(String catalogId, double rating)
       throws ExecutionException, InterruptedException {
+    try {
+      catalogRepo.updateRating(catalogId, rating);
+    } catch (SQLException e) {
+      throw new RuntimeException("DB update failed", e);
+    }
     setField(catalogId, "rating", String.valueOf(rating));
   }
 
@@ -179,6 +218,11 @@ public class CatalogService {
       String tags,
       int releaseYear)
       throws ExecutionException, InterruptedException {
+    try {
+      catalogRepo.updateMetadata(catalogId, title, genre, description, tags, releaseYear);
+    } catch (SQLException e) {
+      throw new RuntimeException("DB update failed", e);
+    }
     client
         .hset(
             gs(ValkeyKeys.catalogKey(catalogId)),
@@ -193,6 +237,11 @@ public class CatalogService {
 
   public void updateThumbnail(String catalogId, String thumbnailPath)
       throws ExecutionException, InterruptedException {
+    try {
+      catalogRepo.updateThumbnail(catalogId, thumbnailPath);
+    } catch (SQLException e) {
+      throw new RuntimeException("DB update failed", e);
+    }
     setField(catalogId, "thumbnailPath", thumbnailPath);
   }
 
@@ -202,10 +251,17 @@ public class CatalogService {
   }
 
   public void deleteVideo(String catalogId) throws ExecutionException, InterruptedException {
-    // Get file paths before deleting hash
+    // Read file paths from cache BEFORE deleting anything
     var fields = client.hgetall(gs(ValkeyKeys.catalogKey(catalogId))).get();
+    // Delete from DB (source of truth)
+    try {
+      catalogRepo.delete(catalogId);
+    } catch (SQLException e) {
+      throw new RuntimeException("DB delete failed", e);
+    }
+    // Delete from cache
     client.del(new GlideString[] {gs(ValkeyKeys.catalogKey(catalogId))}).get();
-    // Delete local files (only under media directory)
+    // Delete local files
     var videoPath = fields.getOrDefault(gs("videoPath"), gs("")).toString();
     var thumbPath = fields.getOrDefault(gs("thumbnailPath"), gs("")).toString();
     try {

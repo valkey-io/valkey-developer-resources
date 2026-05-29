@@ -47,7 +47,7 @@ class WatchHistoryServiceIntegrationTest {
     Files.writeString(profileFile, "userId: " + TEST_USER + "\ndisplayName: Test User\n");
     var profile = new UserProfileManager(profileFile);
     profile.load();
-    service = new WatchHistoryService(client, profile);
+    service = new WatchHistoryService(client, profile, null);
   }
 
   @AfterAll

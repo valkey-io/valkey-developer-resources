@@ -1,5 +1,8 @@
 package com.flicenjoyer;
 
+import com.flicenjoyer.db.CatalogRepository;
+import com.flicenjoyer.db.DatabaseProvider;
+import com.flicenjoyer.db.WatchHistoryRepository;
 import com.flicenjoyer.service.CatalogService;
 import com.flicenjoyer.service.UploadService;
 import com.flicenjoyer.service.WatchHistoryService;
@@ -13,17 +16,28 @@ import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
-/** JavaFX application entry point. Initializes Valkey connection, services, and the main UI. */
+/** JavaFX application entry point. Initializes DB, Valkey, services, and the main UI. */
 public class FlicEnjoyerApp extends Application {
 
   private static final java.util.logging.Logger LOG =
       java.util.logging.Logger.getLogger(FlicEnjoyerApp.class.getName());
 
   private ValkeyClientProvider valkeyProvider;
+  private DatabaseProvider dbProvider;
 
   @Override
   public void start(Stage primaryStage) throws Exception {
     var config = AppConfig.load();
+
+    // Initialize PostgreSQL
+    LOG.info(
+        "Connecting to PostgreSQL at " + config.dbHost() + ":" + config.dbPort() + "/"
+            + config.dbName());
+    dbProvider = new DatabaseProvider(config);
+    var catalogRepo = new CatalogRepository(dbProvider.getDataSource());
+    var watchRepo = new WatchHistoryRepository(dbProvider.getDataSource());
+
+    // Initialize Valkey
     LOG.info("Connecting to Valkey at " + config.valkeyHost() + ":" + config.valkeyPort());
     valkeyProvider = new ValkeyClientProvider(config.valkeyHost(), config.valkeyPort());
     var client = valkeyProvider.getClient();
@@ -40,11 +54,13 @@ public class FlicEnjoyerApp extends Application {
       profileManager.load();
     }
 
-    new IndexManager(client).ensureIndexes();
+    var indexManager = new IndexManager(client, catalogRepo, watchRepo);
+    indexManager.ensureIndexes();
+    indexManager.syncFromDatabase();
 
-    var uploadService = new UploadService(client);
-    var catalogService = new CatalogService(client);
-    var watchHistoryService = new WatchHistoryService(client, profileManager);
+    var uploadService = new UploadService(client, catalogRepo);
+    var catalogService = new CatalogService(client, catalogRepo);
+    var watchHistoryService = new WatchHistoryService(client, profileManager, watchRepo);
     var aggregationService = new com.flicenjoyer.service.AggregationService(client);
     var mainController =
         new MainController(
@@ -67,6 +83,7 @@ public class FlicEnjoyerApp extends Application {
   @Override
   public void stop() throws Exception {
     if (valkeyProvider != null) valkeyProvider.close();
+    if (dbProvider != null) dbProvider.close();
   }
 
   @SuppressWarnings("unused") // JVM entry point

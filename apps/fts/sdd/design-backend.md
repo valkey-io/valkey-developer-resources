@@ -2,42 +2,80 @@
 
 ## Overview
 
-FlicEnjoyer is a JavaFX desktop application backed by Valkey with ValkeySearch 1.2. It demonstrates FTS capabilities through three features: catalog search (typeahead + fuzzy), user watch history with resume, and aggregation reports. All data lives in Valkey — there is no external database.
+FlicEnjoyer is a JavaFX desktop application that uses PostgreSQL as its primary datastore and Valkey as a caching layer with ValkeySearch 1.2 for Full Text Search. It demonstrates how Valkey dramatically improves application performance over direct database access through cache-aside patterns, while ValkeySearch provides sub-10ms typeahead and fuzzy search without an external search engine.
+
+## Architecture
+
+```
+┌─────────────┐
+│   JavaFX UI │
+└──────┬──────┘
+       │
+┌──────▼──────┐
+│   service/  │  Business logic, cache-aside orchestration
+└──┬───────┬──┘
+   │       │
+┌──▼──┐ ┌─▼────┐
+│ db/ │ │valkey/│  PostgreSQL repos / Valkey cache + FTS
+└──┬──┘ └──┬───┘
+   │        │
+┌──▼──┐ ┌──▼───┐
+│ PG  │ │Valkey│  PostgreSQL DB / Valkey + ValkeySearch
+└─────┘ └──────┘
+```
+
+**Data flow (cache-aside pattern):**
+1. **Read:** Check Valkey cache → if miss, query PostgreSQL → populate cache → return
+2. **Write:** Write to PostgreSQL → invalidate/update Valkey cache → update ValkeySearch index
+3. **Search:** ValkeySearch FTS indexes (populated from DB on startup and kept in sync on writes)
 
 ## Data Model
 
-### Valkey Key Schemas
+### PostgreSQL Schema
 
-#### Catalog (Hash per title)
+#### `catalog` table
 
-Key pattern: `catalog:{id}` (e.g., `catalog:1`, `catalog:42`)
-
-| Hash Field | Type | Description |
+| Column | Type | Constraints |
 |---|---|---|
-| `title` | TEXT | Video title |
-| `genre` | TAG | Genre(s), comma-separated |
-| `description` | TEXT | Synopsis |
-| `tags` | TAG | Searchable tags, comma-separated |
-| `releaseYear` | NUMERIC | Year of release |
-| `rating` | NUMERIC | Rating (0.0–10.0) |
-| `durationMinutes` | NUMERIC | Runtime in minutes |
-| `videoPath` | TAG | Absolute path to local video file |
-| `thumbnailPath` | TAG | Absolute path to local thumbnail image |
+| `id` | UUID | PRIMARY KEY, DEFAULT gen_random_uuid() |
+| `title` | VARCHAR(255) | NOT NULL |
+| `genre` | VARCHAR(50) | NOT NULL |
+| `description` | TEXT | |
+| `tags` | TEXT | Comma-separated |
+| `release_year` | INTEGER | |
+| `rating` | NUMERIC(3,1) | |
+| `duration_minutes` | INTEGER | |
+| `video_path` | TEXT | |
+| `thumbnail_path` | TEXT | |
+| `created_at` | TIMESTAMP | DEFAULT now() |
 
-#### Watch History (Hash per user+title)
+#### `watch_history` table
 
-Key pattern: `watch:{userId}:{catalogId}` (e.g., `watch:f47ac10b:42`)
-
-| Hash Field | Type | Description |
+| Column | Type | Constraints |
 |---|---|---|
-| `userId` | TAG | UUID generated on first launch |
-| `catalogId` | TAG | Reference to catalog entry |
-| `title` | TEXT | Denormalized title for display |
-| `resumeTimestamp` | NUMERIC | Seconds into playback |
-| `completed` | TAG | "true" or "false" |
-| `lastWatched` | NUMERIC | Unix epoch seconds |
+| `user_id` | UUID | NOT NULL |
+| `catalog_id` | UUID | NOT NULL, REFERENCES catalog(id) |
+| `title` | VARCHAR(255) | Denormalized for display |
+| `resume_timestamp` | INTEGER | Seconds into playback |
+| `completed` | BOOLEAN | DEFAULT false |
+| `last_watched` | BIGINT | Unix epoch seconds |
+| PRIMARY KEY | | (user_id, catalog_id) |
 
-### FTS Indexes
+### Valkey Key Schemas (Cache Layer)
+
+#### Catalog Cache (Hash per title)
+
+Key pattern: `catalog:{id}` (e.g., `catalog:f47ac10b-...`)
+
+Same fields as the PostgreSQL `catalog` table — serialized into a Valkey Hash. TTL: none (invalidated on write).
+
+#### Watch History Cache (Hash per user+title)
+
+Key pattern: `watch:{userId}:{catalogId}`
+
+Same fields as the PostgreSQL `watch_history` table. TTL: none (invalidated on write).
+
+### ValkeySearch FTS Indexes
 
 #### `idx:catalog`
 
@@ -90,35 +128,60 @@ Key choices:
 - `lastWatched` is `sortable` for "recently watched" ordering
 - `userId` and `catalogId` as TAG for exact-match filtering
 
+## Cache-Aside Pattern
+
+### Read Path
+
+```
+Service.getMovie(id):
+  1. client.hgetall("catalog:{id}")
+  2. if cache hit → deserialize Hash → return Movie
+  3. if cache miss → CatalogRepository.findById(id)
+  4. client.hset("catalog:{id}", movieToHash(movie))
+  5. return movie
+```
+
+### Write Path
+
+```
+Service.uploadVideo(...):
+  1. CatalogRepository.insert(movie)          // DB is source of truth
+  2. client.hset("catalog:{id}", movieToHash(movie))  // populate cache
+  // ValkeySearch auto-indexes the hash via prefix match
+```
+
+### Invalidation
+
+```
+Service.updateDuration(id, minutes):
+  1. CatalogRepository.updateDuration(id, minutes)
+  2. client.hset("catalog:{id}", Map.of("durationMinutes", minutes))  // update cache field
+```
+
+No TTL-based expiry — cache is explicitly invalidated/updated on writes. This keeps the demo deterministic and avoids stale data during benchmarks.
+
 ## Feature Design
 
 ### 1. Catalog Search (Typeahead + Fuzzy)
 
-**Flow**: User types in search bar → debounced query fires on each keystroke → results update live.
+Search uses ValkeySearch FTS exclusively (not PostgreSQL). The FTS index is populated from DB data on startup and kept in sync on writes.
 
 **Typeahead** (prefix matching):
 ```java
-// User typed "inc" → search for prefix match on title
 FT.search(client, "idx:catalog", "@title:inc*",
-    FTSearchOptions.builder()
-        .limit(0, 10)
-        .build());
+    FTSearchOptions.builder().limit(0, 10).build());
 ```
 
 **Fuzzy search** (misspelling tolerance):
 ```java
-// User typed "incetpion" → fuzzy match with % operator
 FT.search(client, "idx:catalog", "@title:%%incetpion%%",
-    FTSearchOptions.builder()
-        .limit(0, 10)
-        .build());
+    FTSearchOptions.builder().limit(0, 10).build());
 ```
 
-**Strategy**: Try prefix first. If results are empty or below a threshold, fall back to fuzzy. The service layer handles this logic.
+**Strategy**: Try prefix first. If results are empty or below a threshold, fall back to fuzzy.
 
 **Filtered browsing**:
 ```java
-// Browse by genre, sorted by rating
 FT.search(client, "idx:catalog", "@genre:{action}",
     FTSearchOptions.builder()
         .sortBy(gs("rating"), SortOrder.DESC)
@@ -128,23 +191,28 @@ FT.search(client, "idx:catalog", "@genre:{action}",
 
 ### 2. Watch History & Resume
 
-**Load user history** (session hydration on startup):
+**Load user history** — cache-aside with FTS:
 ```java
-// Get all watch entries for this user, most recent first
+// Fast path: ValkeySearch query
 FT.search(client, "idx:watch", "@userId:{f47ac10b}",
     FTSearchOptions.builder()
         .sortBy(gs("lastWatched"), SortOrder.DESC)
         .build());
+// If cache is cold: query DB, populate watch hashes in Valkey
 ```
 
-**Get resume point for a specific title**:
+**Get resume point** — cache-aside:
 ```java
-// Direct hash lookup — no search needed
+// Fast path: direct hash lookup
 client.hget(gs("watch:f47ac10b:42"), gs("resumeTimestamp"));
+// Miss: query DB, populate cache
 ```
 
-**Update resume point**:
+**Update resume point** — write-through:
 ```java
+// 1. Write to DB
+watchHistoryRepository.upsertResumePoint(userId, catalogId, seconds);
+// 2. Update cache
 client.hset(gs("watch:f47ac10b:42"), Map.of(
     gs("resumeTimestamp"), gs("1834"),
     gs("lastWatched"), gs(String.valueOf(Instant.now().getEpochSecond()))
@@ -152,6 +220,8 @@ client.hset(gs("watch:f47ac10b:42"), Map.of(
 ```
 
 ### 3. Aggregation Reports
+
+FT.AGGREGATE runs against ValkeySearch indexes (populated from DB).
 
 **Report 1 — Top titles by viewer count**:
 ```java
@@ -191,10 +261,18 @@ FT.aggregate(client, "idx:catalog", "*",
 
 | Class | Fields | Purpose |
 |---|---|---|
-| `Movie` | id, title, genre, description, tags, releaseYear, rating, durationMinutes, videoPath, thumbnailPath | Catalog domain object (user-uploaded video) |
+| `Movie` | id, title, genre, description, tags, releaseYear, rating, durationMinutes, videoPath, thumbnailPath | Catalog domain object |
 | `WatchHistoryEntry` | userId, catalogId, title, resumeTimestamp, completed, lastWatched | Watch state per user+title |
 | `AggregationResult` | label, metrics (Map<String, Object>) | Generic container for report rows |
-| `Genre` | SCI_FI, ACTION, DRAMA, CRIME, THRILLER, COMEDY, FANTASY, GAMING, OTHER | Enum of known genres with lowercase `value()` and capitalized `displayName()`. Single source of truth for genre lists and "Other" filtering. |
+| `Genre` | SCI_FI, ACTION, DRAMA, CRIME, THRILLER, COMEDY, FANTASY, GAMING, OTHER | Enum of known genres |
+
+### db/
+
+| Class | Responsibility |
+|---|---|
+| `DatabaseProvider` | Initialize HikariCP connection pool from config. Provide `DataSource` singleton. Run `schema.sql` on startup to ensure tables exist. |
+| `CatalogRepository` | CRUD operations on `catalog` table via JDBC. `findAll()`, `findById(id)`, `insert(movie)`, `updateDuration(id, minutes)`. |
+| `WatchHistoryRepository` | CRUD on `watch_history` table. `findByUserId(userId)`, `findByUserAndCatalog(userId, catalogId)`, `upsert(entry)`. |
 
 ### valkey/
 
@@ -202,17 +280,17 @@ FT.aggregate(client, "idx:catalog", "*",
 |---|---|
 | `ValkeyClientProvider` | Initialize and provide the GlideClient singleton. Connection config (host, port) loaded from application config file. |
 | `UserProfileManager` | On first launch, prompt for user's full name, generate a UUID, and persist both to a local YAML file (`~/.flicenjoyer/profile.yaml`). On subsequent launches, load the existing profile. Provides `getUserId()` and `getDisplayName()`. |
-| `IndexManager` | Create `idx:catalog` and `idx:watch` indexes if they don't exist (check via FT._LIST). Drop and recreate on schema changes. |
+| `IndexManager` | Create `idx:catalog` and `idx:watch` indexes if they don't exist (check via FT._LIST). Drop and recreate on schema changes. On startup, sync all DB catalog/watch data into Valkey hashes so FTS indexes are populated. |
 
 ### service/
 
 | Class | Methods | Description |
 |---|---|---|
-| `CatalogService` | `searchPrefix(prefix, limit)`, `searchFuzzy(term, limit)`, `browseByGenre(genre, sortField, order, limit)`, `browseAll(genreFilter, sortField, descending)`, `updateDuration(catalogId, durationMinutes)` | Catalog search via FT.SEARCH, with `browseAll` as a KEYS/HGETALL fallback when ValkeySearch is unavailable. `updateDuration` persists actual video duration discovered during playback. |
-| `UploadService` | `uploadVideo(title, genre, description, tags, releaseYear, videoFile, thumbnailFile)` | Copies video and thumbnail to local media directory (`~/.flicenjoyer/media/`), generates a UUID catalog ID, writes the catalog hash to Valkey with file paths |
-| `WatchHistoryService` | `getUserHistory()`, `getResumePoint(catalogId)`, `updateResumePoint(catalogId, seconds)`, `markCompleted(catalogId)` | Watch history CRUD scoped to the current userId from UserProfileManager |
-| `AggregationService` | `topTitlesByViewers(limit)`, `catalogSummaryByGenre()` | FT.AGGREGATE report generation |
-| `BenchmarkService` | `benchmarkSearch(query, iterations)`, `benchmarkResume(userId, catalogId, iterations)`, `benchmarkAggregate(reportName, iterations)` | Timing harness for performance measurement |
+| `CatalogService` | `searchPrefix(prefix, limit)`, `searchFuzzy(term, limit)`, `browseByGenre(genre, sortField, order, limit)`, `browseAll(genreFilter, sortField, descending)`, `getById(id)`, `updateDuration(catalogId, durationMinutes)` | Search via ValkeySearch FTS. `getById` uses cache-aside (Valkey → DB). `browseAll` queries DB with optional Valkey cache. |
+| `UploadService` | `uploadVideo(title, genre, description, tags, releaseYear, videoFile, thumbnailFile)` | Writes to DB first, then populates Valkey cache hash (auto-indexed by ValkeySearch). |
+| `WatchHistoryService` | `getUserHistory()`, `getResumePoint(catalogId)`, `updateResumePoint(catalogId, seconds)`, `markCompleted(catalogId)` | Cache-aside: Valkey first, DB fallback. Writes go to DB then update cache. |
+| `AggregationService` | `topTitlesByViewers(limit)`, `catalogSummaryByGenre()` | FT.AGGREGATE against ValkeySearch indexes |
+| `BenchmarkService` | `benchmark(task, iterations)`, `benchmarkComparison(dbTask, cachedTask, iterations)` | Timing harness. New `benchmarkComparison` runs both DB-direct and Valkey-cached paths, returns paired results for side-by-side display. |
 
 ### ui/
 
@@ -226,22 +304,31 @@ Non-user-specific configuration is loaded from `config.yaml` in the working dire
 valkey:
   host: localhost
   port: 6379
+
+database:
+  host: localhost
+  port: 5432
+  name: flicenjoyer
+  user: flicenjoyer
+  password: flicenjoyer
 ```
 
-Loaded at startup by `AppConfig` into a record. `ValkeyClientProvider` reads host/port from this config rather than command-line arguments or environment variables.
+Loaded at startup by `AppConfig` into a record. `ValkeyClientProvider` reads valkey config; `DatabaseProvider` reads database config.
 
 | Class | Responsibility |
 |---|---|
-| `AppConfig` | Loads `config.yaml` from the working directory via SnakeYAML. Provides typed accessors (`valkeyHost()`, `valkeyPort()`). Falls back to defaults if file is missing or fields are absent. |
+| `AppConfig` | Loads `config.yaml` from the working directory via SnakeYAML. Provides typed accessors (`valkeyHost()`, `valkeyPort()`, `dbHost()`, `dbPort()`, `dbName()`, `dbUser()`, `dbPassword()`). Falls back to defaults if file is missing or fields are absent. |
 
 ## Startup Sequence
 
 1. `AppConfig.load()` → load `config.yaml` from working directory (defaults if absent)
-2. `FlicEnjoyerApp.start()` → create `ValkeyClientProvider` using config (host, port)
-2. `UserProfileManager.load()` → if `~/.flicenjoyer/profile.yaml` exists, load userId and displayName; otherwise show a prompt dialog for the user's full name, generate a UUID, and persist the profile
-3. `IndexManager.ensureIndexes()` → check FT._LIST, create `idx:catalog` and `idx:watch` if missing
-4. `WatchHistoryService.getUserHistory()` → hydrate any existing watch state for this userId
-5. Launch JavaFX stage with `MainController`
+2. `DatabaseProvider.init()` → create HikariCP pool, run `schema.sql` to ensure tables exist
+3. `FlicEnjoyerApp.start()` → create `ValkeyClientProvider` using config (host, port)
+4. `UserProfileManager.load()` → if `~/.flicenjoyer/profile.yaml` exists, load userId and displayName; otherwise show a prompt dialog for the user's full name, generate a UUID, and persist the profile
+5. `IndexManager.ensureIndexes()` → check FT._LIST, create `idx:catalog` and `idx:watch` if missing
+6. `IndexManager.syncFromDatabase()` → load all catalog and watch_history rows from DB, write as Valkey hashes (populates FTS indexes)
+7. `WatchHistoryService.getUserHistory()` → hydrate any existing watch state for this userId (from cache, now warm)
+8. Launch JavaFX stage with `MainController`
 
 ## Local Media Storage
 
@@ -249,56 +336,66 @@ Uploaded videos and thumbnails are stored at `~/.flicenjoyer/media/`:
 - Videos: `~/.flicenjoyer/media/videos/{catalogId}.{ext}`
 - Thumbnails: `~/.flicenjoyer/media/thumbnails/{catalogId}.{ext}`
 
-`UploadService` copies the user-selected files to these paths and stores the absolute paths in the Valkey catalog hash. The catalog starts empty — all content is user-uploaded.
+`UploadService` copies the user-selected files to these paths and stores the absolute paths in both the DB and the Valkey cache hash.
 
 ### Session State
 
-On first launch, the user is prompted for their full name and a UUID is generated as their userId. This profile is persisted locally at `~/.flicenjoyer/profile.yaml`. Each session starts with whatever watch history already exists in Valkey for that userId — a brand new user starts empty.
+On first launch, the user is prompted for their full name and a UUID is generated as their userId. This profile is persisted locally at `~/.flicenjoyer/profile.yaml`. Each session starts with whatever watch history already exists in the DB for that userId.
 
 ## Performance Benchmarking
 
-`BenchmarkService` runs each operation N times (configurable, default 1000) and reports:
-- Median latency
-- p95 latency
-- p99 latency
-- Operations per second
-- Dataset size at time of benchmark (catalog count, watch history count)
+`BenchmarkService` measures throughput under concurrent load to demonstrate Valkey's advantage over direct database access. Under parallel threads, PostgreSQL's connection pool (5 connections via HikariCP) becomes the bottleneck — threads queue waiting for a connection. Valkey multiplexes all requests over a single connection with no pool contention, delivering dramatically higher throughput.
 
-Target benchmarks from acceptance criteria:
-- Typeahead search: < 10ms median
-- Resume point retrieval: < 1ms median
-- Aggregation reports: documented with dataset size
+### Concurrent load benchmark
 
-Results displayed in `BenchmarkView` and printed to stdout for README documentation.
+Spawns N threads, each performing M operations against the same path. Measures wall-clock time for all threads to complete, reports aggregate throughput (ops/sec).
+
+**Why concurrency matters:** Single-request latency on localhost is similar for both backends (microsecond network hops). The real difference emerges under load — exactly the conditions a production app faces. With 32+ concurrent threads:
+- PostgreSQL: threads contend for 5 pool connections, throughput plateaus
+- Valkey: all threads share one multiplexed connection, throughput scales linearly
+
+### Comparison mode
+
+Runs the same operation under identical concurrent load against both paths:
+1. **DB-direct:** N threads × M ops hitting PostgreSQL via JDBC
+2. **Valkey-cached:** N threads × M ops hitting Valkey cache
+
+Reports ops/sec for each and the speedup factor.
+
+### UI controls
+
+- **Threads:** Number of parallel threads (default: 32)
+- **Ops/thread:** Operations per thread (default: 500)
+- **Operation:** Catalog Lookup, Resume Point Retrieval, or Search
+
+Target benchmarks (32 threads × 500 ops):
+- Catalog Lookup: Valkey 5-20x faster than DB under load
+- Resume Point Retrieval: Valkey 5-20x faster than DB under load
+- Search (ValkeySearch FTS): demonstrates raw FTS throughput
+
+Results displayed in `BenchmarkView` with side-by-side ops/sec and speedup factor.
 
 ## Error Handling
 
+- `DatabaseProvider` fails fast on connection error with clear message (host, port, cause)
 - `ValkeyClientProvider` fails fast on connection error with clear message (host, port, cause)
 - `IndexManager` catches "index already exists" responses gracefully
-- `UploadService` validates required fields before writing to Valkey
-- Service methods wrap Valkey exceptions in domain-specific exceptions with context
+- `UploadService` validates required fields before writing to DB
+- Cache misses are not errors — they trigger a DB fallback transparently
+- Service methods wrap DB/Valkey exceptions in domain-specific exceptions with context
 
 ## Known Limitations
 
-- **Volume/mute delay (~500ms)** — JavaFX `MediaPlayer` applies volume and mute changes asynchronously to its internal audio buffer. This causes a noticeable ~500ms delay between adjusting the volume slider or toggling mute and hearing the effect. The delay is present during playback and is especially noticeable when changing volume while paused and then resuming. This is a JavaFX platform limitation with no available workaround.
+- **Volume/mute delay (~500ms)** — JavaFX `MediaPlayer` applies volume and mute changes asynchronously to its internal audio buffer. This is a JavaFX platform limitation with no available workaround.
+- **Cold cache on first startup** — `IndexManager.syncFromDatabase()` populates the cache on startup, so the first launch after a DB-only state change may be slightly slower.
 
 ## Utilities
 
-- `ResetData` — CLI utility (`./gradlew resetData`) that deletes all `catalog:*` and `watch:*` keys from Valkey and removes `~/.flicenjoyer/media/`. Uses `AppConfig` for connection settings.
-- Icons are individual SVG files in `src/main/resources/icons/`, each containing a `<path>` with `data-filled` attribute. `IconLoader` parses them at startup. To add an icon, create the SVG file and register its name in `IconLoader.ICON_NAMES`.
+- `ResetData` — CLI utility (`./gradlew resetData`) that deletes all data from PostgreSQL tables, all `catalog:*` and `watch:*` keys from Valkey, drops FTS indexes, and removes `~/.flicenjoyer/media/`.
+- Icons are individual SVG files in `src/main/resources/icons/`, each containing a `<path>` with `data-filled` attribute. `IconLoader` parses them at startup.
 
 ## Integration Testing
 
-Integration tests live in `src/integrationTest/java/` and use Testcontainers to run against a live Valkey instance. Run with `gradle integrationTest` — not part of the unit test suite or coverage gate.
+Integration tests live in `src/integrationTest/java/` and use Testcontainers to run against live Valkey and PostgreSQL instances. Run with `gradle integrationTest`.
 
-Currently gated behind `FLICENJOYER_INTEGRATION_TESTS=true` environment variable. Uses the `valkey/valkey-bundle:unstable` Docker image via Testcontainers, which bundles ValkeySearch with FTS support. The `docker-java.properties` file in `src/integrationTest/resources/` sets `api.version=1.44` for Docker 29+ compatibility with Testcontainers.
-
-### Proven capabilities
-
-The integration tests verify:
-- FT.CREATE with TEXT (withSuffixTrie, sortable), TAG (separator, sortable), and NUMERIC (sortable) fields
-- WEIGHT must be 1.0 — custom weights not yet supported by ValkeySearch 1.2
-- Exact search, prefix search (`@title:Incep*`), tag filter (`@genre:{Sci\-Fi}`)
-- SORTBY on numeric fields
-- CatalogService round-trip: `searchPrefix`, `searchFuzzy`, `browseByGenre`
-- Genre escaping handled by `escapeTag` (e.g., `Sci-Fi` → `Sci\-Fi`)
+Currently gated behind `FLICENJOYER_INTEGRATION_TESTS=true` environment variable. Uses `valkey/valkey-bundle:unstable` for Valkey and `postgres:17` for PostgreSQL via Testcontainers.

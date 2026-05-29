@@ -1,5 +1,9 @@
 package com.flicenjoyer.valkey;
 
+import static glide.api.models.GlideString.gs;
+
+import com.flicenjoyer.db.CatalogRepository;
+import com.flicenjoyer.db.WatchHistoryRepository;
 import glide.api.GlideClient;
 import glide.api.commands.servermodules.FT;
 import glide.api.models.GlideString;
@@ -10,21 +14,27 @@ import glide.api.models.commands.FT.FTCreateOptions.NumericField;
 import glide.api.models.commands.FT.FTCreateOptions.TagField;
 import glide.api.models.commands.FT.FTCreateOptions.TextField;
 import glide.api.models.exceptions.RequestException;
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
-/** Creates ValkeySearch FTS indexes for catalog and watch history on startup. */
+/** Creates ValkeySearch FTS indexes and syncs DB data into Valkey hashes on startup. */
 public class IndexManager {
 
   private static final java.util.logging.Logger LOG =
       java.util.logging.Logger.getLogger(IndexManager.class.getName());
 
   private final GlideClient client;
+  private final CatalogRepository catalogRepo;
+  private final WatchHistoryRepository watchRepo;
 
-  public IndexManager(GlideClient client) {
+  public IndexManager(
+      GlideClient client, CatalogRepository catalogRepo, WatchHistoryRepository watchRepo) {
     this.client = client;
+    this.catalogRepo = catalogRepo;
+    this.watchRepo = watchRepo;
   }
 
   public void ensureIndexes() throws ExecutionException, InterruptedException {
@@ -43,7 +53,7 @@ public class IndexManager {
             "WARNING: ValkeySearch module not available — FTS indexes not created. "
                 + "Search, browse, and reports will not work until ValkeySearch is loaded.");
       } else {
-        throw e; // Connection/timeout error — propagate
+        throw e;
       }
       return;
     }
@@ -53,6 +63,26 @@ public class IndexManager {
     }
     if (!existing.contains(ValkeyKeys.WATCH_INDEX)) {
       createWatchIndex();
+    }
+  }
+
+  /** Loads all catalog and watch_history rows from DB into Valkey hashes (warms cache + FTS). */
+  public void syncFromDatabase() throws ExecutionException, InterruptedException {
+    try {
+      var movies = catalogRepo.findAll();
+      for (var movie : movies) {
+        client.hset(gs(ValkeyKeys.catalogKey(movie.id())), HashParser.movieToHash(movie)).get();
+      }
+      LOG.info("Synced " + movies.size() + " catalog entries from DB to Valkey");
+
+      var entries = watchRepo.findAll();
+      for (var entry : entries) {
+        var key = ValkeyKeys.watchKey(entry.userId(), entry.catalogId());
+        client.hset(gs(key), HashParser.watchEntryToHash(entry)).get();
+      }
+      LOG.info("Synced " + entries.size() + " watch history entries from DB to Valkey");
+    } catch (SQLException e) {
+      throw new RuntimeException("Failed to sync DB data to Valkey", e);
     }
   }
 

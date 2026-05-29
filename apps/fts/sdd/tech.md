@@ -13,6 +13,8 @@
 
 - `valkey-glide` (Java) — Valkey client library built from local clone at `../../../valkey-glide` (branch `edlng/vss-1.2-commands`). This branch contains unreleased ValkeySearch 1.2 command support. Build and install locally before compiling this project. Will switch to a published release once valkey-glide 2.4 ships.
 - See [glide-vss-1.2-api.md](glide-vss-1.2-api.md) for a summary of the new FT.CREATE, FT.SEARCH, FT.AGGREGATE, and FT.INFO APIs available on this branch. Refer to the Java source files listed in that document for full API contracts.
+- PostgreSQL JDBC driver (`org.postgresql:postgresql:42.7.4`) — JDBC connectivity to PostgreSQL
+- HikariCP (`com.zaxxer:HikariCP:6.2.1`) — High-performance JDBC connection pool
 - JavaFX SDK — desktop GUI toolkit (controls, fxml, media, swing modules)
 - SnakeYAML — YAML parsing/writing for local data files (user profile, application config)
 
@@ -33,6 +35,7 @@ All app icons (player transport, navigation, status) are individual SVG files in
 - `elasticsearch`, `opensearch` — search is handled entirely by ValkeySearch FTS
 - Node.js, React, or any JavaScript/TypeScript tooling
 - External logging frameworks (SLF4J, Log4j, Logback) — uses `java.util.logging` (JUL) only
+- ORM frameworks (Hibernate, JPA) — uses plain JDBC for simplicity and transparency in a sample app
 
 ## Valkey Client Patterns — GLIDE Skill Reference
 
@@ -46,6 +49,13 @@ However, prioritize using [glide-vss-1.2-api.md](glide-vss-1.2-api.md) for speci
 - `docker compose up` builds and runs the custom image automatically
 - Reference: https://hub.docker.com/r/valkey/valkey
 
+## PostgreSQL Requirements
+
+- Image: `postgres:17` — latest stable PostgreSQL
+- Database `flicenjoyer` created automatically via `POSTGRES_DB` env var
+- Schema applied on application startup via `DatabaseProvider` running `schema.sql`
+- `docker compose up` starts PostgreSQL alongside Valkey
+
 ## Development Tooling
 
 - Java 21
@@ -54,18 +64,19 @@ However, prioritize using [glide-vss-1.2-api.md](glide-vss-1.2-api.md) for speci
 - Mockito for mocking Valkey interactions (GlideClient) in unit tests — service and valkey layer methods that call Valkey must be tested via mocked GlideClient, not a live instance
 - JaCoCo for code coverage enforcement (minimum 70% line coverage on service/valkey/model layers; UI package and app entry points excluded from the gate)
 - Spotless with google-java-format for consistent code formatting
-- Docker Compose for local Valkey server with ValkeySearch module
-- Testcontainers (`org.testcontainers:testcontainers` + `junit-jupiter`) for integration tests against `valkey/valkey-bundle:unstable`. See [design-backend.md](design-backend.md#integration-testing) for details.
+- Docker Compose for local Valkey server with ValkeySearch module and PostgreSQL database
+- Testcontainers (`org.testcontainers:testcontainers` + `junit-jupiter` + `postgresql`) for integration tests against `valkey/valkey-bundle:unstable` and `postgres:17`. See [design-backend.md](design-backend.md#integration-testing) for details.
 
 ## Packaging & Distribution
 
 - Single Gradle project using Kotlin DSL
 - Gradle `application` plugin for local development (`./gradlew run`)
-- Turnkey `docker-compose` stack: `docker compose up` pulls `valkey/valkey-bundle:unstable` with all modules pre-loaded, ready for the app to connect.
+- Turnkey `docker-compose` stack: `docker compose up` pulls `valkey/valkey-bundle:unstable` and `postgres:17`, ready for the app to connect.
 
 ## Compatibility
 
-- Communicates with Valkey exclusively through standard Valkey commands and ValkeySearch module commands
+- Communicates with PostgreSQL via standard JDBC (primary datastore)
+- Communicates with Valkey through standard Valkey commands and ValkeySearch module commands (caching + FTS)
 - No Redis dependency — designed for Valkey from the ground up
-- Standard commands: AUTH, PING, SELECT, HSET, CLIENT INFO, MODULE LIST
+- Standard commands: AUTH, PING, SELECT, HSET, HGETALL, HGET, CLIENT INFO, MODULE LIST
 - ValkeySearch commands: FT._LIST, FT.INFO, FT.CREATE, FT.DROPINDEX, FT.SEARCH, FT.AGGREGATE

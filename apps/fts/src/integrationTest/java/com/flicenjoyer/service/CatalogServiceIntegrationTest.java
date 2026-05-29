@@ -180,7 +180,7 @@ class CatalogServiceIntegrationTest {
   @Test
   @Order(7)
   void catalogServiceParseRoundTrip() throws Exception {
-    var catalogService = new CatalogService(client);
+    var catalogService = new CatalogService(client, null);
     var results = catalogService.searchPrefix("Incep", 10);
     assertFalse(results.isEmpty(), "CatalogService typeahead should find Inception");
     assertEquals("Inception", results.getFirst().title());
@@ -189,7 +189,7 @@ class CatalogServiceIntegrationTest {
   @Test
   @Order(8)
   void catalogServiceFuzzySearch() throws Exception {
-    var catalogService = new CatalogService(client);
+    var catalogService = new CatalogService(client, null);
     var results = catalogService.searchFuzzy("Incetpion", 10);
     // Fuzzy may or may not work depending on ValkeySearch version
     // Just verify it doesn't throw
@@ -199,7 +199,7 @@ class CatalogServiceIntegrationTest {
   @Test
   @Order(9)
   void catalogServiceBrowseByGenre() throws Exception {
-    var catalogService = new CatalogService(client);
+    var catalogService = new CatalogService(client, null);
     var results =
         catalogService.browseByGenre("Sci-Fi", "rating", FTSearchOptions.SortOrder.DESC, 20);
     assertFalse(results.isEmpty(), "Should find Sci-Fi movies");
@@ -209,7 +209,7 @@ class CatalogServiceIntegrationTest {
   @Test
   @Order(10)
   void browseAllReturnsAllMovies() throws Exception {
-    var catalogService = new CatalogService(client);
+    var catalogService = new CatalogService(client, null);
     var results = catalogService.browseAll("", "title", false);
     assertTrue(results.size() >= 3, "Should find all seeded movies");
   }
@@ -217,7 +217,7 @@ class CatalogServiceIntegrationTest {
   @Test
   @Order(11)
   void browseAllWithGenreFilter() throws Exception {
-    var catalogService = new CatalogService(client);
+    var catalogService = new CatalogService(client, null);
     var results = catalogService.browseAll("Sci-Fi", "rating", true);
     assertFalse(results.isEmpty());
     assertTrue(results.stream().allMatch(m -> m.genre().contains("Sci-Fi")));
@@ -226,7 +226,7 @@ class CatalogServiceIntegrationTest {
   @Test
   @Order(12)
   void updateDuration() throws Exception {
-    var catalogService = new CatalogService(client);
+    var catalogService = new CatalogService(client, null);
     catalogService.updateDuration("1", 200.5);
     var val = client.hget(gs("catalog:1"), gs("durationMinutes")).get();
     assertEquals("200.5", val.toString());
@@ -235,7 +235,7 @@ class CatalogServiceIntegrationTest {
   @Test
   @Order(13)
   void updateRating() throws Exception {
-    var catalogService = new CatalogService(client);
+    var catalogService = new CatalogService(client, null);
     catalogService.updateRating("1", 9.5);
     var val = client.hget(gs("catalog:1"), gs("rating")).get();
     assertEquals("9.5", val.toString());
@@ -244,7 +244,7 @@ class CatalogServiceIntegrationTest {
   @Test
   @Order(14)
   void updateMetadata() throws Exception {
-    var catalogService = new CatalogService(client);
+    var catalogService = new CatalogService(client, null);
     catalogService.updateMetadata("1", "Inception 2", "Action", "Sequel", "sequel,dreams", 2025);
     var fields = client.hgetall(gs("catalog:1")).get();
     assertEquals("Inception 2", fields.get(gs("title")).toString());
@@ -255,7 +255,7 @@ class CatalogServiceIntegrationTest {
   @Test
   @Order(15)
   void updateThumbnail() throws Exception {
-    var catalogService = new CatalogService(client);
+    var catalogService = new CatalogService(client, null);
     catalogService.updateThumbnail("2", "/new/thumb.png");
     var val = client.hget(gs("catalog:2"), gs("thumbnailPath")).get();
     assertEquals("/new/thumb.png", val.toString());
@@ -264,7 +264,7 @@ class CatalogServiceIntegrationTest {
   @Test
   @Order(16)
   void deleteVideoRemovesHash() throws Exception {
-    var catalogService = new CatalogService(client);
+    var catalogService = new CatalogService(client, null);
     catalogService.deleteVideo("3");
     var fields = client.hgetall(gs("catalog:3")).get();
     assertTrue(fields.isEmpty(), "Hash should be deleted");

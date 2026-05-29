@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import com.flicenjoyer.db.CatalogRepository;
 import glide.api.GlideClient;
 import glide.api.models.GlideString;
 import java.nio.file.Files;
@@ -38,6 +39,7 @@ class UploadServiceTest {
   @Test
   void uploadVideoStoresHashInValkey(@TempDir Path tempDir) throws Exception {
     var client = mock(GlideClient.class);
+    var catalogRepo = mock(CatalogRepository.class);
     when(client.hset(any(GlideString.class), any(Map.class)))
         .thenReturn(CompletableFuture.completedFuture(10L));
 
@@ -46,25 +48,27 @@ class UploadServiceTest {
     var thumbFile = tempDir.resolve("test.png");
     Files.writeString(thumbFile, "fake thumb");
 
-    var service = new UploadService(client);
+    var service = new UploadService(client, catalogRepo);
     var id =
         service.uploadVideo("Title", "Action", "Desc", "tag1", 2024, 1.5, videoFile, thumbFile);
 
     assertNotNull(id);
     assertFalse(id.isEmpty());
+    verify(catalogRepo).insert(any());
     verify(client).hset(any(GlideString.class), any(Map.class));
   }
 
   @Test
   void uploadVideoWithoutThumbnail(@TempDir Path tempDir) throws Exception {
     var client = mock(GlideClient.class);
+    var catalogRepo = mock(CatalogRepository.class);
     when(client.hset(any(GlideString.class), any(Map.class)))
         .thenReturn(CompletableFuture.completedFuture(10L));
 
     var videoFile = tempDir.resolve("test.mp4");
     Files.writeString(videoFile, "fake video");
 
-    var service = new UploadService(client);
+    var service = new UploadService(client, catalogRepo);
     var id = service.uploadVideo("Title", "Action", "Desc", "tag1", 2024, 1.5, videoFile, null);
 
     assertNotNull(id);

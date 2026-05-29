@@ -1,6 +1,13 @@
 valkey:
-  host: localhost
+  host: 172.22.0.2
   port: 6379
+
+database:
+  host: 172.22.0.3
+  port: 5432
+  name: flicenjoyer
+  user: flicenjoyer
+  password: flicenjoyer
 
 admin:
   enabled: true

@@ -63,4 +63,29 @@ public final class HashParser {
         "true".equals(str(f, "completed")),
         toLong(f, "lastWatched"));
   }
+
+  /** Convert a Movie to a Valkey hash field map for HSET. */
+  public static Map<GlideString, GlideString> movieToHash(Movie m) {
+    return Map.of(
+        gs("title"), gs(m.title()),
+        gs("genre"), gs(m.genre()),
+        gs("description"), gs(m.description() != null ? m.description() : ""),
+        gs("tags"), gs(m.tags() != null ? m.tags() : ""),
+        gs("releaseYear"), gs(String.valueOf(m.releaseYear())),
+        gs("rating"), gs(String.valueOf(m.rating())),
+        gs("durationMinutes"), gs(String.valueOf(m.durationMinutes())),
+        gs("videoPath"), gs(m.videoPath() != null ? m.videoPath() : ""),
+        gs("thumbnailPath"), gs(m.thumbnailPath() != null ? m.thumbnailPath() : ""));
+  }
+
+  /** Convert a WatchHistoryEntry to a Valkey hash field map for HSET. */
+  public static Map<GlideString, GlideString> watchEntryToHash(WatchHistoryEntry e) {
+    return Map.of(
+        gs("userId"), gs(e.userId()),
+        gs("catalogId"), gs(e.catalogId()),
+        gs("title"), gs(e.title() != null ? e.title() : ""),
+        gs("resumeTimestamp"), gs(String.valueOf(e.resumeTimestamp())),
+        gs("completed"), gs(String.valueOf(e.completed())),
+        gs("lastWatched"), gs(String.valueOf(e.lastWatched())));
+  }
 }

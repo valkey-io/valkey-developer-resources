@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import com.flicenjoyer.db.WatchHistoryRepository;
 import com.flicenjoyer.valkey.UserProfileManager;
 import glide.api.BaseClient;
 import glide.api.GlideClient;
@@ -26,11 +27,12 @@ class WatchHistoryServiceMockTest {
 
   @Mock GlideClient client;
   @Mock UserProfileManager profileManager;
+  @Mock WatchHistoryRepository watchRepo;
   WatchHistoryService service;
 
   @BeforeEach
   void setUp() {
-    service = new WatchHistoryService(client, profileManager);
+    service = new WatchHistoryService(client, profileManager, watchRepo);
     lenient().when(profileManager.getUserId()).thenReturn("user1");
   }
 
@@ -47,25 +49,33 @@ class WatchHistoryServiceMockTest {
   void getResumePointReturnsZeroWhenNull() throws Exception {
     when(client.hget(any(GlideString.class), any(GlideString.class)))
         .thenReturn(CompletableFuture.completedFuture(null));
+    when(watchRepo.findByUserAndCatalog("user1", "vid1"))
+        .thenReturn(java.util.Optional.empty());
 
     assertEquals(0L, service.getResumePoint("vid1"));
   }
 
   @Test
   void updateResumePointCallsHset() throws Exception {
+    when(watchRepo.findByUserAndCatalog("user1", "vid1"))
+        .thenReturn(java.util.Optional.empty());
     when(client.hset(any(GlideString.class), any()))
         .thenReturn(CompletableFuture.completedFuture(2L));
 
     service.updateResumePoint("vid1", 500);
+    verify(watchRepo).upsert(any());
     verify(client).hset(eq(gs("watch:user1:vid1")), any());
   }
 
   @Test
   void markCompletedCallsHset() throws Exception {
+    when(watchRepo.findByUserAndCatalog("user1", "vid1"))
+        .thenReturn(java.util.Optional.empty());
     when(client.hset(any(GlideString.class), any()))
         .thenReturn(CompletableFuture.completedFuture(1L));
 
     service.markCompleted("vid1");
+    verify(watchRepo).upsert(any());
     verify(client).hset(eq(gs("watch:user1:vid1")), any());
   }
 
@@ -75,6 +85,7 @@ class WatchHistoryServiceMockTest {
         .thenReturn(CompletableFuture.completedFuture(6L));
 
     service.startWatching("vid1", "Test Movie");
+    verify(watchRepo).upsert(any());
     verify(client).hset(eq(gs("watch:user1:vid1")), any());
   }
 

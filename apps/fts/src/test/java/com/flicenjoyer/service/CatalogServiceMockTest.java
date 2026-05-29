@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import com.flicenjoyer.db.CatalogRepository;
 import glide.api.BaseClient;
 import glide.api.GlideClient;
 import glide.api.commands.servermodules.FT;
@@ -26,11 +27,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class CatalogServiceMockTest {
 
   @Mock GlideClient client;
+  @Mock CatalogRepository catalogRepo;
   CatalogService service;
 
   @BeforeEach
   void setUp() {
-    service = new CatalogService(client);
+    service = new CatalogService(client, catalogRepo);
   }
 
   @Test
@@ -60,6 +62,7 @@ class CatalogServiceMockTest {
   void getByIdReturnsNullWhenEmpty() throws Exception {
     when(client.hgetall(any(GlideString.class)))
         .thenReturn(CompletableFuture.completedFuture(Map.of()));
+    when(catalogRepo.findById("missing")).thenReturn(java.util.Optional.empty());
 
     assertNull(service.getById("missing"));
   }
@@ -71,6 +74,7 @@ class CatalogServiceMockTest {
 
     service.updateDuration("abc", 90.5);
     verify(client).hset(any(GlideString.class), any());
+    verify(catalogRepo).updateDuration("abc", 90.5);
   }
 
   @Test

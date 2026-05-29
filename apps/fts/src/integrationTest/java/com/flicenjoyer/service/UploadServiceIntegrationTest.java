@@ -49,7 +49,7 @@ class UploadServiceIntegrationTest {
     var thumbFile = tempDir.resolve("test.png");
     Files.writeString(thumbFile, "fake thumb content");
 
-    var service = new UploadService(client);
+    var service = new UploadService(client, null);
     var id =
         service.uploadVideo(
             "Test Title", "Action", "A test video", "tag1,tag2", 2024, 2.5, videoFile, thumbFile);
@@ -71,7 +71,7 @@ class UploadServiceIntegrationTest {
     var videoFile = tempDir.resolve("test2.mp4");
     Files.writeString(videoFile, "fake video");
 
-    var service = new UploadService(client);
+    var service = new UploadService(client, null);
     var id = service.uploadVideo("No Thumb", "Drama", "Desc", "tag", 2023, 1.0, videoFile, null);
 
     var fields = client.hgetall(gs("catalog:" + id)).get();
