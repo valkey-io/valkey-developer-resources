@@ -9,7 +9,7 @@ A complete RAG (Retrieval-Augmented Generation) pipeline using the MindsDB Valke
 ## Prerequisites
 
 - Completed [01 - Getting Started](01-getting-started.md)
-- Valkey running with the search module (`valkey/valkey-bundle:9.1.0-rc1`)
+- Valkey running with the search module (`valkey/valkey-bundle:latest`)
 - `valkey-glide` and `numpy` installed
 
 ## Step 1: Project Setup

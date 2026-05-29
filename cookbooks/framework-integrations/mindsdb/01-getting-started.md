@@ -23,10 +23,10 @@ The vector store requires the **valkey-search** module for indexing and similari
 
 ```bash
 # Using Podman
-podman run -d --name valkey-search -p 6379:6379 valkey/valkey-bundle:9.1.0-rc1
+podman run -d --name valkey-search -p 6379:6379 valkey/valkey-bundle:latest
 
 # Or using Docker
-docker run -d --name valkey-search -p 6379:6379 valkey/valkey-bundle:9.1.0-rc1
+docker run -d --name valkey-search -p 6379:6379 valkey/valkey-bundle:latest
 ```
 
 Verify it's running and the search module is loaded:

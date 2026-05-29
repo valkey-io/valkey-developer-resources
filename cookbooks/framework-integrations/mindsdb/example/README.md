@@ -12,7 +12,7 @@ Runnable code for the [MindsDB + Valkey cookbook series](../README.md).
 
 ```bash
 # Start Valkey with the search module
-docker run -d --name valkey-search -p 6379:6379 valkey/valkey-bundle:9.1.0-rc1
+docker run -d --name valkey-search -p 6379:6379 valkey/valkey-bundle:latest
 
 # Clone MindsDB (the Valkey handler is part of the MindsDB repo)
 git clone https://github.com/mindsdb/mindsdb.git
