@@ -1,0 +1,35 @@
+{
+  "trackName": "MindsDB",
+  "cookbooks": [
+    {
+      "num": "01",
+      "source": "01-getting-started.md",
+      "output": "01-getting-started.html",
+      "title": "Getting Started with MindsDB + Valkey Vector Store",
+      "h1": "Getting Started with MindsDB + Valkey Vector Store",
+      "breadcrumb": "Getting Started",
+      "lead": "Connect MindsDB to Valkey, create a vector index, insert documents, and run your first similarity search — all via SQL or the Python handler API.",
+      "difficulty": "Beginner",
+      "time": "15 min",
+      "next": {
+        "file": "02-rag-pipeline.html",
+        "title": "02 - RAG Pipeline with Vector Search"
+      }
+    },
+    {
+      "num": "02",
+      "source": "02-rag-pipeline.md",
+      "output": "02-rag-pipeline.html",
+      "title": "RAG Pipeline with Vector Search",
+      "h1": "RAG Pipeline with Vector Search",
+      "breadcrumb": "RAG Pipeline",
+      "lead": "Build a complete RAG pipeline: embed documents, store in Valkey with HNSW indexing, query with KNN vector search, and use metadata filtering.",
+      "difficulty": "Intermediate",
+      "time": "20 min",
+      "prev": {
+        "file": "01-getting-started.html",
+        "title": "01 - Getting Started"
+      }
+    }
+  ]
+}
