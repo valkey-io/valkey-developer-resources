@@ -61,18 +61,19 @@ from glide import GlideClient, GlideClientConfiguration, NodeAddress, ft
 
 async def check_connection():
     config = GlideClientConfiguration(
-        addresses=[NodeAddress(host="localhost", port=6379)]
+        addresses=[NodeAddress(host="localhost", port=6379)],
+        request_timeout=5000,  # 5s — tune for your network latency
     )
     client = await GlideClient.create(config)
+    try:
+        result = await client.ping()
+        print(f"Valkey says: {result}")  # "PONG"
 
-    result = await client.ping()
-    print(f"Valkey says: {result}")  # "PONG"
-
-    # Check search module is loaded (needed for vector indexes)
-    indexes = await ft.list(client)
-    print(f"Search module loaded! ({len(indexes)} indexes found)")
-
-    await client.close()
+        # Check search module is loaded (needed for vector indexes)
+        indexes = await ft.list(client)
+        print(f"Search module loaded! ({len(indexes)} indexes found)")
+    finally:
+        await client.close()
 
 
 asyncio.run(check_connection())
@@ -183,10 +184,6 @@ main()
 | `COSINE` | Cosine similarity (1 - cos_sim) | Text embeddings, normalized vectors |
 | `L2` | Euclidean distance | Image embeddings, spatial data |
 | `IP` | Inner product (negative dot product) | Pre-normalized vectors, recommendations |
-
-## What's Next
-
-- [02 - RAG Pipeline with Vector Search →](02-rag-pipeline.md) — insert real embeddings, perform KNN search, and use metadata filtering
 
 ## Authentication Options
 
