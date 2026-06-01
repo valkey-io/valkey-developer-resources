@@ -4,13 +4,13 @@
 
 ## What You'll Build
 
-A complete RAG (Retrieval-Augmented Generation) pipeline using the MindsDB Valkey handler. You'll store document embeddings in Valkey with HNSW indexing, perform KNN similarity searches, filter by metadata, and manage the document lifecycle — all through the handler's Python API.
+A complete RAG (Retrieval-Augmented Generation) pipeline using the MindsDB Valkey handler. You'll store document embeddings in Valkey with HNSW indexing, perform KNN similarity searches, and manage the document lifecycle — all through the handler's Python API.
 
 ## Prerequisites
 
 - Completed [01 - Getting Started](01-getting-started.md)
 - Valkey running with the search module (`valkey/valkey-bundle:latest`)
-- `valkey-glide` and `numpy` installed
+- `valkey-glide`, `numpy`, and `pandas` installed
 
 ## Step 1: Project Setup
 
@@ -18,7 +18,7 @@ All code in this cookbook lives in the `example/` directory and can be run direc
 
 ```bash
 cd cookbooks/framework-integrations/mindsdb/example
-pip install valkey-glide numpy
+pip install valkey-glide numpy pandas
 python main.py
 ```
 

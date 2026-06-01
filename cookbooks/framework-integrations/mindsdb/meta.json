@@ -23,7 +23,7 @@
       "title": "RAG Pipeline with Vector Search",
       "h1": "RAG Pipeline with Vector Search",
       "breadcrumb": "RAG Pipeline",
-      "lead": "Build a complete RAG pipeline: embed documents, store in Valkey with HNSW indexing, query with KNN vector search, and use metadata filtering.",
+      "lead": "Build a complete RAG pipeline: embed documents, store in Valkey with HNSW indexing, query with KNN vector search, and manage the document lifecycle.",
       "difficulty": "Intermediate",
       "time": "20 min",
       "prev": {

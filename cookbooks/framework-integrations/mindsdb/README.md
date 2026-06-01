@@ -16,4 +16,4 @@
 | # | Cookbook | Description | Tags |
 | --- | --- | --- | --- |
 | 01 | <nobr>[Getting Started](01-getting-started.md)</nobr> | Connect MindsDB to Valkey, create a vector index, insert documents, and run your first similarity search — all via SQL. | Beginner, ~15 min, Python/SQL |
-| 02 | <nobr>[RAG Pipeline with Vector Search](02-rag-pipeline.md)</nobr> | Build a complete RAG pipeline: embed documents, store in Valkey with HNSW indexing, query with KNN vector search, and use metadata filtering. | Intermediate, ~20 min, Python |
+| 02 | <nobr>[RAG Pipeline with Vector Search](02-rag-pipeline.md)</nobr> | Build a complete RAG pipeline: embed documents, store in Valkey with HNSW indexing, query with KNN vector search, and manage the document lifecycle. | Intermediate, ~20 min, Python |

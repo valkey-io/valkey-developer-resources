@@ -51,6 +51,8 @@ These are the only dependencies needed for the Valkey vector store handler:
 
 ## Step 3: Verify the Connection
 
+> ⚠️ These examples connect without authentication for local development. Always enable authentication and TLS for production deployments — see [Authentication Options](#authentication-options) below.
+
 ```python
 """Quick connectivity check using valkey-glide."""
 import asyncio
@@ -126,7 +128,6 @@ For standalone usage without the full MindsDB server:
 
 ```python
 """Direct handler usage — create index, insert docs, search."""
-import asyncio
 import numpy as np
 from mindsdb.integrations.handlers.valkey_handler.valkey_handler import ValkeyHandler
 
