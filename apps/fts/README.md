@@ -74,6 +74,17 @@ Erase all catalog and watch history from Valkey and clean local media files:
 ./gradlew resetData
 ```
 
+### Backup / restore database
+
+The PostgreSQL database is ephemeral (no Docker volume). Back up before `docker compose down`:
+
+```bash
+./gradlew dbBackup    # saves to backups/flicenjoyer.sql
+./gradlew dbRestore   # restores from backups/flicenjoyer.sql
+```
+
+The dump file is stored at `backups/flicenjoyer.sql` in the project root (git-ignored). It contains a full `pg_dump` with `--clean --if-exists`, so restoring drops and recreates tables automatically.
+
 
 ### Icons
 

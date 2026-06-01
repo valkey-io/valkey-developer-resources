@@ -79,6 +79,7 @@ tasks.jacocoTestCoverageVerification {
             fileTree(it) {
                 exclude(
                     "com/flicenjoyer/ui/**",
+                    "com/flicenjoyer/db/**",
                     "com/flicenjoyer/FlicEnjoyerApp*",
                     "com/flicenjoyer/ResetData*"
                 )
@@ -120,6 +121,21 @@ tasks.register<JavaExec>("resetData") {
     group = "application"
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("com.flicenjoyer.ResetData")
+}
+
+tasks.register<Exec>("dbBackup") {
+    description = "Backs up the PostgreSQL database to backups/flicenjoyer.sql"
+    group = "application"
+    doFirst { mkdir("backups") }
+    commandLine("bash", "-c",
+        "docker exec flicenjoyer-postgres pg_dump -U flicenjoyer --clean --if-exists flicenjoyer > backups/flicenjoyer.sql")
+}
+
+tasks.register<Exec>("dbRestore") {
+    description = "Restores the PostgreSQL database from backups/flicenjoyer.sql"
+    group = "application"
+    commandLine("bash", "-c",
+        "docker exec -i flicenjoyer-postgres psql -U flicenjoyer -d flicenjoyer < backups/flicenjoyer.sql")
 }
 
 
