@@ -1,0 +1,54 @@
+{
+  "trackName": "NVIDIA Dynamo",
+  "cookbooks": [
+    {
+      "num": "01",
+      "source": "01-getting-started.md",
+      "output": "01-getting-started.html",
+      "title": "Getting Started with Dynamo + Valkey",
+      "h1": "Getting Started with Dynamo + Valkey",
+      "breadcrumb": "Getting Started",
+      "lead": "Deploy NVIDIA Dynamo with Valkey as the distributed KV cache backend via LMCache, enabling sub-millisecond cache lookups for multi-worker inference.",
+      "difficulty": "Intermediate",
+      "time": "25 min",
+      "next": {
+        "file": "02-kv-cache-routing.html",
+        "title": "02 - KV-Aware Routing"
+      }
+    },
+    {
+      "num": "02",
+      "source": "02-kv-cache-routing.md",
+      "output": "02-kv-cache-routing.html",
+      "title": "KV-Aware Routing with Valkey",
+      "h1": "KV-Aware Routing with Valkey",
+      "breadcrumb": "KV-Aware Routing",
+      "lead": "Leverage Dynamo's KV router to direct requests toward workers with warm Valkey-backed caches, minimizing redundant prefill across the cluster.",
+      "difficulty": "Intermediate",
+      "time": "20 min",
+      "prev": {
+        "file": "01-getting-started.html",
+        "title": "01 - Getting Started"
+      },
+      "next": {
+        "file": "03-production-deployment.html",
+        "title": "03 - Production Deployment"
+      }
+    },
+    {
+      "num": "03",
+      "source": "03-production-deployment.md",
+      "output": "03-production-deployment.html",
+      "title": "Production Deployment on AWS",
+      "h1": "Production Deployment on AWS",
+      "breadcrumb": "Production",
+      "lead": "Deploy Dynamo + Valkey on EKS with ElastiCache Serverless, TLS, disaggregated serving, and observability.",
+      "difficulty": "Advanced",
+      "time": "30 min",
+      "prev": {
+        "file": "02-kv-cache-routing.html",
+        "title": "02 - KV-Aware Routing"
+      }
+    }
+  ]
+}
