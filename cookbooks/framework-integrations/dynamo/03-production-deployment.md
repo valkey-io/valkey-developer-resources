@@ -65,7 +65,7 @@ lmcache server \
   --eviction-policy LRU \
   --l2-adapter valkey \
   --l2-adapter-url valkey://dynamo-kv-cache-xxxxx.serverless.use1.cache.amazonaws.com:6379 \
-  --l2-adapter-extra-config '{"tls_enable": true}' \
+  --l2-adapter-extra-config '{"tls_enable": true, "valkey_mode": "cluster"}' \
   --chunk-size 256
 ```
 
@@ -120,17 +120,17 @@ spec:
     LMCacheSidecar:
       componentType: sidecar
       envs:
-        - name: L1_SIZE_GB
+        - name: LMCACHE_L1_SIZE_GB
           value: "10"
-        - name: L2_ADAPTER
+        - name: LMCACHE_L2_ADAPTER
           value: valkey
-        - name: L2_ADAPTER_URL
+        - name: LMCACHE_L2_ADAPTER_URL
           value: "valkey://dynamo-kv-cache-xxxxx.serverless.use1.cache.amazonaws.com:6379"
-        - name: L2_ADAPTER_EXTRA_CONFIG
-          value: '{"tls_enable": true}'
-        - name: CHUNK_SIZE
+        - name: LMCACHE_L2_ADAPTER_EXTRA_CONFIG
+          value: '{"tls_enable": true, "valkey_mode": "cluster"}'
+        - name: LMCACHE_CHUNK_SIZE
           value: "256"
-        - name: EVICTION_POLICY
+        - name: LMCACHE_EVICTION_POLICY
           value: LRU
 ```
 
@@ -247,7 +247,7 @@ For password-based authentication:
 lmcache server \
   --l2-adapter valkey \
   --l2-adapter-url valkey://dynamo-kv-cache-xxxxx.serverless.use1.cache.amazonaws.com:6379 \
-  --l2-adapter-extra-config '{"tls_enable": true, "valkey_username": "default", "valkey_password": "<your-auth-token>"}'
+  --l2-adapter-extra-config '{"tls_enable": true, "valkey_mode": "cluster", "valkey_username": "default", "valkey_password": "<your-auth-token>"}'
 ```
 
 For IAM-based authentication, see the [ElastiCache IAM auth documentation](https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/auth-iam.html).

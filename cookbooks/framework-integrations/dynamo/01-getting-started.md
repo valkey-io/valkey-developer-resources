@@ -44,7 +44,6 @@ NVIDIA Dynamo orchestrates multiple inference workers with intelligent request r
 docker run -d \
   --name valkey \
   --network host \
-  -p 6379:6379 \
   valkey/valkey:8 \
   valkey-server --maxmemory 8gb --maxmemory-policy allkeys-lru
 ```
