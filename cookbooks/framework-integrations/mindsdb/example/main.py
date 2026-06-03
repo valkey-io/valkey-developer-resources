@@ -69,6 +69,13 @@ def main():
 
         # ─── Step 2: Create Index ────────────────────────────────────
         print("\n▶ Step 2: Creating vector index...")
+
+        # Clean up any stale index from a previous failed run
+        try:
+            handler.drop_table(INDEX_NAME)
+        except Exception:
+            pass  # Index didn't exist — that's fine
+
         handler.create_table(INDEX_NAME, if_not_exists=True)
         print(f"  ✓ Index '{INDEX_NAME}' ready")
 
