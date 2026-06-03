@@ -10,7 +10,7 @@
   <h3>
     <a href="#mcp-servers">MCP Servers</a> |
     <a href="#integrations">Integrations</a> |
-    <a href="#valkey-sample-apps">Sample Apps</a> |
+    <!--<a href="#valkey-sample-apps">Sample Apps</a> |-->
     <a href="#tutorials">Tutorials</a> |
     <a href="#cloud-platforms">Cloud Platforms</a> |
     <a href="#official-valkey-documentation">Official Docs</a>
