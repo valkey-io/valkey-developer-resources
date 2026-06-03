@@ -61,7 +61,7 @@ docker exec valkey valkey-cli PING
 
 ```bash
 docker run --gpus all --network host --rm -it \
-  nvcr.io/nvidia/ai-dynamo/vllm-runtime:1.0.2
+  nvcr.io/nvidia/ai-dynamo/vllm-runtime:1.1.1
 ```
 
 This image includes Dynamo, vLLM, and LMCache pre-installed.
@@ -91,7 +91,7 @@ Configuration:
 In a separate terminal (or background the sidecar), start the frontend:
 
 ```bash
-python -m dynamo.frontend \
+python3 -m dynamo.frontend \
   --discovery-backend file \
   --http-port 8000
 ```
@@ -103,7 +103,7 @@ python -m dynamo.frontend \
 In another terminal, launch the vLLM backend worker with LMCache enabled:
 
 ```bash
-python -m dynamo.vllm \
+python3 -m dynamo.vllm \
   --model Qwen/Qwen3-0.6B \
   --discovery-backend file \
   --gpu-memory-utilization 0.85 \

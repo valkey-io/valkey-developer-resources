@@ -73,7 +73,7 @@ lmcache server \
 The `resp` L2 adapter does **not** support TLS or cluster mode. For ElastiCache Serverless, use the **in-process** `LMCacheConnectorV1` with the Valkey storage backend, which supports both via `extra_config`:
 
 ```bash
-python -m dynamo.vllm \
+python3 -m dynamo.vllm \
   --model Qwen/Qwen3-8B \
   --disable-hybrid-kv-cache-manager \
   --kv-transfer-config '{
@@ -111,45 +111,60 @@ Then create a `DynamoGraphDeployment` manifest:
 
 ```yaml
 # dynamo-valkey-deployment.yaml
-apiVersion: nvidia.com/v1alpha1
+apiVersion: nvidia.com/v1beta1
 kind: DynamoGraphDeployment
 metadata:
   name: dynamo-valkey-inference
   namespace: inference
 spec:
-  services:
-    Frontend:
-      componentType: frontend
-      replicas: 2
-      envs:
-        - name: DYN_ROUTER_MODE
-          value: kv
-        - name: DYN_HTTP_PORT
-          value: "8000"
+  backendFramework: vllm
+  env:
+    - name: HF_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: hf-token
+          key: token
 
-    VllmWorker:
-      componentType: worker
+  components:
+    - name: Frontend
+      type: frontend
+      replicas: 2
+      podTemplate:
+        spec:
+          containers:
+            - name: main
+              args:
+                - --router-mode
+                - kv
+              env:
+                - name: DYN_HTTP_PORT
+                  value: "8000"
+
+    - name: VllmWorker
+      type: worker
       replicas: 4
+      sharedMemorySize: 16Gi
+      podTemplate:
+        spec:
+          containers:
+            - name: main
+              image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:1.1.1
+              args:
+                - --model
+                - Qwen/Qwen3-8B
+                - --disable-hybrid-kv-cache-manager
+                - --kv-transfer-config
+                - '{"kv_connector":"LMCacheConnectorV1","kv_role":"kv_both","kv_connector_extra_config":{"lmcache_remote_url":"valkey://dynamo-kv-cache-xxxxx.serverless.use1.cache.amazonaws.com:6379","lmcache_remote_serde":"naive","extra_config":{"tls_enable":true,"valkey_mode":"cluster"}}}'
+              # ← Replace endpoint above with your ElastiCache endpoint
+              env:
+                - name: VALKEY_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: valkey-auth
+                      key: password
       resources:
         limits:
           nvidia.com/gpu: "1"
-      envs:
-        - name: MODEL
-          value: Qwen/Qwen3-8B
-        - name: HF_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: hf-token
-              key: token
-        # For ElastiCache Serverless: use in-process connector with TLS
-        # ← Replace endpoint and credentials below with your values
-        - name: KV_TRANSFER_CONFIG
-          value: '{"kv_connector":"LMCacheConnectorV1","kv_role":"kv_both","kv_connector_extra_config":{"lmcache_remote_url":"valkey://dynamo-kv-cache-xxxxx.serverless.use1.cache.amazonaws.com:6379","lmcache_remote_serde":"naive","extra_config":{"tls_enable":true,"valkey_mode":"cluster","valkey_username":"default"}}}'
-        - name: VALKEY_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: valkey-auth
-              key: password
 ```
 
 Apply:

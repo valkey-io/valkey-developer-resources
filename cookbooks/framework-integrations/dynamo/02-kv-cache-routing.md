@@ -38,7 +38,7 @@ The router evaluates per-worker cost as a combination of:
 Launch the frontend with `--router-mode kv`:
 
 ```bash
-python -m dynamo.frontend \
+python3 -m dynamo.frontend \
   --discovery-backend file \
   --router-mode kv \
   --http-port 8000
@@ -72,7 +72,7 @@ lmcache server \
   --chunk-size 256 &
 
 # Start worker
-python -m dynamo.vllm \
+python3 -m dynamo.vllm \
   --model Qwen/Qwen3-0.6B \
   --discovery-backend file \
   --disable-hybrid-kv-cache-manager \
