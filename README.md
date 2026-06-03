@@ -60,6 +60,7 @@ Real-world applications and libraries using Valkey:
 
 <hr>
 
+<!-- Coming Soon
 ## Valkey Sample Apps
 
 Sample applications demonstrating Valkey capabilities:
@@ -70,7 +71,7 @@ Sample applications demonstrating Valkey capabilities:
 | [Sports Aggregation](https://github.com/valkey-io/Valkey-Samples/pull/5) | Real-time sports data aggregation application using Valkey for high-performance data ingestion and querying |
 | [ValkeyMart E-Commerce](https://github.com/valkey-io/Valkey-Samples/pull/4) | Product recommendation engine for an e-commerce storefront powered by Valkey vector search |
 
-<hr>
+<hr> -->
 
 ## Tutorials
 
