@@ -76,16 +76,14 @@ Inside the container, launch the LMCache MP server. This is the out-of-process c
 lmcache server \
   --l1-size-gb 5 \
   --eviction-policy LRU \
-  --l2-adapter valkey \
-  --l2-adapter-url valkey://localhost:6379 \
+  --l2-adapter '{"type": "resp", "host": "localhost", "port": 6379}' \
   --chunk-size 256 &
 ```
 
 Configuration:
 - **`--l1-size-gb 5`**: 5 GB of host RAM as fast L1 cache
 - **`--eviction-policy LRU`**: Evict least-recently-used blocks when L1 is full
-- **`--l2-adapter valkey`**: Use Valkey as the L2 persistent backend
-- **`--l2-adapter-url`**: Valkey connection endpoint
+- **`--l2-adapter '{"type": "resp", ...}'`**: Use the RESP adapter for Valkey/Redis as L2 backend
 - **`--chunk-size 256`**: Split KV cache into 256-token chunks
 
 ## Step 4: Start the Dynamo Frontend

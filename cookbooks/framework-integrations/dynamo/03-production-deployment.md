@@ -54,22 +54,47 @@ aws elasticache describe-serverless-caches \
 
 This gives you something like: `dynamo-kv-cache-xxxxx.serverless.use1.cache.amazonaws.com:6379`
 
-## Step 2: Configure TLS for LMCache
+## Step 2: Configure Valkey for LMCache
 
-ElastiCache Serverless requires TLS. LMCache enables TLS via its configuration — **not** through the URL scheme (the URL is always `valkey://`):
+### Local / Non-TLS (resp L2 adapter in MP mode)
+
+For non-TLS Valkey instances (e.g., within a private VPC without encryption requirements), use the `resp` L2 adapter with the MP sidecar — same as cookbook 01:
 
 ```bash
-# LMCache sidecar launch with TLS enabled
 lmcache server \
   --l1-size-gb 10 \
   --eviction-policy LRU \
-  --l2-adapter valkey \
-  --l2-adapter-url valkey://dynamo-kv-cache-xxxxx.serverless.use1.cache.amazonaws.com:6379 \
-  --l2-adapter-extra-config '{"tls_enable": true, "valkey_mode": "cluster"}' \
-  --chunk-size 256
+  --l2-adapter '{"type": "resp", "host": "my-valkey.internal", "port": 6379, "username": "default", "password": "<token>"}' \
+  --chunk-size 256 &
 ```
 
-The `tls_enable: true` in the extra config activates TLS for the Valkey connection.
+### ElastiCache Serverless (TLS + Cluster Mode required)
+
+The `resp` L2 adapter does **not** support TLS or cluster mode. For ElastiCache Serverless, use the **in-process** `LMCacheConnectorV1` with the Valkey storage backend, which supports both via `extra_config`:
+
+```bash
+python -m dynamo.vllm \
+  --model Qwen/Qwen3-8B \
+  --disable-hybrid-kv-cache-manager \
+  --kv-transfer-config '{
+    "kv_connector": "LMCacheConnectorV1",
+    "kv_role": "kv_both",
+    "kv_connector_extra_config": {
+      "lmcache_remote_url": "valkey://dynamo-kv-cache-xxxxx.serverless.use1.cache.amazonaws.com:6379",
+      "lmcache_remote_serde": "naive",
+      "extra_config": {
+        "tls_enable": true,
+        "valkey_mode": "cluster",
+        "valkey_username": "default",
+        "valkey_password": "<your-auth-token>"
+      }
+    }
+  }'
+# ← Replace dynamo-kv-cache-xxxxx... with your ElastiCache endpoint
+# ← Replace <your-auth-token> with your actual credential
+```
+
+> **Note:** The in-process connector (`LMCacheConnectorV1`) runs the cache engine inside the vLLM process rather than as a sidecar. It uses the GLIDE client under the hood, which natively supports TLS and cluster topology discovery.
 
 ## Step 3: Deploy Dynamo on EKS with DynamoGraphDeployment
 
@@ -116,22 +141,15 @@ spec:
             secretKeyRef:
               name: hf-token
               key: token
-
-    LMCacheSidecar:
-      componentType: sidecar
-      envs:
-        - name: LMCACHE_L1_SIZE_GB
-          value: "10"
-        - name: LMCACHE_L2_ADAPTER
-          value: valkey
-        - name: LMCACHE_L2_ADAPTER_URL
-          value: "valkey://dynamo-kv-cache-xxxxx.serverless.use1.cache.amazonaws.com:6379"
-        - name: LMCACHE_L2_ADAPTER_EXTRA_CONFIG
-          value: '{"tls_enable": true, "valkey_mode": "cluster"}'
-        - name: LMCACHE_CHUNK_SIZE
-          value: "256"
-        - name: LMCACHE_EVICTION_POLICY
-          value: LRU
+        # For ElastiCache Serverless: use in-process connector with TLS
+        # ← Replace endpoint and credentials below with your values
+        - name: KV_TRANSFER_CONFIG
+          value: '{"kv_connector":"LMCacheConnectorV1","kv_role":"kv_both","kv_connector_extra_config":{"lmcache_remote_url":"valkey://dynamo-kv-cache-xxxxx.serverless.use1.cache.amazonaws.com:6379","lmcache_remote_serde":"naive","extra_config":{"tls_enable":true,"valkey_mode":"cluster","valkey_username":"default"}}}'
+        - name: VALKEY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: valkey-auth
+              key: password
 ```
 
 Apply:
@@ -237,18 +255,20 @@ LMCache tuning for agentic workloads:
 | Layer | Mechanism |
 |-------|-----------|
 | Network | VPC + Security Groups (EKS ↔ ElastiCache in same VPC) |
-| Transport | TLS via `tls_enable: true` in LMCache extra config |
-| Authentication | ElastiCache IAM auth or `valkey_username`/`valkey_password` in extra config |
+| Transport | TLS via `tls_enable: true` in Valkey connector extra_config |
+| Authentication | `valkey_username`/`valkey_password` in extra_config, or `username`/`password` in resp adapter |
 | Data | KV cache blocks are binary tensors — not human-readable, but treat as sensitive |
 
-For password-based authentication:
+For the `resp` L2 adapter (non-TLS):
 
 ```bash
 lmcache server \
-  --l2-adapter valkey \
-  --l2-adapter-url valkey://dynamo-kv-cache-xxxxx.serverless.use1.cache.amazonaws.com:6379 \
-  --l2-adapter-extra-config '{"tls_enable": true, "valkey_mode": "cluster", "valkey_username": "default", "valkey_password": "<your-auth-token>"}'
+  --l2-adapter '{"type": "resp", "host": "my-valkey.internal", "port": 6379, "username": "default", "password": "<your-auth-token>"}'
 ```
+
+> **Security note:** Passwords in CLI arguments are visible via `ps`. In production, prefer environment variables or file-based secrets to inject credentials.
+
+For ElastiCache Serverless (TLS + cluster), authentication is passed via the in-process connector's `extra_config` as shown in Step 2 above.
 
 For IAM-based authentication, see the [ElastiCache IAM auth documentation](https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/auth-iam.html).
 

@@ -68,8 +68,7 @@ Workers must publish KV cache events so the router knows what's cached where. Th
 lmcache server \
   --l1-size-gb 5 \
   --eviction-policy LRU \
-  --l2-adapter valkey \
-  --l2-adapter-url valkey://localhost:6379 \
+  --l2-adapter '{"type": "resp", "host": "localhost", "port": 6379}' \
   --chunk-size 256 &
 
 # Start worker
@@ -146,7 +145,7 @@ The router can receive cache state information in different ways:
 | Approximate | `--no-router-kv-events` | No events; router predicts cache state from its own routing decisions |
 | ZMQ | `--event-plane zmq` | Workers publish via ZMQ PUB sockets |
 
-For single-node development, the default (NATS Core) works out of the box. For production multi-node, see [03 - Production Deployment](03-production-deployment.md).
+For single-node development, the default (NATS Core) works out of the box.
 
 ## Routing Mode Comparison
 
