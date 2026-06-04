@@ -485,10 +485,12 @@ public class VideoFormView {
     currentTask.start();
   }
 
-  private void resetForm() {
+  public void resetForm() {
     titleField.clear();
     descArea.clear();
     tagsField.clear();
+    genreBox.getSelectionModel().clearSelection();
+    yearSpinner.getValueFactory().setValue(2026);
     selectedVideo = null;
     selectedThumbnail = null;
     videoFileLabel.setText("No file selected");

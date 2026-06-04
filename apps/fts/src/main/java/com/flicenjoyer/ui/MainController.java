@@ -66,6 +66,7 @@ public class MainController {
 
     onShowCallbacks.put(ViewId.BROWSE, catalogView::onShow);
     onShowCallbacks.put(ViewId.HISTORY, historyView::onShow);
+    onShowCallbacks.put(ViewId.UPLOAD, uploadForm::resetForm);
     onLeaveCallbacks.put(ViewId.SEARCH, searchView::cancelSearch);
     onLeaveCallbacks.put(ViewId.BROWSE, catalogView::cancelLoad);
     onLeaveCallbacks.put(ViewId.HISTORY, historyView::cancelLoad);
