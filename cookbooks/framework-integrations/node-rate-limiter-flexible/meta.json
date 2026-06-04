@@ -1,0 +1,51 @@
+{
+  "trackName": "node-rate-limiter-flexible",
+  "cookbooks": [
+    {
+      "num": "01",
+      "source": "01-getting-started.md",
+      "output": "01-getting-started.html",
+      "title": "Getting Started with node-rate-limiter-flexible + Valkey",
+      "h1": "Getting Started with node-rate-limiter-flexible + Valkey",
+      "breadcrumb": "Getting Started",
+      "difficulty": "Beginner",
+      "time": "10 min",
+      "next": {
+        "file": "02-middleware-patterns.html",
+        "title": "02 - Middleware Patterns"
+      }
+    },
+    {
+      "num": "02",
+      "source": "02-middleware-patterns.md",
+      "output": "02-middleware-patterns.html",
+      "title": "Middleware Patterns",
+      "h1": "Middleware Patterns",
+      "breadcrumb": "Middleware Patterns",
+      "difficulty": "Intermediate",
+      "time": "15 min",
+      "prev": {
+        "file": "01-getting-started.html",
+        "title": "01 - Getting Started"
+      },
+      "next": {
+        "file": "03-advanced-patterns.html",
+        "title": "03 - Advanced Patterns"
+      }
+    },
+    {
+      "num": "03",
+      "source": "03-advanced-patterns.md",
+      "output": "03-advanced-patterns.html",
+      "title": "Advanced Patterns",
+      "h1": "Advanced Patterns",
+      "breadcrumb": "Advanced Patterns",
+      "difficulty": "Advanced",
+      "time": "20 min",
+      "prev": {
+        "file": "02-middleware-patterns.html",
+        "title": "02 - Middleware Patterns"
+      }
+    }
+  ]
+}
