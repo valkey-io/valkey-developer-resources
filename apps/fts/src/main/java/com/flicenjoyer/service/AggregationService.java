@@ -75,9 +75,9 @@ public class AggregationService {
         Object[] results = client.exec(batch, false).get();
         for (int i = 0; i < catalogIds.size(); i++) {
           @SuppressWarnings("unchecked")
-          var fields = (Map<GlideString, GlideString>) results[i];
+          var fields = (Map<String, String>) results[i];
           if (fields != null && !fields.isEmpty()) {
-            titleMap.put(catalogIds.get(i), HashParser.str(fields, "title"));
+            titleMap.put(catalogIds.get(i), fields.getOrDefault("title", ""));
           }
         }
       } catch (ExecutionException | InterruptedException ex) {
