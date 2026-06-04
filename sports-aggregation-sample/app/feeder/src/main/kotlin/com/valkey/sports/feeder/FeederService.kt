@@ -36,21 +36,23 @@ import kotlin.random.Random
 class FeederService(
     private val client: GlideClient,
     private val numGames: Int = 8,
-    private val tickIntervalMs: Long = 2000
+    private val tickIntervalMs: Long = 2000,
+    private val seed: Long? = null
 ) {
     private val log = LoggerFactory.getLogger(FeederService::class.java)
     private val simulators = mutableListOf<GameSimulator>()
+    private val random: Random = if (seed != null) Random(seed) else Random.Default
 
     fun initialize() {
         log.info("Initializing feeder with {} games", numGames)
 
-        // Pick random matchups
-        val teams = GhlTeams.teams.shuffled().take(numGames * 2)
+        // Pick random matchups (deterministic if seed is set)
+        val teams = GhlTeams.teams.shuffled(random).take(numGames * 2)
         for (i in 0 until numGames) {
             val home = teams[i * 2]
             val away = teams[i * 2 + 1]
             val gameId = "game-${i + 1}"
-            simulators += GameSimulator(gameId, home.abbreviation, away.abbreviation)
+            simulators += GameSimulator(gameId, home.abbreviation, away.abbreviation, random)
         }
 
         // Create the search index for games

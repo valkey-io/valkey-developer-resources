@@ -16,7 +16,8 @@ class GameSimulator(
     private val gameId: String,
     private val homeTeam: String,
     private val awayTeam: String,
-    private val baseViewers: Long = Random.nextLong(8_000, 45_000)
+    private val random: Random = Random.Default,
+    private val baseViewers: Long = random.nextLong(8_000, 45_000)
 ) {
     private val log = LoggerFactory.getLogger(GameSimulator::class.java)
 
@@ -146,11 +147,11 @@ class GameSimulator(
         }
 
         // Generate random events
-        val team = if (Random.nextBoolean()) homeTeam else awayTeam
+        val team = if (random.nextBoolean()) homeTeam else awayTeam
         val isHome = team == homeTeam
 
         // Zone time simulation (slight random drift)
-        val zoneShift = Random.nextDouble(-2.0, 2.0)
+        val zoneShift = random.nextDouble(-2.0, 2.0)
         var homeZone = (state.homeZoneTime + zoneShift).coerceIn(25.0, 75.0)
         var awayZone = 100.0 - homeZone
 
@@ -159,14 +160,14 @@ class GameSimulator(
         val awayAttackDelta = if (awayZone > 50) (15 * (awayZone - 50) / 50).toInt() else 0
 
         // Shot on goal (~40% chance per tick)
-        if (Random.nextDouble() < 0.40) {
+        if (random.nextDouble() < 0.40) {
             state = if (isHome) state.copy(homeShots = state.homeShots + 1, homeCorsi = state.homeCorsi + 1)
             else state.copy(awayShots = state.awayShots + 1, awayCorsi = state.awayCorsi + 1)
             if (isHome) homeRecentEvents++ else awayRecentEvents++
             events += GameEvent(gameId, "shot", team, state.period, timeStr, "${GhlTeams.displayName(team)} shot on goal")
 
             // Goal (~8% of shots)
-            if (Random.nextDouble() < 0.08) {
+            if (random.nextDouble() < 0.08) {
                 state = if (isHome) state.copy(homeScore = state.homeScore + 1)
                 else state.copy(awayScore = state.awayScore + 1)
                 if (isHome) homeRecentEvents += 5 else awayRecentEvents += 5
@@ -180,16 +181,16 @@ class GameSimulator(
         }
 
         // Missed shot (~20% chance)
-        if (Random.nextDouble() < 0.20) {
+        if (random.nextDouble() < 0.20) {
             state = if (isHome) state.copy(homeMissedShots = state.homeMissedShots + 1, homeCorsi = state.homeCorsi + 1)
             else state.copy(awayMissedShots = state.awayMissedShots + 1, awayCorsi = state.awayCorsi + 1)
             events += GameEvent(gameId, "missed_shot", team, state.period, timeStr, "${GhlTeams.displayName(team)} shot missed")
         }
 
         // Blocked shot (~15% chance)
-        if (Random.nextDouble() < 0.15) {
+        if (random.nextDouble() < 0.15) {
             // The blocking team gets credit, but the shooting team gets Corsi
-            val shootingTeam = if (Random.nextBoolean()) homeTeam else awayTeam
+            val shootingTeam = if (random.nextBoolean()) homeTeam else awayTeam
             val blockingTeam = if (shootingTeam == homeTeam) awayTeam else homeTeam
             val shooterIsHome = shootingTeam == homeTeam
             state = if (shooterIsHome)
@@ -201,7 +202,7 @@ class GameSimulator(
         }
 
         // Hit (~25% chance)
-        if (Random.nextDouble() < 0.25) {
+        if (random.nextDouble() < 0.25) {
             state = if (isHome) state.copy(homeHits = state.homeHits + 1)
             else state.copy(awayHits = state.awayHits + 1)
             if (isHome) homeRecentEvents++ else awayRecentEvents++
@@ -209,14 +210,14 @@ class GameSimulator(
         }
 
         // Faceoff (~15% chance)
-        if (Random.nextDouble() < 0.15) {
+        if (random.nextDouble() < 0.15) {
             state = if (isHome) state.copy(homeFaceoffWins = state.homeFaceoffWins + 1)
             else state.copy(awayFaceoffWins = state.awayFaceoffWins + 1)
         }
 
         // Penalty (~3% chance)
-        if (Random.nextDouble() < 0.03) {
-            val pim = if (Random.nextDouble() < 0.9) 2 else 5
+        if (random.nextDouble() < 0.03) {
+            val pim = if (random.nextDouble() < 0.9) 2 else 5
             state = if (isHome) state.copy(
                 homePenaltyMinutes = state.homePenaltyMinutes + pim
             ) else state.copy(
@@ -244,7 +245,7 @@ class GameSimulator(
         val awayMomentum = (100.0 - homeMomentum).coerceIn(10.0, 90.0)
 
         // Fluctuate viewers
-        val viewerDelta = Random.nextLong(-500, 1500)
+        val viewerDelta = random.nextLong(-500, 1500)
         val scoreDiff = kotlin.math.abs(state.homeScore - state.awayScore)
         val excitementBoost = if (scoreDiff <= 1 && state.period >= 3) 2000L else 0L
 

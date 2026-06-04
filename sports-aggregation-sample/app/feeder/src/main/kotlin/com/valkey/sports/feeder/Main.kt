@@ -10,8 +10,9 @@ fun main(args: Array<String>) {
     val port = (System.getenv("VALKEY_PORT") ?: "6379").toInt()
     val numGames = (System.getenv("NUM_GAMES") ?: "8").toInt()
     val tickMs = (System.getenv("TICK_INTERVAL_MS") ?: "2000").toLong()
+    val seed = System.getenv("SEED")?.toLongOrNull()
 
-    log.info("Feeder config: host={}, port={}, games={}, tickMs={}", host, port, numGames, tickMs)
+    log.info("Feeder config: host={}, port={}, games={}, tickMs={}, seed={}", host, port, numGames, tickMs, seed ?: "random")
 
     val client = ValkeyConnection.create(host, port)
     log.info("Connected to Valkey")
@@ -20,7 +21,7 @@ fun main(args: Array<String>) {
     client.customCommand(arrayOf("FLUSHDB")).get()
     log.info("Flushed previous data")
 
-    val feeder = FeederService(client, numGames, tickMs)
+    val feeder = FeederService(client, numGames, tickMs, seed)
     feeder.initialize()
     feeder.run()
 

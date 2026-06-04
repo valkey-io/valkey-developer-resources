@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service
  * ## Valkey Features Used (Read Path)
  *
  * ### FT.SEARCH — Filtered Document Retrieval
- * ### FT.AGGREGATE — Server-Side Aggregation (ValkeySearch 1.3)
+ * ### FT.AGGREGATE — Server-Side Aggregation (ValkeySearch 1.2)
  * ### XREVRANGE — Stream reading for event history
  */
 @Service

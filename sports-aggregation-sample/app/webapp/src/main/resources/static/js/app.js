@@ -65,7 +65,11 @@ function connect() {
 
     eventSource.addEventListener('update', function(e) {
         const data = JSON.parse(e.data);
-        const games = data.games || [];
+        const games = (data.games || []).sort((a, b) => {
+            const numA = parseInt(a.gameId.replace('game-', ''));
+            const numB = parseInt(b.gameId.replace('game-', ''));
+            return numA - numB;
+        });
         const trending = data.trending || [];
         const winProbs = data.winProbabilities || [];
         const excitement = data.excitement || [];
@@ -147,8 +151,22 @@ function updateHistory(games, winProbs) {
         h.homeTeam = game.homeTeam;
         h.awayTeam = game.awayTeam;
 
-        // Avoid duplicate timestamps (same game tick)
-        if (h.elapsed.length > 0 && h.elapsed[h.elapsed.length - 1] === t) return;
+        // Avoid duplicate timestamps (same game tick) — update in place if values changed
+        if (h.elapsed.length > 0 && h.elapsed[h.elapsed.length - 1] === t) {
+            const last = h.elapsed.length - 1;
+            h.homeShots[last] = game.homeShots;
+            h.awayShots[last] = game.awayShots;
+            h.homeCorsi[last] = game.homeCorsi;
+            h.awayCorsi[last] = game.awayCorsi;
+            h.homeMomentum[last] = game.homeMomentum;
+            h.awayMomentum[last] = game.awayMomentum;
+            h.viewers[last] = game.viewers;
+            h.homeZoneTime[last] = game.homeZoneTime;
+            h.awayZoneTime[last] = game.awayZoneTime;
+            const wp = winProbs.find(p => p.gameId === game.gameId);
+            if (wp) h.winProb[last] = wp.homeProbability;
+            return;
+        }
 
         h.elapsed.push(t);
         h.homeShots.push(game.homeShots);
@@ -184,6 +202,18 @@ function selectGame(gameId) {
 
     // Destroy old charts and recreate
     destroyCharts();
+
+    // Fetch current game state immediately so detail view renders without waiting for next SSE tick
+    fetch('/api/games')
+        .then(r => r.json())
+        .then(games => {
+            const game = games.find(g => g.gameId === gameId);
+            if (game && gameId === selectedGameId) {
+                updateDetailView(game, null);
+                updateAdvancedStats(game);
+            }
+        })
+        .catch(() => {});
 
     // Backfill shot history from Valkey stream, then create charts
     backfillShotHistory(gameId).then(() => {
