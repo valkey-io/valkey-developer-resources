@@ -37,7 +37,7 @@ configurations["integrationTestImplementation"].extendsFrom(configurations.imple
 configurations["integrationTestRuntimeOnly"].extendsFrom(configurations.runtimeOnly.get())
 
 dependencies {
-    implementation("io.valkey:valkey-glide:255.255.255:${osdetector.classifier}")
+    implementation("io.valkey:valkey-glide:2.4.1:${osdetector.classifier}")
     implementation("org.yaml:snakeyaml:2.3")
     implementation("org.postgresql:postgresql:42.7.4")
     implementation("com.zaxxer:HikariCP:6.2.1")
@@ -133,6 +133,20 @@ tasks.register<JavaExec>("resetData") {
     group = "application"
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("com.flicenjoyer.ResetData")
+}
+
+tasks.register<JavaExec>("seedData") {
+    description = "Seeds fake catalog + watch history for demos/benchmarks. Pass catalog count as arg (default 200)."
+    group = "application"
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("com.flicenjoyer.SeedData")
+}
+
+tasks.register<JavaExec>("unseedData") {
+    description = "Removes all seeded demo data (bench-* catalog, s* watch history)."
+    group = "application"
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("com.flicenjoyer.UnseedData")
 }
 
 tasks.register<JavaExec>("benchmark") {

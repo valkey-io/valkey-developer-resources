@@ -17,7 +17,13 @@ import java.util.logging.Logger;
 public class DataLoader<T> {
 
   private static final Logger LOG = Logger.getLogger(DataLoader.class.getName());
-  private static final ExecutorService EXECUTOR = UiExecutors.BACKGROUND;
+  private static final ExecutorService EXECUTOR =
+      Executors.newSingleThreadExecutor(
+          r -> {
+            var t = new Thread(r, "data-loader");
+            t.setDaemon(true);
+            return t;
+          });
 
   private final AtomicBoolean cancelled = new AtomicBoolean(false);
   private Future<?> future;

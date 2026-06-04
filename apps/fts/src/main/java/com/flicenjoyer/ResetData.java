@@ -70,8 +70,10 @@ public class ResetData {
     do {
       Object[] result = client.scan(cursor, opts).get();
       cursor = (String) result[0];
-      String[] keys = (String[]) result[1];
-      if (keys.length > 0) {
+      Object[] keyObjs = (Object[]) result[1];
+      if (keyObjs.length > 0) {
+        var keys = new String[keyObjs.length];
+        for (int i = 0; i < keyObjs.length; i++) keys[i] = (String) keyObjs[i];
         client.del(keys).get();
         deleted += keys.length;
       }

@@ -134,67 +134,14 @@ public class BenchmarkView {
 
             int grandTotal = totalOps * 2;
 
-            // Mixed workload: 7 reads per 1 write (realistic for content platforms)
-            var dbCounter = new java.util.concurrent.atomic.AtomicInteger(0);
-            var valkeyCounter = new java.util.concurrent.atomic.AtomicInteger(0);
-
-            BenchmarkService.BenchmarkTask dbTask;
-            BenchmarkService.BenchmarkTask valkeyTask;
-
-            switch (operation) {
-              case "Catalog Lookup" -> {
-                dbTask =
-                    () -> {
-                      var rid = ids[java.util.concurrent.ThreadLocalRandom.current().nextInt(ids.length)];
-                      if (dbCounter.incrementAndGet() % 8 == 0) {
-                        catalogService.updateRatingInDbOnly(rid, 7.5);
-                      } else {
-                        catalogService.getByIdFromDb(rid);
-                      }
-                    };
-                valkeyTask =
-                    () -> {
-                      var rid = ids[java.util.concurrent.ThreadLocalRandom.current().nextInt(ids.length)];
-                      if (valkeyCounter.incrementAndGet() % 8 == 0) {
-                        catalogService.updateRating(rid, 7.5);
-                      } else {
-                        catalogService.getById(rid);
-                      }
-                    };
-              }
-              case "Resume Point Retrieval" -> {
-                dbTask =
-                    () -> {
-                      var rid = ids[java.util.concurrent.ThreadLocalRandom.current().nextInt(ids.length)];
-                      if (dbCounter.incrementAndGet() % 8 == 0) {
-                        watchHistoryService.updateResumePointInDbOnly(rid, 100);
-                      } else {
-                        watchHistoryService.getResumePointFromDb(rid);
-                      }
-                    };
-                valkeyTask =
-                    () -> {
-                      var rid = ids[java.util.concurrent.ThreadLocalRandom.current().nextInt(ids.length)];
-                      if (valkeyCounter.incrementAndGet() % 8 == 0) {
-                        watchHistoryService.updateResumePoint(rid, 100);
-                      } else {
-                        watchHistoryService.getResumePoint(rid);
-                      }
-                    };
-              }
-              default -> {
-                dbTask = () -> {
-                  var rid = ids[java.util.concurrent.ThreadLocalRandom.current().nextInt(ids.length)];
-                  catalogService.getByIdFromDb(rid);
-                };
-                valkeyTask = () -> catalogService.searchPrefix("S", 10);
-              }
-            }
+            var tasks =
+                BenchmarkService.createTasks(
+                    operation, ids, catalogService, watchHistoryService);
 
             result =
                 BenchmarkService.concurrentComparison(
-                    dbTask,
-                    valkeyTask,
+                    tasks.dbTask(),
+                    tasks.valkeyTask(),
                     threads,
                     opsPerThread,
                     completed ->

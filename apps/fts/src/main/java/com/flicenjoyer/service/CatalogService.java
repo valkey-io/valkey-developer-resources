@@ -96,9 +96,9 @@ public class CatalogService {
     if (sortField != null) {
       opts.sortBy(sortField, sortOrder != null ? sortOrder : SortOrder.ASC);
     }
-    LOG.info("[catalog] FT.SEARCH query: " + query);
+    LOG.fine(() -> "[catalog] FT.SEARCH query: " + query);
     var result = client.ftSearch(ValkeyKeys.CATALOG_INDEX, query, opts.build()).get();
-    LOG.info("[catalog] FT.SEARCH result length: " + result.length + ", count: " + result[0]);
+    LOG.fine(() -> "[catalog] FT.SEARCH result length: " + result.length + ", count: " + result[0]);
     return parseSearchResults(result);
   }
 
@@ -177,6 +177,22 @@ public class CatalogService {
     } catch (SQLException e) {
       throw new RuntimeException("DB lookup failed for catalog " + catalogId, e);
     }
+  }
+
+  /** Direct DB text search — bypasses Valkey. Used for benchmark comparison against FT.SEARCH. */
+  public List<Movie> searchFromDb(String prefix, int limit) {
+    try {
+      return catalogRepo.searchByTitle(prefix, limit);
+    } catch (SQLException e) {
+      throw new RuntimeException("DB search failed", e);
+    }
+  }
+
+  /** FT.SEARCH title-only prefix — equivalent scope to DB ILIKE for fair benchmarking. */
+  public List<Movie> searchViaFts(String prefix, int limit)
+      throws ExecutionException, InterruptedException {
+    var query = "@title:" + escapeQuery(prefix).trim() + "*";
+    return executeSearch(query, limit, null, null);
   }
 
   /** Direct DB write — bypasses cache. Matches DB work of updateRating (1 DB write). */

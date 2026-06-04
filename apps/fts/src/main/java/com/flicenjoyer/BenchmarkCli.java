@@ -10,7 +10,6 @@ import com.flicenjoyer.valkey.AppConfig;
 import com.flicenjoyer.valkey.IndexManager;
 import com.flicenjoyer.valkey.UserProfileManager;
 import com.flicenjoyer.valkey.ValkeyClientProvider;
-import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * CLI benchmark tool. Outputs machine-parseable results to stdout.
@@ -41,7 +40,7 @@ public class BenchmarkCli {
       profileManager.load();
     }
 
-    var indexManager = new IndexManager(client, catalogRepo, watchRepo);
+    var indexManager = new IndexManager(client, catalogRepo);
     indexManager.ensureIndexes();
     indexManager.syncFromDatabase();
 
@@ -55,65 +54,13 @@ public class BenchmarkCli {
     }
     var ids = movies.stream().map(m -> m.id()).toArray(String[]::new);
 
-    var dbCounter = new java.util.concurrent.atomic.AtomicInteger(0);
-    var valkeyCounter = new java.util.concurrent.atomic.AtomicInteger(0);
-
-    BenchmarkService.BenchmarkTask dbTask;
-    BenchmarkService.BenchmarkTask valkeyTask;
-
-    switch (operation) {
-      case "resume" -> {
-        dbTask =
-            () -> {
-              var rid = ids[ThreadLocalRandom.current().nextInt(ids.length)];
-              if (dbCounter.incrementAndGet() % 8 == 0) {
-                watchHistoryService.updateResumePointInDbOnly(rid, 100);
-              } else {
-                watchHistoryService.getResumePointFromDb(rid);
-              }
-            };
-        valkeyTask =
-            () -> {
-              var rid = ids[ThreadLocalRandom.current().nextInt(ids.length)];
-              if (valkeyCounter.incrementAndGet() % 8 == 0) {
-                watchHistoryService.updateResumePoint(rid, 100);
-              } else {
-                watchHistoryService.getResumePoint(rid);
-              }
-            };
-      }
-      case "search" -> {
-        dbTask =
-            () -> catalogService.getByIdFromDb(ids[ThreadLocalRandom.current().nextInt(ids.length)]);
-        valkeyTask = () -> catalogService.searchPrefix("S", 10);
-      }
-      default -> {
-        dbTask =
-            () -> {
-              var rid = ids[ThreadLocalRandom.current().nextInt(ids.length)];
-              if (dbCounter.incrementAndGet() % 8 == 0) {
-                catalogService.updateRatingInDbOnly(rid, 7.5);
-              } else {
-                catalogService.getByIdFromDb(rid);
-              }
-            };
-        valkeyTask =
-            () -> {
-              var rid = ids[ThreadLocalRandom.current().nextInt(ids.length)];
-              if (valkeyCounter.incrementAndGet() % 8 == 0) {
-                catalogService.updateRating(rid, 7.5);
-              } else {
-                catalogService.getById(rid);
-              }
-            };
-      }
-    }
+    var tasks = BenchmarkService.createTasks(operation, ids, catalogService, watchHistoryService);
 
     System.err.println(
         "Running: operation=" + operation + " threads=" + threads + " ops/thread=" + opsPerThread);
 
     var result =
-        BenchmarkService.concurrentComparison(dbTask, valkeyTask, threads, opsPerThread, null);
+        BenchmarkService.concurrentComparison(tasks.dbTask(), tasks.valkeyTask(), threads, opsPerThread, null);
 
     // Machine-parseable output
     System.out.println("operation=" + operation);

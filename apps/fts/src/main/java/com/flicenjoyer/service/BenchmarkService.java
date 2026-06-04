@@ -149,4 +149,75 @@ public final class BenchmarkService {
     double opsPerSecond = iterations / (totalNs / 1_000_000_000.0);
     return new BenchmarkResult(medianMs, p95Ms, p99Ms, opsPerSecond);
   }
+
+  /** Paired DB/Valkey tasks for a given operation. */
+  public record TaskPair(BenchmarkTask dbTask, BenchmarkTask valkeyTask) {}
+
+  private static final String[] SEARCH_PREFIXES = {"A", "B", "C", "D", "S", "T", "M", "R"};
+
+  /**
+   * Creates matched DB vs Valkey task pairs for benchmarking. Single source of truth for both CLI
+   * and UI.
+   */
+  public static TaskPair createTasks(
+      String operation,
+      String[] ids,
+      CatalogService catalogService,
+      WatchHistoryService watchHistoryService) {
+    var dbCounter = new AtomicInteger(0);
+    var valkeyCounter = new AtomicInteger(0);
+
+    return switch (operation) {
+      case "resume", "Resume Point Retrieval" ->
+          new TaskPair(
+              () -> {
+                var rid = ids[java.util.concurrent.ThreadLocalRandom.current().nextInt(ids.length)];
+                if (dbCounter.incrementAndGet() % 8 == 0) {
+                  watchHistoryService.updateResumePointInDbOnly(rid, 100);
+                } else {
+                  watchHistoryService.getResumePointFromDb(rid);
+                }
+              },
+              () -> {
+                var rid = ids[java.util.concurrent.ThreadLocalRandom.current().nextInt(ids.length)];
+                if (valkeyCounter.incrementAndGet() % 8 == 0) {
+                  watchHistoryService.updateResumePoint(rid, 100);
+                } else {
+                  watchHistoryService.getResumePoint(rid);
+                }
+              });
+      case "search", "Search (ValkeySearch FTS)" ->
+          new TaskPair(
+              () ->
+                  catalogService.searchFromDb(
+                      SEARCH_PREFIXES[
+                          java.util.concurrent.ThreadLocalRandom.current()
+                              .nextInt(SEARCH_PREFIXES.length)],
+                      10),
+              () ->
+                  catalogService.searchViaFts(
+                      SEARCH_PREFIXES[
+                          java.util.concurrent.ThreadLocalRandom.current()
+                              .nextInt(SEARCH_PREFIXES.length)],
+                      10));
+      default ->
+          new TaskPair(
+              () -> {
+                var rid = ids[java.util.concurrent.ThreadLocalRandom.current().nextInt(ids.length)];
+                if (dbCounter.incrementAndGet() % 8 == 0) {
+                  catalogService.updateRatingInDbOnly(rid, 7.5);
+                } else {
+                  catalogService.getByIdFromDb(rid);
+                }
+              },
+              () -> {
+                var rid = ids[java.util.concurrent.ThreadLocalRandom.current().nextInt(ids.length)];
+                if (valkeyCounter.incrementAndGet() % 8 == 0) {
+                  catalogService.updateRating(rid, 7.5);
+                } else {
+                  catalogService.getById(rid);
+                }
+              });
+    };
+  }
 }

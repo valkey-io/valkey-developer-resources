@@ -6,7 +6,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.flicenjoyer.db.CatalogRepository;
-import com.flicenjoyer.db.WatchHistoryRepository;
 import glide.api.models.GlideString;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -20,7 +19,6 @@ class IndexManagerTest {
 
   @Mock ValkeyClient client;
   @Mock CatalogRepository catalogRepo;
-  @Mock WatchHistoryRepository watchRepo;
 
   @Test
   void ensureIndexesCreatesWhenMissing() throws Exception {
@@ -29,7 +27,7 @@ class IndexManagerTest {
     when(client.ftCreate(any(String.class), any(), any()))
         .thenReturn(CompletableFuture.completedFuture("OK"));
 
-    new IndexManager(client, catalogRepo, watchRepo).ensureIndexes();
+    new IndexManager(client, catalogRepo).ensureIndexes();
 
     verify(client).ftCreate(eq(ValkeyKeys.CATALOG_INDEX), any(), any());
     verify(client).ftCreate(eq(ValkeyKeys.WATCH_INDEX), any(), any());
@@ -42,7 +40,7 @@ class IndexManagerTest {
             CompletableFuture.completedFuture(
                 new GlideString[] {gs(ValkeyKeys.CATALOG_INDEX), gs(ValkeyKeys.WATCH_INDEX)}));
 
-    new IndexManager(client, catalogRepo, watchRepo).ensureIndexes();
+    new IndexManager(client, catalogRepo).ensureIndexes();
 
     verify(client, never()).ftCreate(any(String.class), any(), any());
   }
@@ -54,7 +52,7 @@ class IndexManagerTest {
             CompletableFuture.failedFuture(
                 new glide.api.models.exceptions.RequestException("unknown command")));
 
-    new IndexManager(client, catalogRepo, watchRepo).ensureIndexes();
+    new IndexManager(client, catalogRepo).ensureIndexes();
   }
 
   @Test
@@ -64,6 +62,6 @@ class IndexManagerTest {
 
     assertThrows(
         ExecutionException.class,
-        () -> new IndexManager(client, catalogRepo, watchRepo).ensureIndexes());
+        () -> new IndexManager(client, catalogRepo).ensureIndexes());
   }
 }

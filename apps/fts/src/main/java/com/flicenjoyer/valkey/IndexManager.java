@@ -3,7 +3,6 @@ package com.flicenjoyer.valkey;
 import static glide.api.models.GlideString.gs;
 
 import com.flicenjoyer.db.CatalogRepository;
-import com.flicenjoyer.db.WatchHistoryRepository;
 import glide.api.models.Batch;
 import glide.api.models.GlideString;
 import glide.api.models.commands.FT.FTCreateOptions;
@@ -27,13 +26,10 @@ public class IndexManager {
 
   private final ValkeyClient client;
   private final CatalogRepository catalogRepo;
-  private final WatchHistoryRepository watchRepo;
 
-  public IndexManager(
-      ValkeyClient client, CatalogRepository catalogRepo, WatchHistoryRepository watchRepo) {
+  public IndexManager(ValkeyClient client, CatalogRepository catalogRepo) {
     this.client = client;
     this.catalogRepo = catalogRepo;
-    this.watchRepo = watchRepo;
   }
 
   public void ensureIndexes() throws ExecutionException, InterruptedException {
@@ -65,29 +61,18 @@ public class IndexManager {
     }
   }
 
-  /** Loads all catalog and watch_history rows from DB into Valkey hashes (warms cache + FTS). */
+  /** Loads catalog rows from DB into Valkey hashes (warms FTS index). Watch history uses cache-aside. */
   public void syncFromDatabase() throws ExecutionException, InterruptedException {
     try {
       var movies = catalogRepo.findAll();
-      if (!movies.isEmpty()) {
+      for (int i = 0; i < movies.size(); i += 20) {
         Batch batch = new Batch(false);
-        for (var movie : movies) {
+        for (var movie : movies.subList(i, Math.min(i + 20, movies.size()))) {
           batch.hset(gs(ValkeyKeys.catalogKey(movie.id())), HashParser.movieToHash(movie));
         }
-        client.exec(batch, true).get();
+        client.exec(batch, false).get();
       }
       LOG.info("Synced " + movies.size() + " catalog entries from DB to Valkey");
-
-      var entries = watchRepo.findAll();
-      if (!entries.isEmpty()) {
-        Batch batch = new Batch(false);
-        for (var entry : entries) {
-          var key = ValkeyKeys.watchKey(entry.userId(), entry.catalogId());
-          batch.hset(gs(key), HashParser.watchEntryToHash(entry));
-        }
-        client.exec(batch, true).get();
-      }
-      LOG.info("Synced " + entries.size() + " watch history entries from DB to Valkey");
     } catch (SQLException e) {
       throw new RuntimeException("Failed to sync DB data to Valkey", e);
     }

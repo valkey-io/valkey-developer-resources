@@ -11,6 +11,7 @@ import com.flicenjoyer.valkey.AppConfig;
 import com.flicenjoyer.valkey.AppPaths;
 import com.flicenjoyer.valkey.IndexManager;
 import com.flicenjoyer.valkey.UserProfileManager;
+import com.flicenjoyer.valkey.ValkeyClient;
 import com.flicenjoyer.valkey.ValkeyClientProvider;
 import javafx.application.Application;
 import javafx.scene.Scene;
@@ -22,25 +23,16 @@ public class FlicEnjoyerApp extends Application {
   private static final java.util.logging.Logger LOG =
       java.util.logging.Logger.getLogger(FlicEnjoyerApp.class.getName());
 
-  private ValkeyClientProvider valkeyProvider;
-  private DatabaseProvider dbProvider;
+  // Initialized in main() before JavaFX launch to avoid GLIDE JNI/JavaFX callback deadlock
+  private static ValkeyClientProvider valkeyProvider;
+  private static DatabaseProvider dbProvider;
+  private static CatalogRepository catalogRepo;
+  private static WatchHistoryRepository watchRepo;
+  private static ValkeyClient valkeyClient;
 
   @Override
   public void start(Stage primaryStage) throws Exception {
     var config = AppConfig.load();
-
-    // Initialize PostgreSQL
-    LOG.info(
-        "Connecting to PostgreSQL at " + config.dbHost() + ":" + config.dbPort() + "/"
-            + config.dbName());
-    dbProvider = new DatabaseProvider(config);
-    var catalogRepo = new CatalogRepository(dbProvider.getDataSource());
-    var watchRepo = new WatchHistoryRepository(dbProvider.getDataSource());
-
-    // Initialize Valkey
-    LOG.info("Connecting to Valkey at " + config.valkeyHost() + ":" + config.valkeyPort());
-    valkeyProvider = new ValkeyClientProvider(config.valkeyHost(), config.valkeyPort());
-    var valkeyClient = valkeyProvider.getValkeyClient();
 
     var profileManager = new UserProfileManager();
     if (!profileManager.profileExists()) {
@@ -53,10 +45,6 @@ public class FlicEnjoyerApp extends Application {
     } else {
       profileManager.load();
     }
-
-    var indexManager = new IndexManager(valkeyClient, catalogRepo, watchRepo);
-    indexManager.ensureIndexes();
-    indexManager.syncFromDatabase();
 
     var uploadService = new UploadService(valkeyClient, catalogRepo);
     var catalogService = new CatalogService(valkeyClient, catalogRepo);
@@ -96,6 +84,27 @@ public class FlicEnjoyerApp extends Application {
     } catch (Exception e) {
       LOG.warning("Failed to load logging config: " + e.getMessage());
     }
+
+    // Initialize DB + Valkey BEFORE JavaFX launch to avoid GLIDE JNI callback deadlock
+    try {
+      var config = AppConfig.load();
+      LOG.info("Connecting to PostgreSQL at " + config.dbHost() + ":" + config.dbPort());
+      dbProvider = new DatabaseProvider(config);
+      catalogRepo = new CatalogRepository(dbProvider.getDataSource());
+      watchRepo = new WatchHistoryRepository(dbProvider.getDataSource());
+
+      LOG.info("Connecting to Valkey at " + config.valkeyHost() + ":" + config.valkeyPort());
+      valkeyProvider = new ValkeyClientProvider(config.valkeyHost(), config.valkeyPort());
+      valkeyClient = valkeyProvider.getValkeyClient();
+
+      var indexManager = new IndexManager(valkeyClient, catalogRepo);
+      indexManager.ensureIndexes();
+      indexManager.syncFromDatabase();
+    } catch (Exception e) {
+      LOG.severe("Failed to initialize: " + e.getMessage());
+      System.exit(1);
+    }
+
     launch(args);
   }
 }

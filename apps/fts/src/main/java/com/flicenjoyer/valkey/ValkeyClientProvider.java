@@ -17,7 +17,7 @@ public class ValkeyClientProvider implements AutoCloseable {
     GlideClientConfiguration config =
         GlideClientConfiguration.builder()
             .address(NodeAddress.builder().host(host).port(port).build())
-            .requestTimeout(5000)
+            .requestTimeout(30000)
             .reconnectStrategy(
                 BackoffStrategy.builder().numOfRetries(5).factor(500).exponentBase(2).build())
             .build();

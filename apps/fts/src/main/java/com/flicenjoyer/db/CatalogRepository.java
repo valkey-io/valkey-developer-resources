@@ -109,6 +109,25 @@ public final class CatalogRepository {
     }
   }
 
+  /** Text search by substring across title and description — forces sequential scan. */
+  public List<Movie> searchByTitle(String prefix, int limit) throws SQLException {
+    try (var conn = ds.getConnection();
+        var ps =
+            conn.prepareStatement(
+                "SELECT * FROM catalog WHERE title ILIKE ? OR description ILIKE ?"
+                    + " ORDER BY title LIMIT ?")) {
+      var pattern = "%" + prefix + "%";
+      ps.setString(1, pattern);
+      ps.setString(2, pattern);
+      ps.setInt(3, limit);
+      try (var rs = ps.executeQuery()) {
+        var list = new ArrayList<Movie>();
+        while (rs.next()) list.add(mapRow(rs));
+        return list;
+      }
+    }
+  }
+
   private Movie mapRow(ResultSet rs) throws SQLException {
     return new Movie(
         rs.getString("id"),
