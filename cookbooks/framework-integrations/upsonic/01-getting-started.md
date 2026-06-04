@@ -66,9 +66,9 @@ async def index_documents():
     # Upsert documents (vectors would come from your embedding model)
     await provider.aupsert(
         vectors=[
-            [0.1] * 384,
-            [0.2] * 384,
-            [0.3] * 384,
+            [0.1] * 192 + [0.0] * 192,   # chunk 1: first-half dominant
+            [0.0] * 192 + [0.1] * 192,   # chunk 2: second-half dominant
+            [0.05] * 384,                 # chunk 3: between the two
         ],
         ids=["chunk_1", "chunk_2", "chunk_3"],
         chunks=[
@@ -110,8 +110,8 @@ asyncio.run(search())
 Output:
 
 ```
-[0.998] chunk_1: Valkey is a high-performance in-memory data store
-[0.994] chunk_2: Vector search enables semantic similarity matching
+[1.000] chunk_3: HNSW provides fast approximate nearest neighbor search
+[0.707] chunk_1: Valkey is a high-performance in-memory data store
 ```
 
 ## Sync API
@@ -132,7 +132,7 @@ provider.upsert(
 )
 
 import time
-time.sleep(0.3)  # Valkey Search indexes asynchronously; brief pause ensures results are searchable
+time.sleep(0.5)  # Valkey Search indexes asynchronously; brief pause ensures results are searchable
 
 results = provider.dense_search(query_vector=[0.15] * 384, top_k=2)
 for r in results:

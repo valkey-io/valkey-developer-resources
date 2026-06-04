@@ -28,6 +28,7 @@ async def main() -> None:
         key_prefix="doc:",
         connection=ConnectionConfig(mode=Mode.LOCAL, host="localhost", port=6379),
         distance_metric=DistanceMetric.COSINE,
+        # request_timeout=5000,  # Uncomment and set (ms) for cloud/production deployments
     )
 
     provider = ValkeyProvider(config)
@@ -41,9 +42,9 @@ async def main() -> None:
         # Upsert sample documents
         await provider.aupsert(
             vectors=[
-                [0.1] * 384,
-                [0.2] * 384,
-                [0.3] * 384,
+                [0.1] * 192 + [0.0] * 192,   # chunk 1: first-half dominant
+                [0.0] * 192 + [0.1] * 192,   # chunk 2: second-half dominant
+                [0.05] * 384,                 # chunk 3: between the two
             ],
             ids=["chunk_1", "chunk_2", "chunk_3"],
             chunks=[

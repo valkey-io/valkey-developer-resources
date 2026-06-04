@@ -55,12 +55,14 @@ async def demo_batch_ingest(provider: ValkeyProvider) -> None:
     # MD5 is used as a content fingerprint (not for security) — matches
     # Upsonic's internal store.py deduplication logic.
     to_ingest = []
+    seen_hashes: set[str] = set()
     skipped = 0
     for i, chunk in enumerate(chunks):
         content_hash = hashlib.md5(chunk.encode()).hexdigest()
-        if await provider.achunk_content_hash_exists(content_hash):
+        if content_hash in seen_hashes or await provider.achunk_content_hash_exists(content_hash):
             skipped += 1
         else:
+            seen_hashes.add(content_hash)
             to_ingest.append((i, chunk))
 
     if to_ingest:
