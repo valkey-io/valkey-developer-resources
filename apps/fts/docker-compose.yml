@@ -3,6 +3,8 @@ services:
     image: valkey/valkey-bundle:unstable
     container_name: flicenjoyer-valkey
     restart: unless-stopped
+    ports:
+      - "6379:6379"
     networks:
       flicenjoyer:
         ipv4_address: 172.22.0.2
@@ -17,6 +19,8 @@ services:
     image: postgres:17
     container_name: flicenjoyer-postgres
     restart: unless-stopped
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_DB: flicenjoyer
       POSTGRES_USER: flicenjoyer
