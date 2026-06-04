@@ -1,0 +1,54 @@
+{
+  "trackName": "Google ADK",
+  "cookbooks": [
+    {
+      "num": "01",
+      "source": "01-getting-started.md",
+      "output": "01-getting-started.html",
+      "title": "Getting Started with Google ADK + Valkey",
+      "h1": "Getting Started with Google ADK + Valkey",
+      "breadcrumb": "Getting Started",
+      "lead": "Install google-adk-community[valkey], connect to Valkey, and store your first agent memories with vector embeddings.",
+      "difficulty": "Beginner",
+      "time": "15 min",
+      "next": {
+        "file": "02-vector-memory-search.html",
+        "title": "02 - Vector Memory Search"
+      }
+    },
+    {
+      "num": "02",
+      "source": "02-vector-memory-search.md",
+      "output": "02-vector-memory-search.html",
+      "title": "Vector Memory Search",
+      "h1": "Vector Memory Search",
+      "breadcrumb": "Vector Memory Search",
+      "lead": "Build a semantic memory retrieval pipeline with KNN search, TAG pre-filtering, distance thresholds, and batch ingestion.",
+      "difficulty": "Intermediate",
+      "time": "20 min",
+      "prev": {
+        "file": "01-getting-started.html",
+        "title": "01 - Getting Started"
+      },
+      "next": {
+        "file": "03-production.html",
+        "title": "03 - Production Patterns"
+      }
+    },
+    {
+      "num": "03",
+      "source": "03-production.md",
+      "output": "03-production.html",
+      "title": "Production Patterns",
+      "h1": "Production Patterns",
+      "breadcrumb": "Production Patterns",
+      "lead": "TTL-based expiry, cluster mode, TLS, monitoring, and performance tuning for production ADK + Valkey deployments.",
+      "difficulty": "Advanced",
+      "time": "15 min",
+      "prev": {
+        "file": "02-vector-memory-search.html",
+        "title": "02 - Vector Memory Search"
+      }
+    }
+  ]
+}
