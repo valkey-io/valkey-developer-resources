@@ -1,2 +1,6 @@
-google-adk-community[valkey]~=0.1.0
-google-genai~=1.0.0
+# google-adk-community[valkey] includes valkey-glide as a dependency.
+# The ValkeyMemoryService requires version 0.5.0+ (currently in PR).
+# Once merged and released, install with:
+#   pip install 'google-adk-community[valkey]>=0.5.0'
+google-adk-community[valkey]>=0.5.0
+google-genai>=1.21.0
