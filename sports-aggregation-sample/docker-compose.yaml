@@ -23,6 +23,7 @@ services:
       VALKEY_PORT: 6379
       NUM_GAMES: 8
       TICK_INTERVAL_MS: 2000
+      SEED: 42  # Uncomment for reproducible matchups across runs
     depends_on:
       valkey:
         condition: service_healthy
