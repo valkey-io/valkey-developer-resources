@@ -220,9 +220,11 @@
 /* TextArea content pane */
 .text-area .content {
   -fx-background-color: #1a1a2e;
+  -fx-padding: 4 8 4 8;
 }
 .text-area {
   -fx-text-fill: #b0e0e6;
+  -fx-padding: 0;
 }
 
 /* TableView */

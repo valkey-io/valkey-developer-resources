@@ -83,7 +83,20 @@ public class VideoFormView {
     leftCol.getChildren().add(labeled("Year", yearSpinner));
 
     descArea.setPromptText("Description");
-    descArea.setPrefRowCount(3);
+    descArea.setPrefRowCount(4);
+    descArea.setWrapText(true);
+    // Override Tab to navigate focus instead of inserting a tab character.
+    // Override Tab to navigate focus instead of inserting a tab character.
+    descArea.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, e -> {
+      if (e.getCode() == javafx.scene.input.KeyCode.TAB) {
+        e.consume();
+        if (e.isShiftDown()) {
+          descArea.requestFocusTraversal(javafx.scene.TraversalDirection.PREVIOUS);
+        } else {
+          descArea.requestFocusTraversal(javafx.scene.TraversalDirection.NEXT);
+        }
+      }
+    });
     leftCol.getChildren().add(labeled("Description", descArea));
 
     tagsField.setPromptText("comma-separated tags");

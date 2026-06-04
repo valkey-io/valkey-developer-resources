@@ -12,12 +12,12 @@ version = "0.1.0"
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
+        languageVersion.set(JavaLanguageVersion.of(26))
     }
 }
 
 javafx {
-    version = "21.0.5"
+    version = "26"
     modules("javafx.controls", "javafx.fxml", "javafx.media", "javafx.swing")
 }
 
