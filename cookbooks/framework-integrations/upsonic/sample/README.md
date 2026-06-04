@@ -14,7 +14,9 @@ Runnable code for the [Upsonic + Valkey cookbook series](../README.md).
 ## Setup
 
 ```bash
-# Start Valkey with Search module
+# Start Valkey with Search module (choose one)
+docker compose up -d
+# or
 docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:9.1
 
 # Install dependencies (available after Upsonic PR #607 is released)
