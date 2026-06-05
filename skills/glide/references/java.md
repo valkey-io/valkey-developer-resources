@@ -247,8 +247,39 @@ Object[] results = client.exec(transaction, true).get();
 - Execution: `client.exec(batch, raiseOnError)` - camelCase parameter
 - Returns: `CompletableFuture<Object[]>` - need casting for specific types
 - `raiseOnError=true`: Throws first error as exception
-- `raiseOnError=false`: Returns errors in result array
+- `raiseOnError=false`: Returns errors in result array as `RequestError` instances
 - See SKILL.md for retry strategy decision matrix
+
+### Batch Result Types and `binaryOutput`
+
+The `binaryOutput` flag on the batch controls whether results use `String` or `GlideString`:
+
+| `binaryOutput` | hgetall result type | get result type | How to set |
+|---|---|---|---|
+| `false` (default) | `Map<String, String>` | `String` | `new Batch(false)` |
+| `true` | `Map<GlideString, GlideString>` | `GlideString` | `new Batch(false).withBinaryOutput()` |
+
+```java
+// Default — results are String-based, safe to cast
+Batch batch = new Batch(false);
+batch.hgetall("user:1");
+batch.get("name");
+Object[] results = client.exec(batch, true).get();
+Map<String, String> fields = (Map<String, String>) results[0]; // ✅ CORRECT
+String name = (String) results[1]; // ✅ CORRECT
+```
+
+```java
+// Binary output — results are GlideString-based
+Batch batch = new Batch(false).withBinaryOutput();
+batch.hgetall(gs("user:1"));
+batch.get(gs("name"));
+Object[] results = client.exec(batch, true).get();
+Map<GlideString, GlideString> fields = (Map<GlideString, GlideString>) results[0]; // ✅ CORRECT
+GlideString name = (GlideString) results[1]; // ✅ CORRECT
+```
+
+**The output type is controlled by `binaryOutput`, not by the key type passed to batch commands.** A batch without `.withBinaryOutput()` always returns String-based maps even if you pass GlideString keys.
 
 ### Retry Strategies (Cluster Only)
 
