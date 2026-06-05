@@ -30,9 +30,10 @@ async def main():
     client = await GlideClient.create(config)
 
     try:
+        from google import genai
+        genai_client = genai.Client()
+
         async def embed_texts(texts: list[str]) -> list[list[float]]:
-            from google import genai
-            genai_client = genai.Client()
             response = await genai_client.models.embed_content_async(
                 model="text-embedding-004",
                 contents=texts,
@@ -97,9 +98,10 @@ async def main():
     client = await GlideClient.create(config)
 
     try:
+        from google import genai
+        genai_client = genai.Client()
+
         async def embed_texts(texts: list[str]) -> list[list[float]]:
-            from google import genai
-            genai_client = genai.Client()
             response = await genai_client.models.embed_content_async(
                 model="text-embedding-004",
                 contents=texts,
@@ -197,9 +199,10 @@ async def main():
     client = await GlideClient.create(config)
 
     try:
+        from google import genai
+        genai_client = genai.Client()
+
         async def embed_texts(texts: list[str]) -> list[list[float]]:
-            from google import genai
-            genai_client = genai.Client()
             response = await genai_client.models.embed_content_async(
                 model="text-embedding-004",
                 contents=texts,
@@ -268,9 +271,10 @@ async def main():
     client = await GlideClient.create(config)
 
     try:
+        from google import genai
+        genai_client = genai.Client()
+
         async def embed_texts(texts: list[str]) -> list[list[float]]:
-            from google import genai
-            genai_client = genai.Client()
             response = await genai_client.models.embed_content_async(
                 model="text-embedding-004",
                 contents=texts,
@@ -330,9 +334,10 @@ async def main():
     client = await GlideClient.create(config)
 
     try:
+        from google import genai
+        genai_client = genai.Client()
+
         async def embed_texts(texts: list[str]) -> list[list[float]]:
-            from google import genai
-            genai_client = genai.Client()
             response = await genai_client.models.embed_content_async(
                 model="text-embedding-004",
                 contents=texts,
@@ -350,11 +355,16 @@ async def main():
         )
 
         # Plug into ADK Runner — memories are persisted automatically
+        # NOTE: Replace my_agent and my_session_service with your own ADK components.
+        # For example:
+        #   from google.adk.agents import LlmAgent
+        #   my_agent = LlmAgent(model="gemini-2.0-flash", name="demo-agent")
+        #   my_session_service = InMemorySessionService()
         runner = Runner(
-            agent=my_agent,  # Your ADK agent
+            agent=my_agent,  # Your LlmAgent instance
             memory_service=memory_service,
             app_name="my-app",
-            session_service=my_session_service,
+            session_service=my_session_service,  # Your SessionService instance
         )
         # The Runner calls add_session_to_memory after each interaction
         # and search_memory to provide context for future queries

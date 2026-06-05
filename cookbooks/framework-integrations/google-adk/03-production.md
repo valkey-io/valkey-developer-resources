@@ -30,9 +30,10 @@ async def main():
     client = await GlideClient.create(config)
 
     try:
+        from google import genai
+        genai_client = genai.Client()
+
         async def embed_texts(texts: list[str]) -> list[list[float]]:
-            from google import genai
-            genai_client = genai.Client()
             response = await genai_client.models.embed_content_async(
                 model="text-embedding-004",
                 contents=texts,
@@ -89,9 +90,10 @@ async def main():
     client = await GlideClusterClient.create(cluster_config)
 
     try:
+        from google import genai
+        genai_client = genai.Client()
+
         async def embed_texts(texts: list[str]) -> list[list[float]]:
-            from google import genai
-            genai_client = genai.Client()
             response = await genai_client.models.embed_content_async(
                 model="text-embedding-004",
                 contents=texts,
@@ -153,9 +155,10 @@ async def main():
         client = await GlideClient.create(config)
 
     try:
+        from google import genai
+        genai_client = genai.Client()
+
         async def embed_texts(texts: list[str]) -> list[list[float]]:
-            from google import genai
-            genai_client = genai.Client()
             response = await genai_client.models.embed_content_async(
                 model="text-embedding-004",
                 contents=texts,
@@ -211,11 +214,12 @@ The embedding function receives all event texts in a single batch call. For larg
 ```python
 import asyncio
 
+# Create client once at module scope
+from google import genai
+genai_client = genai.Client()
+
 async def embed_texts_batched(texts: list[str]) -> list[list[float]]:
     """Batch-aware embedding function with rate limiting."""
-    from google import genai
-    genai_client = genai.Client()
-
     batch_size = 100  # Provider-specific limit
     all_embeddings = []
 

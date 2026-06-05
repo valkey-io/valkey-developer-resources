@@ -36,11 +36,13 @@ VALKEY_PORT = int(os.environ.get("VALKEY_PORT", "6379"))
 MEMORY_TTL = int(os.environ.get("MEMORY_TTL_SECONDS", "3600"))
 
 
+from google import genai
+
+genai_client = genai.Client()
+
+
 async def embed_texts(texts: list[str]) -> list[list[float]]:
     """Generate embeddings using Google Gemini text-embedding-004."""
-    from google import genai
-
-    genai_client = genai.Client()
     response = await genai_client.models.embed_content_async(
         model="text-embedding-004",
         contents=texts,
@@ -207,13 +209,17 @@ async def main() -> None:
             await ft.dropindex(client, "adk_cookbook_demo_idx")
         except Exception:
             pass
-        # Delete demo keys
+        # Delete demo keys using SCAN (production-safe, non-blocking)
         try:
-            keys = await client.custom_command(["KEYS", "adk:cookbook:memory:*"])
-            if keys:
-                for key in keys:
-                    key_str = key.decode() if isinstance(key, bytes) else key
-                    await client.custom_command(["DEL", key_str])
+            cursor = b"0"
+            while True:
+                result = await client.scan(cursor, match="adk:cookbook:memory:*", count=100)
+                cursor = result[0]
+                keys = result[1]
+                if keys:
+                    await client.delete(keys)
+                if cursor == b"0":
+                    break
         except Exception:
             pass
 

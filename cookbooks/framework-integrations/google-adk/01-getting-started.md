@@ -109,10 +109,10 @@ async def main():
     client = await GlideClient.create(config)
 
     try:
+        from google import genai
+        genai_client = genai.Client()
+
         async def embed_texts(texts: list[str]) -> list[list[float]]:
-            # Simplified embedding for demo — replace with your model
-            from google import genai
-            genai_client = genai.Client()
             response = await genai_client.models.embed_content_async(
                 model="text-embedding-004",
                 contents=texts,
@@ -180,9 +180,10 @@ async def main():
     client = await GlideClient.create(config)
 
     try:
+        from google import genai
+        genai_client = genai.Client()
+
         async def embed_texts(texts: list[str]) -> list[list[float]]:
-            from google import genai
-            genai_client = genai.Client()
             response = await genai_client.models.embed_content_async(
                 model="text-embedding-004",
                 contents=texts,

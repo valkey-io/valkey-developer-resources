@@ -1,4 +1,0 @@
-# MindsDB must be installed separately — see README.md
-valkey-glide~=2.4.0
-numpy>=1.26
-pandas>=2.0

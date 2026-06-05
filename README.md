@@ -27,7 +27,7 @@ Step-by-step guides for building AI applications with Valkey, migrated from [Val
 | --- | --- |
 | [📖 All Cookbooks](cookbooks/) | Main index — use cases and framework integrations |
 | [Use Cases](cookbooks/use-cases/) | Semantic caching, conversation memory, vector search, RAG pipelines, rate limiting, pub/sub streaming, feature store, context engineering |
-| [Framework Integrations](cookbooks/framework-integrations/) | Mem0, LangChain/LangGraph, CrewAI, Strands, Haystack, BetterDB, MindsDB, Google ADK |
+| [Framework Integrations](cookbooks/framework-integrations/) | Mem0, LangChain/LangGraph, CrewAI, Strands, Haystack, BetterDB, Google ADK |
 
 <hr>
 
@@ -50,7 +50,6 @@ Real-world applications and libraries using Valkey:
 | --- | --- |
 | [Cognee](https://github.com/topoteretes/cognee-community) | AI memory system for agents with vector database adapter for Valkey. Provides more accurate context than traditional RAG |
 | [Google ADK Community](https://github.com/google/adk-python-community) | `ValkeyMemoryService` for the Google Agent Development Kit — vector-based semantic memory with HNSW indexing, KNN search, and TAG-based user isolation via `valkey-glide` |
-| [MindsDB](https://github.com/mindsdb/mindsdb) | Open-source AI platform that brings ML into databases via SQL. Valkey handler provides vector store backend with HNSW indexing, KNN search, and Knowledge Base support via `valkey-glide` |
 | [Haystack Integrations](https://github.com/deepset-ai/haystack-core-integrations/tree/main/integrations/valkey) | Valkey integration for Haystack, an open-source AI orchestration framework for building production-ready LLM applications |
 | [LangChain AWS](https://github.com/langchain-ai/langchain-aws) | Valkey vector store integration for LangChain on AWS, enabling vector similarity search and LangGraph checkpointing with Valkey via the valkey-glide client |
 | [LMCache](https://github.com/LMCache/LMCache) | High-performance KV cache layer for LLM inference engines (vLLM, SGLang) that uses Valkey as a storage backend to reduce time-to-first-token by up to 10× |
