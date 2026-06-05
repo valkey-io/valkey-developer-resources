@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.flicenjoyer.valkey.UserProfileManager;
 import com.flicenjoyer.valkey.ValkeyClientProvider;
+import com.flicenjoyer.valkey.ValkeyClient;
 import glide.api.GlideClient;
 import java.nio.file.Files;
 import java.util.Map;
@@ -34,14 +35,16 @@ class WatchHistoryServiceIntegrationTest {
           .waitingFor(Wait.forLogMessage(".*Ready to accept connections.*", 1));
 
   static ValkeyClientProvider provider;
-  static GlideClient client;
+  static ValkeyClient client;
+  static GlideClient rawClient;
   static WatchHistoryService service;
   static final String TEST_USER = "test-user-123";
 
   @BeforeAll
   static void setUp(@TempDir java.nio.file.Path tempDir) throws Exception {
     provider = new ValkeyClientProvider(valkey.getHost(), valkey.getMappedPort(6379));
-    client = provider.getClient();
+    client = provider.getValkeyClient();
+    rawClient = provider.getClient();
     // Create a temp profile file so UserProfileManager loads our test user
     var profileFile = tempDir.resolve("profile.yaml");
     Files.writeString(profileFile, "userId: " + TEST_USER + "\ndisplayName: Test User\n");
@@ -116,7 +119,7 @@ class WatchHistoryServiceIntegrationTest {
 
     service.deleteWatchHistoryForVideo("cat-1");
 
-    var keys = client.keys(gs("watch:*:cat-1")).get();
+    var keys = rawClient.keys(gs("watch:*:cat-1")).get();
     assertEquals(0, keys.length, "All watch entries for cat-1 should be deleted");
   }
 }

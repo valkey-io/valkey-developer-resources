@@ -7,9 +7,9 @@ import com.flicenjoyer.model.Genre;
 import com.flicenjoyer.model.Movie;
 import com.flicenjoyer.valkey.AppPaths;
 import com.flicenjoyer.valkey.HashParser;
+import com.flicenjoyer.valkey.QueryEscaper;
+import com.flicenjoyer.valkey.ValkeyClient;
 import com.flicenjoyer.valkey.ValkeyKeys;
-import glide.api.GlideClient;
-import glide.api.commands.servermodules.FT;
 import glide.api.models.GlideString;
 import glide.api.models.commands.FT.FTSearchOptions;
 import glide.api.models.commands.FT.FTSearchOptions.SortOrder;
@@ -29,10 +29,10 @@ public class CatalogService {
   private static final java.util.logging.Logger LOG =
       java.util.logging.Logger.getLogger(CatalogService.class.getName());
 
-  private final GlideClient client;
+  private final ValkeyClient client;
   private final CatalogRepository catalogRepo;
 
-  public CatalogService(GlideClient client, CatalogRepository catalogRepo) {
+  public CatalogService(ValkeyClient client, CatalogRepository catalogRepo) {
     this.client = client;
     this.catalogRepo = catalogRepo;
   }
@@ -97,7 +97,7 @@ public class CatalogService {
       opts.sortBy(sortField, sortOrder != null ? sortOrder : SortOrder.ASC);
     }
     LOG.info("[catalog] FT.SEARCH query: " + query);
-    var result = FT.search(client, ValkeyKeys.CATALOG_INDEX, query, opts.build()).get();
+    var result = client.ftSearch(ValkeyKeys.CATALOG_INDEX, query, opts.build()).get();
     LOG.info("[catalog] FT.SEARCH result length: " + result.length + ", count: " + result[0]);
     return parseSearchResults(result);
   }
@@ -112,11 +112,11 @@ public class CatalogService {
   }
 
   static String escapeQuery(String input) {
-    return input.replace('-', ' ').replaceAll("[^a-zA-Z0-9 ]", "\\\\$0");
+    return QueryEscaper.escapeQuery(input);
   }
 
   static String escapeTag(String input) {
-    return input.replaceAll("[^a-zA-Z0-9 ]", "\\\\$0");
+    return QueryEscaper.escapeTag(input);
   }
 
   /** Browse catalog using FT.SEARCH on idx:catalog. */
@@ -134,7 +134,7 @@ public class CatalogService {
     if (!isOther) {
       opts.sortBy(resolvedSort, sortOrder);
     }
-    var result = FT.search(client, ValkeyKeys.CATALOG_INDEX, query, opts.build()).get();
+    var result = client.ftSearch(ValkeyKeys.CATALOG_INDEX, query, opts.build()).get();
     var movies = new ArrayList<>(parseSearchResults(result));
 
     if (isOther) {

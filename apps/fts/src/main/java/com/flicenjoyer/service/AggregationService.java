@@ -4,9 +4,8 @@ import static glide.api.models.GlideString.gs;
 
 import com.flicenjoyer.model.AggregationResult;
 import com.flicenjoyer.valkey.HashParser;
+import com.flicenjoyer.valkey.ValkeyClient;
 import com.flicenjoyer.valkey.ValkeyKeys;
-import glide.api.GlideClient;
-import glide.api.commands.servermodules.FT;
 import glide.api.models.Batch;
 import glide.api.models.GlideString;
 import glide.api.models.commands.FT.FTAggregateOptions;
@@ -30,9 +29,9 @@ public class AggregationService {
   private static final String ALL_TIMESTAMPS = "@lastWatched:[0 9999999999]";
   private static final String ALL_YEARS = "@releaseYear:[0 9999]";
 
-  private final GlideClient client;
+  private final ValkeyClient client;
 
-  public AggregationService(GlideClient client) {
+  public AggregationService(ValkeyClient client) {
     this.client = client;
   }
 
@@ -43,8 +42,7 @@ public class AggregationService {
   public List<AggregationResult> topTitlesByViewers(int limit)
       throws ExecutionException, InterruptedException {
     var raw =
-        FT.aggregate(
-                client,
+        client.ftAggregate(
                 ValkeyKeys.WATCH_INDEX,
                 ALL_TIMESTAMPS,
                 FTAggregateOptions.builder()
@@ -81,6 +79,7 @@ public class AggregationService {
           }
         }
       } catch (ExecutionException | InterruptedException ex) {
+        if (ex instanceof InterruptedException) Thread.currentThread().interrupt();
         LOG.warning("[aggregate] Failed to batch-fetch titles: " + ex.getMessage());
       }
     }
@@ -101,8 +100,7 @@ public class AggregationService {
   public List<AggregationResult> catalogSummaryByGenre()
       throws ExecutionException, InterruptedException {
     var raw =
-        FT.aggregate(
-                client,
+        client.ftAggregate(
                 ValkeyKeys.CATALOG_INDEX,
                 ALL_YEARS,
                 FTAggregateOptions.builder()

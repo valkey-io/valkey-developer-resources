@@ -6,9 +6,8 @@ import com.flicenjoyer.db.WatchHistoryRepository;
 import com.flicenjoyer.model.WatchHistoryEntry;
 import com.flicenjoyer.valkey.HashParser;
 import com.flicenjoyer.valkey.UserProfileManager;
+import com.flicenjoyer.valkey.ValkeyClient;
 import com.flicenjoyer.valkey.ValkeyKeys;
-import glide.api.GlideClient;
-import glide.api.commands.servermodules.FT;
 import glide.api.models.GlideString;
 import glide.api.models.commands.FT.FTSearchOptions;
 import java.sql.SQLException;
@@ -20,12 +19,12 @@ import java.util.concurrent.ExecutionException;
 /** Per-user watch history: resume points, completion tracking, and session management. */
 public class WatchHistoryService {
 
-  private final GlideClient client;
+  private final ValkeyClient client;
   private final UserProfileManager profileManager;
   private final WatchHistoryRepository watchRepo;
 
   public WatchHistoryService(
-      GlideClient client, UserProfileManager profileManager, WatchHistoryRepository watchRepo) {
+      ValkeyClient client, UserProfileManager profileManager, WatchHistoryRepository watchRepo) {
     this.client = client;
     this.profileManager = profileManager;
     this.watchRepo = watchRepo;
@@ -39,7 +38,7 @@ public class WatchHistoryService {
             .limit(0, 1000)
             .sortBy("lastWatched", FTSearchOptions.SortOrder.DESC)
             .build();
-    var result = FT.search(client, ValkeyKeys.WATCH_INDEX, query, opts).get();
+    var result = client.ftSearch(ValkeyKeys.WATCH_INDEX, query, opts).get();
     if (result.length >= 2) {
       var docs = (Map<GlideString, Map<GlideString, GlideString>>) result[1];
       if (!docs.isEmpty()) {
@@ -92,45 +91,13 @@ public class WatchHistoryService {
 
   /** Direct DB write — matches DB work of updateResumePoint (read + upsert). */
   public void updateResumePointInDbOnly(String catalogId, long seconds) {
-    try {
-      long now = Instant.now().getEpochSecond();
-      // Same DB work as the Valkey path: read existing, then upsert
-      var existing = watchRepo.findByUserAndCatalog(profileManager.getUserId(), catalogId);
-      var entry =
-          new WatchHistoryEntry(
-              profileManager.getUserId(),
-              catalogId,
-              existing.map(WatchHistoryEntry::title).orElse(""),
-              seconds,
-              existing.map(WatchHistoryEntry::completed).orElse(false),
-              now);
-      watchRepo.upsert(entry);
-    } catch (SQLException e) {
-      throw new RuntimeException("DB write failed", e);
-    }
+    upsertEntry(catalogId, seconds, null);
   }
 
   public void updateResumePoint(String catalogId, long seconds)
       throws ExecutionException, InterruptedException {
-    long now = Instant.now().getEpochSecond();
-    String userId = profileManager.getUserId();
-    // Write to DB first
-    try {
-      var existing = watchRepo.findByUserAndCatalog(userId, catalogId);
-      var entry =
-          new WatchHistoryEntry(
-              userId,
-              catalogId,
-              existing.map(WatchHistoryEntry::title).orElse(""),
-              seconds,
-              existing.map(WatchHistoryEntry::completed).orElse(false),
-              now);
-      watchRepo.upsert(entry);
-    } catch (SQLException e) {
-      throw new RuntimeException("DB write failed", e);
-    }
-    // Update cache
-    String key = ValkeyKeys.watchKey(userId, catalogId);
+    long now = upsertEntry(catalogId, seconds, null);
+    String key = ValkeyKeys.watchKey(profileManager.getUserId(), catalogId);
     client
         .hset(
             gs(key),
@@ -141,9 +108,19 @@ public class WatchHistoryService {
   }
 
   public void markCompleted(String catalogId) throws ExecutionException, InterruptedException {
-    String userId = profileManager.getUserId();
+    long now = upsertEntry(catalogId, null, true);
+    String key = ValkeyKeys.watchKey(profileManager.getUserId(), catalogId);
+    client
+        .hset(
+            gs(key),
+            Map.of(gs("completed"), gs("true"), gs("lastWatched"), gs(String.valueOf(now))))
+        .get();
+  }
+
+  /** Read-modify-write helper. Returns the epoch second used for lastWatched. */
+  private long upsertEntry(String catalogId, Long resumeOverride, Boolean completedOverride) {
     long now = Instant.now().getEpochSecond();
-    // Write to DB
+    String userId = profileManager.getUserId();
     try {
       var existing = watchRepo.findByUserAndCatalog(userId, catalogId);
       var entry =
@@ -151,20 +128,18 @@ public class WatchHistoryService {
               userId,
               catalogId,
               existing.map(WatchHistoryEntry::title).orElse(""),
-              existing.map(WatchHistoryEntry::resumeTimestamp).orElse(0L),
-              true,
+              resumeOverride != null
+                  ? resumeOverride
+                  : existing.map(WatchHistoryEntry::resumeTimestamp).orElse(0L),
+              completedOverride != null
+                  ? completedOverride
+                  : existing.map(WatchHistoryEntry::completed).orElse(false),
               now);
       watchRepo.upsert(entry);
     } catch (SQLException e) {
       throw new RuntimeException("DB write failed", e);
     }
-    // Update cache
-    String key = ValkeyKeys.watchKey(userId, catalogId);
-    client
-        .hset(
-            gs(key),
-            Map.of(gs("completed"), gs("true"), gs("lastWatched"), gs(String.valueOf(now))))
-        .get();
+    return now;
   }
 
   public void startWatching(String catalogId, String title)
@@ -196,7 +171,7 @@ public class WatchHistoryService {
     // Delete from cache
     var query = "@catalogId:{" + CatalogService.escapeTag(catalogId) + "}";
     var opts = FTSearchOptions.builder().limit(0, 1000).build();
-    var result = FT.search(client, ValkeyKeys.WATCH_INDEX, query, opts).get();
+    var result = client.ftSearch(ValkeyKeys.WATCH_INDEX, query, opts).get();
     if (result.length < 2) return;
     var docs = (Map<GlideString, Map<GlideString, GlideString>>) result[1];
     if (docs.isEmpty()) return;

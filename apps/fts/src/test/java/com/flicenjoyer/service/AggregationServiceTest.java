@@ -6,9 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.flicenjoyer.model.AggregationResult;
-import glide.api.BaseClient;
-import glide.api.GlideClient;
-import glide.api.commands.servermodules.FT;
+import com.flicenjoyer.valkey.ValkeyClient;
 import glide.api.models.Batch;
 import glide.api.models.GlideString;
 import glide.api.models.commands.FT.FTAggregateOptions;
@@ -20,13 +18,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class AggregationServiceTest {
 
-  @Mock GlideClient client;
+  @Mock ValkeyClient client;
   AggregationService service;
 
   @BeforeEach
@@ -95,28 +92,19 @@ class AggregationServiceTest {
     row.put(gs("viewerCount"), gs("5"));
     aggResult[0] = row;
 
-    Map<GlideString, GlideString> catalogFields = new LinkedHashMap<>();
-    catalogFields.put(gs("title"), gs("Inception"));
+    Map<String, String> catalogFields = new LinkedHashMap<>();
+    catalogFields.put("title", "Inception");
 
+    when(client.ftAggregate(any(String.class), any(String.class), any(FTAggregateOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(aggResult));
     when(client.exec(any(Batch.class), eq(false)))
         .thenReturn(CompletableFuture.completedFuture(new Object[] {catalogFields}));
 
-    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
-      ft.when(
-              () ->
-                  FT.aggregate(
-                      any(BaseClient.class),
-                      any(String.class),
-                      any(String.class),
-                      any(FTAggregateOptions.class)))
-          .thenReturn(CompletableFuture.completedFuture(aggResult));
-
-      var results = service.topTitlesByViewers(10);
-      assertEquals(1, results.size());
-      assertEquals("Inception", results.getFirst().label());
-      assertEquals("5", results.getFirst().metrics().get("viewerCount"));
-      verify(client).exec(any(Batch.class), eq(false)); // batched, not N+1
-    }
+    var results = service.topTitlesByViewers(10);
+    assertEquals(1, results.size());
+    assertEquals("Inception", results.getFirst().label());
+    assertEquals("5", results.getFirst().metrics().get("viewerCount"));
+    verify(client).exec(any(Batch.class), eq(false));
   }
 
   @SuppressWarnings("unchecked")
@@ -129,20 +117,12 @@ class AggregationServiceTest {
     row.put(gs("avgRating"), gs("7.5"));
     aggResult[0] = row;
 
-    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
-      ft.when(
-              () ->
-                  FT.aggregate(
-                      any(BaseClient.class),
-                      any(String.class),
-                      any(String.class),
-                      any(FTAggregateOptions.class)))
-          .thenReturn(CompletableFuture.completedFuture(aggResult));
+    when(client.ftAggregate(any(String.class), any(String.class), any(FTAggregateOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(aggResult));
 
-      var results = service.catalogSummaryByGenre();
-      assertEquals(1, results.size());
-      assertEquals("Action", results.getFirst().label());
-      assertEquals("10", results.getFirst().metrics().get("titleCount"));
-    }
+    var results = service.catalogSummaryByGenre();
+    assertEquals(1, results.size());
+    assertEquals("Action", results.getFirst().label());
+    assertEquals("10", results.getFirst().metrics().get("titleCount"));
   }
 }

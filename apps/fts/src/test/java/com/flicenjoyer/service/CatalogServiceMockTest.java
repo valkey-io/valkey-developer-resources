@@ -7,9 +7,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import com.flicenjoyer.db.CatalogRepository;
-import glide.api.BaseClient;
-import glide.api.GlideClient;
-import glide.api.commands.servermodules.FT;
+import com.flicenjoyer.valkey.ValkeyClient;
 import glide.api.models.GlideString;
 import glide.api.models.commands.FT.FTSearchOptions;
 import java.util.LinkedHashMap;
@@ -20,13 +18,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class CatalogServiceMockTest {
 
-  @Mock GlideClient client;
+  @Mock ValkeyClient client;
   @Mock CatalogRepository catalogRepo;
   CatalogService service;
 
@@ -128,99 +125,49 @@ class CatalogServiceMockTest {
   void searchPrefixBuildsCorrectQuery() throws Exception {
     var queryCaptor = ArgumentCaptor.forClass(String.class);
 
-    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
-      ft.when(
-              () ->
-                  FT.search(
-                      any(BaseClient.class),
-                      any(String.class),
-                      any(String.class),
-                      any(FTSearchOptions.class)))
-          .thenReturn(CompletableFuture.completedFuture(singleMovieResult("Alien")));
+    when(client.ftSearch(any(String.class), any(String.class), any(FTSearchOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(singleMovieResult("Alien")));
 
-      service.searchPrefix("ali", 10);
+    service.searchPrefix("ali", 10);
 
-      ft.verify(
-          () ->
-              FT.search(
-                  any(BaseClient.class),
-                  eq("idx:catalog"),
-                  queryCaptor.capture(),
-                  any(FTSearchOptions.class)));
-      var query = queryCaptor.getValue();
-      assertTrue(query.contains("ali*"), "Should have prefix wildcard: " + query);
-      assertTrue(query.contains("@title:"), "Should search title field: " + query);
-    }
+    verify(client).ftSearch(eq("idx:catalog"), queryCaptor.capture(), any(FTSearchOptions.class));
+    var query = queryCaptor.getValue();
+    assertTrue(query.contains("ali*"), "Should have prefix wildcard: " + query);
+    assertTrue(query.contains("@title:"), "Should search title field: " + query);
   }
 
   @Test
   void searchFuzzyBuildsCorrectQuery() throws Exception {
     var queryCaptor = ArgumentCaptor.forClass(String.class);
 
-    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
-      ft.when(
-              () ->
-                  FT.search(
-                      any(BaseClient.class),
-                      any(String.class),
-                      any(String.class),
-                      any(FTSearchOptions.class)))
-          .thenReturn(CompletableFuture.completedFuture(singleMovieResult("Alien")));
+    when(client.ftSearch(any(String.class), any(String.class), any(FTSearchOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(singleMovieResult("Alien")));
 
-      service.searchFuzzy("alien", 10);
+    service.searchFuzzy("alien", 10);
 
-      ft.verify(
-          () ->
-              FT.search(
-                  any(BaseClient.class),
-                  eq("idx:catalog"),
-                  queryCaptor.capture(),
-                  any(FTSearchOptions.class)));
-      var query = queryCaptor.getValue();
-      assertTrue(query.contains("%%alien%%"), "Should have fuzzy markers: " + query);
-    }
+    verify(client).ftSearch(eq("idx:catalog"), queryCaptor.capture(), any(FTSearchOptions.class));
+    var query = queryCaptor.getValue();
+    assertTrue(query.contains("%%alien%%"), "Should have fuzzy markers: " + query);
   }
 
   @Test
   void browseByGenreBuildsTagQuery() throws Exception {
-    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
-      ft.when(
-              () ->
-                  FT.search(
-                      any(BaseClient.class),
-                      any(String.class),
-                      any(String.class),
-                      any(FTSearchOptions.class)))
-          .thenReturn(CompletableFuture.completedFuture(emptySearchResult()));
+    when(client.ftSearch(any(String.class), any(String.class), any(FTSearchOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(emptySearchResult()));
 
-      service.browseByGenre("Sci-Fi", "title", FTSearchOptions.SortOrder.ASC, 20);
+    service.browseByGenre("Sci-Fi", "title", FTSearchOptions.SortOrder.ASC, 20);
 
-      ft.verify(
-          () ->
-              FT.search(
-                  any(BaseClient.class),
-                  eq("idx:catalog"),
-                  eq("@genre:{Sci\\-Fi}"),
-                  any(FTSearchOptions.class)));
-    }
+    verify(client).ftSearch(eq("idx:catalog"), eq("@genre:{Sci\\-Fi}"), any(FTSearchOptions.class));
   }
 
   @Test
   void searchPrefixReturnsMovies() throws Exception {
-    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
-      ft.when(
-              () ->
-                  FT.search(
-                      any(BaseClient.class),
-                      any(String.class),
-                      any(String.class),
-                      any(FTSearchOptions.class)))
-          .thenReturn(CompletableFuture.completedFuture(singleMovieResult("Inception")));
+    when(client.ftSearch(any(String.class), any(String.class), any(FTSearchOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(singleMovieResult("Inception")));
 
-      var movies = service.searchPrefix("incep", 10);
-      assertEquals(1, movies.size());
-      assertEquals("Inception", movies.getFirst().title());
-    }
+    var movies = service.searchPrefix("incep", 10);
+    assertEquals(1, movies.size());
+    assertEquals("Inception", movies.getFirst().title());
   }
 
   @Test
@@ -240,98 +187,42 @@ class CatalogServiceMockTest {
     docs.put(gs("catalog:1"), fields);
     Object[] searchResult = new Object[] {1L, docs};
 
-    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
-      ft.when(
-              () ->
-                  FT.search(
-                      any(BaseClient.class),
-                      any(String.class),
-                      any(String.class),
-                      any(FTSearchOptions.class)))
-          .thenReturn(CompletableFuture.completedFuture(searchResult));
+    when(client.ftSearch(any(String.class), any(String.class), any(FTSearchOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(searchResult));
 
-      var movies = service.browseAll(null, "title", false);
-      assertEquals(1, movies.size());
-      assertEquals("Movie A", movies.getFirst().title());
-    }
+    var movies = service.browseAll(null, "title", false);
+    assertEquals(1, movies.size());
+    assertEquals("Movie A", movies.getFirst().title());
   }
 
   @Test
   void browseAllNullFilterUsesRangeQuery() throws Exception {
-    Object[] searchResult = new Object[] {0L};
+    when(client.ftSearch(any(String.class), any(String.class), any(FTSearchOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(new Object[] {0L}));
 
-    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
-      ft.when(
-              () ->
-                  FT.search(
-                      any(BaseClient.class),
-                      any(String.class),
-                      any(String.class),
-                      any(FTSearchOptions.class)))
-          .thenReturn(CompletableFuture.completedFuture(searchResult));
+    service.browseAll(null, "title", false);
 
-      service.browseAll(null, "title", false);
-
-      ft.verify(
-          () ->
-              FT.search(
-                  any(BaseClient.class),
-                  eq("idx:catalog"),
-                  eq("@releaseYear:[0 inf]"),
-                  any(FTSearchOptions.class)));
-    }
+    verify(client).ftSearch(eq("idx:catalog"), eq("@releaseYear:[0 inf]"), any(FTSearchOptions.class));
   }
 
   @Test
   void browseAllAllFilterUsesRangeQuery() throws Exception {
-    Object[] searchResult = new Object[] {0L};
+    when(client.ftSearch(any(String.class), any(String.class), any(FTSearchOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(new Object[] {0L}));
 
-    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
-      ft.when(
-              () ->
-                  FT.search(
-                      any(BaseClient.class),
-                      any(String.class),
-                      any(String.class),
-                      any(FTSearchOptions.class)))
-          .thenReturn(CompletableFuture.completedFuture(searchResult));
+    service.browseAll("All", "title", false);
 
-      service.browseAll("All", "title", false);
-
-      ft.verify(
-          () ->
-              FT.search(
-                  any(BaseClient.class),
-                  eq("idx:catalog"),
-                  eq("@releaseYear:[0 inf]"),
-                  any(FTSearchOptions.class)));
-    }
+    verify(client).ftSearch(eq("idx:catalog"), eq("@releaseYear:[0 inf]"), any(FTSearchOptions.class));
   }
 
   @Test
   void browseAllGenreFilterUsesTagQuery() throws Exception {
-    Object[] searchResult = new Object[] {0L};
+    when(client.ftSearch(any(String.class), any(String.class), any(FTSearchOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(new Object[] {0L}));
 
-    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
-      ft.when(
-              () ->
-                  FT.search(
-                      any(BaseClient.class),
-                      any(String.class),
-                      any(String.class),
-                      any(FTSearchOptions.class)))
-          .thenReturn(CompletableFuture.completedFuture(searchResult));
+    service.browseAll("Action", "title", false);
 
-      service.browseAll("Action", "title", false);
-
-      ft.verify(
-          () ->
-              FT.search(
-                  any(BaseClient.class),
-                  eq("idx:catalog"),
-                  eq("@genre:{Action}"),
-                  any(FTSearchOptions.class)));
-    }
+    verify(client).ftSearch(eq("idx:catalog"), eq("@genre:{Action}"), any(FTSearchOptions.class));
   }
 
   @Test
@@ -351,46 +242,22 @@ class CatalogServiceMockTest {
     docs.put(gs("catalog:1"), action);
     Object[] searchResult = new Object[] {1L, docs};
 
-    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
-      ft.when(
-              () ->
-                  FT.search(
-                      any(BaseClient.class),
-                      any(String.class),
-                      any(String.class),
-                      any(FTSearchOptions.class)))
-          .thenReturn(CompletableFuture.completedFuture(searchResult));
+    when(client.ftSearch(any(String.class), any(String.class), any(FTSearchOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(searchResult));
 
-      var movies = service.browseAll("Action", "title", false);
-      assertEquals(1, movies.size());
-      assertEquals("Action Movie", movies.getFirst().title());
-    }
+    var movies = service.browseAll("Action", "title", false);
+    assertEquals(1, movies.size());
+    assertEquals("Action Movie", movies.getFirst().title());
   }
 
   @Test
   void browseAllOtherFilterUsesRangeQuery() throws Exception {
-    Object[] searchResult = new Object[] {0L};
+    when(client.ftSearch(any(String.class), any(String.class), any(FTSearchOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(new Object[] {0L}));
 
-    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
-      ft.when(
-              () ->
-                  FT.search(
-                      any(BaseClient.class),
-                      any(String.class),
-                      any(String.class),
-                      any(FTSearchOptions.class)))
-          .thenReturn(CompletableFuture.completedFuture(searchResult));
+    service.browseAll("Other", "title", false);
 
-      service.browseAll("Other", "title", false);
-
-      ft.verify(
-          () ->
-              FT.search(
-                  any(BaseClient.class),
-                  eq("idx:catalog"),
-                  eq("@releaseYear:[0 inf]"),
-                  any(FTSearchOptions.class)));
-    }
+    verify(client).ftSearch(eq("idx:catalog"), eq("@releaseYear:[0 inf]"), any(FTSearchOptions.class));
   }
 
   @Test
@@ -410,18 +277,10 @@ class CatalogServiceMockTest {
     docs.put(gs("catalog:1"), fields);
     Object[] searchResult = new Object[] {1L, docs};
 
-    try (MockedStatic<FT> ft = mockStatic(FT.class)) {
-      ft.when(
-              () ->
-                  FT.search(
-                      any(BaseClient.class),
-                      any(String.class),
-                      any(String.class),
-                      any(FTSearchOptions.class)))
-          .thenReturn(CompletableFuture.completedFuture(searchResult));
+    when(client.ftSearch(any(String.class), any(String.class), any(FTSearchOptions.class)))
+        .thenReturn(CompletableFuture.completedFuture(searchResult));
 
-      var movies = service.browseAll("Other", "title", false);
-      assertEquals(0, movies.size()); // Action is a known genre, excluded by "Other"
-    }
+    var movies = service.browseAll("Other", "title", false);
+    assertEquals(0, movies.size()); // Action is a known genre, excluded by "Other"
   }
 }

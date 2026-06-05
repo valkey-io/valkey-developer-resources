@@ -58,7 +58,9 @@ public class CatalogView {
     refresh("All", "Rating ↓");
   }
 
-  private final DataLoader<java.util.List<Movie>> dataLoader = new DataLoader<>();
+  private record CatalogData(java.util.List<Movie> movies, java.util.Map<String, Long> resumeMap) {}
+
+  private final DataLoader<CatalogData> dataLoader = new DataLoader<>();
 
   private void refresh(String genre, String sortLabel) {
     var sortField =
@@ -75,14 +77,27 @@ public class CatalogView {
     cardGrid.getChildren().add(spinner);
 
     dataLoader.load(
-        () -> catalogService.browseAll(genre, sortField, descending),
-        movies -> {
+        () -> {
+          var movies = catalogService.browseAll(genre, sortField, descending);
+          var resumeMap = new java.util.HashMap<String, Long>();
+          if (watchHistoryService != null) {
+            for (var m : movies) {
+              try {
+                resumeMap.put(m.id(), watchHistoryService.getResumePoint(m.id()));
+              } catch (Exception e) {
+                resumeMap.put(m.id(), 0L);
+              }
+            }
+          }
+          return new CatalogData(movies, resumeMap);
+        },
+        data -> {
           cardGrid.getChildren().clear();
-          if (movies.isEmpty()) {
+          if (data.movies().isEmpty()) {
             cardGrid.getChildren().add(new Label("No videos found. Upload some first!"));
             return;
           }
-          for (var movie : movies) cardGrid.getChildren().add(createCard(movie));
+          for (var movie : data.movies()) cardGrid.getChildren().add(createCard(movie, data.resumeMap().getOrDefault(movie.id(), 0L)));
         },
         ex -> {
           LOG.warning("[browse] Error: " + ex.getMessage());
@@ -95,11 +110,10 @@ public class CatalogView {
     dataLoader.cancel();
   }
 
-  private VBox createCard(Movie movie) {
-    var action = PlaybackState.resolve(movie, watchHistoryService);
-    var card = MovieCard.create(movie, 0);
-    // Re-add progress bar using WHS (replaces the 0-resume one from MovieCard.create)
-    PlaybackState.addProgressBar(MovieCard.thumb(card), movie, watchHistoryService);
+  private VBox createCard(Movie movie, long resumeSec) {
+    var action = PlaybackState.resolve(movie, resumeSec);
+    var card = MovieCard.create(movie, resumeSec);
+    PlaybackState.addProgressBar(MovieCard.thumb(card), movie, resumeSec);
     MovieCard.addActionButton(
         card,
         action,

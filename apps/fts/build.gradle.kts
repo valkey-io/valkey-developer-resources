@@ -62,8 +62,18 @@ application {
     mainClass.set("com.flicenjoyer.FlicEnjoyerApp")
 }
 
+jacoco {
+    toolVersion = "0.8.14"
+}
+
 tasks.test {
     useJUnitPlatform()
+    jvmArgs(
+        "--add-opens", "java.base/java.lang=ALL-UNNAMED",
+        "--add-opens", "java.base/java.lang.invoke=ALL-UNNAMED",
+        "--add-opens", "java.base/java.util=ALL-UNNAMED",
+        "-Dnet.bytebuddy.experimental=true"
+    )
     finalizedBy(tasks.jacocoTestReport)
 }
 

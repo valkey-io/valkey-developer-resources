@@ -40,7 +40,7 @@ public class FlicEnjoyerApp extends Application {
     // Initialize Valkey
     LOG.info("Connecting to Valkey at " + config.valkeyHost() + ":" + config.valkeyPort());
     valkeyProvider = new ValkeyClientProvider(config.valkeyHost(), config.valkeyPort());
-    var client = valkeyProvider.getClient();
+    var valkeyClient = valkeyProvider.getValkeyClient();
 
     var profileManager = new UserProfileManager();
     if (!profileManager.profileExists()) {
@@ -54,14 +54,14 @@ public class FlicEnjoyerApp extends Application {
       profileManager.load();
     }
 
-    var indexManager = new IndexManager(client, catalogRepo, watchRepo);
+    var indexManager = new IndexManager(valkeyClient, catalogRepo, watchRepo);
     indexManager.ensureIndexes();
     indexManager.syncFromDatabase();
 
-    var uploadService = new UploadService(client, catalogRepo);
-    var catalogService = new CatalogService(client, catalogRepo);
-    var watchHistoryService = new WatchHistoryService(client, profileManager, watchRepo);
-    var aggregationService = new com.flicenjoyer.service.AggregationService(client);
+    var uploadService = new UploadService(valkeyClient, catalogRepo);
+    var catalogService = new CatalogService(valkeyClient, catalogRepo);
+    var watchHistoryService = new WatchHistoryService(valkeyClient, profileManager, watchRepo);
+    var aggregationService = new com.flicenjoyer.service.AggregationService(valkeyClient);
     var mainController =
         new MainController(
             primaryStage,

@@ -131,7 +131,7 @@ public class WatchHistoryView {
 
     // Action button based on watch state
     if (movie != null) {
-      var action = PlaybackState.resolve(movie, watchHistoryService);
+      var action = PlaybackState.resolve(movie, resumeSec);
       if (action != PlaybackState.Action.PLAY) {
         MovieCard.addActionButton(
             card,

@@ -44,7 +44,7 @@ FlicEnjoyer is a JavaFX desktop application that uses PostgreSQL as its primary 
 | `tags` | TEXT | Comma-separated |
 | `release_year` | INTEGER | |
 | `rating` | NUMERIC(3,1) | |
-| `duration_minutes` | INTEGER | |
+| `duration_minutes` | DOUBLE PRECISION | |
 | `video_path` | TEXT | |
 | `thumbnail_path` | TEXT | |
 | `created_at` | TIMESTAMP | DEFAULT now() |

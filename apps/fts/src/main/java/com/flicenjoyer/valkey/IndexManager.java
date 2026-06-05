@@ -4,8 +4,7 @@ import static glide.api.models.GlideString.gs;
 
 import com.flicenjoyer.db.CatalogRepository;
 import com.flicenjoyer.db.WatchHistoryRepository;
-import glide.api.GlideClient;
-import glide.api.commands.servermodules.FT;
+import glide.api.models.Batch;
 import glide.api.models.GlideString;
 import glide.api.models.commands.FT.FTCreateOptions;
 import glide.api.models.commands.FT.FTCreateOptions.DataType;
@@ -26,12 +25,12 @@ public class IndexManager {
   private static final java.util.logging.Logger LOG =
       java.util.logging.Logger.getLogger(IndexManager.class.getName());
 
-  private final GlideClient client;
+  private final ValkeyClient client;
   private final CatalogRepository catalogRepo;
   private final WatchHistoryRepository watchRepo;
 
   public IndexManager(
-      GlideClient client, CatalogRepository catalogRepo, WatchHistoryRepository watchRepo) {
+      ValkeyClient client, CatalogRepository catalogRepo, WatchHistoryRepository watchRepo) {
     this.client = client;
     this.catalogRepo = catalogRepo;
     this.watchRepo = watchRepo;
@@ -41,7 +40,7 @@ public class IndexManager {
     Set<String> existing;
     try {
       existing =
-          Arrays.stream(FT.list(client).get())
+          Arrays.stream(client.ftList().get())
               .map(GlideString::toString)
               .collect(Collectors.toSet());
     } catch (ExecutionException e) {
@@ -70,15 +69,23 @@ public class IndexManager {
   public void syncFromDatabase() throws ExecutionException, InterruptedException {
     try {
       var movies = catalogRepo.findAll();
-      for (var movie : movies) {
-        client.hset(gs(ValkeyKeys.catalogKey(movie.id())), HashParser.movieToHash(movie)).get();
+      if (!movies.isEmpty()) {
+        Batch batch = new Batch(false);
+        for (var movie : movies) {
+          batch.hset(gs(ValkeyKeys.catalogKey(movie.id())), HashParser.movieToHash(movie));
+        }
+        client.exec(batch, true).get();
       }
       LOG.info("Synced " + movies.size() + " catalog entries from DB to Valkey");
 
       var entries = watchRepo.findAll();
-      for (var entry : entries) {
-        var key = ValkeyKeys.watchKey(entry.userId(), entry.catalogId());
-        client.hset(gs(key), HashParser.watchEntryToHash(entry)).get();
+      if (!entries.isEmpty()) {
+        Batch batch = new Batch(false);
+        for (var entry : entries) {
+          var key = ValkeyKeys.watchKey(entry.userId(), entry.catalogId());
+          batch.hset(gs(key), HashParser.watchEntryToHash(entry));
+        }
+        client.exec(batch, true).get();
       }
       LOG.info("Synced " + entries.size() + " watch history entries from DB to Valkey");
     } catch (SQLException e) {
@@ -87,8 +94,7 @@ public class IndexManager {
   }
 
   private void createCatalogIndex() throws ExecutionException, InterruptedException {
-    FT.create(
-            client,
+    client.ftCreate(
             ValkeyKeys.CATALOG_INDEX,
             new FieldInfo[] {
               new FieldInfo("title", new TextField(false, 1.0, true, false, true)),
@@ -110,8 +116,7 @@ public class IndexManager {
   }
 
   private void createWatchIndex() throws ExecutionException, InterruptedException {
-    FT.create(
-            client,
+    client.ftCreate(
             ValkeyKeys.WATCH_INDEX,
             new FieldInfo[] {
               new FieldInfo("userId", new TagField()),

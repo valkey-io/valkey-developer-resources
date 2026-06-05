@@ -517,6 +517,11 @@ public class PlayerView {
         () -> {
           try {
             task.run();
+          } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            LOG.warning("[player] " + label + " interrupted");
+          } catch (java.util.concurrent.ExecutionException ex) {
+            LOG.warning("[player] " + label + ": " + ex.getCause().getMessage());
           } catch (Exception ex) {
             LOG.warning("[player] " + label + ": " + ex.getMessage());
           }

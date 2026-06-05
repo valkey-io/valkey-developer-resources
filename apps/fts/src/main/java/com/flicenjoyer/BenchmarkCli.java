@@ -28,11 +28,11 @@ public class BenchmarkCli {
 
     var config = AppConfig.load();
     var dbProvider = new DatabaseProvider(config);
+    try (var valkeyProvider = new ValkeyClientProvider(config.valkeyHost(), config.valkeyPort())) {
     var catalogRepo = new CatalogRepository(dbProvider.getDataSource());
     var watchRepo = new WatchHistoryRepository(dbProvider.getDataSource());
 
-    var valkeyProvider = new ValkeyClientProvider(config.valkeyHost(), config.valkeyPort());
-    var client = valkeyProvider.getClient();
+    var client = valkeyProvider.getValkeyClient();
 
     var profileManager = new UserProfileManager();
     if (!profileManager.profileExists()) {
@@ -123,9 +123,9 @@ public class BenchmarkCli {
     System.out.println("valkey_ops_per_sec=" + String.format("%.1f", result.valkeyOpsPerSecond()));
     System.out.println("speedup=" + String.format("%.2f", result.speedup()));
     System.out.println("catalog_size=" + ids.length);
-
-    valkeyProvider.close();
-    dbProvider.close();
+    } finally { // try-with-resources for valkeyProvider
+      dbProvider.close();
+    }
   }
 
   private static int intArg(String[] args, String name, int defaultVal) {

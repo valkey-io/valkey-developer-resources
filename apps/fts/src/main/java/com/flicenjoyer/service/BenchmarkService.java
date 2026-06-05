@@ -42,7 +42,9 @@ public final class BenchmarkService {
           () -> {
             try {
               for (int i = 0; i < warmupOps; i++) task.run();
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+              java.util.logging.Logger.getLogger(BenchmarkService.class.getName())
+                  .fine("[bench] Warmup error: " + e.getMessage());
             } finally {
               warmupLatch.countDown();
             }
@@ -50,6 +52,7 @@ public final class BenchmarkService {
     }
     warmupLatch.await();
     warmupPool.shutdown();
+    warmupPool.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS);
 
     // Timed phase
     var latch = new CountDownLatch(threads);
@@ -80,6 +83,7 @@ public final class BenchmarkService {
     latch.await();
     long elapsedNs = System.nanoTime() - startNs;
     pool.shutdown();
+    pool.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS);
 
     int actualCompleted = completed.get();
     if (onProgress != null) onProgress.accept(actualCompleted);

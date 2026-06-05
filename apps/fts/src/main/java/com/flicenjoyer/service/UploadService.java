@@ -6,8 +6,8 @@ import com.flicenjoyer.db.CatalogRepository;
 import com.flicenjoyer.model.Movie;
 import com.flicenjoyer.valkey.AppPaths;
 import com.flicenjoyer.valkey.HashParser;
+import com.flicenjoyer.valkey.ValkeyClient;
 import com.flicenjoyer.valkey.ValkeyKeys;
-import glide.api.GlideClient;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -19,10 +19,10 @@ import java.util.concurrent.ExecutionException;
 /** Handles video upload: copies media, writes to DB, then populates Valkey cache. */
 public class UploadService {
 
-  private final GlideClient client;
+  private final ValkeyClient client;
   private final CatalogRepository catalogRepo;
 
-  public UploadService(GlideClient client, CatalogRepository catalogRepo) {
+  public UploadService(ValkeyClient client, CatalogRepository catalogRepo) {
     this.client = client;
     this.catalogRepo = catalogRepo;
   }
@@ -37,6 +37,11 @@ public class UploadService {
       Path videoFile,
       Path thumbnailFile)
       throws IOException, ExecutionException, InterruptedException {
+
+    if (title == null || title.isBlank()) throw new IllegalArgumentException("title is required");
+    if (genre == null || genre.isBlank()) throw new IllegalArgumentException("genre is required");
+    if (videoFile == null || !Files.exists(videoFile))
+      throw new IllegalArgumentException("videoFile must exist");
 
     var id = UUID.randomUUID().toString();
 

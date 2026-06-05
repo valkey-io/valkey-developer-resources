@@ -5,7 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.flicenjoyer.db.CatalogRepository;
-import glide.api.GlideClient;
+import com.flicenjoyer.valkey.ValkeyClient;
 import glide.api.models.GlideString;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -38,7 +38,7 @@ class UploadServiceTest {
 
   @Test
   void uploadVideoStoresHashInValkey(@TempDir Path tempDir) throws Exception {
-    var client = mock(GlideClient.class);
+    var client = mock(ValkeyClient.class);
     var catalogRepo = mock(CatalogRepository.class);
     when(client.hset(any(GlideString.class), any(Map.class)))
         .thenReturn(CompletableFuture.completedFuture(10L));
@@ -60,7 +60,7 @@ class UploadServiceTest {
 
   @Test
   void uploadVideoWithoutThumbnail(@TempDir Path tempDir) throws Exception {
-    var client = mock(GlideClient.class);
+    var client = mock(ValkeyClient.class);
     var catalogRepo = mock(CatalogRepository.class);
     when(client.hset(any(GlideString.class), any(Map.class)))
         .thenReturn(CompletableFuture.completedFuture(10L));

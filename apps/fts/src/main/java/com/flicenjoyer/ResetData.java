@@ -1,12 +1,12 @@
 package com.flicenjoyer;
 
-import static glide.api.models.GlideString.gs;
-
 import com.flicenjoyer.db.DatabaseProvider;
 import com.flicenjoyer.valkey.AppConfig;
 import com.flicenjoyer.valkey.AppPaths;
 import com.flicenjoyer.valkey.ValkeyClientProvider;
 import com.flicenjoyer.valkey.ValkeyKeys;
+import glide.api.GlideClient;
+import glide.api.models.commands.scan.ScanOptions;
 
 /** CLI utility to erase all data from PostgreSQL, Valkey, and local media files. */
 public class ResetData {
@@ -32,26 +32,19 @@ public class ResetData {
     try (var provider = new ValkeyClientProvider(config.valkeyHost(), config.valkeyPort())) {
       var client = provider.getClient();
 
-      var catalogKeys = client.keys(gs(ValkeyKeys.CATALOG_PREFIX + "*")).get();
-      var watchKeys = client.keys(gs(ValkeyKeys.WATCH_PREFIX + "*")).get();
-
       int deleted = 0;
-      if (catalogKeys.length > 0) {
-        client.del(catalogKeys).get();
-        deleted += catalogKeys.length;
-      }
-      if (watchKeys.length > 0) {
-        client.del(watchKeys).get();
-        deleted += watchKeys.length;
-      }
+      deleted += scanAndDelete(client, ValkeyKeys.CATALOG_PREFIX + "*");
+      int catalogCount = deleted;
+      deleted += scanAndDelete(client, ValkeyKeys.WATCH_PREFIX + "*");
+      int watchCount = deleted - catalogCount;
 
       System.out.println(
           "Deleted "
               + deleted
               + " Valkey keys ("
-              + catalogKeys.length
+              + catalogCount
               + " catalog, "
-              + watchKeys.length
+              + watchCount
               + " watch)");
     }
 
@@ -68,5 +61,21 @@ public class ResetData {
     }
 
     System.out.println("Reset complete.");
+  }
+
+  private static int scanAndDelete(GlideClient client, String pattern) throws Exception {
+    var opts = ScanOptions.builder().matchPattern(pattern).count(100L).build();
+    String cursor = "0";
+    int deleted = 0;
+    do {
+      Object[] result = client.scan(cursor, opts).get();
+      cursor = (String) result[0];
+      String[] keys = (String[]) result[1];
+      if (keys.length > 0) {
+        client.del(keys).get();
+        deleted += keys.length;
+      }
+    } while (!cursor.equals("0"));
+    return deleted;
   }
 }

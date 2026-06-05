@@ -4,6 +4,7 @@ import static glide.api.models.GlideString.gs;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.flicenjoyer.valkey.ValkeyClientProvider;
+import com.flicenjoyer.valkey.ValkeyClient;
 import glide.api.GlideClient;
 import glide.api.commands.servermodules.FT;
 import glide.api.models.commands.FT.FTCreateOptions;
@@ -45,12 +46,14 @@ class CatalogServiceIntegrationTest {
           .waitingFor(Wait.forLogMessage(".*Ready to accept connections.*", 1));
 
   static ValkeyClientProvider provider;
-  static GlideClient client;
+  static ValkeyClient client;
+  static GlideClient rawClient;
 
   @BeforeAll
   static void setUp() throws Exception {
     provider = new ValkeyClientProvider(valkey.getHost(), valkey.getMappedPort(6379));
-    client = provider.getClient();
+    client = provider.getValkeyClient();
+    rawClient = provider.getClient();
   }
 
   @AfterAll
@@ -65,7 +68,7 @@ class CatalogServiceIntegrationTest {
     // Use default weight (1.0) with withSuffixTrie and sortable.
     var result =
         FT.create(
-                client,
+                rawClient,
                 "idx:catalog",
                 new FieldInfo[] {
                   new FieldInfo("title", new TextField(false, 1.0, true, false, true)),
@@ -142,7 +145,7 @@ class CatalogServiceIntegrationTest {
   @Order(3)
   void exactSearch() throws Exception {
     var result =
-        FT.search(client, "idx:catalog", "@title:Inception", FTSearchOptions.builder().build())
+        FT.search(rawClient, "idx:catalog", "@title:Inception", FTSearchOptions.builder().build())
             .get();
     assertTrue((Long) result[0] >= 1, "Expected at least 1 result for exact 'Inception'");
   }
@@ -151,7 +154,7 @@ class CatalogServiceIntegrationTest {
   @Order(4)
   void prefixSearch() throws Exception {
     var result =
-        FT.search(client, "idx:catalog", "@title:Incep*", FTSearchOptions.builder().build()).get();
+        FT.search(rawClient, "idx:catalog", "@title:Incep*", FTSearchOptions.builder().build()).get();
     assertTrue((Long) result[0] >= 1, "Expected at least 1 result for prefix 'Incep*'");
   }
 
@@ -159,7 +162,7 @@ class CatalogServiceIntegrationTest {
   @Order(5)
   void genreTagFilter() throws Exception {
     var result =
-        FT.search(client, "idx:catalog", "@genre:{Sci\\-Fi}", FTSearchOptions.builder().build())
+        FT.search(rawClient, "idx:catalog", "@genre:{Sci\\-Fi}", FTSearchOptions.builder().build())
             .get();
     assertTrue((Long) result[0] >= 2, "Expected at least 2 Sci-Fi results");
   }
@@ -169,7 +172,7 @@ class CatalogServiceIntegrationTest {
   void sortByRating() throws Exception {
     var result =
         FT.search(
-                client,
+                rawClient,
                 "idx:catalog",
                 "@genre:{Sci\\-Fi}",
                 FTSearchOptions.builder().sortBy("rating", FTSearchOptions.SortOrder.DESC).build())

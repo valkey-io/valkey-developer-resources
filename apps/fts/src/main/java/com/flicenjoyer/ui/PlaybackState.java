@@ -12,6 +12,9 @@ import javafx.scene.layout.StackPane;
 /** Determines the playback action label for a video based on its watch state. */
 public class PlaybackState {
 
+  private static final java.util.logging.Logger LOG =
+      java.util.logging.Logger.getLogger(PlaybackState.class.getName());
+
   public enum Action {
     PLAY("Play", "play"),
     RESUME("Resume", "play"),
@@ -93,7 +96,10 @@ public class PlaybackState {
     if (whs == null || movie == null) return;
     try {
       addProgressBar(thumb, movie, whs.getResumePoint(movie.id()));
-    } catch (Exception ignored) {
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    } catch (Exception e) {
+      LOG.fine("[playback] Failed to get resume point for " + movie.id() + ": " + e.getMessage());
     }
   }
 
@@ -110,6 +116,9 @@ public class PlaybackState {
     if (whs == null || movie == null) return Action.PLAY;
     try {
       return resolve(movie, whs.getResumePoint(movie.id()));
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return Action.PLAY;
     } catch (Exception e) {
       return Action.PLAY;
     }

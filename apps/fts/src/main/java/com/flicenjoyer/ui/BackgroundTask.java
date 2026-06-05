@@ -11,13 +11,7 @@ import java.util.logging.Logger;
 public abstract class BackgroundTask {
 
   private static final Logger LOG = Logger.getLogger(BackgroundTask.class.getName());
-  private static final java.util.concurrent.ExecutorService EXECUTOR =
-      java.util.concurrent.Executors.newSingleThreadExecutor(
-          r -> {
-            var t = new Thread(r, "bg-task");
-            t.setDaemon(true);
-            return t;
-          });
+  private static final java.util.concurrent.ExecutorService EXECUTOR = UiExecutors.BACKGROUND;
 
   private final AtomicBoolean cancelled = new AtomicBoolean(false);
   private java.util.concurrent.Future<?> future;

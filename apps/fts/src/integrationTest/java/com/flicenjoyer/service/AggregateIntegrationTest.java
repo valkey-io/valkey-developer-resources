@@ -4,6 +4,7 @@ import static glide.api.models.GlideString.gs;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.flicenjoyer.valkey.ValkeyClientProvider;
+import com.flicenjoyer.valkey.ValkeyClient;
 import glide.api.GlideClient;
 import glide.api.commands.servermodules.FT;
 import glide.api.models.commands.FT.FTAggregateOptions;
@@ -50,12 +51,14 @@ class AggregateIntegrationTest {
           .waitingFor(Wait.forLogMessage(".*Ready to accept connections.*", 1));
 
   static ValkeyClientProvider provider;
-  static GlideClient client;
+  static ValkeyClient client;
+  static GlideClient rawClient;
 
   @BeforeAll
   static void setUp() throws Exception {
     provider = new ValkeyClientProvider(valkey.getHost(), valkey.getMappedPort(6379));
-    client = provider.getClient();
+    client = provider.getValkeyClient();
+    rawClient = provider.getClient();
   }
 
   @AfterAll
@@ -67,7 +70,7 @@ class AggregateIntegrationTest {
   @Order(1)
   void createIndexes() throws Exception {
     FT.create(
-            client,
+            rawClient,
             "idx:agg_catalog",
             new FieldInfo[] {
               new FieldInfo("title", new TextField()),
@@ -82,7 +85,7 @@ class AggregateIntegrationTest {
         .get();
 
     FT.create(
-            client,
+            rawClient,
             "idx:agg_watch",
             new FieldInfo[] {
               new FieldInfo("userId", new TagField()),
@@ -255,7 +258,7 @@ class AggregateIntegrationTest {
   void aggregateCatalogByGenre() throws Exception {
     var results =
         FT.aggregate(
-                client,
+                rawClient,
                 "idx:agg_catalog",
                 "@releaseYear:[0 9999]",
                 FTAggregateOptions.builder()
@@ -285,7 +288,7 @@ class AggregateIntegrationTest {
   void aggregateTopVideosByViewerCount() throws Exception {
     var results =
         FT.aggregate(
-                client,
+                rawClient,
                 "idx:agg_watch",
                 "@lastWatched:[0 9999999999]",
                 FTAggregateOptions.builder()
@@ -318,7 +321,7 @@ class AggregateIntegrationTest {
         BenchmarkService.benchmark(
             () ->
                 FT.search(
-                        client,
+                        rawClient,
                         "idx:agg_catalog",
                         "@genre:{Sci\\-Fi}",
                         glide.api.models.commands.FT.FTSearchOptions.builder().build())
@@ -344,7 +347,7 @@ class AggregateIntegrationTest {
         BenchmarkService.benchmark(
             () ->
                 FT.aggregate(
-                        client,
+                        rawClient,
                         "idx:agg_catalog",
                         "@releaseYear:[0 9999]",
                         FTAggregateOptions.builder()
@@ -372,7 +375,7 @@ class AggregateIntegrationTest {
   void createProductionIndexes() throws Exception {
     // Create indexes matching ValkeyKeys constants for service-layer tests
     FT.create(
-            client,
+            rawClient,
             "idx:catalog",
             new FieldInfo[] {
               new FieldInfo("title", new TextField()),
@@ -387,7 +390,7 @@ class AggregateIntegrationTest {
         .get();
 
     FT.create(
-            client,
+            rawClient,
             "idx:watch",
             new FieldInfo[] {
               new FieldInfo("userId", new TagField()),

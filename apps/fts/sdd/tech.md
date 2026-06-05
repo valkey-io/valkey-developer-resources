@@ -2,10 +2,10 @@
 
 ## Runtime
 
-- Java 21 (LTS)
+- Java 26
 - JavaFX (GUI frontend)
 - Gradle (build system)
-- Use Java 21 language features: records, `instanceof` pattern matching, `.toList()` on streams, `List.of()` / `Map.of()` for immutable collections, `var` for local type inference
+- Use Java 21+ language features: records, `instanceof` pattern matching, `.toList()` on streams, `List.of()` / `Map.of()` for immutable collections, `var` for local type inference
 - Accessibility: keyboard shortcuts for key interactions where applicable (e.g., media playback keys, numeric keys for rating)
 - Non-blocking UI: no Valkey calls, disk I/O, or network I/O on the JavaFX Application Thread. All data access must be async. Thumbnails use `backgroundLoading=true` with `preserveRatio=true` fit-within scaling (no cropping or stretching). See [design-frontend.md](design-frontend.md#threading--non-blocking-ui) for patterns and principles.
 
@@ -58,7 +58,7 @@ However, prioritize using [glide-vss-1.2-api.md](glide-vss-1.2-api.md) for speci
 
 ## Development Tooling
 
-- Java 21
+- Java 26
 - Gradle with Kotlin DSL
 - JUnit 5 for unit testing
 - Mockito for mocking Valkey interactions (GlideClient) in unit tests — service and valkey layer methods that call Valkey must be tested via mocked GlideClient, not a live instance

@@ -109,7 +109,11 @@ public class SearchView {
             if (pendingQuery.get() != null) break;
             try {
               resumePoints.put(m.id(), watchHistoryService.getResumePoint(m.id()));
-            } catch (Exception ignored) {
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+              break;
+            } catch (Exception e) {
+              resumePoints.put(m.id(), 0L);
             }
           }
         }

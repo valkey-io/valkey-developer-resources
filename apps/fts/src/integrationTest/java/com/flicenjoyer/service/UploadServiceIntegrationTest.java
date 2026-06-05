@@ -4,7 +4,7 @@ import static glide.api.models.GlideString.gs;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.flicenjoyer.valkey.ValkeyClientProvider;
-import glide.api.GlideClient;
+import com.flicenjoyer.valkey.ValkeyClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.AfterAll;
@@ -29,12 +29,12 @@ class UploadServiceIntegrationTest {
           .waitingFor(Wait.forLogMessage(".*Ready to accept connections.*", 1));
 
   static ValkeyClientProvider provider;
-  static GlideClient client;
+  static ValkeyClient client;
 
   @BeforeAll
   static void setUp() throws Exception {
     provider = new ValkeyClientProvider(valkey.getHost(), valkey.getMappedPort(6379));
-    client = provider.getClient();
+    client = provider.getValkeyClient();
   }
 
   @AfterAll
