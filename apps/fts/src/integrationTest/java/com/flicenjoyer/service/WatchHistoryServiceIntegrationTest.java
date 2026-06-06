@@ -34,6 +34,14 @@ class WatchHistoryServiceIntegrationTest {
           .withExposedPorts(6379)
           .waitingFor(Wait.forLogMessage(".*Ready to accept connections.*", 1));
 
+  @Container
+  static org.testcontainers.containers.PostgreSQLContainer<?> postgres =
+      new org.testcontainers.containers.PostgreSQLContainer<>("postgres:17")
+          .withDatabaseName("flicenjoyer")
+          .withUsername("flicenjoyer")
+          .withPassword("flicenjoyer")
+          .withInitScript("schema.sql");
+
   static ValkeyClientProvider provider;
   static ValkeyClient client;
   static GlideClient rawClient;
@@ -45,12 +53,41 @@ class WatchHistoryServiceIntegrationTest {
     provider = new ValkeyClientProvider(valkey.getHost(), valkey.getMappedPort(6379));
     client = provider.getValkeyClient();
     rawClient = provider.getClient();
+    var ds = new com.zaxxer.hikari.HikariDataSource();
+    ds.setJdbcUrl(postgres.getJdbcUrl());
+    ds.setUsername("flicenjoyer");
+    ds.setPassword("flicenjoyer");
+    var watchRepo = new com.flicenjoyer.db.WatchHistoryRepository(ds);
     // Create a temp profile file so UserProfileManager loads our test user
     var profileFile = tempDir.resolve("profile.yaml");
     Files.writeString(profileFile, "userId: " + TEST_USER + "\ndisplayName: Test User\n");
     var profile = new UserProfileManager(profileFile);
     profile.load();
-    service = new WatchHistoryService(client, profile, null);
+    service = new WatchHistoryService(client, profile, watchRepo);
+
+    // Create watch index for FT.SEARCH queries
+    glide.api.commands.servermodules.FT.create(
+            rawClient,
+            "idx:watch",
+            new glide.api.models.commands.FT.FTCreateOptions.FieldInfo[] {
+              new glide.api.models.commands.FT.FTCreateOptions.FieldInfo(
+                  "userId", new glide.api.models.commands.FT.FTCreateOptions.TagField()),
+              new glide.api.models.commands.FT.FTCreateOptions.FieldInfo(
+                  "catalogId", new glide.api.models.commands.FT.FTCreateOptions.TagField()),
+              new glide.api.models.commands.FT.FTCreateOptions.FieldInfo(
+                  "title", new glide.api.models.commands.FT.FTCreateOptions.TextField()),
+              new glide.api.models.commands.FT.FTCreateOptions.FieldInfo(
+                  "resumeTimestamp", new glide.api.models.commands.FT.FTCreateOptions.NumericField()),
+              new glide.api.models.commands.FT.FTCreateOptions.FieldInfo(
+                  "completed", new glide.api.models.commands.FT.FTCreateOptions.TagField()),
+              new glide.api.models.commands.FT.FTCreateOptions.FieldInfo(
+                  "lastWatched", new glide.api.models.commands.FT.FTCreateOptions.NumericField(true)),
+            },
+            glide.api.models.commands.FT.FTCreateOptions.builder()
+                .dataType(glide.api.models.commands.FT.FTCreateOptions.DataType.HASH)
+                .prefixes(new String[] {"watch:"})
+                .build())
+        .get();
   }
 
   @AfterAll

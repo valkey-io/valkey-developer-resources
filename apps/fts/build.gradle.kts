@@ -52,6 +52,7 @@ dependencies {
         exclude(group = "com.google.protobuf")
     }
     "integrationTestImplementation"("org.testcontainers:junit-jupiter:1.21.0")
+    "integrationTestImplementation"("org.testcontainers:postgresql:1.21.0")
     "integrationTestImplementation"("com.github.docker-java:docker-java-api:3.4.1")
     "integrationTestImplementation"("com.github.docker-java:docker-java-transport-zerodep:3.4.1")
     "integrationTestRuntimeOnly"("org.junit.platform:junit-platform-launcher")
