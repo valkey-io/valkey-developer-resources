@@ -1,1 +1,4 @@
+# First install ChatDev with Valkey support:
+#   git clone https://github.com/OpenBMB/ChatDev.git
+#   cd ChatDev && pip install -e ".[valkey]"
 valkey-glide-sync>=2.4
