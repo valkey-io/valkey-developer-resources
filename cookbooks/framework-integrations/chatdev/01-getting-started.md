@@ -23,6 +23,7 @@ Keys follow the pattern `{key_prefix}{uuid}` (default: `memory:{uuid}`).
 
 - Docker installed
 - Python 3.12+
+- An LLM API key (for embeddings — e.g., OpenAI, or use a local sentence-transformers model)
 
 ## Step 1: Start Valkey
 

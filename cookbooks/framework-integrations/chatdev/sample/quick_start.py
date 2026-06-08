@@ -1,123 +1,94 @@
 # -*- coding: utf-8 -*-
 """Cookbook 01 - Getting Started with ChatDev + Valkey.
 
-Demonstrates: connecting to Valkey, creating an FT index, storing memory
-items with synthetic embeddings, running KNN vector search, and cleanup.
-
-No API key required — uses hardcoded vectors to demonstrate the
-ValkeyMemory storage and retrieval mechanics.
+Demonstrates: creating a ValkeyMemory store, storing memories via update(),
+retrieving relevant memories via retrieve(), and verifying persistence.
 
 Prerequisites:
     docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:latest
-    pip install valkey-glide-sync
+    cd ChatDev && pip install -e ".[valkey]"
+    export API_KEY="sk-..."
+    export BASE_URL="https://api.openai.com/v1"
+
+Note: Run this script from the ChatDev project root (where runtime/ is importable).
 """
 
 from __future__ import annotations
 
-import struct
-import time
-import uuid
+import sys
+import os
 
-import glide_sync
+# Add ChatDev project root to path (when running from outside the project)
+CHATDEV_ROOT = os.environ.get("CHATDEV_ROOT", os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, CHATDEV_ROOT)
+
+from entity.configs.node.memory import MemoryStoreConfig
+from runtime.node.agent.memory.builtin_stores import MemoryFactory
+from runtime.node.agent.memory.memory_base import (
+    MemoryContentSnapshot,
+    MemoryWritePayload,
+)
 
 
 def main() -> None:
     """Run the quick start example."""
     print("=== ChatDev + Valkey: Quick Start ===\n")
 
-    # 1. Connect to Valkey
-    config = glide_sync.GlideClientConfiguration(
-        addresses=[glide_sync.NodeAddress("localhost", 6379)]
-    )
-    client = glide_sync.GlideClient.create(config)
-    print("Connected to Valkey\n")
+    # 1. Define the memory store config (same structure as workflow YAML)
+    store_data = {
+        "name": "chatdev_memory",
+        "type": "valkey",
+        "config": {
+            "host": "localhost",
+            "port": 6379,
+            "index_name": "quickstart_memory",
+            "key_prefix": "quickstart:",
+            "ttl_seconds": 300,
+            "embedding": {
+                "provider": "openai",
+                "model": "text-embedding-3-small",
+            },
+        },
+    }
+    store = MemoryStoreConfig.from_dict(store_data, path="quickstart")
+    print(f"Configured store: type={store.type}, index={store.config.index_name}")
 
-    # 2. Create an FT index (same schema ValkeyMemory uses)
-    index_name = "quickstart_memory"
-    prefix = "memory:"
-    dim = 3  # Synthetic 3-dim vectors for demo
+    # 2. Create the ValkeyMemory instance via the factory
+    memory = MemoryFactory.create_memory(store)
+    print(f"Created ValkeyMemory (name={memory.name})\n")
 
-    schema = [
-        glide_sync.TagField("content_summary"),
-        glide_sync.TagField("agent_role"),
-        glide_sync.NumericField("timestamp"),
-        glide_sync.VectorField(
-            "embedding",
-            glide_sync.VectorAlgorithm.HNSW,
-            glide_sync.VectorFieldAttributesHnsw(
-                dimensions=dim,
-                distance_metric=glide_sync.DistanceMetricType.COSINE,
-                type=glide_sync.VectorType.FLOAT32,
-            ),
-        ),
-    ]
-    options = glide_sync.FtCreateOptions(glide_sync.DataType.HASH, prefixes=[prefix])
-
-    try:
-        glide_sync.ft.create(client, index_name, schema, options)
-        print(f"Created FT index '{index_name}' (HNSW, COSINE, dim={dim})")
-    except Exception as exc:
-        if "already exists" in str(exc).lower():
-            print(f"Index '{index_name}' already exists")
-        else:
-            raise
-
-    # 3. Store memory items (same as ValkeyMemory.update())
-    memories = [
-        ("Python is great for data science", [0.9, 0.1, 0.2], "coder"),
-        ("The UI should follow material design", [0.1, 0.9, 0.2], "designer"),
-        ("We need integration tests for the API", [0.8, 0.2, 0.3], "coder"),
-        ("Use a dark theme for the dashboard", [0.2, 0.8, 0.4], "designer"),
+    # 3. Store some memories using update()
+    print("--- Storing Memories ---")
+    inputs = [
+        ("coder", "Python is great for data science and ML pipelines"),
+        ("designer", "The dashboard should use a dark theme with high contrast"),
+        ("coder", "We need integration tests for the authentication module"),
+        ("designer", "Use material design icons for the navigation bar"),
     ]
 
-    stored_keys = []
-    print(f"\nStoring {len(memories)} memory items...")
-    for text, embedding, role in memories:
-        key = f"{prefix}{uuid.uuid4().hex}"
-        embedding_bytes = struct.pack(f"{len(embedding)}f", *embedding)
-
-        client.hset(key, {
-            "content_summary": text,
-            "embedding": embedding_bytes,
-            "agent_role": role,
-            "timestamp": str(time.time()),
-        })
-        stored_keys.append(key)
+    for role, text in inputs:
+        payload = MemoryWritePayload(
+            agent_role=role,
+            inputs_text=text,
+            input_snapshot=MemoryContentSnapshot(text=text),
+            output_snapshot=None,
+        )
+        memory.update(payload)
         print(f"  [{role}] {text}")
 
-    # Small delay for indexing
-    time.sleep(0.5)
+    # 4. Retrieve relevant memories
+    print("\n--- Retrieving Memories (query='Python testing') ---")
+    query = MemoryContentSnapshot(text="Python testing")
+    results = memory.retrieve("coder", query, top_k=2, similarity_threshold=-1.0)
 
-    # 4. KNN vector search (same as ValkeyMemory.retrieve())
-    print("\n--- KNN Search (role=coder, top_k=2) ---")
-    query_vec = [0.85, 0.15, 0.25]  # Similar to coding-related memories
-    query_bytes = struct.pack(f"{len(query_vec)}f", *query_vec)
+    for item in results:
+        score = item.metadata.get("score", 0)
+        print(f"  [{score:.3f}] {item.content_summary}")
 
-    ft_query = "(@agent_role:{coder})=>[KNN 2 @embedding $vec]"
-    search_options = glide_sync.FtSearchOptions(
-        params={"vec": query_bytes},
-        dialect=2,
-    )
+    # 5. Check memory count
+    count = memory.count_memories()
+    print(f"\nTotal memories stored: {count}")
 
-    results = glide_sync.ft.search(client, index_name, ft_query, search_options)
-
-    if results:
-        count = results[0]
-        print(f"Found {count} results:")
-        for entry in results[1:]:
-            if isinstance(entry, dict):
-                for key, fields in entry.items():
-                    content = fields.get(b"content_summary", b"").decode()
-                    score = fields.get(b"__embedding_score", b"1.0").decode()
-                    similarity = 1.0 - float(score)
-                    print(f"  • {content} (similarity: {similarity:.3f})")
-
-    # 5. Cleanup
-    print("\n--- Cleanup ---")
-    glide_sync.ft.dropindex(client, index_name)
-    for key in stored_keys:
-        client.delete([key])
-    print(f"Dropped index and deleted {len(stored_keys)} keys")
     print("\nDone!")
 
 
