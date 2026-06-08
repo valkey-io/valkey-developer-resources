@@ -34,6 +34,13 @@ def main() -> None:
     """Run the quick start example."""
     print("=== ChatDev + Valkey: Quick Start ===\n")
 
+    # --- Validate API key ---
+    api_key = os.environ.get("API_KEY")
+    if not api_key:
+        print("ERROR: API_KEY environment variable is not set.")
+        print("  export API_KEY='sk-...'")
+        sys.exit(1)
+
     # 1. Define the memory store config (same structure as workflow YAML)
     store_data = {
         "name": "chatdev_memory",
