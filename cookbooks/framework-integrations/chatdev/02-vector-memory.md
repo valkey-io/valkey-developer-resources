@@ -21,7 +21,7 @@ FT.CREATE chatdev_memory
     embedding VECTOR HNSW 6 DIM 1536 DISTANCE_METRIC COSINE TYPE FLOAT32
 ```
 
-The dimension is determined dynamically from a test embedding — if you use `text-embedding-3-small` (1536-dim) vs `text-embedding-ada-002` (1536-dim) vs a local 768-dim model, the index adapts automatically.
+The dimension is determined dynamically from a test embedding — if you use `text-embedding-3-small` (1536-dim) vs `text-embedding-3-large` (3072-dim) vs a local 768-dim model, the index adapts automatically.
 
 ## Storing Memories
 
