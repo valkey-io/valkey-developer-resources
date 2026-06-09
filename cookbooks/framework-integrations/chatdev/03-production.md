@@ -180,6 +180,8 @@ Set alerts on:
 | `ttl_seconds` | int | None | Per-entry TTL (null = no expiry) |
 | `embedding` | object | — | EmbeddingConfig (provider, model, api_key) |
 
+> **Note:** GLIDE defaults to a 250ms request timeout, which assumes local-network latency. For remote deployments (cross-region, cloud-managed), increase this via `GlideClientConfiguration` in the ChatDev source if needed.
+
 ## When to Use ValkeyMemory vs Alternatives
 
 | Scenario | Recommended Backend |

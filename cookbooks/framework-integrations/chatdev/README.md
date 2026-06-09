@@ -1,5 +1,9 @@
 # ChatDev + Valkey
 
+## What is ChatDev?
+
+[ChatDev](https://github.com/OpenBMB/ChatDev) is a multi-agent workflow orchestration platform that runs LLM-powered agents collaboratively. The `ValkeyMemory` backend provides persistent vector memory via `valkey-glide-sync`.
+
 > 3 cookbooks for using Valkey as the persistent vector memory backend for ChatDev multi-agent workflows — session memory, HNSW-indexed retrieval, and production deployment via the valkey-glide-sync client.
 
 ## Cookbooks

@@ -25,6 +25,8 @@ The dimension is determined dynamically from a test embedding — if you use `te
 
 ## Storing Memories
 
+> **Note:** The snippets below show ValkeyMemory's internal implementation for reference — they are not standalone runnable code. Use the `quick_start.py` sample or the workflow YAML to interact with ValkeyMemory.
+
 When an agent processes input, `ValkeyMemory.update()` executes:
 
 ```python

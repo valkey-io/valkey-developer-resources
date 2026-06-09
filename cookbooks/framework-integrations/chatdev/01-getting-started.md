@@ -29,9 +29,14 @@ Keys follow the pattern `{key_prefix}{uuid}` (default: `memory:{uuid}`).
 
 ```bash
 docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:latest
+
+# Or with Podman:
+# podman run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:latest
 ```
 
 > To remove an existing container on re-run: `docker rm -f valkey`
+
+> ⚠️ This starts Valkey without authentication for local development only. Always enable authentication and TLS for production deployments — see [03 - Production](03-production.md).
 
 Verify it's running and Search is loaded:
 
@@ -154,4 +159,3 @@ Query text → embed(query) → FT.SEARCH index "(@agent_role:{role})=>[KNN 3 @e
 ## Next Steps
 
 - [02 - Vector Memory](02-vector-memory.md): Deep dive into retrieval, threshold tuning, and TTL
-- [03 - Production](03-production.md): TLS, ACL auth, and multi-process deployment

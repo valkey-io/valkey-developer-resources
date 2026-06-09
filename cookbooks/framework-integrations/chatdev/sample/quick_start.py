@@ -102,4 +102,9 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        print(f"\nERROR: {e}")
+        print("  Common causes: embedding API key invalid, network issue, or Valkey not running.")
+        sys.exit(1)
