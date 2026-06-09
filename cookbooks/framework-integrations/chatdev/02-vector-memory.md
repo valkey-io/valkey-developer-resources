@@ -77,7 +77,7 @@ memories:
 
 | Value | Behavior |
 |-------|----------|
-| `-1.0` | Return all top-k results (no filtering) |
+| `-1.0` | Return all top-k results (no filtering — any negative value disables the threshold check) |
 | `0.0` | Return everything with non-negative similarity |
 | `0.5` | Moderate filtering — good starting point |
 | `0.8` | Strict — only highly relevant memories |

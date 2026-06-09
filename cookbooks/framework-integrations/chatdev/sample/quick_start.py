@@ -18,10 +18,6 @@ from __future__ import annotations
 import sys
 import os
 
-# Add ChatDev project root to path (when running from outside the project)
-CHATDEV_ROOT = os.environ.get("CHATDEV_ROOT", os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, CHATDEV_ROOT)
-
 from entity.configs.node.memory import MemoryStoreConfig
 from runtime.node.agent.memory.builtin_stores import MemoryFactory
 from runtime.node.agent.memory.memory_base import (
