@@ -282,7 +282,7 @@ The default GLIDE client timeout is 250ms, which causes failures over network li
 
 | Issue | Solution |
 |-------|----------|
-| `CROSSSLOT` error in cluster mode | Ensure all keys use the same prefix — hash tag is derived from prefix |
+| `CROSSSLOT` error in cluster mode | `ValkeyMemoryService` uses single-key operations (HSET + EXPIRE per entry), so CROSSSLOT errors are unlikely. If you need multi-key atomicity (e.g., batch DEL), use hash-tag syntax in your prefix: `{adk:memory}:` to force all keys to one hash slot |
 | TLS handshake failure | Verify CA certificate trust chain; ElastiCache uses Amazon-managed CA |
 | Slow first query after restart | Index is created on first use — pre-warm by calling `create_index()` at startup |
 | Memory not expiring | Verify `ttl_seconds` is set in config; `None` disables TTL |

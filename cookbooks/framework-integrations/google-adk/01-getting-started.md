@@ -17,10 +17,10 @@ Google ADK (Agent Development Kit) is an open-source framework for building AI a
 
 ```bash
 # Using Docker
-docker run -d --name valkey-search -p 6379:6379 valkey/valkey-bundle:latest
+docker run -d --name valkey-search -p 127.0.0.1:6379:6379 valkey/valkey-bundle:latest
 
 # Using Podman
-podman run -d --name valkey-search -p 6379:6379 valkey/valkey-bundle:latest
+podman run -d --name valkey-search -p 127.0.0.1:6379:6379 valkey/valkey-bundle:latest
 ```
 
 The `valkey-bundle` image includes the Search module with HNSW vector indexing. Verify it's running:

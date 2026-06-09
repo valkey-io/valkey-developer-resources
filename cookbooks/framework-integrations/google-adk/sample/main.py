@@ -25,6 +25,7 @@ import os
 import sys
 
 from glide import GlideClient, GlideClientConfiguration, NodeAddress
+from google import genai
 from google.adk.events.event import Event
 from google.adk.sessions.session import Session
 from google.adk_community.memory import ValkeyMemoryService, ValkeyMemoryServiceConfig
@@ -36,14 +37,21 @@ VALKEY_PORT = int(os.environ.get("VALKEY_PORT", "6379"))
 MEMORY_TTL = int(os.environ.get("MEMORY_TTL_SECONDS", "3600"))
 
 
-from google import genai
+_genai_client = None
 
-genai_client = genai.Client()
+
+def _get_genai_client() -> genai.Client:
+    """Lazy-init genai client so auth errors surface inside main()'s try/except."""
+    global _genai_client
+    if _genai_client is None:
+        _genai_client = genai.Client()
+    return _genai_client
 
 
 async def embed_texts(texts: list[str]) -> list[list[float]]:
     """Generate embeddings using Google Gemini text-embedding-004."""
-    response = await genai_client.models.embed_content_async(
+    client = _get_genai_client()
+    response = await client.models.embed_content_async(
         model="text-embedding-004",
         contents=texts,
     )
@@ -179,7 +187,9 @@ async def main() -> None:
         await memory_service.add_session_to_memory(bob_session)
         print("✅ Stored 1 memory for bob")
 
-        # Allow index to propagate
+        # NOTE: Demo simplification. Valkey search indexes are near-real-time
+        # but not instant. Production code should use retry logic for
+        # immediate-after-write reads.
         await asyncio.sleep(0.5)
 
         # --- Step 5: Search memories ---
@@ -220,8 +230,8 @@ async def main() -> None:
                     await client.delete(keys)
                 if cursor == b"0":
                     break
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"⚠️ Cleanup incomplete: {e}", file=sys.stderr)
 
         print("\n" + "=" * 60)
         print("Demo complete!")
