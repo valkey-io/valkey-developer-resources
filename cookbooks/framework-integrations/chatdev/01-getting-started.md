@@ -28,8 +28,10 @@ Keys follow the pattern `{key_prefix}{uuid}` (default: `memory:{uuid}`).
 ## Step 1: Start Valkey
 
 ```bash
-docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:latest
+docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:latest
 ```
+
+> To remove an existing container on re-run: `docker rm -f valkey`
 
 Verify it's running and Search is loaded:
 
@@ -122,7 +124,7 @@ On first run, ValkeyMemory will:
 docker exec valkey valkey-cli FT.INFO chatdev_memory
 
 # See stored memory keys
-docker exec valkey valkey-cli KEYS "memory:*"
+docker exec valkey valkey-cli SCAN 0 MATCH "memory:*" COUNT 100
 
 # Inspect a memory item
 docker exec valkey valkey-cli HGETALL "memory:<uuid>"

@@ -54,6 +54,7 @@ def main() -> None:
             "embedding": {
                 "provider": "openai",
                 "model": "text-embedding-3-small",
+                "api_key": api_key,
             },
         },
     }
@@ -61,7 +62,12 @@ def main() -> None:
     print(f"Configured store: type={store.type}, index={store.config.index_name}")
 
     # 2. Create the ValkeyMemory instance via the factory
-    memory = MemoryFactory.create_memory(store)
+    try:
+        memory = MemoryFactory.create_memory(store)
+    except Exception as e:
+        print(f"ERROR: Could not initialize ValkeyMemory: {e}")
+        print("  Ensure Valkey is running: docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:latest")
+        sys.exit(1)
     print(f"Created ValkeyMemory (name={memory.name})\n")
 
     # 3. Store some memories using update()

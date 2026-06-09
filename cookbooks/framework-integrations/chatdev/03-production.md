@@ -54,8 +54,8 @@ memory:
 Set up the ACL on the Valkey server:
 
 ```bash
-# Create a user with permissions for memory operations
-ACL SETUSER chatdev_app on >${VALKEY_PASSWORD} ~memory:* +HSET +HGETALL +EXPIRE +DEL +FT.CREATE +FT.SEARCH +FT.INFO
+# Run from bash (not inside valkey-cli). Replace 'yourpassword' with the actual password.
+valkey-cli ACL SETUSER chatdev_app on ">yourpassword" ~memory:* +HSET +HGETALL +EXPIRE +DEL +FT.CREATE +FT.SEARCH +FT.INFO
 ```
 
 This restricts the application to only the commands and key patterns it needs.
@@ -147,6 +147,8 @@ Key properties:
 
 Track memory usage and search performance:
 
+> These commands assume `valkey-cli` is installed locally and can reach the Valkey server directly (production deployments). For Docker-based dev setups, prefix with `docker exec valkey`.
+
 ```bash
 # Document count
 valkey-cli FT.INFO prod_memory | grep num_docs
@@ -155,13 +157,13 @@ valkey-cli FT.INFO prod_memory | grep num_docs
 valkey-cli FT.INFO prod_memory | grep space_usage
 
 # Index status
-valkey-cli FT.INFO prod_memory | grep index_status
+valkey-cli FT.INFO prod_memory | grep indexing
 ```
 
 Set alerts on:
 - `num_docs` growing beyond expected bounds (indicates TTL not working)
 - `space_usage` approaching memory limits
-- `index_status` != `AVAILABLE` (index is degraded or rebuilding)
+- `indexing` = 1 for extended periods (index is still building)
 
 ## Configuration Reference
 

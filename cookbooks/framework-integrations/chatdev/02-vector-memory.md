@@ -46,6 +46,8 @@ if self.config.ttl_seconds:
     self._client.expire(key, self.config.ttl_seconds)
 ```
 
+> **Note:** `HSET` and `EXPIRE` are two separate commands. If the process crashes between them, the key persists without a TTL. For critical TTL guarantees, consider wrapping both in a transaction or Lua script.
+
 ## Retrieving Memories
 
 `ValkeyMemory.retrieve()` runs a KNN vector search:
@@ -57,7 +59,6 @@ ft_query = "(@agent_role:{coder})=>[KNN 3 @embedding $vec]"
 # Execute search
 results = ft.search(client, index_name, ft_query, FtSearchOptions(
     params={"vec": query_bytes},
-    dialect=2,
 ))
 ```
 
