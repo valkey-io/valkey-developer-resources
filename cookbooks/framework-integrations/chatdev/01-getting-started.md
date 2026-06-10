@@ -28,7 +28,7 @@ Keys follow the pattern `{key_prefix}{uuid}` (default: `memory:{uuid}`).
 ## Step 1: Start Valkey
 
 ```bash
-docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:latest
+docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:latest
 ```
 
 > To remove an existing container on re-run: `docker rm -f valkey`
