@@ -61,6 +61,7 @@ ft_query = "(@agent_role:{coder})=>[KNN 3 @embedding $vec]"
 # Execute search
 results = ft.search(client, index_name, ft_query, FtSearchOptions(
     params={"vec": query_bytes},
+    dialect=2,
 ))
 ```
 
