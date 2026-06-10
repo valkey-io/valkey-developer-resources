@@ -20,7 +20,7 @@ NVIDIA Dynamo orchestrates multiple inference workers with intelligent request r
         │ Worker 0 │  │Worker 1 │  │Worker 2 │
         │  vLLM    │  │  vLLM   │  │  vLLM   │
         │+LMCache  │  │+LMCache │  │+LMCache │
-        │ sidecar  │  │ sidecar │  │ sidecar │
+        │ (GLIDE)  │  │ (GLIDE) │  │ (GLIDE) │
         └────┬─────┘  └────┬────┘  └────┬────┘
              │              │             │
              └──────────────┼─────────────┘
@@ -40,11 +40,22 @@ NVIDIA Dynamo orchestrates multiple inference workers with intelligent request r
 
 ## Step 1: Start Valkey
 
+> **Note:** LMCache uses standard Valkey commands (`SET`/`GET`) for KV cache storage — no search or JSON modules are required. The base `valkey/valkey` image is sufficient.
+
 ```bash
 docker run -d \
   --name valkey \
   --network host \
-  valkey/valkey:8 \
+  valkey/valkey:9.1.0 \
+  valkey-server --maxmemory 8gb --maxmemory-policy allkeys-lru
+```
+
+```bash
+# Or with podman (for Valkey only — Dynamo container requires Docker + NVIDIA Container Toolkit):
+podman run -d \
+  --name valkey \
+  --network host \
+  valkey/valkey:9.1.0 \
   valkey-server --maxmemory 8gb --maxmemory-policy allkeys-lru
 ```
 
@@ -57,68 +68,73 @@ docker exec valkey valkey-cli PING
 # PONG
 ```
 
+> ⚠️ This example connects without authentication for local development. Always enable authentication and TLS for production deployments. See [03 - Production Deployment](03-production-deployment.md) for the secure configuration.
+
 ## Step 2: Pull the Dynamo Container
 
 ```bash
 docker run --gpus all --network host --rm -it \
+  -e HF_TOKEN \
   nvcr.io/nvidia/ai-dynamo/vllm-runtime:1.1.1
 ```
 
 This image includes Dynamo, vLLM, and LMCache pre-installed.
 
-> **Hugging Face token required for gated models.** Set `export HF_TOKEN=hf_…` before launching if using Llama, Kimi, or other gated models.
+> **Hugging Face token required for gated models.** Set `export HF_TOKEN=hf_…` before launching if using Llama, Kimi, or other gated models. The `-e HF_TOKEN` flag forwards it into the container.
 
-## Step 3: Start the LMCache Sidecar
+> **Multiple terminals:** Steps 3–5 each need their own shell inside the container. Open additional shells with `docker exec -it <container_id> bash`, or start `tmux` inside the container before proceeding.
 
-Inside the container, launch the LMCache MP server. This is the out-of-process cache engine that manages L1 (CPU RAM) and L2 (Valkey) storage:
+## Step 2b: Install valkey-glide
+
+LMCache's Valkey connector uses the GLIDE client, which is not pre-installed in the Dynamo container. Install it:
 
 ```bash
-lmcache server \
-  --l1-size-gb 5 \
-  --eviction-policy LRU \
-  --l2-adapter '{"type": "resp", "host": "localhost", "port": 6379}' \
-  --chunk-size 256 &
+pip install valkey-glide
 ```
 
-Configuration:
-- **`--l1-size-gb 5`**: 5 GB of host RAM as fast L1 cache
-- **`--eviction-policy LRU`**: Evict least-recently-used blocks when L1 is full
-- **`--l2-adapter '{"type": "resp", ...}'`**: Use the RESP adapter for Valkey/Redis as L2 backend
-- **`--chunk-size 256`**: Split KV cache into 256-token chunks
+## Step 3: Start the Dynamo Frontend
 
-## Step 4: Start the Dynamo Frontend
-
-In a separate terminal (or background the sidecar), start the frontend:
+Inside the container, start the frontend:
 
 ```bash
 python3 -m dynamo.frontend \
   --discovery-backend file \
-  --http-port 8000
+  --http-port 8000 &
 ```
 
 `--discovery-backend file` avoids needing etcd for single-node setups.
 
-## Step 5: Start a vLLM Worker
+## Step 4: Start a vLLM Worker with Valkey KV Cache
 
-In another terminal, launch the vLLM backend worker with LMCache enabled:
+In the same container, launch the vLLM backend worker with LMCache configured to use Valkey via GLIDE:
 
 ```bash
+LMCACHE_REMOTE_URL="valkey://localhost:6379" \
+LMCACHE_REMOTE_SERDE="naive" \
+LMCACHE_LOCAL_CPU=true \
+LMCACHE_MAX_LOCAL_CPU_SIZE=5.0 \
+LMCACHE_CHUNK_SIZE=256 \
 python3 -m dynamo.vllm \
   --model Qwen/Qwen3-0.6B \
   --discovery-backend file \
   --gpu-memory-utilization 0.85 \
-  --disable-hybrid-kv-cache-manager \
-  --kv-transfer-config '{"kv_connector":"LMCacheMPConnector","kv_role":"kv_both"}'
+  --kv-transfer-config '{"kv_connector":"LMCacheConnectorV1","kv_role":"kv_both"}'
 ```
 
 Key parameters:
-- **`kv_connector: LMCacheMPConnector`**: Connects to the LMCache sidecar process
+- **`LMCACHE_REMOTE_URL`**: Valkey endpoint — LMCache uses GLIDE to connect
+- **`LMCACHE_REMOTE_SERDE`**: Serialization format (`naive` = fast, uncompressed)
+- **`LMCACHE_LOCAL_CPU`**: Enable CPU RAM as L1 cache (fast, per-worker)
+- **`kv_connector: LMCacheConnectorV1`**: In-process KV cache connector
 - **`kv_role: kv_both`**: This worker both stores and loads cached KV data
-- **`--disable-hybrid-kv-cache-manager`**: Required when using LMCache for external KV management
 
-Wait until you see the worker register with the frontend.
+Wait until you see the worker register with the frontend. Verify with:
 
-## Step 6: Test the Integration
+```bash
+curl -sf http://localhost:8000/health && echo OK
+```
+
+## Step 5: Test the Integration
 
 **First request (cold — computes and stores KV cache):**
 
@@ -148,7 +164,7 @@ curl -s http://localhost:8000/v1/chat/completions \
 
 LMCache loads the KV cache from L1 or L2 — skipping the expensive prefill computation.
 
-## Step 7: Verify Cache in Valkey
+## Step 6: Verify Cache in Valkey
 
 ```bash
 docker exec valkey valkey-cli DBSIZE
@@ -160,8 +176,8 @@ docker exec valkey valkey-cli DBSIZE
 | Tier | Backend | Latency | Scope |
 |------|---------|---------|-------|
 | GPU KV cache | VRAM | ~0 | Single request |
-| L1 (CPU) | Host RAM via LMCache sidecar | ~μs | Single worker |
-| L2 (Valkey) | Network via LMCache sidecar | ~1-5ms | Entire cluster |
+| L1 (CPU) | Host RAM via LMCache (in-process) | ~μs | Single worker |
+| L2 (Valkey) | Network via GLIDE client | ~1-5ms | Entire cluster |
 
 L1 is per-worker and fast. L2 (Valkey) is shared — when Worker 0 computes a KV cache and stores it to Valkey, Worker 1 can load it directly without recomputing. This is where the cluster-wide benefit comes from.
 
@@ -187,4 +203,4 @@ This starts the LMCache MP server, Dynamo frontend, and a vLLM worker with `LMCa
 
 ---
 
-[02 - KV-Aware Routing →](02-kv-cache-routing.md)
+[← Back to Dynamo + Valkey](README.md) · [02 - KV-Aware Routing →](02-kv-cache-routing.md)

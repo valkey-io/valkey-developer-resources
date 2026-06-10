@@ -63,20 +63,18 @@ All CLI arguments can also be set as environment variables with the `DYN_` prefi
 
 Workers must publish KV cache events so the router knows what's cached where. This happens automatically when using LMCache with the `LMCacheMPConnector`:
 
-```bash
-# Start LMCache sidecar (per worker)
-lmcache server \
-  --l1-size-gb 5 \
-  --eviction-policy LRU \
-  --l2-adapter '{"type": "resp", "host": "localhost", "port": 6379}' \
-  --chunk-size 256 &
+Workers connect to Valkey via GLIDE through the in-process `LMCacheConnectorV1`:
 
-# Start worker
+```bash
+LMCACHE_REMOTE_URL="valkey://localhost:6379" \
+LMCACHE_REMOTE_SERDE="naive" \
+LMCACHE_LOCAL_CPU=true \
+LMCACHE_MAX_LOCAL_CPU_SIZE=5.0 \
+LMCACHE_CHUNK_SIZE=256 \
 python3 -m dynamo.vllm \
   --model Qwen/Qwen3-0.6B \
   --discovery-backend file \
-  --disable-hybrid-kv-cache-manager \
-  --kv-transfer-config '{"kv_connector":"LMCacheMPConnector","kv_role":"kv_both"}'
+  --kv-transfer-config '{"kv_connector":"LMCacheConnectorV1","kv_role":"kv_both"}'
 ```
 
 Repeat for additional workers (each on a separate GPU via `CUDA_VISIBLE_DEVICES`).

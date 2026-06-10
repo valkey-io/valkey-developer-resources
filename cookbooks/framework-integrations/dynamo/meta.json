@@ -8,7 +8,7 @@
       "title": "Getting Started with Dynamo + Valkey",
       "h1": "Getting Started with Dynamo + Valkey",
       "breadcrumb": "Getting Started",
-      "lead": "Deploy NVIDIA Dynamo with Valkey as the distributed KV cache backend via LMCache, enabling low-latency cache lookups for multi-worker inference.",
+      "lead": "Deploy NVIDIA Dynamo with Valkey as the distributed KV cache backend via LMCache, enabling cluster-wide KV cache reuse across inference workers.",
       "difficulty": "Intermediate",
       "time": "25 min",
       "next": {
