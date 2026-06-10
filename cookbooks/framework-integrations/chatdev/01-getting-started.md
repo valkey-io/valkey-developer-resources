@@ -111,7 +111,7 @@ graph:
 export API_KEY="sk-..."
 export BASE_URL="https://api.openai.com/v1"
 
-python run.py --yaml yaml_instance/demo_valkey_memory.yaml
+python run.py --path yaml_instance/demo_valkey_memory.yaml
 ```
 
 On first run, ValkeyMemory will:

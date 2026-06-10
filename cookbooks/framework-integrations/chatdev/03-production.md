@@ -55,7 +55,7 @@ Set up the ACL on the Valkey server:
 
 ```bash
 # Run from bash (not inside valkey-cli). Replace 'yourpassword' with the actual password.
-valkey-cli ACL SETUSER chatdev_app on ">yourpassword" ~memory:* +HSET +HGETALL +EXPIRE +DEL +FT.CREATE +FT.SEARCH +FT.INFO
+valkey-cli ACL SETUSER chatdev_app on ">yourpassword" "~memory:*" +HSET +HGETALL +EXPIRE +DEL +FT.CREATE +FT.SEARCH +FT.INFO
 ```
 
 This restricts the application to only the commands and key patterns it needs.

@@ -35,7 +35,7 @@ embedding_vec = self.embedding.get_embedding(text)          # List[float]
 embedding_bytes = struct.pack(f"{len(embedding_vec)}f", *embedding_vec)  # float32 LE
 
 # 2. Store as a Valkey Hash
-key = f"memory:{uuid4().hex}"
+key = f"{self.config.key_prefix}{uuid.uuid4().hex}"
 self._client.hset(key, {
     "content_summary": text,
     "embedding": embedding_bytes,
@@ -44,7 +44,7 @@ self._client.hset(key, {
 })
 
 # 3. Set TTL if configured
-if self.config.ttl_seconds:
+if self.config.ttl_seconds is not None:
     self._client.expire(key, self.config.ttl_seconds)
 ```
 
@@ -113,7 +113,7 @@ When the `coder` agent retrieves memories, the query is:
 (@agent_role:{coder})=>[KNN 3 @embedding $vec]
 ```
 
-Each agent only sees its own memories. This uses Valkey's TAG field indexing for O(1) pre-filtering before the KNN search.
+Each agent only sees its own memories. This uses Valkey's TAG field indexing for pre-filtering before the KNN search.
 
 ## TTL-Based Memory Expiry
 
@@ -162,7 +162,7 @@ embedding:
     device: cpu
 ```
 
-The local provider avoids API costs but uses 768 dimensions vs OpenAI's 1536.
+The local provider avoids API costs but uses 384 dimensions vs OpenAI's 1536.
 
 ## Inspecting the Index
 
