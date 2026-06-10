@@ -61,16 +61,14 @@ All CLI arguments can also be set as environment variables with the `DYN_` prefi
 
 ## Step 2: Launch Workers with KV Event Publishing
 
-Workers must publish KV cache events so the router knows what's cached where. This happens automatically when using LMCache with the `LMCacheMPConnector`:
-
-Workers connect to Valkey via GLIDE through the in-process `LMCacheConnectorV1`:
+Workers connect to Valkey via GLIDE through the in-process `LMCacheConnectorV1`. KV cache events are published automatically when using this connector:
 
 ```bash
 LMCACHE_REMOTE_URL="valkey://localhost:6379" \
 LMCACHE_REMOTE_SERDE="naive" \
 LMCACHE_LOCAL_CPU=true \
 LMCACHE_MAX_LOCAL_CPU_SIZE=5.0 \
-LMCACHE_CHUNK_SIZE=256 \
+LMCACHE_CHUNK_SIZE=128 \
 python3 -m dynamo.vllm \
   --model Qwen/Qwen3-0.6B \
   --discovery-backend file \
@@ -119,10 +117,10 @@ Dynamo exposes Prometheus metrics on the frontend's HTTP port:
 curl -s http://localhost:8000/metrics | grep -i router
 ```
 
-The LMCache sidecar also exposes its own metrics (default port 8080):
+LMCache also exposes metrics via the vLLM worker's system port:
 
 ```bash
-curl -s http://localhost:8080/metrics | grep '^lmcache_mp_'
+curl -s http://localhost:8081/metrics | grep lmcache
 ```
 
 ## The WORM Access Pattern

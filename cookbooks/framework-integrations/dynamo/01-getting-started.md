@@ -37,6 +37,7 @@ NVIDIA Dynamo orchestrates multiple inference workers with intelligent request r
 - Docker with NVIDIA Container Toolkit
 - Sufficient GPU memory for your model (e.g., Qwen3-0.6B needs ~2 GB, Qwen3-8B needs ~16 GB)
 - Network access to pull Dynamo container images from `nvcr.io`
+- ~150 GB disk space (Dynamo container image is 20+ GB)
 
 ## Step 1: Start Valkey
 
@@ -82,7 +83,7 @@ This image includes Dynamo, vLLM, and LMCache pre-installed.
 
 > **Hugging Face token required for gated models.** Set `export HF_TOKEN=hf_…` before launching if using Llama, Kimi, or other gated models. The `-e HF_TOKEN` flag forwards it into the container.
 
-> **Multiple terminals:** Steps 3–5 each need their own shell inside the container. Open additional shells with `docker exec -it <container_id> bash`, or start `tmux` inside the container before proceeding.
+> **Multiple terminals:** The frontend is started in the background (`&`). Steps 3–4 can run sequentially in the same shell. Alternatively, open additional shells with `docker exec -it <container_id> bash`.
 
 ## Step 2b: Install valkey-glide
 
@@ -90,11 +91,18 @@ LMCache's Valkey connector uses the GLIDE client, which is not pre-installed in 
 
 ```bash
 pip install valkey-glide
+python3 -c "from glide import GlideClient; print('valkey-glide: OK')"
 ```
 
 ## Step 3: Start the Dynamo Frontend
 
-Inside the container, start the frontend:
+Dynamo requires a NATS server for internal runtime communication, even with file-based discovery:
+
+```bash
+docker run -d --name nats --network host nats:latest
+```
+
+Inside the Dynamo container, start the frontend:
 
 ```bash
 python3 -m dynamo.frontend \
@@ -113,7 +121,7 @@ LMCACHE_REMOTE_URL="valkey://localhost:6379" \
 LMCACHE_REMOTE_SERDE="naive" \
 LMCACHE_LOCAL_CPU=true \
 LMCACHE_MAX_LOCAL_CPU_SIZE=5.0 \
-LMCACHE_CHUNK_SIZE=256 \
+LMCACHE_CHUNK_SIZE=128 \
 python3 -m dynamo.vllm \
   --model Qwen/Qwen3-0.6B \
   --discovery-backend file \
@@ -125,6 +133,8 @@ Key parameters:
 - **`LMCACHE_REMOTE_URL`**: Valkey endpoint — LMCache uses GLIDE to connect
 - **`LMCACHE_REMOTE_SERDE`**: Serialization format (`naive` = fast, uncompressed)
 - **`LMCACHE_LOCAL_CPU`**: Enable CPU RAM as L1 cache (fast, per-worker)
+- **`LMCACHE_MAX_LOCAL_CPU_SIZE`**: L1 cache capacity in GB (per-worker)
+- **`LMCACHE_CHUNK_SIZE`**: Tokens per KV cache block (prompt must exceed this to trigger L2 storage)
 - **`kv_connector: LMCacheConnectorV1`**: In-process KV cache connector
 - **`kv_role: kv_both`**: This worker both stores and loads cached KV data
 
@@ -136,6 +146,8 @@ curl -sf http://localhost:8000/health && echo OK
 
 ## Step 5: Test the Integration
 
+> **Note:** LMCache stores KV cache in chunks of 128 tokens (as configured above). Your prompt must exceed this threshold to trigger L2 storage. Short prompts stay in GPU memory only.
+
 **First request (cold — computes and stores KV cache):**
 
 ```bash
@@ -143,12 +155,15 @@ curl -s http://localhost:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "Qwen/Qwen3-0.6B",
-    "messages": [{"role": "user", "content": "Explain how KV caching reduces inference latency in transformer models."}],
-    "max_tokens": 100
+    "messages": [
+      {"role": "system", "content": "You are an expert systems architect specializing in distributed computing, machine learning infrastructure, and high-performance computing. You provide extremely detailed, comprehensive technical explanations that cover theoretical foundations, practical implementation details, performance characteristics, failure modes, and optimization strategies. When explaining a concept, you always include: historical context and motivation, mathematical or algorithmic foundations where relevant, concrete implementation examples with code or pseudocode, performance analysis including time complexity and space complexity, common pitfalls and how to avoid them, comparison with alternative approaches, and real-world deployment considerations including monitoring, scaling, and maintenance."},
+      {"role": "user", "content": "Explain the KV cache mechanism in transformer-based large language models. Cover how attention computation works, why caching key and value tensors eliminates redundant computation during autoregressive decoding, the memory implications of storing KV caches for long sequences, and how multi-tier caching hierarchies (GPU VRAM, host CPU RAM, remote distributed storage) can extend effective cache capacity beyond single-device memory limits."}
+    ],
+    "max_tokens": 50
   }'
 ```
 
-The LMCache sidecar stores the KV cache to L1 (CPU RAM) and L2 (Valkey).
+LMCache stores the KV cache to L1 (CPU RAM) and L2 (Valkey).
 
 **Second request (warm — cache hit):**
 
@@ -157,12 +172,19 @@ curl -s http://localhost:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "Qwen/Qwen3-0.6B",
-    "messages": [{"role": "user", "content": "Explain how KV caching reduces inference latency in transformer models."}],
-    "max_tokens": 100
+    "messages": [
+      {"role": "system", "content": "You are an expert systems architect specializing in distributed computing, machine learning infrastructure, and high-performance computing. You provide extremely detailed, comprehensive technical explanations that cover theoretical foundations, practical implementation details, performance characteristics, failure modes, and optimization strategies. When explaining a concept, you always include: historical context and motivation, mathematical or algorithmic foundations where relevant, concrete implementation examples with code or pseudocode, performance analysis including time complexity and space complexity, common pitfalls and how to avoid them, comparison with alternative approaches, and real-world deployment considerations including monitoring, scaling, and maintenance."},
+      {"role": "user", "content": "Explain the KV cache mechanism in transformer-based large language models. Cover how attention computation works, why caching key and value tensors eliminates redundant computation during autoregressive decoding, the memory implications of storing KV caches for long sequences, and how multi-tier caching hierarchies (GPU VRAM, host CPU RAM, remote distributed storage) can extend effective cache capacity beyond single-device memory limits."}
+    ],
+    "max_tokens": 50
   }'
 ```
 
-LMCache loads the KV cache from L1 or L2 — skipping the expensive prefill computation.
+LMCache loads the KV cache from L1 or L2 — skipping prefill for cached chunks. Check the worker logs for:
+
+```
+LMCache hit tokens: 128
+```
 
 ## Step 6: Verify Cache in Valkey
 
@@ -181,15 +203,15 @@ docker exec valkey valkey-cli DBSIZE
 
 L1 is per-worker and fast. L2 (Valkey) is shared — when Worker 0 computes a KV cache and stores it to Valkey, Worker 1 can load it directly without recomputing. This is where the cluster-wide benefit comes from.
 
-## Quick Launch Script
+## Quick Launch Alternative
 
-Dynamo provides a launch script that automates the sidecar + frontend + worker startup:
+For production deployments using the MP sidecar architecture (requires LMCache with the `resp` L2 adapter, available in newer LMCache versions), Dynamo provides:
 
 ```bash
 ./examples/backends/vllm/launch/agg_lmcache_mp.sh
 ```
 
-This starts the LMCache MP server, Dynamo frontend, and a vLLM worker with `LMCacheMPConnector` in one command.
+The in-process `LMCacheConnectorV1` approach shown above is simpler and works with the bundled LMCache version.
 
 ## What Dynamo Adds Over Raw vLLM + LMCache
 

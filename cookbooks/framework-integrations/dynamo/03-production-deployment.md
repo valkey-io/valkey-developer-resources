@@ -17,7 +17,7 @@ This cookbook covers deploying the full Dynamo + LMCache + Valkey stack on AWS u
 │  │  (CPU)   │   │  ┌────────┐ ┌────────┐ ┌──────┐ │   │
 │  │  + KV    │   │  │Worker 0│ │Worker 1│ │ ...  │ │   │
 │  │  Router  │   │  │(GPU)   │ │(GPU)   │ │      │ │   │
-│  └────┬─────┘   │  │+sidecar│ │+sidecar│ │      │ │   │
+│  └────┬─────┘   │  │+LMCache│ │+LMCache│ │      │ │   │
 │       │         │  └───┬────┘ └───┬────┘ └──┬───┘ │   │
 │       │         └──────┼──────────┼─────────┼─────┘   │
 └───────┼────────────────┼──────────┼─────────┼──────────┘
@@ -220,10 +220,10 @@ spec:
       interval: 15s
 ```
 
-LMCache sidecars expose metrics on port 8080:
+LMCache metrics are available on the worker's system port (set `DYN_SYSTEM_PORT=8081`):
 
 ```bash
-curl -s http://<worker-pod>:8080/metrics | grep '^lmcache_mp_'
+curl -s http://<worker-pod>:8081/metrics | grep lmcache
 ```
 
 Set `DYN_SYSTEM_PORT=8081` on workers to enable Dynamo's own metrics endpoint.
@@ -233,8 +233,8 @@ Set `DYN_SYSTEM_PORT=8081` on workers to enable Dynamo's own metrics endpoint.
 | Metric Source | What to Watch | Alert Threshold |
 |---------------|---------------|-----------------|
 | Dynamo frontend `/metrics` | Router decision latency | > 10ms |
-| LMCache sidecar `:8080/metrics` | L2 store/load latency | > 10ms (network issue) |
-| LMCache sidecar `:8080/metrics` | L2 store failures | > 0 (connectivity) |
+| LMCache `:8081/metrics` | L2 store/load latency | > 10ms (network issue) |
+| LMCache `:8081/metrics` | L2 store failures | > 0 (connectivity) |
 | ElastiCache `CurrConnections` | Active connections | Near limit = scale workers |
 | ElastiCache `BytesUsedForCache` | Memory utilization | > 80% = increase data limit |
 
@@ -266,9 +266,9 @@ LMCache tuning for agentic workloads:
 
 | Setting | Default | Agentic Recommendation | Why |
 |---------|---------|------------------------|-----|
-| `--chunk-size` | 256 | 512 | Larger chunks for long contexts |
-| `--l1-size-gb` | 5 | 20 | More L1 for hot conversation state |
-| `--eviction-policy` | LRU | LRU | Keeps frequently-accessed prefixes warm |
+| `LMCACHE_CHUNK_SIZE` | 256 | 512 | Larger chunks for long contexts |
+| `LMCACHE_MAX_LOCAL_CPU_SIZE` | 5 | 20 | More L1 for hot conversation state |
+| Eviction | LRU (default) | LRU | In-process mode uses LRU by default — no configuration needed |
 
 ## Security Considerations
 
