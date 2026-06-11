@@ -1,0 +1,33 @@
+{
+  "trackName": "MetaGPT",
+  "cookbooks": [
+    {
+      "num": "01",
+      "source": "01-getting-started.md",
+      "output": "01-getting-started.html",
+      "title": "Getting Started with MetaGPT + Valkey",
+      "h1": "Getting Started with MetaGPT + Valkey",
+      "breadcrumb": "Getting Started",
+      "difficulty": "Beginner",
+      "time": "15 min",
+      "next": {
+        "file": "02-vector-store-rag.html",
+        "title": "02 - Vector Store for RAG"
+      }
+    },
+    {
+      "num": "02",
+      "source": "02-vector-store-rag.md",
+      "output": "02-vector-store-rag.html",
+      "title": "Vector Store for RAG",
+      "h1": "Vector Store for RAG",
+      "breadcrumb": "Vector Store",
+      "difficulty": "Intermediate",
+      "time": "20 min",
+      "prev": {
+        "file": "01-getting-started.html",
+        "title": "01 - Getting Started"
+      }
+    }
+  ]
+}
