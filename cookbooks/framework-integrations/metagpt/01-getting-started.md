@@ -108,19 +108,19 @@ The `vector_dimensions` value must match your embedding model. `1536` is the out
 ## Step 5: Understand the Architecture
 
 ```text
-┌────────────────────────────────────────────────┐
-│                MetaGPT RAG Engine                │
-├──────────────────────┬───────────────────────────┤
-│   RAGIndexFactory     │    RAGRetrieverFactory    │
-│  (ValkeyIndexConfig)  │  (ValkeyRetrieverConfig)  │
-├──────────────────────┴───────────────────────────┤
-│                ValkeyVectorStore                  │
-│   (BasePydanticVectorStore from llama-index)      │
-├────────────────────────────────────────────────┤
-│         glide_sync client (synchronous)          │
-├────────────────────────────────────────────────┤
-│      Valkey Server + Search + JSON modules       │
-└────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────┐
+│                MetaGPT RAG Engine                 │
+├─────────────────────────┬─────────────────────────┤
+│     RAGIndexFactory     │   RAGRetrieverFactory   │
+│   (ValkeyIndexConfig)   │ (ValkeyRetrieverConfig) │
+├─────────────────────────┴─────────────────────────┤
+│                 ValkeyVectorStore                 │
+│    (BasePydanticVectorStore from llama-index)     │
+├───────────────────────────────────────────────────┤
+│          glide_sync client (synchronous)          │
+├───────────────────────────────────────────────────┤
+│       Valkey Server + Search + JSON modules       │
+└───────────────────────────────────────────────────┘
 ```
 
 | Component | Purpose | Valkey Features Used |

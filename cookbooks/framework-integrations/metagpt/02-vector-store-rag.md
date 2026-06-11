@@ -65,22 +65,26 @@ store_config = ValkeyStoreConfig(
 
 ## Step 3: Use Valkey Through the MetaGPT RAG Engine
 
-The idiomatic path is to hand a `ValkeyIndexConfig` (and optionally a `ValkeyRetrieverConfig`) to MetaGPT's `SimpleEngine`. The engine builds the index, embeds your documents, and wires up retrieval:
+The idiomatic path is to hand a `ValkeyRetrieverConfig` to MetaGPT's `SimpleEngine`. The engine builds the index, embeds your documents, and wires up retrieval.
+
+> ⚠️ These examples connect without authentication for local development. Always enable authentication and TLS for production deployments.
+
+> **Note**: This snippet is illustrative — it assumes you have a real document at `docs/valkey_overview.md` and an embedding model configured in MetaGPT (`config2.yaml`). Adjust the path and config to your project before running.
 
 ```python
 """Build a RAG engine backed by Valkey."""
 from metagpt.rag.engines import SimpleEngine
-from metagpt.rag.schema import ValkeyIndexConfig, ValkeyRetrieverConfig, ValkeyStoreConfig
+from metagpt.rag.schema import ValkeyRetrieverConfig, ValkeyStoreConfig
 
 store_config = ValkeyStoreConfig(
     index_name="metagpt_rag",
-    vector_dimensions=1536,  # must match the embed model below
+    vector_dimensions=1536,  # must match the embedding model configured in MetaGPT
 )
 
 # from_docs() embeds each document and stores it in Valkey via JSON.SET,
 # then creates the FT.SEARCH index if needed.
 engine = SimpleEngine.from_docs(
-    input_files=["docs/valkey_overview.md"],
+    input_files=["docs/valkey_overview.md"],  # replace with your own document(s)
     retriever_configs=[ValkeyRetrieverConfig(store_config=store_config, similarity_top_k=3)],
 )
 
@@ -90,7 +94,7 @@ for node in nodes:
     print(f"[{node.score:.4f}] {node.text[:80]}...")
 ```
 
-`similarity_top_k=3` returns the three closest chunks. Raise it for more recall, lower it for tighter, faster results.
+`similarity_top_k=3` returns the three closest chunks. Raise it for more recall, lower it for tighter, faster results. `SimpleEngine` manages the underlying store's connection internally; when you drive `ValkeyVectorStore` yourself (next step), close it explicitly with `disconnect()`.
 
 ## Step 4: Use ValkeyVectorStore Directly
 
