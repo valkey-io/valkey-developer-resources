@@ -194,11 +194,11 @@ func retrieveMemory(ctx context.Context, client *glide.Client, userID, query str
 // never in the metadata JSON, to avoid clobbering under concurrent reads).
 func recordAccess(ctx context.Context, client *glide.Client, id string) (int64, error) {
 	key := memPrefix + id
-	result, err := client.CustomCommand(ctx, []string{"HINCRBY", key, "access_count", "1"})
+	count, err := client.HIncrBy(ctx, key, "access_count", 1)
 	if err != nil {
 		return 0, fmt.Errorf("HINCRBY failed: %w", err)
 	}
-	return toInt64(result), nil
+	return count, nil
 }
 
 // forgetByUser deletes all memories for a user in pages, re-querying at offset

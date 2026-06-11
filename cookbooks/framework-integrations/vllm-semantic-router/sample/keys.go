@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	glide "github.com/valkey-io/valkey-glide/go/v2"
+	"github.com/valkey-io/valkey-glide/go/v2/models"
+	"github.com/valkey-io/valkey-glide/go/v2/options"
 )
 
 // specialChars are the punctuation/whitespace characters the valkey-search TAG
@@ -29,34 +30,21 @@ func escapeTagValue(s string) string {
 }
 
 // deleteByPrefix removes all keys matching prefix* using cursor-based SCAN +
-// DEL. It never uses KEYS, which is O(N) and blocks the server. This mirrors
-// the router's deleteKeysByPrefix cleanup.
+// DEL. It uses the native typed Scan API (never KEYS, which is O(N) and blocks
+// the server). This mirrors the router's deleteKeysByPrefix cleanup.
 func deleteByPrefix(ctx context.Context, client *glide.Client, prefix string) {
-	cursor := "0"
-	pattern := prefix + "*"
+	cursor := models.NewCursor()
+	scanOpts := *options.NewScanOptions().SetMatch(prefix + "*").SetCount(100)
 	for {
-		result, err := client.CustomCommand(ctx, []string{"SCAN", cursor, "MATCH", pattern, "COUNT", "100"})
+		result, err := client.ScanWithOptions(ctx, cursor, scanOpts)
 		if err != nil {
 			return
 		}
-		arr, ok := result.([]interface{})
-		if !ok || len(arr) < 2 {
-			return
+		if len(result.Data) > 0 {
+			_, _ = client.Del(ctx, result.Data)
 		}
-		cursor = fmt.Sprint(arr[0])
-
-		var keys []string
-		if keyList, ok := arr[1].([]interface{}); ok {
-			for _, k := range keyList {
-				if s, ok := k.(string); ok {
-					keys = append(keys, s)
-				}
-			}
-		}
-		if len(keys) > 0 {
-			_, _ = client.Del(ctx, keys)
-		}
-		if cursor == "0" {
+		cursor = result.Cursor
+		if cursor.IsFinished() {
 			return
 		}
 	}

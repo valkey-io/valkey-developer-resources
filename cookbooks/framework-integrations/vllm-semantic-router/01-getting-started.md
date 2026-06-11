@@ -45,7 +45,14 @@ podman run -d --name valkey-search -p 6379:6379 valkey/valkey-bundle:latest
 Confirm the module is loaded:
 
 ```bash
+# Docker
 docker exec valkey-search valkey-cli MODULE LIST
+# should list a module named "search"
+```
+
+```bash
+# Podman
+podman exec valkey-search valkey-cli MODULE LIST
 # should list a module named "search"
 ```
 
@@ -109,6 +116,8 @@ FT.CREATE semantic_cache_idx ON HASH PREFIX 1 doc: SCHEMA
 ```
 
 The `VECTOR HNSW 10` token means "10 parameters follow" (`TYPE`, `DIM`, `DISTANCE_METRIC`, `M`, `EF_CONSTRUCTION` as key/value pairs). `request_id` and `model` are TAG fields so the router can look up a specific pending entry exactly, while `embedding` powers the similarity search.
+
+> The runnable [`sample/`](sample/) uses `DIM 256` deterministic stub embeddings so it runs without a model; the real router auto-detects the model's dimension (384 for BERT, 768 for Gemma, 1024 for Qwen3) at index-creation time.
 
 ## Step 4: Run the Cache Sample
 

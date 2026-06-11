@@ -21,15 +21,17 @@ const (
 func runCacheDemo(ctx context.Context, client *glide.Client) error {
 	fmt.Println("== vLLM Semantic Router — Valkey cache demo ==")
 
-	// Idempotent cleanup: drop a stale index from a prior failed run so re-runs
-	// start clean. Ignored if the index does not exist.
+	// Idempotent cleanup: drop a stale index and keys from a prior failed run
+	// so re-runs start clean. Ignored if the index does not exist.
 	_, _ = client.CustomCommand(ctx, []string{"FT.DROPINDEX", cacheIndex})
+	deleteByPrefix(ctx, client, cachePrefix)
 
 	if err := createCacheIndex(ctx, client); err != nil {
 		return err
 	}
 	defer func() {
 		_, _ = client.CustomCommand(ctx, []string{"FT.DROPINDEX", cacheIndex})
+		deleteByPrefix(ctx, client, cachePrefix)
 		fmt.Println("✓ Cleaned up index")
 	}()
 	fmt.Printf("✓ Created index %s\n", cacheIndex)
@@ -101,7 +103,8 @@ func storeCacheEntry(ctx context.Context, client *glide.Client, requestID, model
 	if _, err := client.CustomCommand(ctx, hset); err != nil {
 		return fmt.Errorf("HSET failed: %w", err)
 	}
-	if _, err := client.CustomCommand(ctx, []string{"EXPIRE", key, "3600"}); err != nil {
+	// Set the TTL via the native typed Expire wrapper (EXPIRE under the hood).
+	if _, err := client.Expire(ctx, key, time.Hour); err != nil {
 		return fmt.Errorf("EXPIRE failed: %w", err)
 	}
 	return nil

@@ -47,6 +47,8 @@ startup, so re-runs after an interrupted run start fresh).
 | `VALKEY_HOST` | `localhost` | Valkey server hostname |
 | `VALKEY_PORT` | `6379` | Valkey server port |
 
+Both are optional. See [`.env.example`](.env.example) for the placeholders; export them in your shell (e.g. `export VALKEY_PORT=6380`) to override the defaults.
+
 ## Files
 
 | File | Purpose |
@@ -58,6 +60,7 @@ startup, so re-runs after an interrupted run start fresh).
 | `embedding.go` | Deterministic stub embeddings + float32 byte encoding |
 | `search.go` | Shared FT.SEARCH result parsing |
 | `keys.go` | TAG escaping and SCAN-based key cleanup |
+| `.env.example` | Placeholder values for the optional connection env vars |
 
 ## Troubleshooting
 
