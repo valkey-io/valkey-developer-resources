@@ -35,6 +35,8 @@ The demo uses a tiny deterministic local embedding function so it runs without a
 
 ## Environment Variables
 
+Copy `.env.example` to `.env` to override these (the sample calls `load_dotenv()`), or `export` them in your shell.
+
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `VALKEY_HOST` | `localhost` | Valkey server hostname |

@@ -141,6 +141,10 @@ try:
         print(f"[{score:.4f}] {node.text}")
 
     # --- Delete every chunk belonging to a source document ---
+    # delete() matches stored docs on ref_doc_id OR doc_id. These nodes set only
+    # id_; add() stores ref_doc_id = doc_id as a fallback, so passing "doc3"
+    # removes the matching document. Pass the source ref_doc_id when your nodes
+    # set one explicitly (the usual case for chunked documents).
     store.delete("doc3")
 finally:
     store.disconnect()  # closes the GLIDE client
@@ -183,7 +187,7 @@ The KNN query string `*=>[KNN 3 @vector $query_vec AS score]` asks for the 3 nea
 | Speed | Sub-millisecond | Scales linearly with data |
 | Accuracy | Approximate (high recall) | Exact |
 | Memory | Higher (graph structure) | Lower |
-| Best for | Production (>1000 docs) | Small datasets or testing |
+| Best for | Production (>1000 docs) | Small datasets or testing (<1000 docs) |
 
 Switch by setting `vector_algorithm="FLAT"` in `ValkeyStoreConfig`. The backend selects the matching field attributes automatically, so a FLAT index is never built with HNSW parameters.
 

@@ -22,6 +22,8 @@ Requirements:
 Environment variables:
     VALKEY_HOST   - Valkey server hostname (default: localhost)
     VALKEY_PORT   - Valkey server port (default: 6379)
+
+    Copy .env.example to .env to override these; load_dotenv() picks it up.
 """
 
 from __future__ import annotations
@@ -30,10 +32,35 @@ import hashlib
 import os
 import sys
 
-from llama_index.core.schema import TextNode
-from llama_index.core.vector_stores.types import VectorStoreQuery
+# Load .env (if present) before reading env vars below, so a copied
+# .env.example actually takes effect.
+try:
+    from dotenv import load_dotenv
 
-from metagpt.rag.vector_stores.valkey import ValkeyVectorStore
+    load_dotenv()
+except ImportError:
+    # python-dotenv is optional; the sample still works with exported env vars.
+    pass
+
+# Guard the third-party imports so the most common new-user failure
+# (dependencies not installed) prints the actionable hint below instead of an
+# opaque module-level ModuleNotFoundError before main() ever runs.
+try:
+    from llama_index.core.schema import TextNode
+    from llama_index.core.vector_stores.types import VectorStoreQuery
+
+    from metagpt.rag.vector_stores.valkey import ValkeyVectorStore
+except ImportError as import_err:
+    print(f"\n❌ Missing dependency: {import_err}", file=sys.stderr)
+    print("\nHints:", file=sys.stderr)
+    print("  • Install the sample dependencies: pip install -r requirements.txt", file=sys.stderr)
+    print(
+        "  • Install MetaGPT (with the Valkey backend) from the PR branch:\n"
+        '      pip install "metagpt[rag] @ '
+        'git+https://github.com/daric93/MetaGPT.git@feat/valkey-rag-vector-store"',
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 VALKEY_HOST = os.environ.get("VALKEY_HOST", "localhost")
 VALKEY_PORT = int(os.environ.get("VALKEY_PORT", "6379"))
@@ -71,7 +98,9 @@ def main() -> None:
         prefix=KEY_PREFIX,
         vector_dimensions=EMBED_DIM,
         distance_metric="COSINE",   # COSINE, L2, or IP
-        vector_algorithm="HNSW",    # HNSW (approximate) or FLAT (exact)
+        vector_algorithm="HNSW",    # HNSW (approximate) or FLAT (exact). FLAT is
+                                    # the better pick for <1000 docs like this demo;
+                                    # HNSW is shown here since it's the production default.
         request_timeout=5000,       # 5s — GLIDE defaults to 250ms, too low off-localhost
         client_name="metagpt_rag_client",
     )
@@ -109,14 +138,22 @@ def main() -> None:
             VectorStoreQuery(query_embedding=embed(query_text), similarity_top_k=3)
         )
         print(f"✅ Top {len(result.nodes)} matches:")
+        # The query text is closest to the Valkey/FT.SEARCH docs, so we expect hits.
+        # A count of 0 usually means indexing lag or a dimension/index mismatch —
+        # assert so the demo fails loudly instead of printing a misleading success.
+        assert len(result.nodes) > 0, "KNN search returned no results — check index and embeddings"
         for rank, (node, score) in enumerate(zip(result.nodes, result.similarities), 1):
             print(f"   {rank}. [{score:.4f}] {node.text[:60]}...")
 
         # --- Step 3: Delete a source document ---
         print("\n→ Deleting document 'doc_4' (the banana fact)...")
+        # delete() matches stored docs on ref_doc_id OR doc_id. These nodes set
+        # only id_ (no ref_doc_id), and add() stores ref_doc_id = doc_id as a
+        # fallback, so passing the node id "doc_4" removes the matching document.
         store.delete("doc_4")
         remaining = store.scan_all_docs()
         print(f"✅ Deleted. {len(remaining)} documents remain in the store.")
+        assert len(remaining) == 4, f"expected 4 documents after delete, found {len(remaining)}"
 
         print("\n" + "=" * 60)
         print("Demo complete!")

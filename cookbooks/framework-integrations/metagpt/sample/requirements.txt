@@ -7,6 +7,9 @@ valkey-glide-sync>=2.1.0,<3.0.0
 # MetaGPT pins llama-index-core in the 0.10.x line for the BasePydanticVectorStore base.
 llama-index-core>=0.10.0,<0.11.0
 
+# Loads sample/.env (copied from .env.example) so VALKEY_HOST/VALKEY_PORT take effect.
+python-dotenv>=1.0.0,<2.0.0
+
 # MetaGPT itself (with the Valkey RAG backend) is NOT yet on PyPI with this feature.
 # Install it separately from the feature branch:
 #   pip install "metagpt[rag] @ git+https://github.com/daric93/MetaGPT.git@feat/valkey-rag-vector-store"
