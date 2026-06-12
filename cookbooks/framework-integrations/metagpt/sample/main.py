@@ -103,6 +103,9 @@ def main() -> None:
                                     # HNSW is shown here since it's the production default.
         request_timeout=5000,       # 5s — GLIDE defaults to 250ms, too low off-localhost
         client_name="metagpt_rag_client",
+        # For production, enable auth and TLS (ValkeyVectorStore supports both):
+        #   password=os.environ.get("VALKEY_PASSWORD"),
+        #   use_tls=True,
     )
 
     print(f"\n→ Connecting to Valkey at {VALKEY_HOST}:{VALKEY_PORT}...")
@@ -110,6 +113,8 @@ def main() -> None:
     try:
         # Defensive cleanup: drop any stale index/keys from a prior failed run so
         # re-running the demo is idempotent (does not accumulate stale documents).
+        # Safe on the very first run: drop_index() checks FT._LIST and no-ops the
+        # FT.DROPINDEX when the index is absent, then SCANs for orphaned keys.
         store.drop_index()
 
         store.ensure_index()

@@ -4,7 +4,10 @@
 valkey-glide-sync>=2.1.0,<3.0.0
 
 # llama-index-core provides TextNode / VectorStoreQuery used by the sample.
-# MetaGPT pins llama-index-core in the 0.10.x line for the BasePydanticVectorStore base.
+# MetaGPT's [rag] extra already installs this transitively (0.10.x line, for the
+# BasePydanticVectorStore base). It is pinned here so the standalone sample can
+# import TextNode / VectorStoreQuery even before MetaGPT is installed; the range
+# matches MetaGPT's own constraint to avoid a resolution conflict.
 llama-index-core>=0.10.0,<0.11.0
 
 # Loads sample/.env (copied from .env.example) so VALKEY_HOST/VALKEY_PORT take effect.

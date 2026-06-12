@@ -67,6 +67,8 @@ store_config = ValkeyStoreConfig(
 
 The idiomatic path is to hand a `ValkeyRetrieverConfig` to MetaGPT's `SimpleEngine`. The engine builds the index, embeds your documents, and wires up retrieval.
 
+> **Import paths**: the config classes (`ValkeyStoreConfig`, `ValkeyRetrieverConfig`) live in `metagpt.rag.schema`, while the store implementation itself is in `metagpt.rag.vector_stores.valkey` (used directly in Step 4).
+
 > ⚠️ These examples connect without authentication for local development. Always enable authentication and TLS for production deployments.
 
 > **Note**: This snippet is illustrative — it assumes you have a real document at `docs/valkey_overview.md` and an embedding model configured in MetaGPT (`config2.yaml`). Adjust the path and config to your project before running.
@@ -99,6 +101,8 @@ for node in nodes:
 ## Step 4: Use ValkeyVectorStore Directly
 
 For full control you can drive the store yourself. This is also the clearest way to see the synchronous API. The store opens its GLIDE connection lazily on the first operation, so wrap usage in `try/finally` and call `disconnect()` when done.
+
+> **`ValkeyStoreConfig` vs direct kwargs**: when using the RAG engine (Step 3), wrap configuration in a `ValkeyStoreConfig` object. When driving `ValkeyVectorStore` directly (below), pass the same options as keyword arguments to the constructor.
 
 ```python
 """Direct ValkeyVectorStore usage — add, query, delete."""
@@ -168,6 +172,8 @@ finally:
     store.disconnect()
 ```
 
+`drop_index()` is safe to call on the first run before any index exists: it checks `FT._LIST` first and skips `FT.DROPINDEX` when the index is absent, then runs the `SCAN`/`DEL` cleanup (a no-op when there are no keys). That makes it a reliable idempotent reset at the top of a script.
+
 ## How It Works Under the Hood
 
 | Operation | Valkey Command | Notes |
@@ -179,6 +185,10 @@ finally:
 | `drop_index()` | `FT.DROPINDEX` + `SCAN`/`DEL` | Cleans orphaned keys too |
 
 The KNN query string `*=>[KNN 3 @vector $query_vec AS score]` asks for the 3 nearest neighbors of `$query_vec` along the `vector` field, returning the distance as `score`. For `COSINE` the store converts distance to similarity as `1.0 - score`.
+
+> ⚠️ **Query injection**: the query above is safe because the filter is hardcoded (`*`) and the vector is passed as a bound parameter (`$query_vec`). Never interpolate unsanitized user input into an `FT.SEARCH` query string. The `=>` token separates the filter expression from the KNN clause, so a crafted filter like `@category:{user_input}=>[KNN ...]` can be exploited for injection.
+
+> **Cluster mode**: `add()` writes each batch as an atomic `MULTI`/`EXEC` transaction. In Valkey Cluster, every key in a transaction must hash to the same slot, but the document keys (`metagpt:rag:<doc_id>`) carry no hash tags and will scatter across slots. The atomic-batch path therefore works in **standalone mode only**; run Valkey standalone for this integration unless the keys are given a common hash tag.
 
 ## HNSW vs FLAT Index
 
@@ -198,6 +208,8 @@ Switch by setting `vector_algorithm="FLAT"` in `ValkeyStoreConfig`. The backend 
 | `COSINE` | Normalized embeddings (most LLM models) | `similarity = 1.0 - score` |
 | `L2` | Euclidean distance matters | `similarity = -score` |
 | `IP` | Inner product / dot-product models | `similarity = -score` |
+
+For `L2` and `IP`, the store negates the raw distance (`similarity = -score`) rather than mapping it into `[0, 1]`. This is deliberate: negating preserves the correct ranking order (smaller distance → larger similarity) so results sort consistently across all three metrics. The absolute values are not normalized — treat them as relative scores for ranking, not as calibrated probabilities.
 
 ## Troubleshooting
 

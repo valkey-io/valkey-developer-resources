@@ -49,10 +49,14 @@ The Valkey backend is currently in review and is **not yet part of the published
 pip install "metagpt[rag] @ git+https://github.com/daric93/MetaGPT.git@feat/valkey-rag-vector-store"
 ```
 
+> **Temporary install source**: this points at a personal fork branch (`daric93/MetaGPT@feat/valkey-rag-vector-store`) because the Valkey backend is not yet merged upstream. Branch refs can be force-pushed, so for a reproducible build pin to a specific commit instead: `git+https://github.com/daric93/MetaGPT.git@<commit-sha>`. Once the integration lands in `geekan/MetaGPT` and ships to PyPI, the canonical install becomes `pip install "metagpt[rag]"`.
+
 The `rag` extra pulls in both Valkey GLIDE clients used by the backend:
 
 - `valkey-glide-sync>=2.1.0,<3.0.0` — the **synchronous** client (module `glide_sync`); this is the one the vector store actually uses
 - `valkey-glide>=2.1.0,<3.0.0` — the async client, pulled in for compatibility
+
+It also brings in `llama-index-core` (the `0.10.x` line, which `ValkeyVectorStore` builds on via `BasePydanticVectorStore`) transitively, so you do not need to install it separately. The sample's `requirements.txt` pins it explicitly only so the standalone `sample/main.py` can import `TextNode` / `VectorStoreQuery` without MetaGPT present.
 
 > **Note**: The package is `valkey-glide-sync` but the import is `glide_sync` (the async package `valkey-glide` imports as `glide`). The synchronous client exposes the same API surface without coroutines, so no call is `await`ed.
 
