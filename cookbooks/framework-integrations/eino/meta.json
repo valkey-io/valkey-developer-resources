@@ -1,0 +1,35 @@
+{
+  "trackName": "Eino",
+  "cookbooks": [
+    {
+      "num": "01",
+      "source": "01-getting-started.md",
+      "output": "01-getting-started.html",
+      "title": "Getting Started with Eino + Valkey",
+      "h1": "Getting Started with Eino + Valkey",
+      "breadcrumb": "Getting Started",
+      "lead": "Connect Eino to Valkey, index documents with embeddings, and run your first vector similarity search using the valkey-glide Go client.",
+      "difficulty": "Beginner",
+      "time": "15 min",
+      "next": {
+        "file": "02-rag-pipeline.html",
+        "title": "02 - RAG Pipeline"
+      }
+    },
+    {
+      "num": "02",
+      "source": "02-rag-pipeline.md",
+      "output": "02-rag-pipeline.html",
+      "title": "RAG Pipeline with Eino + Valkey",
+      "h1": "RAG Pipeline with Eino + Valkey",
+      "breadcrumb": "RAG Pipeline",
+      "lead": "Build a retrieval-augmented generation pipeline using Eino's orchestration with Valkey as the vector store.",
+      "difficulty": "Intermediate",
+      "time": "20 min",
+      "prev": {
+        "file": "01-getting-started.html",
+        "title": "01 - Getting Started"
+      }
+    }
+  ]
+}
