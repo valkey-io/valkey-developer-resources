@@ -12,8 +12,10 @@ import (
 // specialChars are the punctuation/whitespace characters the valkey-search TAG
 // query tokenizer treats as separators; they must be backslash-escaped to be
 // matched literally inside @field:{value}. This matches the router's
-// escapeTagValue helper.
-const specialChars = " \t,.<>{}[]\"':;!@#$%^&*()-+=~|/\\"
+// escapeTagValue helper, with the backtick added as defense-in-depth since
+// valkey-search also treats it as an alternate quoting character inside TAG
+// queries.
+const specialChars = " \t,.<>{}[]\"':;!@#$%^&*()-+=~|/\\`"
 
 // escapeTagValue backslash-escapes special characters so a value can be used
 // literally inside a TAG query expression.

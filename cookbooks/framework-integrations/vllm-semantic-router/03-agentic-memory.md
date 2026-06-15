@@ -23,7 +23,7 @@ Memory similarity thresholds are portable across backends: the Valkey backend ma
 - Completed [01](01-getting-started.md) and [02](02-vector-store.md)
 - **Go 1.24+** (for the sample)
 - **Docker or Podman**
-- **Valkey 8.0+ with the Search module** — `valkey/valkey-bundle`
+- **Valkey with the Search module** — `valkey/valkey-bundle`
 - The `github.com/valkey-io/valkey-glide/go/v2` client (pulled by the sample's `go.mod`)
 
 ## Step 1: Configure the Memory Backend
@@ -187,5 +187,7 @@ Cleanup uses cursor-based `SCAN` + `DEL` (never `KEYS`) so it is safe to run aga
 | Switching from Milvus loses data | Backends do not auto-migrate. Export from Milvus and re-import before switching `backend`. |
 
 ---
+
+[← 02 - Vector Store Backend](02-vector-store.md)
 
 For full deployment details — Docker, Kubernetes StatefulSet, sizing, and persistence — see the router's [Valkey Agentic Memory guide](https://github.com/vllm-project/semantic-router/blob/main/website/docs/installation/valkey-memory.md).

@@ -8,6 +8,9 @@ import (
 	"time"
 
 	glide "github.com/valkey-io/valkey-glide/go/v2"
+	"github.com/valkey-io/valkey-glide/go/v2/constants"
+	"github.com/valkey-io/valkey-glide/go/v2/options"
+	"github.com/valkey-io/valkey-glide/go/v2/servermodules/glideft"
 )
 
 const (
@@ -26,21 +29,21 @@ var aliceMemories = []memory{
 	{"m3", "alice", "to deploy, alice runs make deploy in the project root", "procedural"},
 }
 
-// runMemoryDemo mirrors the router's agentic memory backend (PR #1739): atomic
-// store (HSETNX), user-scoped vector retrieval, atomic access tracking
-// (HINCRBY), and scoped deletion.
+// runMemoryDemo mirrors the router's agentic memory backend (PR #1739):
+// duplicate-prevented store (HSETNX), user-scoped vector retrieval, atomic
+// access tracking (HINCRBY), and scoped deletion.
 func runMemoryDemo(ctx context.Context, client *glide.Client) error {
 	fmt.Println("== vLLM Semantic Router — Valkey agentic memory demo ==")
 
 	// Idempotent cleanup from any prior run.
-	_, _ = client.CustomCommand(ctx, []string{"FT.DROPINDEX", memIndex})
+	_, _ = glideft.FtDropIndex(ctx, client, memIndex)
 	deleteByPrefix(ctx, client, memPrefix)
 
 	if err := createMemoryIndex(ctx, client); err != nil {
 		return err
 	}
 	defer func() {
-		_, _ = client.CustomCommand(ctx, []string{"FT.DROPINDEX", memIndex})
+		_, _ = glideft.FtDropIndex(ctx, client, memIndex)
 		deleteByPrefix(ctx, client, memPrefix)
 		fmt.Println("✓ Cleaned up index")
 	}()
@@ -89,38 +92,39 @@ func runMemoryDemo(ctx context.Context, client *glide.Client) error {
 	return nil
 }
 
+// createMemoryIndex builds the richer memory index with scoping and ranking
+// fields. created_at is SORTABLE so List can page chronologically server-side.
 func createMemoryIndex(ctx context.Context, client *glide.Client) error {
-	cmd := []string{
-		"FT.CREATE", memIndex,
-		"ON", "HASH",
-		"PREFIX", "1", memPrefix,
-		"SCHEMA",
-		"id", "TAG",
-		"user_id", "TAG",
-		"project_id", "TAG",
-		"memory_type", "TAG",
-		"content", "TEXT",
-		"source", "TAG",
-		"embedding", "VECTOR", "HNSW", "10",
-		"TYPE", "FLOAT32",
-		"DIM", strconv.Itoa(embedDim),
-		"DISTANCE_METRIC", "COSINE",
-		"M", "16",
-		"EF_CONSTRUCTION", "256",
-		"created_at", "NUMERIC", "SORTABLE",
-		"updated_at", "NUMERIC",
-		"access_count", "NUMERIC",
-		"importance", "NUMERIC",
+	schema := []options.Field{
+		options.NewTagField("id"),
+		options.NewTagField("user_id"),
+		options.NewTagField("project_id"),
+		options.NewTagField("memory_type"),
+		options.NewTextField("content"),
+		options.NewTagField("source"),
+		options.NewVectorFieldHNSW("embedding", constants.DistanceMetricCosine, embedDim).
+			SetNumberOfEdges(16).             // HNSW M
+			SetVectorsExaminedOnConstruction(256), // HNSW EF_CONSTRUCTION
+		options.NewNumericField("created_at").SetSortable(true),
+		options.NewNumericField("updated_at"),
+		options.NewNumericField("access_count"),
+		options.NewNumericField("importance"),
 	}
-	if _, err := client.CustomCommand(ctx, cmd); err != nil {
+	opts := &options.FtCreateOptions{
+		DataType: constants.IndexDataTypeHash,
+		Prefixes: []string{memPrefix},
+	}
+	if _, err := glideft.FtCreate(ctx, client, memIndex, schema, opts); err != nil {
 		return fmt.Errorf("FT.CREATE failed (is the Search module loaded?): %w", err)
 	}
 	return nil
 }
 
-// storeMemory stores a memory atomically: HSETNX reserves the id (failing if it
-// already exists), then HSET writes the fields. This avoids the check-then-set
-// race the router guards against.
+// storeMemory reserves the id with HSETNX then writes the fields with HSET.
+// Note this is NOT a single atomic operation: HSETNX prevents a duplicate
+// overwrite, but a concurrent reader between the two calls could observe a key
+// with only the id field set. The router accepts this for duplicate-prevention;
+// wrapping both in MULTI/EXEC would make it fully atomic if needed.
 func storeMemory(ctx context.Context, client *glide.Client, m memory) error {
 	key := memPrefix + m.id
 	reserved, err := client.HSetNX(ctx, key, "id", m.id)
@@ -132,6 +136,8 @@ func storeMemory(ctx context.Context, client *glide.Client, m memory) error {
 	}
 
 	now := strconv.FormatInt(time.Now().Unix(), 10)
+	// string(embedding) coerces raw FLOAT32 bytes into a binary-safe string for
+	// the VECTOR field; see cache.go for the rationale.
 	embedding := float32ToBytes(stubEmbedding(m.content))
 	fields := map[string]string{
 		"id":           m.id,
@@ -161,23 +167,34 @@ type memResult struct {
 // retrieveMemory runs a user-scoped KNN search, the core of the router's
 // Retrieve path (before hybrid reranking and thresholding).
 func retrieveMemory(ctx context.Context, client *glide.Client, userID, query string, topK int) ([]memResult, error) {
+	// A user-scoped retrieval requires a userID: an empty value would build the
+	// TAG expression @user_id:{} which valkey-search silently matches to zero
+	// documents. Reject it rather than return a confusing empty result.
+	if userID == "" {
+		return nil, fmt.Errorf("retrieveMemory requires a non-empty userID")
+	}
 	filterExpr := fmt.Sprintf("@user_id:{%s}", escapeTagValue(userID))
 	knnQuery := fmt.Sprintf("(%s)=>[KNN %d @embedding $BLOB AS vector_distance]", filterExpr, topK)
 	embedding := float32ToBytes(stubEmbedding(query))
-	cmd := []string{
-		"FT.SEARCH", memIndex, knnQuery,
-		"PARAMS", "2", "BLOB", string(embedding),
-		"RETURN", "3", "id", "content", "vector_distance",
-		"LIMIT", "0", strconv.Itoa(topK),
-		"DIALECT", "2",
+	dialect := 2
+	searchOpts := &options.FtSearchOptions{
+		Params: []options.FtSearchParam{{Key: "BLOB", Value: string(embedding)}},
+		ReturnFields: []options.FtSearchReturnField{
+			{FieldIdentifier: "id"},
+			{FieldIdentifier: "content"},
+			{FieldIdentifier: "vector_distance"},
+		},
+		Limit:   &options.FtSearchLimit{Offset: 0, Count: topK},
+		Dialect: &dialect,
 	}
-	result, err := client.CustomCommand(ctx, cmd)
+	result, err := glideft.FtSearch(ctx, client, memIndex, knnQuery, searchOpts)
 	if err != nil {
 		return nil, fmt.Errorf("FT.SEARCH failed: %w", err)
 	}
 
 	var results []memResult
-	for _, fields := range parseSearchDocs(result) {
+	for _, doc := range result.Documents {
+		fields := doc.Fields
 		distance, _ := strconv.ParseFloat(fmt.Sprint(fields["vector_distance"]), 64)
 		results = append(results, memResult{
 			id:      fmt.Sprint(fields["id"]),
@@ -205,23 +222,35 @@ func recordAccess(ctx context.Context, client *glide.Client, id string) (int64, 
 // 0 each round since each DEL shifts the remaining matches forward. This
 // mirrors the router's ForgetByScope.
 func forgetByUser(ctx context.Context, client *glide.Client, userID string) (int, error) {
+	if userID == "" {
+		return 0, fmt.Errorf("forgetByUser requires a non-empty userID")
+	}
 	filterExpr := fmt.Sprintf("@user_id:{%s}", escapeTagValue(userID))
 	const pageSize = 1000
+	// maxRounds caps the paging loop so a pathological condition (keys being
+	// recreated concurrently, or a DEL that cannot remove them) can never spin
+	// forever. pageSize*maxRounds bounds the total deletions per call.
+	const maxRounds = 1000
+	dialect := 2
 	total := 0
-	for {
-		cmd := []string{
-			"FT.SEARCH", memIndex, filterExpr,
-			"RETURN", "1", "id",
-			"LIMIT", "0", strconv.Itoa(pageSize),
-			"DIALECT", "2",
+	for round := 0; round < maxRounds; round++ {
+		searchOpts := &options.FtSearchOptions{
+			ReturnFields: []options.FtSearchReturnField{{FieldIdentifier: "id"}},
+			Limit:        &options.FtSearchLimit{Offset: 0, Count: pageSize},
+			Dialect:      &dialect,
 		}
-		result, err := client.CustomCommand(ctx, cmd)
+		result, err := glideft.FtSearch(ctx, client, memIndex, filterExpr, searchOpts)
 		if err != nil {
 			return total, fmt.Errorf("FT.SEARCH failed: %w", err)
 		}
-		keys := docKeys(result)
-		if len(keys) == 0 {
+		if len(result.Documents) == 0 {
 			break
+		}
+		// The typed result exposes each document's hash key directly, so the
+		// keys are ready for DEL without a second response parser.
+		keys := make([]string, 0, len(result.Documents))
+		for _, doc := range result.Documents {
+			keys = append(keys, doc.Key)
 		}
 		deleted, err := client.Del(ctx, keys)
 		if err != nil {
@@ -230,25 +259,4 @@ func forgetByUser(ctx context.Context, client *glide.Client, userID string) (int
 		total += int(deleted)
 	}
 	return total, nil
-}
-
-// docKeys returns the document (hash) keys from an FT.SEARCH response. These are
-// the actual Valkey keys, suitable for DEL.
-func docKeys(result any) []string {
-	arr, ok := result.([]interface{})
-	if !ok || len(arr) < 2 {
-		return nil
-	}
-	var keys []string
-	for i := 1; i < len(arr); i++ {
-		switch v := arr[i].(type) {
-		case string:
-			keys = append(keys, v)
-		case map[string]interface{}:
-			for k := range v {
-				keys = append(keys, k)
-			}
-		}
-	}
-	return keys
 }

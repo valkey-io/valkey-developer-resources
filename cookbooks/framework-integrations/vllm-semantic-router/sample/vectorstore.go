@@ -8,6 +8,9 @@ import (
 	"time"
 
 	glide "github.com/valkey-io/valkey-glide/go/v2"
+	"github.com/valkey-io/valkey-glide/go/v2/constants"
+	"github.com/valkey-io/valkey-glide/go/v2/options"
+	"github.com/valkey-io/valkey-glide/go/v2/servermodules/glideft"
 )
 
 // vsPrefix is the collection prefix the router's vector store backend uses to
@@ -85,25 +88,22 @@ func runVectorStoreDemo(ctx context.Context, client *glide.Client) error {
 func createCollection(ctx context.Context, client *glide.Client, collection string, dimension int) error {
 	idxName := vsPrefix + collection + "_idx"
 	prefix := vsPrefix + collection + ":"
-	cmd := []string{
-		"FT.CREATE", idxName,
-		"ON", "HASH",
-		"PREFIX", "1", prefix,
-		"SCHEMA",
-		"id", "TAG",
-		"file_id", "TAG",
-		"filename", "TAG",
-		"content", "TEXT",
-		"chunk_index", "NUMERIC",
-		"created_at", "NUMERIC",
-		"embedding", "VECTOR", "HNSW", "10",
-		"TYPE", "FLOAT32",
-		"DIM", strconv.Itoa(dimension),
-		"DISTANCE_METRIC", "COSINE",
-		"M", "16",
-		"EF_CONSTRUCTION", "200",
+	schema := []options.Field{
+		options.NewTagField("id"),
+		options.NewTagField("file_id"),
+		options.NewTagField("filename"),
+		options.NewTextField("content"),
+		options.NewNumericField("chunk_index"),
+		options.NewNumericField("created_at"),
+		options.NewVectorFieldHNSW("embedding", constants.DistanceMetricCosine, dimension).
+			SetNumberOfEdges(16).             // HNSW M
+			SetVectorsExaminedOnConstruction(200), // HNSW EF_CONSTRUCTION
 	}
-	if _, err := client.CustomCommand(ctx, cmd); err != nil {
+	opts := &options.FtCreateOptions{
+		DataType: constants.IndexDataTypeHash,
+		Prefixes: []string{prefix},
+	}
+	if _, err := glideft.FtCreate(ctx, client, idxName, schema, opts); err != nil {
 		return fmt.Errorf("FT.CREATE failed (is the Search module loaded?): %w", err)
 	}
 	return nil
@@ -113,7 +113,7 @@ func createCollection(ctx context.Context, client *glide.Client, collection stri
 // DEL (never KEYS), matching the router's DeleteCollection cleanup.
 func deleteCollection(ctx context.Context, client *glide.Client, collection string) {
 	idxName := vsPrefix + collection + "_idx"
-	_, _ = client.CustomCommand(ctx, []string{"FT.DROPINDEX", idxName})
+	_, _ = glideft.FtDropIndex(ctx, client, idxName)
 	deleteByPrefix(ctx, client, vsPrefix+collection+":")
 }
 
@@ -121,18 +121,19 @@ func insertChunks(ctx context.Context, client *glide.Client, collection string, 
 	now := strconv.FormatInt(time.Now().Unix(), 10)
 	for _, c := range chunks {
 		key := vsPrefix + collection + ":" + c.id
+		// string(embedding) coerces raw FLOAT32 bytes into a binary-safe
+		// string for the VECTOR field; see cache.go for the rationale.
 		embedding := float32ToBytes(stubEmbedding(c.content))
-		cmd := []string{
-			"HSET", key,
-			"id", c.id,
-			"file_id", c.fileID,
-			"filename", c.filename,
-			"content", c.content,
-			"chunk_index", strconv.Itoa(c.chunkIndex),
-			"created_at", now,
-			"embedding", string(embedding),
+		fields := map[string]string{
+			"id":          c.id,
+			"file_id":     c.fileID,
+			"filename":    c.filename,
+			"content":     c.content,
+			"chunk_index": strconv.Itoa(c.chunkIndex),
+			"created_at":  now,
+			"embedding":   string(embedding),
 		}
-		if _, err := client.CustomCommand(ctx, cmd); err != nil {
+		if _, err := client.HSet(ctx, key, fields); err != nil {
 			return fmt.Errorf("HSET chunk %s failed: %w", c.id, err)
 		}
 	}
@@ -144,24 +145,34 @@ func insertChunks(ctx context.Context, client *glide.Client, collection string, 
 func vectorSearch(ctx context.Context, client *glide.Client, idxName, query string, topK int, threshold float64, fileID string) ([]searchResult, error) {
 	filterExpr := "*"
 	if fileID != "" {
+		// escapeTagValue guards against query injection; an empty fileID falls
+		// through to the "*" match-all filter above (an empty TAG brace would
+		// match nothing).
 		filterExpr = fmt.Sprintf("@file_id:{%s}", escapeTagValue(fileID))
 	}
 	knnQuery := fmt.Sprintf("(%s)=>[KNN %d @embedding $BLOB AS vector_distance]", filterExpr, topK)
 	embedding := float32ToBytes(stubEmbedding(query))
-	cmd := []string{
-		"FT.SEARCH", idxName, knnQuery,
-		"PARAMS", "2", "BLOB", string(embedding),
-		"RETURN", "5", "file_id", "filename", "content", "chunk_index", "vector_distance",
-		"LIMIT", "0", strconv.Itoa(topK),
-		"DIALECT", "2",
+	dialect := 2
+	searchOpts := &options.FtSearchOptions{
+		Params: []options.FtSearchParam{{Key: "BLOB", Value: string(embedding)}},
+		ReturnFields: []options.FtSearchReturnField{
+			{FieldIdentifier: "file_id"},
+			{FieldIdentifier: "filename"},
+			{FieldIdentifier: "content"},
+			{FieldIdentifier: "chunk_index"},
+			{FieldIdentifier: "vector_distance"},
+		},
+		Limit:   &options.FtSearchLimit{Offset: 0, Count: topK},
+		Dialect: &dialect,
 	}
-	result, err := client.CustomCommand(ctx, cmd)
+	result, err := glideft.FtSearch(ctx, client, idxName, knnQuery, searchOpts)
 	if err != nil {
 		return nil, fmt.Errorf("FT.SEARCH failed: %w", err)
 	}
 
 	var results []searchResult
-	for _, fields := range parseSearchDocs(result) {
+	for _, doc := range result.Documents {
+		fields := doc.Fields
 		distance, _ := strconv.ParseFloat(fmt.Sprint(fields["vector_distance"]), 64)
 		score := cosineDistanceToSimilarity(distance)
 		if score < threshold {

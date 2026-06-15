@@ -58,7 +58,6 @@ Both are optional. See [`.env.example`](.env.example) for the placeholders; expo
 | `vectorstore.go` | Vector store demo (cookbook 02) |
 | `memory.go` | Agentic memory demo (cookbook 03) |
 | `embedding.go` | Deterministic stub embeddings + float32 byte encoding |
-| `search.go` | Shared FT.SEARCH result parsing |
 | `keys.go` | TAG escaping and SCAN-based key cleanup |
 | `.env.example` | Placeholder values for the optional connection env vars |
 

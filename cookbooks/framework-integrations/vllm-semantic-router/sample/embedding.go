@@ -60,7 +60,10 @@ func fnv32(s string) int {
 		h ^= uint32(s[i])
 		h *= prime
 	}
-	return int(h)
+	// Mask the sign bit so the result is always non-negative: on 32-bit
+	// targets a bare int(uint32) can wrap negative, which would panic a
+	// caller indexing vec[idx].
+	return int(h & 0x7FFFFFFF)
 }
 
 // float32ToBytes encodes a float32 slice as little-endian bytes, the wire

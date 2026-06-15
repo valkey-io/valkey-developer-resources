@@ -76,6 +76,8 @@ func connect() (*glide.Client, error) {
 	clientConfig := config.NewClientConfiguration().
 		WithAddress(&config.NodeAddress{Host: host, Port: port}).
 		WithRequestTimeout(5 * time.Second) // tune for your network latency
+	// ⚠️ This sample connects without authentication or TLS for local development.
+	// For production: add WithCredentials() and WithUseTLS(true) to the config above.
 
 	client, err := glide.NewClient(clientConfig)
 	if err != nil {

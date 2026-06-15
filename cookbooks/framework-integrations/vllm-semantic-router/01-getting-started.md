@@ -102,6 +102,8 @@ A few values worth calling out:
 - **`dimension: 384`** — this matches BERT (`all-MiniLM-L6-v2`). The router auto-detects the real dimension from the embedding model at index-creation time, so it stays correct for Qwen3 (1024) or Gemma (768).
 - **`topk: 1`** — a cache only needs the single closest match.
 
+> Each backend defines its own YAML schema — the cache uses a nested structure (`valkey.connection.*`, `valkey.index.*`) while the vector store and memory backends (cookbooks 02 and 03) use flat structures with snake_case fields. Each maps to a different upstream Go config struct; refer to the linked source PR for the canonical reference.
+
 ## Step 3: Understand the Index the Router Creates
 
 On startup the router issues an `FT.CREATE` equivalent to this (HNSW branch):

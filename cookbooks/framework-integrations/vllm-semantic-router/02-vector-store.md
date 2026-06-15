@@ -141,4 +141,4 @@ Note the deletion pattern: because dropping the index does not delete the underl
 
 ---
 
-[03 - Agentic Memory Backend →](03-agentic-memory.md)
+[← 01 - Semantic Cache Backend](01-getting-started.md) · [03 - Agentic Memory Backend →](03-agentic-memory.md)

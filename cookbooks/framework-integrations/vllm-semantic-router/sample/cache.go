@@ -7,6 +7,9 @@ import (
 	"time"
 
 	glide "github.com/valkey-io/valkey-glide/go/v2"
+	"github.com/valkey-io/valkey-glide/go/v2/constants"
+	"github.com/valkey-io/valkey-glide/go/v2/options"
+	"github.com/valkey-io/valkey-glide/go/v2/servermodules/glideft"
 )
 
 const (
@@ -23,14 +26,14 @@ func runCacheDemo(ctx context.Context, client *glide.Client) error {
 
 	// Idempotent cleanup: drop a stale index and keys from a prior failed run
 	// so re-runs start clean. Ignored if the index does not exist.
-	_, _ = client.CustomCommand(ctx, []string{"FT.DROPINDEX", cacheIndex})
+	_, _ = glideft.FtDropIndex(ctx, client, cacheIndex)
 	deleteByPrefix(ctx, client, cachePrefix)
 
 	if err := createCacheIndex(ctx, client); err != nil {
 		return err
 	}
 	defer func() {
-		_, _ = client.CustomCommand(ctx, []string{"FT.DROPINDEX", cacheIndex})
+		_, _ = glideft.FtDropIndex(ctx, client, cacheIndex)
 		deleteByPrefix(ctx, client, cachePrefix)
 		fmt.Println("✓ Cleaned up index")
 	}()
@@ -62,25 +65,24 @@ func runCacheDemo(ctx context.Context, client *glide.Client) error {
 }
 
 // createCacheIndex issues the FT.CREATE the router uses for its cache: TAG
-// fields for exact request/model lookup plus an HNSW VECTOR field for KNN.
+// fields for exact request/model lookup plus an HNSW VECTOR field for KNN. The
+// typed glideft/options API builds the command, so field names, the vector
+// algorithm, and HNSW parameters are checked at compile time.
 func createCacheIndex(ctx context.Context, client *glide.Client) error {
-	cmd := []string{
-		"FT.CREATE", cacheIndex,
-		"ON", "HASH",
-		"PREFIX", "1", cachePrefix,
-		"SCHEMA",
-		"request_id", "TAG",
-		"model", "TAG",
-		"query", "TEXT",
-		"embedding", "VECTOR", "HNSW", "10",
-		"TYPE", "FLOAT32",
-		"DIM", strconv.Itoa(embedDim),
-		"DISTANCE_METRIC", "COSINE",
-		"M", "16",
-		"EF_CONSTRUCTION", "64",
-		"timestamp", "NUMERIC",
+	schema := []options.Field{
+		options.NewTagField("request_id"),
+		options.NewTagField("model"),
+		options.NewTextField("query"),
+		options.NewVectorFieldHNSW("embedding", constants.DistanceMetricCosine, embedDim).
+			SetNumberOfEdges(16).            // HNSW M: links per node
+			SetVectorsExaminedOnConstruction(64), // HNSW EF_CONSTRUCTION
+		options.NewNumericField("timestamp"),
 	}
-	if _, err := client.CustomCommand(ctx, cmd); err != nil {
+	opts := &options.FtCreateOptions{
+		DataType: constants.IndexDataTypeHash,
+		Prefixes: []string{cachePrefix},
+	}
+	if _, err := glideft.FtCreate(ctx, client, cacheIndex, schema, opts); err != nil {
 		return fmt.Errorf("FT.CREATE failed (is the Search module loaded?): %w", err)
 	}
 	return nil
@@ -90,17 +92,21 @@ func createCacheIndex(ctx context.Context, client *glide.Client) error {
 // router's addEntry path (HSET + EXPIRE).
 func storeCacheEntry(ctx context.Context, client *glide.Client, requestID, model, query, response string) error {
 	key := cachePrefix + requestID
+	// string(embedding) intentionally coerces the raw little-endian FLOAT32
+	// bytes into a string without re-encoding: Go's string([]byte) preserves
+	// the exact bytes and RESP is binary-safe, so the VECTOR field round-trips
+	// unchanged. Do not "fix" this to a textual encoding. (Same pattern in
+	// vectorstore.go and memory.go.)
 	embedding := float32ToBytes(stubEmbedding(query))
-	hset := []string{
-		"HSET", key,
-		"request_id", requestID,
-		"model", model,
-		"query", query,
-		"response_body", response,
-		"embedding", string(embedding),
-		"timestamp", strconv.FormatInt(time.Now().Unix(), 10),
+	fields := map[string]string{
+		"request_id":    requestID,
+		"model":         model,
+		"query":         query,
+		"response_body": response,
+		"embedding":     string(embedding),
+		"timestamp":     strconv.FormatInt(time.Now().Unix(), 10),
 	}
-	if _, err := client.CustomCommand(ctx, hset); err != nil {
+	if _, err := client.HSet(ctx, key, fields); err != nil {
 		return fmt.Errorf("HSET failed: %w", err)
 	}
 	// Set the TTL via the native typed Expire wrapper (EXPIRE under the hood).
@@ -114,23 +120,25 @@ func storeCacheEntry(ctx context.Context, client *glide.Client, requestID, model
 // the cosine distance to a similarity score for the threshold check.
 func lookupCache(ctx context.Context, client *glide.Client, query string) (response string, similarity float64, hit bool, err error) {
 	embedding := float32ToBytes(stubEmbedding(query))
-	cmd := []string{
-		"FT.SEARCH", cacheIndex,
-		"*=>[KNN 1 @embedding $vec AS vector_distance]",
-		"RETURN", "2", "vector_distance", "response_body",
-		"DIALECT", "2",
-		"PARAMS", "2", "vec", string(embedding),
+	dialect := 2
+	searchOpts := &options.FtSearchOptions{
+		ReturnFields: []options.FtSearchReturnField{
+			{FieldIdentifier: "vector_distance"},
+			{FieldIdentifier: "response_body"},
+		},
+		Params:  []options.FtSearchParam{{Key: "vec", Value: string(embedding)}},
+		Dialect: &dialect,
 	}
-	result, err := client.CustomCommand(ctx, cmd)
+	result, err := glideft.FtSearch(ctx, client, cacheIndex,
+		"*=>[KNN 1 @embedding $vec AS vector_distance]", searchOpts)
 	if err != nil {
 		return "", 0, false, fmt.Errorf("FT.SEARCH failed: %w", err)
 	}
-
-	docs := parseSearchDocs(result)
-	if len(docs) == 0 {
+	if len(result.Documents) == 0 {
 		return "", 0, false, nil
 	}
-	best := docs[0]
+
+	best := result.Documents[0].Fields
 	distance, _ := strconv.ParseFloat(fmt.Sprint(best["vector_distance"]), 64)
 	similarity = cosineDistanceToSimilarity(distance)
 	if similarity < cacheThreshold {
