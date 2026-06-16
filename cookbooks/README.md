@@ -39,5 +39,7 @@ Production-ready integrations for popular AI agent frameworks. Checkpointing, ca
 | <nobr>[DB-GPT](framework-integrations/dbgpt/)</nobr> | Use Valkey as a vector store for RAG pipelines and an LLM response cache in DB-GPT. HNSW indexing, metadata filtering, and sub-millisecond cache reads via `valkey-glide`. |
 | <nobr>[DocsGPT](framework-integrations/docs-gpt/)</nobr> | Use Valkey as the vector store backend in DocsGPT for document retrieval (RAG). HNSW indexing, source isolation via TAG filtering, and bulk ingestion with `valkey-glide`. |
 | <nobr>[BetterDB](framework-integrations/betterdb-agent-cache/)</nobr> | Two packages for Valkey-backed LLM caching. `@betterdb/semantic-cache` — Valkey-native vector similarity cache. `@betterdb/agent-cache` — multi-tier LLM, tool, and session cache with LangGraph support. |
+| <nobr>[LMCache](framework-integrations/lmcache/)</nobr> | Offload LLM KV caches to Valkey for 3-10× TTFT reduction. Share computed attention tensors across vLLM instances via a centralized Valkey L2 store using `valkey-glide`. |
 | <nobr>[Cognee](framework-integrations/cognee/)</nobr> | AI memory system that builds knowledge graphs from your data. Uses `valkey-glide` with Valkey Search for vector storage, providing more accurate context than traditional RAG. |
+| <nobr>[PraisonAI](framework-integrations/praisonai/)</nobr> | Give PraisonAI agents persistent state and vector knowledge retrieval backed by Valkey. `ValkeyStateStore` for session history and counters, `ValkeyVectorKnowledgeStore` for HNSW semantic search. |
 
