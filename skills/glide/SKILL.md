@@ -65,7 +65,7 @@ Detect language via file extension (`.js`/`.ts`, `.py`, `.java`, `.go`, `.php`, 
 ## Timeout Configuration
 
 - **Connection timeout**: Time to establish connection (typically 2s)
-- **Request timeout**: Time per command (typically 250ms)
+- **Request timeout**: Time per command (default 250ms when omitted). Always explicit in production for clarity, but omitting does NOT cause indefinite hangs.
 
 Increase timeouts for: large batches (>1000 keys), vector search, blocking ops (BLPOP/BRPOP with timeout), high-latency networks, cross-node cluster ops, large values (>1MB).
 
@@ -189,6 +189,8 @@ client.exec(batch, raiseOnError, options?)
 
 One client per application (or per distinct cluster). GLIDE multiplexes over a single connection — it is thread/goroutine-safe and reconnects automatically. See each language guide for singleton and shutdown patterns.
 
+- **Default reconnection:** Even without explicit `reconnect_strategy`/`BackoffStrategy`, GLIDE uses `RetryStrategy::default()` in the Rust core — the client always auto-reconnects with backoff. Setting `BackoffStrategy(num_of_retries, factor, exponent_base, jitter_percent)` gives explicit control over the curve.
+
 - **Singleton:** Python: module-level var + `lifespan`; Java: `static` field or `@Bean`; Go: package-level var + `defer client.Close()`; Node.js: module-level `let` + `process.on('SIGTERM')`; PHP: `global`/static per FPM worker; C#: `AddSingleton` or `IHostedService`
 - **Shutdown:** call `close()` / `DisposeAsync()` on exit to flush in-flight requests
 - **Reconnection:** do NOT recreate on `RequestException`/`TimeoutException` — only recreate on `ClosingError` (client was explicitly closed)
@@ -204,7 +206,7 @@ Key patterns: AZ Affinity (>80% reads), `inflightRequestsLimit` tuning (Node.js/
 ### Universal Anti-Patterns
 
 1. **Per-request client creation** — create once at startup, reuse everywhere
-2. **Missing request timeouts** — always configure (500ms for web apps)
+2. **Implicit request timeouts** — default is 250ms; set explicitly in production for clarity and to tune per use-case (500ms for web apps, higher for blocking ops)
 3. **Sequential operations** — use batching (10-100 commands) or concurrent execution or `MGET` in lieu of many `GET`s
 4. **Blocking commands on shared client** — use dedicated client with longer timeout
 5. **Large batch sizes** — keep under 1000 commands, optimal 10-100
@@ -234,6 +236,33 @@ For infrastructure guidance (cluster sizing, memory policy, ElastiCache node typ
 - [ ] lazyConnect for serverless/Lambda
 - [ ] OpenTelemetry enabled for monitoring
 - [ ] Logging set to warn/error for production
+
+---
+
+## Lua Scripting
+
+GLIDE wraps SCRIPT LOAD + EVALSHA behind a `Script` object. Create once, invoke many times — GLIDE handles caching.
+
+### Script Creation
+| Language | Constructor |
+|----------|------------|
+| Python | `Script(code: Union[str, bytes])` |
+| Java | `new Script(code, binaryOutput)` — `code` is any type (converted via `GlideString.of()`), `binaryOutput` is `Boolean` |
+| Node.js | `new Script(code: string \| Uint8Array)` |
+| Go | `options.NewScript(code string)` |
+
+### Invocation
+| Language | Call |
+|----------|------|
+| Python | `await client.invoke_script(script, keys=["k1"], args=["a1"])` |
+| Java | `client.invokeScript(script, new ScriptOptions(keys, args))` |
+| Node.js | `await client.invokeScript(script, { keys: ["k1"], args: ["a1"] })` |
+| Go | `client.InvokeScriptWithOptions(ctx, script, options.ScriptOptions{Keys: keys, Args: args})` |
+
+- `keys` and `args` accept strings (Python: `List[TEncodable]` = `Union[str, bytes, bytearray, memoryview]`)
+- No special key types needed — plain strings work for both standalone and cluster
+- Script source is a raw Lua string — no pre-hashing required
+- Go requires `context.Context` as first arg; basic `InvokeScript(ctx, script)` works without keys/args
 
 ## Valkey Module Detection
 
