@@ -20,6 +20,10 @@ Vector search requires the `valkey-bundle` image, which includes the Search modu
 docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:latest
 ```
 
+> ⚠️ **Security:** These examples use no authentication or TLS for simplicity.
+> For any non-localhost deployment, enable `requirepass` and TLS.
+> See the [Valkey security documentation](https://valkey.io/topics/security/).
+
 Verify the search module is loaded:
 
 ```bash
@@ -117,11 +121,14 @@ func main() {
 > ```go
 > import openaiEmb "github.com/cloudwego/eino-ext/components/embedding/openai"
 >
-> func yourEmbedder() *openaiEmb.Embedder {
->     emb, _ := openaiEmb.NewEmbedder(ctx, &openaiEmb.EmbeddingConfig{
+> func yourEmbedder(ctx context.Context) (*openaiEmb.Embedder, error) {
+>     emb, err := openaiEmb.NewEmbedder(ctx, &openaiEmb.EmbeddingConfig{
 >         Model: "text-embedding-3-small", // 1536 dims
 >     })
->     return emb
+>     if err != nil {
+>         return nil, err
+>     }
+>     return emb, nil
 > }
 > ```
 

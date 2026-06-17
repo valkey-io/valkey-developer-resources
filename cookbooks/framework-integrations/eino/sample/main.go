@@ -71,11 +71,13 @@ func main() {
 
 	// --- Retrieve documents ---
 	retriever, err := valkeyRetriever.NewRetriever(ctx, &valkeyRetriever.RetrieverConfig{
-		Client:       client,
-		Index:        "my_index",
-		VectorField:  "vector_content",
-		TopK:         3,
-		ReturnFields: []string{"content", "distance"},
+		Client:      client,
+		Index:       "my_index",
+		VectorField: "vector_content",
+		TopK:        3,
+		// Note: "distance" is not listed in ReturnFields — the retriever
+		// automatically maps the KNN score to doc.MetaData["distance"].
+		ReturnFields: []string{"content"},
 		Embedding:    emb,
 	})
 	if err != nil {

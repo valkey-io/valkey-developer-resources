@@ -35,6 +35,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
 	"strings"
 
 	glide "github.com/valkey-io/valkey-glide/go/v2"
@@ -60,10 +61,16 @@ func main() {
 	}
 	defer client.Close()
 
+	// --- Validate config ---
+	apiKey := os.Getenv("OPENAI_API_KEY")
+	if apiKey == "" {
+		log.Fatal("OPENAI_API_KEY environment variable is required")
+	}
+
 	// --- Embedder ---
 	emb, err := openaiEmb.NewEmbedder(ctx, &openaiEmb.EmbeddingConfig{
 		Model:  "text-embedding-3-small",
-		APIKey: os.Getenv("OPENAI_API_KEY"),
+		APIKey: apiKey,
 	})
 	if err != nil {
 		log.Fatalf("failed to create embedder: %v", err)
@@ -84,7 +91,7 @@ func main() {
 	// --- Chat Model ---
 	chatModel, err := openaiModel.NewChatModel(ctx, &openaiModel.ChatModelConfig{
 		Model:  "gpt-4o-mini",
-		APIKey: os.Getenv("OPENAI_API_KEY"),
+		APIKey: apiKey,
 	})
 	if err != nil {
 		log.Fatalf("failed to create chat model: %v", err)
@@ -110,12 +117,12 @@ func main() {
 		for _, doc := range docs {
 			contextParts = append(contextParts, doc.Content)
 		}
-		context := strings.Join(contextParts, "\n---\n")
+		contextText := strings.Join(contextParts, "\n---\n")
 
 		return []*schema.Message{
 			schema.SystemMessage(fmt.Sprintf(
 				"Answer the user's question based only on the following context.\n\nContext:\n%s",
-				context,
+				contextText,
 			)),
 		}, nil
 	}
@@ -131,7 +138,7 @@ func main() {
 		System []*schema.Message
 		Query  string
 	}) ([]*schema.Message, error) {
-		messages := append(in.System, schema.UserMessage(in.Query))
+		messages := append(slices.Clone(in.System), schema.UserMessage(in.Query))
 		return messages, nil
 	}
 	wf.AddLambdaNode("combine", compose.InvokableLambda(combineFn)).
@@ -200,16 +207,25 @@ It supports vector search for finding semantically similar documents.
 Replace `Invoke` with `Stream` to get token-by-token output:
 
 ```go
+import (
+    "errors"
+    "io"
+)
+
 stream, err := runner.Stream(ctx, Input{Query: "What is Valkey?"})
 if err != nil {
     log.Fatalf("stream error: %v", err)
 }
 
-for chunk := range stream.Recv() {
-    if chunk.Err != nil {
-        log.Fatalf("stream chunk error: %v", chunk.Err)
+for {
+    chunk, err := stream.Recv()
+    if errors.Is(err, io.EOF) {
+        break
     }
-    fmt.Print(chunk.Value.Answer)
+    if err != nil {
+        log.Fatalf("stream error: %v", err)
+    }
+    fmt.Print(chunk.Answer)
 }
 fmt.Println()
 ```

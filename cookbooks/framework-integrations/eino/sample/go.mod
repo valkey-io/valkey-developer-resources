@@ -4,8 +4,8 @@ go 1.23.0
 
 require (
 	github.com/cloudwego/eino v0.6.0
-	github.com/cloudwego/eino-ext/components/indexer/valkey v0.0.0-local
-	github.com/cloudwego/eino-ext/components/retriever/valkey v0.0.0-local
+	github.com/cloudwego/eino-ext/components/indexer/valkey v0.0.0-00010101000000-000000000000
+	github.com/cloudwego/eino-ext/components/retriever/valkey v0.0.0-00010101000000-000000000000
 	github.com/valkey-io/valkey-glide/go/v2 v2.4.1
 )
 
@@ -40,12 +40,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-// TODO(pre-merge): Remove replace directives once eino-ext Valkey components are released.
-// After merge, run:
+// TODO: The eino-ext Valkey components are not yet released upstream.
+// Once published, run:
 //   go get github.com/cloudwego/eino-ext/components/indexer/valkey@latest
 //   go get github.com/cloudwego/eino-ext/components/retriever/valkey@latest
 //   go mod tidy
-replace (
-	github.com/cloudwego/eino-ext/components/indexer/valkey => /Users/matthias/GITWorkspace/golang/eino-ext/components/indexer/valkey
-	github.com/cloudwego/eino-ext/components/retriever/valkey => /Users/matthias/GITWorkspace/golang/eino-ext/components/retriever/valkey
-)
