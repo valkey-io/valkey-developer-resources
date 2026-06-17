@@ -9,7 +9,7 @@
 ## Prerequisites
 
 - Docker installed (or a running Valkey 9.1+ instance with the Search module)
-- Go 1.22+
+- Go 1.23+
 - CGO enabled (the valkey-glide Go client requires the Rust core library)
 
 ## Step 1: Start Valkey
@@ -18,6 +18,12 @@ Vector search requires the `valkey-bundle` image, which includes the Search modu
 
 ```bash
 docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:latest
+```
+
+Or with podman:
+
+```bash
+podman run -d --name valkey -p 6379:6379 valkey/valkey-bundle:latest
 ```
 
 > ⚠️ **Security:** These examples use no authentication or TLS for simplicity.
@@ -40,6 +46,8 @@ docker exec valkey valkey-cli FT.CREATE my_index ON HASH PREFIX 1 doc: SCHEMA \
   content TEXT \
   vector_content VECTOR HNSW 6 TYPE FLOAT32 DIM 1536 DISTANCE_METRIC COSINE
 ```
+
+> **Note:** The `6` after `HNSW` is the count of attribute tokens that follow (TYPE, FLOAT32, DIM, 1536, DISTANCE_METRIC, COSINE = 3 key-value pairs = 6 tokens). It is not a tunable parameter.
 
 This creates an index named `my_index` that:
 - Watches Hash keys prefixed with `doc:`
@@ -84,7 +92,8 @@ func main() {
 
 	// 1. Create Valkey GLIDE client
 	cfg := config.NewClientConfiguration().
-		WithAddress(&config.NodeAddress{Host: "localhost", Port: 6379})
+		WithAddress(&config.NodeAddress{Host: "localhost", Port: 6379}).
+		WithRequestTimeout(5000) // ms — increase for higher-latency environments
 	client, err := glide.NewClient(cfg)
 	if err != nil {
 		log.Fatalf("failed to create client: %v", err)
@@ -92,11 +101,16 @@ func main() {
 	defer client.Close()
 
 	// 2. Create the indexer
+	emb, err := yourEmbedder(ctx)
+	if err != nil {
+		log.Fatalf("failed to create embedder: %v", err)
+	}
+
 	indexer, err := valkeyIndexer.NewIndexer(ctx, &valkeyIndexer.IndexerConfig{
 		Client:    client,
 		KeyPrefix: "doc:",
 		BatchSize: 10,
-		Embedding: yourEmbedder(), // see note below
+		Embedding: emb,
 	})
 	if err != nil {
 		log.Fatalf("failed to create indexer: %v", err)
@@ -154,12 +168,19 @@ func main() {
 	ctx := context.Background()
 
 	cfg := config.NewClientConfiguration().
-		WithAddress(&config.NodeAddress{Host: "localhost", Port: 6379})
+		WithAddress(&config.NodeAddress{Host: "localhost", Port: 6379}).
+		WithRequestTimeout(5000)
 	client, err := glide.NewClient(cfg)
 	if err != nil {
 		log.Fatalf("failed to create client: %v", err)
 	}
 	defer client.Close()
+
+	// Create embedder
+	emb, err := yourEmbedder(ctx)
+	if err != nil {
+		log.Fatalf("failed to create embedder: %v", err)
+	}
 
 	// Create retriever
 	retriever, err := valkeyRetriever.NewRetriever(ctx, &valkeyRetriever.RetrieverConfig{
@@ -167,7 +188,7 @@ func main() {
 		Index:       "my_index",
 		VectorField: "vector_content",
 		TopK:        3,
-		Embedding:   yourEmbedder(),
+		Embedding:   emb,
 	})
 	if err != nil {
 		log.Fatalf("failed to create retriever: %v", err)

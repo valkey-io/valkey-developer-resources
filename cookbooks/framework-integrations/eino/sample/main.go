@@ -36,7 +36,8 @@ func main() {
 
 	// --- Valkey client ---
 	cfg := config.NewClientConfiguration().
-		WithAddress(&config.NodeAddress{Host: "localhost", Port: 6379})
+		WithAddress(&config.NodeAddress{Host: "localhost", Port: 6379}).
+		WithRequestTimeout(5000) // ms — increase for higher-latency environments
 	client, err := glide.NewClient(cfg)
 	if err != nil {
 		log.Fatalf("failed to create Valkey client: %v", err)
@@ -94,8 +95,7 @@ func main() {
 	}
 
 	if len(results) == 0 {
-		fmt.Println("  No results found.")
-		return
+		log.Fatal("no results — indexing or retrieval failed (check index name, DIM, and that documents were stored)")
 	}
 
 	for _, doc := range results {

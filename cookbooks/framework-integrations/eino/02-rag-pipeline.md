@@ -15,7 +15,6 @@ This cookbook builds on [01 - Getting Started](01-getting-started.md). You'll wi
 
 ```bash
 go get github.com/cloudwego/eino/compose@latest
-go get github.com/cloudwego/eino/components/prompt@latest
 go get github.com/cloudwego/eino-ext/components/model/openai@latest
 go get github.com/cloudwego/eino-ext/components/embedding/openai@latest
 ```
@@ -54,7 +53,8 @@ func main() {
 
 	// --- Valkey client ---
 	cfg := config.NewClientConfiguration().
-		WithAddress(&config.NodeAddress{Host: "localhost", Port: 6379})
+		WithAddress(&config.NodeAddress{Host: "localhost", Port: 6379}).
+		WithRequestTimeout(5000)
 	client, err := glide.NewClient(cfg)
 	if err != nil {
 		log.Fatalf("failed to create client: %v", err)
@@ -239,7 +239,7 @@ Restrict retrieval to a subset of documents by adding a filter expression:
 ```go
 // Instead of the plain retriever, wrap it with filter options
 docs, err := ret.Retrieve(ctx, query,
-    valkeyRetriever.WithFilterQuery("@category:{technology}"))
+    valkeyRetriever.WithFilterQuery("@content:Valkey"))
 ```
 
 To use filters inside the workflow, wrap the retriever in a lambda that applies the filter:
@@ -247,12 +247,14 @@ To use filters inside the workflow, wrap the retriever in a lambda that applies 
 ```go
 filteredRetrieve := func(ctx context.Context, query string) ([]*schema.Document, error) {
     return ret.Retrieve(ctx, query,
-        valkeyRetriever.WithFilterQuery("@category:{technology}"))
+        valkeyRetriever.WithFilterQuery("@content:Valkey"))
 }
 
 wf.AddLambdaNode("retrieve", compose.InvokableLambda(filteredRetrieve)).
     AddInput(compose.START, compose.FromField("Query"))
 ```
+
+> **⚠️ Security:** Never interpolate unsanitized user input into filter expressions. The values shown here are safe hardcoded literals.
 
 ## Next Steps
 

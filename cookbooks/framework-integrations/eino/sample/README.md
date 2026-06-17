@@ -2,10 +2,14 @@
 
 Runnable sample proving the cookbook code works end-to-end.
 
-> **⚠️ Pre-merge note:** This sample uses `replace` directives in `go.mod` pointing to a local
-> checkout of [eino-ext](https://github.com/cloudwego/eino-ext) on the `feat/valkey-indexer-retriever`
-> branch. Before merging this PR, update `go.mod` to reference the released versions and run
-> `go mod tidy` to generate a proper `go.sum`.
+> **⚠️ Blocked on upstream:** This sample cannot build until the eino-ext Valkey components
+> are [merged and released](https://github.com/cloudwego/eino-ext) (branch: `feat/valkey-indexer-retriever`).
+> Once released, update `go.mod` to reference the published versions and regenerate `go.sum`:
+> ```bash
+> go get github.com/cloudwego/eino-ext/components/indexer/valkey@latest
+> go get github.com/cloudwego/eino-ext/components/retriever/valkey@latest
+> go mod tidy
+> ```
 
 ## Prerequisites
 
@@ -13,19 +17,16 @@ Runnable sample proving the cookbook code works end-to-end.
    ```bash
    docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:latest
    ```
+   Or with podman:
+   ```bash
+   podman run -d --name valkey -p 6379:6379 valkey/valkey-bundle:latest
+   ```
 
-2. Create the search index:
+2. Create the search index (`6` = count of the parameter tokens that follow: TYPE, FLOAT32, DIM, 4, DISTANCE_METRIC, COSINE):
    ```bash
    docker exec valkey valkey-cli FT.CREATE my_index ON HASH PREFIX 1 doc: SCHEMA \
      content TEXT vector_content VECTOR HNSW 6 TYPE FLOAT32 DIM 4 DISTANCE_METRIC COSINE
    ```
-
-3. Clone [eino-ext](https://github.com/cloudwego/eino-ext) and checkout `feat/valkey-indexer-retriever`:
-   ```bash
-   git clone https://github.com/cloudwego/eino-ext.git
-   cd eino-ext && git checkout feat/valkey-indexer-retriever
-   ```
-   Then update the `replace` paths in `go.mod` to point to your local clone.
 
 ## Run
 
