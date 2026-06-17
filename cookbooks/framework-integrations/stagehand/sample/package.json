@@ -1,0 +1,16 @@
+{
+  "name": "stagehand-valkey-demo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "demo": "tsx demo.ts"
+  },
+  "dependencies": {
+    "@browserbasehq/stagehand": "^3.5.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.4",
+    "typescript": "^5.7.0"
+  }
+}
