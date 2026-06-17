@@ -192,7 +192,7 @@ One client per application (or per distinct cluster). GLIDE multiplexes over a s
 - **Default reconnection:** Even without explicit `reconnect_strategy`/`BackoffStrategy`, GLIDE uses `RetryStrategy::default()` in the Rust core — the client always auto-reconnects with backoff. Setting `BackoffStrategy(num_of_retries, factor, exponent_base, jitter_percent)` gives explicit control over the curve.
 
 - **Singleton:** Python: module-level var + `lifespan`; Java: `static` field or `@Bean`; Go: package-level var + `defer client.Close()`; Node.js: module-level `let` + `process.on('SIGTERM')`; PHP: `global`/static per FPM worker; C#: `AddSingleton` or `IHostedService`
-- **Shutdown:** call `close()` / `DisposeAsync()` on exit to flush in-flight requests
+- **Shutdown:** call `close()` on exit to reject in-flight requests. Python: `await client.close()` (async). Node.js: `client.close()` (synchronous, returns void — do NOT await). Java/Go/C#: see language guide.
 - **Reconnection:** do NOT recreate on `RequestException`/`TimeoutException` — only recreate on `ClosingError` (client was explicitly closed)
 
 ---

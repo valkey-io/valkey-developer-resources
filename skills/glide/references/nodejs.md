@@ -276,6 +276,22 @@ process.on("SIGTERM", () => { client?.close(); process.exit(0); });
 process.on("SIGINT",  () => { client?.close(); process.exit(0); });
 ```
 
+### Node.js API Quick Reference
+
+| Operation | Node.js |
+|-----------|---------|
+| Create client | `await GlideClient.createClient(config)` (NOT `.create()`) |
+| Close | `client.close()` (sync, void — do NOT await) |
+| Delete keys | `await client.del(["key1", "key2"])` (accepts `GlideString[]`) |
+| Set with TTL | `await client.set(key, val, { expiry: { type: TimeUnit.Seconds, count: 60 } })` |
+
+### Node.js Config Differences from Python
+
+- **Factory method**: `GlideClient.createClient(config)` — not `GlideClient.create()`
+- **Reconnection**: uses `connectionBackoff: { numberOfRetries, factor, exponentBase }` — NOT `reconnect_strategy`/`BackoffStrategy` like Python
+- **Set expiry**: uses `{ expiry: { type: TimeUnit.Seconds, count: N } }` — import `TimeUnit` enum, don't pass raw `"EX"` string
+- **GlideString**: `string | Buffer` — use `Decoder.Bytes` option for binary data
+
 ---
 
 # Performance Optimization
