@@ -1,0 +1,54 @@
+{
+  "trackName": "Stagehand Python",
+  "cookbooks": [
+    {
+      "num": "01",
+      "source": "01-getting-started.md",
+      "output": "01-getting-started.html",
+      "title": "Getting Started with Stagehand Python + Valkey",
+      "h1": "Getting Started with Stagehand Python + Valkey",
+      "breadcrumb": "Getting Started",
+      "lead": "Use the Stagehand Python SDK with a Valkey-backed server so that act() and agent() actions are cached and replayed without LLM inference on subsequent runs.",
+      "difficulty": "Beginner",
+      "time": "15 min",
+      "next": {
+        "file": "02-cache-categories-and-ttl.html",
+        "title": "02 - Cache Categories and TTL"
+      }
+    },
+    {
+      "num": "02",
+      "source": "02-cache-categories-and-ttl.md",
+      "output": "02-cache-categories-and-ttl.html",
+      "title": "Cache Categories and TTL",
+      "h1": "Cache Categories and TTL",
+      "breadcrumb": "Categories & TTL",
+      "lead": "Understand how Stagehand namespaces cached actions into act and agent categories, configure key prefixes for multi-tenant setups, and set TTL to expire stale entries automatically.",
+      "difficulty": "Intermediate",
+      "time": "15 min",
+      "prev": {
+        "file": "01-getting-started.html",
+        "title": "01 - Getting Started"
+      },
+      "next": {
+        "file": "03-production-configuration.html",
+        "title": "03 - Production Configuration"
+      }
+    },
+    {
+      "num": "03",
+      "source": "03-production-configuration.md",
+      "output": "03-production-configuration.html",
+      "title": "Production Configuration",
+      "h1": "Production Configuration",
+      "breadcrumb": "Production",
+      "lead": "Configure TLS, ACL authentication, and environment variable-based setup for deploying Stagehand with Valkey in production or via the Stagehand server.",
+      "difficulty": "Intermediate",
+      "time": "15 min",
+      "prev": {
+        "file": "02-cache-categories-and-ttl.html",
+        "title": "02 - Cache Categories and TTL"
+      }
+    }
+  ]
+}
