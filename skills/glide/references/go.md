@@ -217,6 +217,7 @@ results, err := clusterClient.Exec(ctx, *pipelineBatch, true)
 - Type mismatch (wrong batch type for client) is a **compile-time error**, not runtime
 - Returns `([]any, error)` — see raiseOnError table above
 - See SKILL.md for retry strategy decision matrix
+- **Slice parameters**: Batch methods mirror standalone signatures. Commands like `Del`, `HDel`, `Exists`, `Unlink` take `[]string` — use `batch.Del([]string{"key1", "key2"})` not `batch.Del("key")`
 
 ### Retry Strategies (Cluster Only)
 
