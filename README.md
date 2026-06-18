@@ -27,7 +27,7 @@ Step-by-step guides for building AI applications with Valkey, migrated from [Val
 | --- | --- |
 | [📖 All Cookbooks](cookbooks/) | Main index — use cases and framework integrations |
 | [Use Cases](cookbooks/use-cases/) | Semantic caching, conversation memory, vector search, RAG pipelines, rate limiting, pub/sub streaming, feature store, context engineering |
-| [Framework Integrations](cookbooks/framework-integrations/) | Mem0, LangChain/LangGraph, CrewAI, Strands, Haystack, BetterDB |
+| [Framework Integrations](cookbooks/framework-integrations/) | Mem0, LangChain/LangGraph, CrewAI, Strands, Haystack, BetterDB, LangBot |
 
 <hr>
 
@@ -51,6 +51,7 @@ Real-world applications and libraries using Valkey:
 | [Cognee](https://github.com/topoteretes/cognee-community) | AI memory system for agents with vector database adapter for Valkey. Provides more accurate context than traditional RAG |
 | [Haystack Integrations](https://github.com/deepset-ai/haystack-core-integrations/tree/main/integrations/valkey) | Valkey integration for Haystack, an open-source AI orchestration framework for building production-ready LLM applications |
 | [LangChain AWS](https://github.com/langchain-ai/langchain-aws) | Valkey vector store integration for LangChain on AWS, enabling vector similarity search and LangGraph checkpointing with Valkey via the valkey-glide client |
+| [LangBot](https://github.com/langbot-app/LangBot) | Production-grade platform for building agentic IM bots that uses Valkey as a distributed rate-limit store and a knowledge-base vector backend (vector, full-text, and hybrid search) via the valkey-glide client |
 | [LMCache](https://github.com/LMCache/LMCache) | High-performance KV cache layer for LLM inference engines (vLLM, SGLang) that uses Valkey as a storage backend to reduce time-to-first-token by up to 10× |
 | [Mem0 Valkey Vector Store](https://docs.mem0.ai/components/vectordbs/dbs/valkey) | Vector database adapter enabling Mem0 to use Valkey for storing and searching embeddings with HNSW or FLAT indexing |
 | [node-rate-limiter-flexible](https://github.com/animir/node-rate-limiter-flexible) | Atomic counters and rate limiting at any scale. Protects from DoS and brute force attacks with Valkey, Redis, and other backends |

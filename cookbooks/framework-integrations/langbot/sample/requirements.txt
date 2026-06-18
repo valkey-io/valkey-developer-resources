@@ -1,0 +1,3 @@
+# Bounded range matching LangBot's pyproject pin. The typed `ft` search API
+# (ft.create / ft.search) used by vector_search.py is available from 2.4.1.
+valkey-glide>=2.4.1,<3.0.0

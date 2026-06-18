@@ -1,0 +1,73 @@
+{
+  "trackName": "LangBot",
+  "cookbooks": [
+    {
+      "num": "01",
+      "source": "01-getting-started.md",
+      "output": "01-getting-started.html",
+      "title": "Getting Started with LangBot + Valkey",
+      "h1": "Getting Started with LangBot + Valkey",
+      "breadcrumb": "Getting Started",
+      "lead": "Start Valkey, verify the connection, and wire LangBot's opt-in Valkey backends for rate limiting and vector search.",
+      "difficulty": "Beginner",
+      "time": "15 min",
+      "next": {
+        "file": "02-distributed-rate-limiting.html",
+        "title": "02 - Distributed Rate Limiting"
+      }
+    },
+    {
+      "num": "02",
+      "source": "02-distributed-rate-limiting.md",
+      "output": "02-distributed-rate-limiting.html",
+      "title": "Distributed Rate Limiting with Valkey",
+      "h1": "Distributed Rate Limiting with Valkey",
+      "breadcrumb": "Rate Limiting",
+      "lead": "Share a single fixed-window rate-limit counter across LangBot workers with an atomic INCR + EXPIRE Lua script and a fail-open posture.",
+      "difficulty": "Intermediate",
+      "time": "20 min",
+      "prev": {
+        "file": "01-getting-started.html",
+        "title": "01 - Getting Started"
+      },
+      "next": {
+        "file": "03-vector-search.html",
+        "title": "03 - Vector Search"
+      }
+    },
+    {
+      "num": "03",
+      "source": "03-vector-search.md",
+      "output": "03-vector-search.html",
+      "title": "Vector Search for the Knowledge Base",
+      "h1": "Vector Search for the Knowledge Base",
+      "breadcrumb": "Vector Search",
+      "lead": "Use Valkey Search as a RAG vector backend — create an HNSW index, store embeddings as HASH keys, and run KNN similarity queries with valkey-glide's typed ft API.",
+      "difficulty": "Intermediate",
+      "time": "20 min",
+      "prev": {
+        "file": "02-distributed-rate-limiting.html",
+        "title": "02 - Distributed Rate Limiting"
+      },
+      "next": {
+        "file": "04-hybrid-and-filtering.html",
+        "title": "04 - Hybrid Search & Filtering"
+      }
+    },
+    {
+      "num": "04",
+      "source": "04-hybrid-and-filtering.md",
+      "output": "04-hybrid-and-filtering.html",
+      "title": "Hybrid Search & Metadata Filtering",
+      "h1": "Hybrid Search & Metadata Filtering",
+      "breadcrumb": "Hybrid & Filtering",
+      "lead": "Combine full-text and vector search with filter-then-KNN, scope results by file_id TAG filters, and understand the vector_weight caveat and query-injection safety.",
+      "difficulty": "Advanced",
+      "time": "20 min",
+      "prev": {
+        "file": "03-vector-search.html",
+        "title": "03 - Vector Search"
+      }
+    }
+  ]
+}

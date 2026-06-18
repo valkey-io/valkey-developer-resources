@@ -41,4 +41,5 @@ Production-ready integrations for popular AI agent frameworks. Checkpointing, ca
 | <nobr>[BetterDB](framework-integrations/betterdb-agent-cache/)</nobr> | Two packages for Valkey-backed LLM caching. `@betterdb/semantic-cache` — Valkey-native vector similarity cache. `@betterdb/agent-cache` — multi-tier LLM, tool, and session cache with LangGraph support. |
 | <nobr>[LMCache](framework-integrations/lmcache/)</nobr> | Offload LLM KV caches to Valkey for 3-10× TTFT reduction. Share computed attention tensors across vLLM instances via a centralized Valkey L2 store using `valkey-glide`. |
 | <nobr>[Cognee](framework-integrations/cognee/)</nobr> | AI memory system that builds knowledge graphs from your data. Uses `valkey-glide` with Valkey Search for vector storage, providing more accurate context than traditional RAG. |
+| <nobr>[LangBot](framework-integrations/langbot/)</nobr> | Production-grade platform for agentic IM bots. Uses Valkey as a distributed fixed-window rate-limit store (shared across workers) and a RAG vector backend (vector, full-text, and hybrid search) via `valkey-glide`. |
 
