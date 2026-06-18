@@ -20,11 +20,21 @@ There are two ways to run Stagehand with Valkey:
 
 > **Note**: The pre-built SEA binary (`server="local"`) accepts Valkey configuration parameters but cannot connect to Valkey at runtime because `@valkey/valkey-glide` relies on a native Rust addon that cannot be embedded in a single-executable binary. To use Valkey caching, run the Stagehand server from source as shown below.
 
+> ⚠️ These examples connect without authentication for local development. Always enable authentication and TLS for production deployments (see [03 - Production Configuration](03-production-configuration.md)).
+
 ## Step 1: Start Valkey
 
 ```bash
+# Docker
 docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:latest
+```
 
+```bash
+# Podman
+podman run -d --name valkey -p 6379:6379 valkey/valkey-bundle:latest
+```
+
+```bash
 docker exec valkey valkey-cli PING
 # PONG
 ```
@@ -73,14 +83,16 @@ def main():
     )
     session_id = session.data.session_id
 
-    client.sessions.navigate(id=session_id, url="https://www.example.com")
+    try:
+        client.sessions.navigate(id=session_id, url="https://www.example.com")
 
-    # First run: resolves via LLM. Second run: replays from Valkey cache.
-    client.sessions.act(id=session_id, input="click on the More information link")
+        # First run: resolves via LLM. Second run: replays from Valkey cache.
+        client.sessions.act(id=session_id, input="click on the More information link")
 
-    print("Action completed")
-    client.sessions.end(id=session_id)
-    client.close()
+        print("Action completed")
+    finally:
+        client.sessions.end(id=session_id)
+        client.close()
 
 if __name__ == "__main__":
     main()

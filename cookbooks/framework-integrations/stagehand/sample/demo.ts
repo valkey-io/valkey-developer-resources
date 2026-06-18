@@ -49,15 +49,17 @@ async function main() {
   });
 
   await stagehand.init();
-  const page = stagehand.context.pages()[0];
+  try {
+    const page = stagehand.context.pages()[0];
 
-  // Navigate and perform a cached action
-  await page.goto("https://docs.stagehand.dev");
-  console.log("Running act() - first call resolves via LLM, second replays from Valkey cache");
-  await stagehand.act("click on the Quickstart link");
-  console.log("Action completed. Page title:", await page.title());
-
-  await stagehand.close();
+    // Navigate and perform a cached action
+    await page.goto("https://docs.stagehand.dev");
+    console.log("Running act() - first call resolves via LLM, second replays from Valkey cache");
+    await stagehand.act("click on the Quickstart link");
+    console.log("Action completed. Page title:", await page.title());
+  } finally {
+    await stagehand.close();
+  }
   console.log("\nDone! Run again to see the cache hit (no LLM call).");
 }
 

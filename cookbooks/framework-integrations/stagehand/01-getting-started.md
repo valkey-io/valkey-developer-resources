@@ -12,11 +12,21 @@ Stagehand's `act()` and `agent()` methods can cache their resolved actions so th
 - Node.js 18+
 - An OpenAI API key (or any Stagehand-supported LLM provider)
 
+> ⚠️ These examples connect without authentication for local development. Always enable authentication and TLS for production deployments (see [03 - Production Configuration](03-production-configuration.md)).
+
 ## Step 1: Start Valkey
 
 ```bash
+# Docker
 docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:latest
+```
 
+```bash
+# Podman
+podman run -d --name valkey -p 6379:6379 valkey/valkey-bundle:latest
+```
+
+```bash
 docker exec valkey valkey-cli PING
 # PONG
 ```
