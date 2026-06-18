@@ -146,19 +146,22 @@ If you need weighted fusion, run vector and full-text search separately and blen
 
 ## Step 5: Delete by Source Document — Safely
 
-When a knowledge-base file is removed, every chunk from it must go. `delete_by_file_id` searches for the matching keys (paginating the full result set so nothing is truncated) and deletes them:
+When a knowledge-base file is removed, every chunk from it must go. `delete_by_file_id` searches for the matching keys (paginating the full result set so nothing is truncated) and deletes them. The `search_keys` helper enumerates matching keys with `NOCONTENT` (ids only) over fixed-size pages in a bounded loop — see the runnable [sample](sample/) for its full definition:
 
 ```python
 async def delete_by_file_id(client, collection: str, file_id: str) -> int:
     index = f"idx:{collection}"
     query = file_id_filter(file_id)  # Step 2 — escaped/encoded
-    keys = await search_keys(client, index, query)  # NOCONTENT, paginated
+    keys = await search_keys(client, index, query)  # NOCONTENT, paginated (see sample/)
     if keys:
+        # Multi-key DEL. Safe on a standalone client; in Valkey Cluster these
+        # kb:{collection}: keys have no common hash tag and would scatter
+        # across slots (CrossSlot) — delete per-slot or add a hash tag there.
         await client.delete(keys)  # typed delete, not a KEYS scan
     return len(keys)
 ```
 
-> **Mass-deletion guard**: `delete_by_filter` never falls back to match-all when a non-empty filter maps only to non-indexed fields — it returns 0 instead of wiping the collection. Deletes also paginate the full result set in fixed-size pages with a bounded loop, so a file with thousands of chunks is fully removed without orphaning vectors.
+> **Mass-deletion guard**: `delete_by_file_id` never falls back to match-all when a non-empty filter maps only to non-indexed fields — it returns 0 instead of wiping the collection. Deletes also paginate the full result set in fixed-size pages with a bounded loop, so a file with thousands of chunks is fully removed without orphaning vectors.
 
 To drop a whole collection, drop the index and `SCAN`+`DELETE` the underlying hashes (the search module's `FT.DROPINDEX` removes only the index, not the data):
 

@@ -125,6 +125,9 @@ async def ensure_index(client: GlideClient, collection: str, dim: int) -> None:
         type=VectorType.FLOAT32,
     )
     schema = [
+        # HNSW mirrors LangBot's configured default. For a demo this tiny
+        # (4 docs) FLAT would also be fine — cookbook 03 suggests FLAT below
+        # ~10,000 vectors — but we follow the backend's default here.
         VectorField(name="vector", algorithm=VectorAlgorithm.HNSW, attributes=attrs),
         TagField(name="file_id"),
         TextField(name="document"),
@@ -159,6 +162,18 @@ async def add_documents(
 # --------------------------------------------------------------------------- #
 # Filter / text helpers (escape user-influenced values)
 # --------------------------------------------------------------------------- #
+_FT_UNSAFE = frozenset("{}*%")
+
+
+def encode_file_id(value: str) -> str:
+    # Percent-encode the chars the TAG parser can't handle even when escaped
+    # (plus '%' for reversibility). Normal UUID/hash ids are unchanged (no-op).
+    out = []
+    for ch in str(value):
+        out.append("%{:02X}".format(ord(ch)) if ch in _FT_UNSAFE else ch)
+    return "".join(out)
+
+
 def escape_tag(value: str) -> str:
     out = []
     for ch in str(value):  # escape backslash first
@@ -169,7 +184,10 @@ def escape_tag(value: str) -> str:
 
 
 def file_id_filter(file_id: str) -> str:
-    return f"@file_id:{{{escape_tag(file_id)}}}"
+    # Mirror the cookbook's safe pattern: percent-encode the TAG-unsafe chars
+    # ({ } * %) that backslash-escaping alone can't neutralize, then escape the
+    # rest. Plain UUID/slug ids pass through unchanged.
+    return f"@file_id:{{{escape_tag(encode_file_id(file_id))}}}"
 
 
 def escape_text(term: str) -> str:
