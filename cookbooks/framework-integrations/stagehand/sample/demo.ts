@@ -37,7 +37,11 @@ async function main() {
     // Keys follow the pattern: {prefix}:{category}:{hash}
     // Categories are "act" (single-step) or "agent" (multi-step).
     valkeyHost: process.env.VALKEY_HOST ?? "localhost",
-    valkeyPort: Number(process.env.VALKEY_PORT ?? 6379),
+    valkeyPort: (() => {
+      const p = parseInt(process.env.VALKEY_PORT ?? "6379", 10);
+      if (Number.isNaN(p)) throw new Error("VALKEY_PORT must be numeric");
+      return p;
+    })(),
     valkeyKeyPrefix: "stagehand-demo",
     cacheTtl: 3600, // entries expire after 1 hour
 

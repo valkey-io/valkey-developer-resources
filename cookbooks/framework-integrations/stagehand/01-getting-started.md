@@ -89,7 +89,7 @@ On the first run Stagehand calls the LLM to resolve the action. On the second ru
 
 When `valkeyHost` is set, Stagehand:
 
-1. Connects to Valkey via `@valkey/valkey-glide` (GlideClient)
+1. Connects to Valkey via `iovalkey`
 2. On `act()` or `agent()`, hashes the instruction + page context into a cache key
 3. Stores the resolved action sequence as JSON under `stagehand:act:<hash>` or `stagehand:agent:<hash>`
 4. On repeat calls, reads the cached entry with `GET` and replays the actions directly

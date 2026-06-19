@@ -42,7 +42,7 @@
       "title": "Production Configuration",
       "h1": "Production Configuration",
       "breadcrumb": "Production",
-      "lead": "Configure TLS, ACL authentication, and environment variable-based setup for deploying Stagehand with Valkey in production or via the Stagehand server.",
+      "lead": "Configure TLS, ACL authentication, and environment variable-based setup for deploying Stagehand with Valkey in production.",
       "difficulty": "Intermediate",
       "time": "15 min",
       "prev": {

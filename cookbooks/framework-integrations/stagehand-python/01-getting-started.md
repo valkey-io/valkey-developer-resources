@@ -8,8 +8,8 @@ Stagehand's `act()` and agent `execute()` methods can cache their resolved actio
 
 There are two ways to run Stagehand with Valkey:
 
-1. **Server mode** - run the Stagehand server with Valkey env vars (recommended, full cache support)
-2. **Local mode** - pass `valkey_host` to the client constructor (config accepted, cache requires server-side support)
+1. **Server mode** - run the Stagehand server with Valkey env vars (recommended for shared/remote Valkey)
+2. **Local mode** - pass `valkey_host` to the client constructor (Valkey config forwarded to the embedded server process)
 
 ## Prerequisites
 
@@ -17,8 +17,6 @@ There are two ways to run Stagehand with Valkey:
 - Python 3.9+
 - Node.js 18+ (for the Stagehand server)
 - An API key for an LLM provider (OpenAI, Anthropic, Google, etc.) — exported as `MODEL_API_KEY`
-
-> **Note**: The pre-built SEA binary (`server="local"`) accepts Valkey configuration parameters but cannot connect to Valkey at runtime because `@valkey/valkey-glide` relies on a native Rust addon that cannot be embedded in a single-executable binary. To use Valkey caching, run the Stagehand server from source as shown below.
 
 > ⚠️ These examples connect without authentication for local development. Always enable authentication and TLS for production deployments (see [03 - Production Configuration](03-production-configuration.md)).
 
@@ -109,8 +107,8 @@ On the first run Stagehand calls the LLM to resolve the action. On the second ru
 ## Step 5: Verify the Cache
 
 ```bash
-valkey-cli SCAN 0
-# stagehand:act:6b1333ed9a7c85bf...
+valkey-cli KEYS "stagehand:*"
+# 1) "stagehand:act:6b1333ed9a7c85bf..."
 
 valkey-cli TTL "stagehand:act:6b1333ed..."
 # 3590
@@ -120,7 +118,7 @@ valkey-cli TTL "stagehand:act:6b1333ed..."
 
 When the server has `VALKEY_HOST` configured, Stagehand:
 
-1. Connects to Valkey via `@valkey/valkey-glide` (GlideClient)
+1. Connects to Valkey via `iovalkey`
 2. On `act()` or agent `execute()`, hashes the instruction + page context into a cache key
 3. Stores the resolved action sequence as JSON under `stagehand:act:<hash>` or `stagehand:agent:<hash>`
 4. On repeat calls, reads the cached entry with `GET` and replays the actions directly

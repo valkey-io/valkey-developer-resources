@@ -37,8 +37,8 @@ On the first run, Stagehand calls the LLM to resolve the browser action. On the 
 Verify with:
 
 ```bash
-valkey-cli SCAN 0
-# stagehand-demo:act:<hash>
+valkey-cli KEYS "stagehand-demo:*"
+# 1) "stagehand-demo:act:<hash>"
 ```
 
 ## What It Demonstrates

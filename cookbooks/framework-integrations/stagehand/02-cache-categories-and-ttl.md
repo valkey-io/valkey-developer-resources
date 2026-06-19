@@ -41,11 +41,13 @@ const stagehand = new Stagehand({
 });
 
 await stagehand.init();
-const page = stagehand.context.pages()[0];
-await page.goto("https://docs.stagehand.dev");
-
-await stagehand.act("click on the Quickstart link");
-await stagehand.close();
+try {
+  const page = stagehand.context.pages()[0];
+  await page.goto("https://docs.stagehand.dev");
+  await stagehand.act("click on the Quickstart link");
+} finally {
+  await stagehand.close();
+}
 ```
 
 This stores keys like `myapp-staging:act:<hash>` instead of the default `stagehand:act:<hash>`.
@@ -66,11 +68,13 @@ const stagehand = new Stagehand({
 });
 
 await stagehand.init();
-const page = stagehand.context.pages()[0];
-await page.goto("https://docs.stagehand.dev");
-
-await stagehand.act("click on the Quickstart link");
-await stagehand.close();
+try {
+  const page = stagehand.context.pages()[0];
+  await page.goto("https://docs.stagehand.dev");
+  await stagehand.act("click on the Quickstart link");
+} finally {
+  await stagehand.close();
+}
 ```
 
 Omitting `cacheTtl` (or setting it to `0`) means entries persist indefinitely until manually deleted.
@@ -92,13 +96,15 @@ const stagehand = new Stagehand({
 });
 
 await stagehand.init();
-const page = stagehand.context.pages()[0];
-await page.goto("https://github.com/browserbase/stagehand");
+try {
+  const page = stagehand.context.pages()[0];
+  await page.goto("https://github.com/browserbase/stagehand");
 
-const agent = stagehand.agent();
-await agent.execute("Navigate to the Issues tab and find the newest open issue");
-
-await stagehand.close();
+  const agent = stagehand.agent();
+  await agent.execute("Navigate to the Issues tab and find the newest open issue");
+} finally {
+  await stagehand.close();
+}
 ```
 
 The resolved step sequence is stored at `myapp:agent:<hash>` and replays on subsequent calls with the same instruction.

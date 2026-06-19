@@ -1,1 +1,1 @@
-stagehand>=3.21.0
+stagehand~=3.21

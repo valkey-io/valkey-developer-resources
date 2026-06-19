@@ -85,7 +85,7 @@ export VALKEY_HOST=my-valkey.example.com
 export VALKEY_PORT=6379
 export VALKEY_TLS=true
 export VALKEY_USERNAME=stagehand-svc
-export VALKEY_PASSWORD=secret-token
+export VALKEY_PASSWORD=<your-valkey-password>
 export CACHE_TTL=3600
 export VALKEY_KEY_PREFIX=prod-stagehand
 ```
@@ -97,6 +97,9 @@ The server reads these at session creation time. Every session started without a
 Clients can also pass Valkey config explicitly in the session start request body:
 
 ```typescript
+const token = process.env.CUSTOM_VALKEY_TOKEN;
+if (!token) throw new Error("CUSTOM_VALKEY_TOKEN required for per-session override");
+
 const response = await fetch("http://localhost:3000/v1/sessions/start", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
@@ -106,7 +109,7 @@ const response = await fetch("http://localhost:3000/v1/sessions/start", {
       valkeyHost: "custom-valkey.internal",
       valkeyPort: 6379,
       valkeyTls: true,
-      valkeyPassword: process.env.CUSTOM_VALKEY_TOKEN,
+      valkeyPassword: token,
       cacheTtl: 1800,
       valkeyKeyPrefix: "team-a",
     },
@@ -115,6 +118,8 @@ const response = await fetch("http://localhost:3000/v1/sessions/start", {
 ```
 
 This overrides any server-side environment defaults for that session.
+
+> **Note:** The Python SDK's `valkey_cache` dict uses shorter field names (`host`, `port`, `tls`, `password`, `username`, `cache_ttl`, `key_prefix`) which are mapped to the wire-format camelCase keys shown above (`valkeyHost`, `valkeyPort`, `valkeyTls`, etc.). Both tracks talk to the same server API.
 
 ## Graceful Degradation
 

@@ -43,6 +43,6 @@ Production-ready integrations for popular AI agent frameworks. Checkpointing, ca
 | <nobr>[vLLM Semantic Router](framework-integrations/vllm-semantic-router/)</nobr> | Run the vLLM Semantic Router on Valkey — semantic cache, RAG vector store, and agentic memory backends with HNSW vector search via the `valkey-glide` Go client. |
 | <nobr>[Cognee](framework-integrations/cognee/)</nobr> | AI memory system that builds knowledge graphs from your data. Uses `valkey-glide` with Valkey Search for vector storage, providing more accurate context than traditional RAG. |
 | <nobr>[PraisonAI](framework-integrations/praisonai/)</nobr> | Give PraisonAI agents persistent state and vector knowledge retrieval backed by Valkey. `ValkeyStateStore` for session history and counters, `ValkeyVectorKnowledgeStore` for HNSW semantic search. |
-| <nobr>[Stagehand](framework-integrations/stagehand/)</nobr> | Use Valkey as the persistent cache backend for Stagehand's `act()` and `agent()` action replay. Cache resolved browser actions and multi-step task sequences via `@valkey/valkey-glide`. |
+| <nobr>[Stagehand](framework-integrations/stagehand/)</nobr> | Use Valkey as the persistent cache backend for Stagehand's `act()` and `agent()` action replay. Cache resolved browser actions and multi-step task sequences via `iovalkey`. |
 | <nobr>[Stagehand Python](framework-integrations/stagehand-python/)</nobr> | Use Valkey as the persistent cache backend for the Stagehand Python SDK's `act()` and agent action replay, connecting through the Stagehand server. |
 

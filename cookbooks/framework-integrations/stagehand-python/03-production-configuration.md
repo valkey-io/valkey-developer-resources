@@ -20,7 +20,7 @@ export VALKEY_HOST=my-valkey.example.com
 export VALKEY_PORT=6379
 export VALKEY_TLS=true
 export VALKEY_USERNAME=stagehand-svc
-export VALKEY_PASSWORD=secret-token
+export VALKEY_PASSWORD=<your-valkey-password>
 export CACHE_TTL=3600
 export VALKEY_KEY_PREFIX=prod-stagehand
 
@@ -66,7 +66,7 @@ session = client.sessions.start(
     valkey_cache={
         "host": "custom-valkey.internal",
         "port": 6379,
-        "use_tls": True,
+        "tls": True,
         "password": os.environ["CUSTOM_VALKEY_TOKEN"],
         "cache_ttl": 1800,
         "key_prefix": "team-a",
@@ -81,7 +81,7 @@ This overrides any server-side environment defaults for that session.
 
 ## Step 4: Client Constructor Params (Local Mode)
 
-When using `server="local"`, pass Valkey config directly to the constructor. These parameters are forwarded as environment variables to the server process. Note that the pre-built SEA binary cannot load the native `@valkey/valkey-glide` addon, so this mode requires running the server from source for actual Valkey connectivity:
+When using `server="local"`, pass Valkey config directly to the constructor. These parameters are forwarded as environment variables to the server process:
 
 ```python
 import os
@@ -95,7 +95,7 @@ client = Stagehand(
     valkey_tls=True,
     valkey_username=os.environ["VALKEY_USERNAME"],
     valkey_password=os.environ["VALKEY_PASSWORD"],
-    cache_ttl=3600,
+    valkey_cache_ttl=3600,
     valkey_key_prefix="prod-stagehand",
 )
 ```
