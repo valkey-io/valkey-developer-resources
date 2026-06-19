@@ -37,6 +37,7 @@ try:
         GlideClient,
         GlideClientConfiguration,
         NodeAddress,
+        RequestError,
         ReturnField,
         TagField,
         TextField,
@@ -111,14 +112,19 @@ def key_prefix(collection: str) -> str:
 
 
 async def index_exists(client: GlideClient, index: str) -> bool:
-    names = {_decode(n) for n in await ft.list(client)}
-    return index in names
+    # FT.INFO on a single index is O(1); FT._LIST returns every index name on
+    # the server (O(n)). RequestError means the index doesn't exist.
+    try:
+        await ft.info(client, index)
+        return True
+    except RequestError:
+        return False
 
 
 async def ensure_index(client: GlideClient, collection: str, dim: int) -> None:
     index = index_name(collection)
     if await index_exists(client, index):
-        return
+        return  # already exists — no list-then-create TOCTOU window
     attrs = VectorFieldAttributesHnsw(
         dimensions=dim,
         distance_metric=DistanceMetricType.COSINE,  # COSINE | L2 | IP
@@ -148,6 +154,8 @@ async def add_documents(
 ) -> None:
     await ensure_index(client, collection, DIM)
     prefix = key_prefix(collection)
+    # One HSET per chunk. Fine for a handful of docs; for hundreds of chunks,
+    # batch the writes with the GLIDE Batch/Pipeline API to avoid N round trips.
     for _id, doc, file_id in zip(ids, documents, file_ids):
         metadata = {"file_id": file_id}
         mapping = {
@@ -306,6 +314,9 @@ async def delete_by_file_id(client: GlideClient, collection: str, file_id: str) 
         return 0
     keys = await search_keys(client, index, file_id_filter(file_id))
     if keys:
+        # Multi-key DEL: safe on standalone Valkey. In cluster mode these
+        # kb:{collection}: keys have no common hash tag and scatter across
+        # slots (CrossSlotError) — delete per-key or add a hash-tagged prefix.
         await client.delete(keys)
     return len(keys)
 
@@ -315,8 +326,8 @@ async def delete_collection(client: GlideClient, collection: str) -> int:
     if await index_exists(client, index):
         try:
             await ft.dropindex(client, index)
-        except Exception:
-            pass
+        except RequestError:
+            pass  # index already gone — anything else (conn/auth) propagates
     prefix = key_prefix(collection)
     cursor: object = b"0"
     deleted = 0

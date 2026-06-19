@@ -63,6 +63,7 @@ from glide import (
     GlideClient,
     GlideClientConfiguration,
     NodeAddress,
+    RequestError,
     ft,
     DataType,
     DistanceMetricType,
@@ -96,10 +97,14 @@ async def create_client() -> GlideClient:
 
 async def ensure_index(client: GlideClient, collection: str, dim: int) -> None:
     index = f"idx:{collection}"
-    existing = {bytes(n).decode() if isinstance(n, (bytes, bytearray)) else str(n)
-                for n in await ft.list(client)}
-    if index in existing:
-        return
+    # FT.INFO on a single index is O(1) and raises RequestError when the index
+    # is absent. (FT._LIST returns every index name on the server — O(n) — and
+    # leaves a TOCTOU gap between the check and the create below.)
+    try:
+        await ft.info(client, index)
+        return  # already exists
+    except RequestError:
+        pass  # doesn't exist — create it below
 
     vector_attrs = VectorFieldAttributesHnsw(
         dimensions=dim,
@@ -137,6 +142,8 @@ async def add_documents(client: GlideClient, collection: str,
                         documents: list[str], metadatas: list[dict]) -> None:
     await ensure_index(client, collection, len(vectors[0]))
     prefix = f"kb:{collection}:"
+    # One HSET per chunk. Fine for a handful of docs; for hundreds of chunks,
+    # batch the writes with the GLIDE Batch/Pipeline API to avoid N round trips.
     for i, _id in enumerate(ids):
         meta = metadatas[i]
         mapping = {
@@ -205,7 +212,13 @@ async def main() -> None:
     client = await create_client()
     try:
         # ... call add_documents(...) then vector_search(...) ...
-        hits = await vector_search(client, COLLECTION, query_vec=[0.1] * DIM, k=3)
+        # Embed the query with the SAME model used for the documents. `embed`
+        # here stands in for your embedding model (see the runnable sample for a
+        # tiny demo implementation). Avoid a uniform vector like [0.1]*DIM: it's
+        # a scalar multiple of [1.0]*DIM, so under COSINE it has no semantic
+        # direction and can't rank results meaningfully.
+        query_vec = embed("similar vector embeddings")  # -> list[float] of length DIM
+        hits = await vector_search(client, COLLECTION, query_vec=query_vec, k=3)
         for h in hits:
             print(f"{h['id']}: distance={h['distance']:.4f} :: {h['document']!r}")
     finally:
@@ -223,7 +236,7 @@ if __name__ == "__main__":
 | Create index | `FT.CREATE` | One index per collection, scoped to the `kb:{collection}:` prefix |
 | Store chunk | `HSET` | Vector blob + document + file_id + metadata_json |
 | KNN query | `FT.SEARCH ... =>[KNN k @vector $BLOB]` | Bound `$BLOB` param; `dialect=2` required |
-| List indexes | `FT._LIST` (via `ft.list`) | Used to check existence before create |
+| List indexes | `FT.INFO` (via `ft.info`) | O(1) existence check before create; raises if the index is absent |
 
 ## Troubleshooting
 

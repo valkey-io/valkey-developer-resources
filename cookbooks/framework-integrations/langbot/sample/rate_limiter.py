@@ -38,6 +38,8 @@ KEY_PREFIX = "langbot:ratelimit:fixwin"
 #   ARGV[2] = window size in seconds (TTL applied on first request of a window)
 # Returns -1 when over the limit (deny); otherwise the post-increment count.
 LUA_FIXWIN = """
+-- GET returns false (nil) for a missing key; Lua's `or '0'` normalizes that to
+-- zero so a brand-new window starts counting from 0.
 local current = tonumber(redis.call('GET', KEYS[1]) or '0')
 if current >= tonumber(ARGV[1]) then
     return -1
@@ -67,9 +69,11 @@ class ValkeyFixedWindowLimiter:
                     )
                 ],
                 client_name="langbot_ratelimit_client",
-                # 500ms matches LangBot's real-time chat path (fail fast). Raise
-                # this for a higher-latency network link to Valkey.
-                request_timeout=500,
+                # 5s is a safe cookbook default that tolerates Docker-for-Mac /
+                # WSL2 / remote-Valkey latency. LangBot's production chat path
+                # uses ~500ms to fail fast rather than stall a user message;
+                # tune toward that once you've measured your link latency.
+                request_timeout=5000,
             )
             self._client = await GlideClient.create(config)
         return self._client

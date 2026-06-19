@@ -146,13 +146,39 @@ If you need weighted fusion, run vector and full-text search separately and blen
 
 ## Step 5: Delete by Source Document — Safely
 
-When a knowledge-base file is removed, every chunk from it must go. `delete_by_file_id` searches for the matching keys (paginating the full result set so nothing is truncated) and deletes them. The `search_keys` helper enumerates matching keys with `NOCONTENT` (ids only) over fixed-size pages in a bounded loop — see the runnable [sample](sample/) for its full definition:
+When a knowledge-base file is removed, every chunk from it must go. `delete_by_file_id` searches for the matching keys (paginating the full result set so nothing is truncated) and deletes them. The `search_keys` helper enumerates matching keys with `NOCONTENT` (ids only) over fixed-size pages in a bounded loop:
 
 ```python
+from glide import FtSearchLimit, FtSearchOptions, ft
+
+
+async def search_keys(client, index: str, query: str, batch: int = 10000) -> list[str]:
+    """Return all keys matching `query`, paginated with NOCONTENT (ids only)."""
+    keys: list[str] = []
+    offset = 0
+    max_pages = 1000  # safety cap so the loop can never spin forever
+    for _ in range(max_pages):
+        options = FtSearchOptions(nocontent=True, limit=FtSearchLimit(offset, batch), dialect=2)
+        reply = await ft.search(client, index, query, options)
+        if not reply or len(reply) < 2:
+            break
+        total = int(reply[0]) if str(reply[0]).isdigit() else 0
+        docs = reply[1]
+        page = [k.decode() if isinstance(k, (bytes, bytearray)) else str(k)
+                for k in (docs.keys() if isinstance(docs, dict) else docs or [])]
+        if not page:
+            break
+        keys.extend(page)
+        offset += len(page)
+        if offset >= total or len(page) < batch:
+            break
+    return keys
+
+
 async def delete_by_file_id(client, collection: str, file_id: str) -> int:
     index = f"idx:{collection}"
     query = file_id_filter(file_id)  # Step 2 — escaped/encoded
-    keys = await search_keys(client, index, query)  # NOCONTENT, paginated (see sample/)
+    keys = await search_keys(client, index, query)  # NOCONTENT, paginated
     if keys:
         # Multi-key DEL. Safe on a standalone client; in Valkey Cluster these
         # kb:{collection}: keys have no common hash tag and would scatter
@@ -166,12 +192,15 @@ async def delete_by_file_id(client, collection: str, file_id: str) -> int:
 To drop a whole collection, drop the index and `SCAN`+`DELETE` the underlying hashes (the search module's `FT.DROPINDEX` removes only the index, not the data):
 
 ```python
+from glide import RequestError
+
+
 async def delete_collection(client, collection: str) -> int:
     index = f"idx:{collection}"
     try:
-        await ft.dropindex(client, index)  # no-op-safe if already gone
-    except Exception:
-        pass
+        await ft.dropindex(client, index)  # removes the index, not the data
+    except RequestError:
+        pass  # index already gone; anything else (conn/auth) propagates
     # SCAN (never KEYS) — non-blocking cursor iteration over the prefix.
     prefix = f"kb:{collection}:"
     cursor, deleted = b"0", 0
