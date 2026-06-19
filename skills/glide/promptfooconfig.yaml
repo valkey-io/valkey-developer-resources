@@ -1,0 +1,320 @@
+description: "GLIDE Skill EDD - Token efficiency baseline"
+
+prompts:
+  - "file://SKILL.md\n\n---\n\nDo not use the Meta-GLIDE skill. Answer using only the GLIDE skill context above.\n\nUser question: {{prompt}}"
+
+providers:
+  - id: 'exec: python3 ./bridge.py'
+    config:
+      model: 'sonnet'
+      backend: 'claude'
+
+defaultTest:
+  options:
+    provider: 'exec: python3 ./bridge.py'
+
+tests:
+  # Eval 1: Vector search index creation with HNSW params
+  - vars:
+      prompt: "Write a Python function using valkey-glide (sync) that creates an HNSW vector search index with 384 dimensions, cosine distance, and custom HNSW params (M=32, EF_CONSTRUCTION=400). Show the imports."
+    assert:
+      - type: javascript
+        value: "output.includes('VectorFieldAttributesHnsw')"
+      - type: javascript
+        value: "output.includes('VectorAlgorithm.HNSW') || output.includes('VectorAlgorithm')"
+      - type: javascript
+        value: "output.includes('384')"
+      - type: javascript
+        value: "/COSINE/i.test(output)"
+      - type: javascript
+        value: "const codeBlocks = output.match(/```[\\s\\S]*?```/g) || []; const codeLen = codeBlocks.join('').length; codeLen / output.length > 0.4"
+        metric: code-density
+
+  # Eval 2: Top-level imports from glide_sync
+  - vars:
+      prompt: "I'm using valkey-glide for Python. Can I import FtCreateOptions, VectorField, and TagField directly from glide_sync, or do I need the deep import path from glide_shared.commands.server_modules.ft_options.ft_create_options?"
+    assert:
+      - type: javascript
+        value: "/from glide_sync import/.test(output)"
+      - type: not-contains
+        value: "top-level imports are wrong"
+
+  # Eval 3: Positional vs keyword args for ft.search
+  - vars:
+      prompt: "Is ft.search(client, 'my_idx', '*') valid in valkey-glide Python, or do I need to use keyword arguments like ft.search(client=client, index_name='my_idx', query='*')?"
+    assert:
+      - type: javascript
+        value: "/(both|positional.*valid|valid.*positional)/i.test(output)"
+      - type: javascript
+        value: "!/(positional.*(wrong|incorrect|invalid|anti.pattern))/i.test(output)"
+
+  # Eval 4: ft.FtCreateOptions namespace access
+  - vars:
+      prompt: "Can I use ft.FtCreateOptions(...) in valkey-glide Python to create index options?"
+    assert:
+      - type: llm-rubric
+        value: "The response correctly states that ft.FtCreateOptions does not exist — FtCreateOptions is a standalone class that must be imported directly (e.g., from glide or glide_sync), not accessed as an attribute of the ft module."
+
+  # Eval 5: Complete vector search example with top-level imports
+  - vars:
+      prompt: "Write a complete Python example using valkey-glide sync that creates a vector index with HNSW, stores a document, and searches for nearest neighbors. Use top-level imports."
+    assert:
+      - type: javascript
+        value: "/from glide_sync import/.test(output)"
+      - type: javascript
+        value: "/ft\\.create\\(/.test(output)"
+      - type: javascript
+        value: "/ft\\.search\\(/.test(output)"
+      - type: javascript
+        value: "output.includes('VectorFieldAttributesHnsw')"
+      - type: javascript
+        value: "const codeBlocks = output.match(/```[\\s\\S]*?```/g) || []; const codeLen = codeBlocks.join('').length; codeLen / output.length > 0.4"
+        metric: code-density
+
+  # Eval 6: Module-level ft functions (not client methods)
+  - vars:
+      prompt: "Write a Python function using GLIDE that creates a vector search index for product embeddings and then searches for similar products. The index should have a 768-dim embedding field and a text field for product name."
+    assert:
+      - type: javascript
+        value: "/\\bft\\.create\\(/.test(output)"
+        metric: uses-module-ft-create
+      - type: javascript
+        value: "/\\bft\\.search\\(/.test(output)"
+        metric: uses-module-ft-search
+      - type: javascript
+        value: "/from glide(_sync)? import/.test(output)"
+        metric: imports-ft-module
+      - type: javascript
+        value: "const codeBlocks = output.match(/```[\\s\\S]*?```/g) || []; const codeLen = codeBlocks.join('').length; codeLen / output.length > 0.4"
+        metric: code-density
+
+  # Eval 7: FT.AGGREGATE with module-level function
+  - vars:
+      prompt: "I have a valkey-glide Python app (async). I need to run an FT.AGGREGATE query that groups products by category and counts them. Show me how."
+    assert:
+      - type: llm-rubric
+        value: "The response uses ft.aggregate or custom_command with FT.AGGREGATE as a module-level function (not a client method), and imports ft from glide. It does not show client.ft_aggregate() or client.ft() as the recommended pattern."
+      - type: javascript
+        value: "const codeBlocks = output.match(/```[\\s\\S]*?```/g) || []; const codeLen = codeBlocks.join('').length; codeLen / output.length > 0.4"
+        metric: code-density
+
+  # Eval 8: Drop/create/search with module-level functions
+  - vars:
+      prompt: "Using valkey-glide Python, write a function that drops an index if it exists, creates a new one with TAG and NUMERIC fields, then does a search with filters. Use the sync client."
+    assert:
+      - type: javascript
+        value: "/\\bft\\.dropindex\\(/.test(output)"
+        metric: uses-module-ft-dropindex
+      - type: javascript
+        value: "/\\bft\\.create\\(/.test(output)"
+        metric: uses-module-ft-create
+      - type: javascript
+        value: "/\\bft\\.search\\(/.test(output)"
+        metric: uses-module-ft-search
+      - type: javascript
+        value: "const codeBlocks = output.match(/```[\\s\\S]*?```/g) || []; const codeLen = codeBlocks.join('').length; codeLen / output.length > 0.4"
+        metric: code-density
+
+  # Eval 9: Code review - identify client.ft_search as wrong
+  - vars:
+      prompt: |
+        Review this Python code for correctness:
+        ```python
+        from glide import GlideClusterClient
+
+        async def search(client: GlideClusterClient, query: str):
+            return await client.ft_search('my_idx', query)
+        ```
+    assert:
+      - type: javascript
+        value: "/(incorrect|wrong|invalid|doesn't exist|does not exist|not.*(method|attribute|valid))/i.test(output)"
+        metric: identifies-error
+      - type: javascript
+        value: "/ft\\.search\\(client/.test(output)"
+        metric: suggests-ft-search
+
+  # Eval 10: Code review - identify redis-py pattern as wrong
+  - vars:
+      prompt: |
+        Review this Python code for correctness:
+        ```python
+        from glide_sync import GlideClient
+
+        def create_index(client: GlideClient):
+            client.ft().create('products', {
+                'name': {'type': 'TEXT'},
+                'price': {'type': 'NUMERIC'},
+            })
+        ```
+    assert:
+      - type: javascript
+        value: "/(incorrect|wrong|invalid|doesn't exist|does not exist|not.*(method|attribute|valid|correct)|redis.py|redis-py)/i.test(output)"
+        metric: identifies-error
+      - type: javascript
+        value: "/ft\\.create\\(client/.test(output)"
+        metric: suggests-ft-create
+
+  # Eval 11: Mixed correct/incorrect code review
+  - vars:
+      prompt: |
+        Is this valkey-glide Python code correct?
+        ```python
+        from glide import GlideClusterClient, ft
+
+        async def drop_and_recreate(client: GlideClusterClient):
+            await client.ft_dropindex('old_idx')
+            await ft.create(client, 'new_idx', schema=[...])
+        ```
+    assert:
+      - type: llm-rubric
+        value: "The response identifies client.ft_dropindex as wrong (should be ft.dropindex(client, ...)) and acknowledges that ft.create(client, ...) is the correct pattern."
+
+  # Eval 12: Go batch - batch.Del takes []string not single string
+  - vars:
+      prompt: |
+        Review this Go code using valkey-glide. Is there a bug here?
+        ```go
+        func flushUserCache(ctx context.Context, client *glide.Client, userIDs []string) error {
+            batch := pipeline.NewStandaloneBatch(false)
+            for _, id := range userIDs {
+                batch.Del("user:" + id)
+            }
+            _, err := client.Exec(ctx, *batch, true)
+            return err
+        }
+        ```
+    assert:
+      - type: llm-rubric
+        value: "The response correctly identifies that batch.Del takes []string (a slice of strings), not a single string argument. The code as written will not compile because it passes a single string to Del instead of a []string slice."
+
+  # Eval 13: Go type system prevents StandaloneBatch with ClusterClient
+  - vars:
+      prompt: "What happens if I accidentally use pipeline.NewStandaloneBatch with a ClusterClient in valkey-glide Go? Will it panic at runtime?"
+    assert:
+      - type: javascript
+        value: "/(compile.*(time|error)|won't compile|will not compile|type.*(mismatch|error|system)|does not compile|compilation.*(error|fail))/i.test(output)"
+        metric: says-compile-time
+      - type: javascript
+        value: "!/will (likely )?result in a runtime error/i.test(output)"
+        metric: no-runtime-panic-claim
+
+  # Eval 14: Go batch with raiseOnError=false for per-command error logging
+  - vars:
+      prompt: "Write a Go function using valkey-glide that executes a batch of SET commands and logs which specific commands failed without stopping on the first error."
+    assert:
+      - type: javascript
+        value: "/Exec(WithOptions)?\\(ctx,.*false/.test(output)"
+        metric: uses-raise-on-error-false
+      - type: javascript
+        value: "/(RequestError|requestError|request_error)/.test(output)"
+        metric: checks-request-error
+      - type: javascript
+        value: "const codeBlocks = output.match(/```[\\s\\S]*?```/g) || []; const codeLen = codeBlocks.join('').length; codeLen / output.length > 0.4"
+        metric: code-density
+
+  # Eval 15: Client lifecycle - proper cleanup
+  - vars:
+      prompt: "Write a Python async function that connects to Valkey using GLIDE and performs a SET operation. Show proper resource cleanup."
+    assert:
+      - type: llm-rubric
+        value: "The response demonstrates automatic resource cleanup using async with (context manager) or try/finally with explicit close(). It must not leave the client unclosed."
+      - type: javascript
+        value: "const codeBlocks = output.match(/```[\\s\\S]*?```/g) || []; const codeLen = codeBlocks.join('').length; codeLen / output.length > 0.4"
+        metric: code-density
+
+  # Eval 16: Client lifecycle - singleton pattern
+  - vars:
+      prompt: |
+        Review this Python FastAPI code:
+        ```python
+        @app.get("/users/{user_id}")
+        async def get_user(user_id: str):
+            config = GlideClientConfiguration([NodeAddress("localhost", 6379)])
+            client = await GlideClient.create(config)
+            result = await client.get(f"user:{user_id}")
+            await client.close()
+            return {"data": result}
+        ```
+    assert:
+      - type: llm-rubric
+        value: "The response identifies creating a new client per request as an anti-pattern and recommends creating a single client at startup, reused across all requests."
+
+  # Eval 17: Client lifecycle - reconnection
+  - vars:
+      prompt: "In valkey-glide Python, if I get a RequestException should I close the client and create a new one?"
+    assert:
+      - type: llm-rubric
+        value: "The response says no — GLIDE auto-reconnects on transient errors like RequestException and TimeoutError. Only recreate on ClosingError, which means the client was explicitly closed."
+
+  # Eval 18: Batch - CROSSSLOT in cluster
+  - vars:
+      prompt: "I'm using GlideClusterClient with Batch(True). Can I batch SET commands for keys 'user:1' and 'product:5' together?"
+    assert:
+      - type: llm-rubric
+        value: "The response warns that atomic batches require all keys to map to the same hash slot. 'user:1' and 'product:5' are different slots, causing CROSSSLOT. Suggests hash tags or non-atomic batch."
+
+  # Eval 19: Batch - raise_on_error semantics
+  - vars:
+      prompt: "What's the difference between raise_on_error=True and raise_on_error=False when calling client.exec() in valkey-glide Python?"
+    assert:
+      - type: llm-rubric
+        value: "The response explains: True raises an exception on the first error encountered; False returns errors embedded in the results array at their corresponding positions, allowing inspection of which commands failed."
+
+  # Eval 20: Timeout configuration
+  - vars:
+      prompt: "How do I set request timeouts in valkey-glide Python? What happens if I don't set one?"
+    assert:
+      - type: javascript
+        value: "/250/i.test(output)"
+        metric: mentions-default-250ms
+      - type: javascript
+        value: "/TimeoutError/i.test(output)"
+        metric: mentions-timeout-error-type
+
+  # Eval 21: Error handling - specific exceptions
+  - vars:
+      prompt: |
+        Review this valkey-glide Python error handling:
+        ```python
+        try:
+            await client.set("key", "value")
+        except Exception as e:
+            logger.error(f"Failed: {e}")
+        ```
+    assert:
+      - type: llm-rubric
+        value: "The response identifies catching bare Exception as an anti-pattern and recommends catching specific GLIDE exceptions (TimeoutError, RequestError, ConnectionError, or ClosingError) instead."
+
+  # Eval 22: Cluster - hash tags
+  - vars:
+      prompt: "I need to atomically increment a counter and add to a related list in valkey-glide cluster mode. The keys are 'counter:orders' and 'list:recent_orders'. How do I avoid CROSSSLOT errors?"
+    assert:
+      - type: javascript
+        value: "/\\{[^}]+\\}/.test(output)"
+        metric: shows-hash-tag-syntax
+      - type: javascript
+        value: "/(same slot|same hash slot|co-locat|slot assignment)/i.test(output)"
+        metric: explains-slot-colocation
+
+  # Eval 23: Performance - sequential anti-pattern
+  - vars:
+      prompt: |
+        Review this valkey-glide Python code for performance:
+        ```python
+        async def get_user_profiles(client, user_ids):
+            profiles = []
+            for uid in user_ids:
+                profile = await client.hgetall(f"user:{uid}")
+                profiles.append(profile)
+            return profiles
+        ```
+    assert:
+      - type: llm-rubric
+        value: "The response identifies sequential awaits in a loop as a performance anti-pattern causing one round-trip per iteration, and recommends batching (pipeline), asyncio.gather for concurrency, or MGET-style bulk operations."
+
+  # Eval 24: Package selection
+  - vars:
+      prompt: "I'm building a Python app with Valkey. Should I use the 'redis' package or 'valkey' package from PyPI?"
+    assert:
+      - type: llm-rubric
+        value: "The response recommends valkey-glide (not redis, not the valkey PyPI package) as the official client, and steers away from Redis forks."

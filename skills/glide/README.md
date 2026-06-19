@@ -376,6 +376,37 @@ All code examples have been validated against live Valkey instances:
 - Cluster mode (ports 7000-7002)
 - Vector search (where supported)
 
+## Evaluation (EDD)
+
+The skill includes a [promptfoo](https://promptfoo.dev) eval suite with 24 test cases covering qualitative, quantitative, deterministic, and fuzzy rubric assertions.
+
+**Prerequisites:**
+- Python 3.8+
+- `claude` CLI authenticated (`claude /login`)
+- `promptfoo` installed (`npm install -g promptfoo`)
+
+**Run evals:**
+```bash
+cd skills/glide
+promptfoo eval --no-cache
+```
+
+**Browse results:**
+```bash
+promptfoo view
+```
+
+This starts a local web server (typically `http://localhost:15500`) with an interactive results dashboard.
+
+**What's tested:**
+- Python FT API correctness (module-level functions, not client methods)
+- Code review accuracy (identifying anti-patterns)
+- Go batch API patterns (type safety, error handling)
+- Client lifecycle (cleanup, singleton, reconnection)
+- Cluster operations (CROSSSLOT, hash tags)
+- Performance anti-patterns (sequential ops, package selection)
+- Code density (>40% of code-generation output must be inside code fences)
+
 ## Contributing
 
 These skills are maintained as part of the Valkey GLIDE project. To contribute:
