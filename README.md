@@ -27,7 +27,7 @@ Step-by-step guides for building AI applications with Valkey, migrated from [Val
 | --- | --- |
 | [📖 All Cookbooks](cookbooks/) | Main index — use cases and framework integrations |
 | [Use Cases](cookbooks/use-cases/) | Semantic caching, conversation memory, vector search, RAG pipelines, rate limiting, pub/sub streaming, feature store, context engineering |
-| [Framework Integrations](cookbooks/framework-integrations/) | Mem0, LangChain/LangGraph, CrewAI, Strands, Haystack, BetterDB, vLLM Semantic Router |
+| [Framework Integrations](cookbooks/framework-integrations/) | Mem0, LangChain/LangGraph, CrewAI, Strands, Haystack, BetterDB, vLLM Semantic Router, CocoIndex |
 
 <hr>
 
@@ -48,6 +48,7 @@ Real-world applications and libraries using Valkey:
 
 | Integration | Description |
 | --- | --- |
+| [CocoIndex](https://github.com/cocoindex-io/cocoindex) | Open-source Python framework for building incremental data pipelines that keep AI agent context fresh. Integrates with Valkey as a vector store target for sub-millisecond HNSW similarity search |
 | [Cognee](https://github.com/topoteretes/cognee-community) | AI memory system for agents with vector database adapter for Valkey. Provides more accurate context than traditional RAG |
 | [Haystack Integrations](https://github.com/deepset-ai/haystack-core-integrations/tree/main/integrations/valkey) | Valkey integration for Haystack, an open-source AI orchestration framework for building production-ready LLM applications |
 | [LangChain AWS](https://github.com/langchain-ai/langchain-aws) | Valkey vector store integration for LangChain on AWS, enabling vector similarity search and LangGraph checkpointing with Valkey via the valkey-glide client |
