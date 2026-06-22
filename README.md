@@ -10,7 +10,7 @@
   <h3>
     <a href="#mcp-servers">MCP Servers</a> |
     <a href="#integrations">Integrations</a> |
-    <a href="#valkey-sample-apps">Sample Apps</a> |
+    <!--<a href="#valkey-sample-apps">Sample Apps</a> |-->
     <a href="#tutorials">Tutorials</a> |
     <a href="#cloud-platforms">Cloud Platforms</a> |
     <a href="#official-valkey-documentation">Official Docs</a>
@@ -27,7 +27,7 @@ Step-by-step guides for building AI applications with Valkey, migrated from [Val
 | --- | --- |
 | [📖 All Cookbooks](cookbooks/) | Main index — use cases and framework integrations |
 | [Use Cases](cookbooks/use-cases/) | Semantic caching, conversation memory, vector search, RAG pipelines, rate limiting, pub/sub streaming, feature store, context engineering |
-| [Framework Integrations](cookbooks/framework-integrations/) | Mem0, LangChain/LangGraph, CrewAI, Strands, Haystack, BetterDB, CocoIndex |
+| [Framework Integrations](cookbooks/framework-integrations/) | Mem0, LangChain/LangGraph, CrewAI, Strands, Haystack, BetterDB, vLLM Semantic Router, CocoIndex |
 
 <hr>
 
@@ -58,9 +58,11 @@ Real-world applications and libraries using Valkey:
 | [Recall](https://github.com/joseairosa/recall) | Persistent cross-session memory for Claude and AI agents that survives context limits and session restarts. Available as managed SaaS or self-hosted |
 | [redlock-universal](https://github.com/alexpota/redlock-universal/blob/main/VALKEY.md) | Distributed locking implementation with Valkey support using the Redlock algorithm |
 | [TensorZero](https://github.com/tensorzero/tensorzero) | Open-source LLM gateway and optimization stack that uses Valkey as a backend for rate limiting and model inference caching |
+| [vLLM Semantic Router](https://github.com/vllm-project/semantic-router) | System-level intelligent router for mixture-of-models serving that uses Valkey (with the Search module) as its semantic cache, RAG vector store, and agentic memory backend via the valkey-glide Go client |
 
 <hr>
 
+<!-- Coming Soon
 ## Valkey Sample Apps
 
 Sample applications demonstrating Valkey capabilities:
@@ -71,7 +73,7 @@ Sample applications demonstrating Valkey capabilities:
 | [Sports Aggregation](https://github.com/valkey-io/Valkey-Samples/pull/5) | Real-time sports data aggregation application using Valkey for high-performance data ingestion and querying |
 | [ValkeyMart E-Commerce](https://github.com/valkey-io/Valkey-Samples/pull/4) | Product recommendation engine for an e-commerce storefront powered by Valkey vector search |
 
-<hr>
+<hr> -->
 
 ## Tutorials
 
