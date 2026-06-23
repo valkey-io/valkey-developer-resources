@@ -14,6 +14,9 @@ Runnable code for the [Unstructured + Valkey cookbook series](../README.md).
 # Start Valkey with the Search module
 docker run -d --name valkey-search -p 6379:6379 valkey/valkey-bundle:latest
 
+# Or using Podman
+podman run -d --name valkey-search -p 6379:6379 valkey/valkey-bundle:latest
+
 # Install dependencies
 pip install -r requirements.txt
 ```

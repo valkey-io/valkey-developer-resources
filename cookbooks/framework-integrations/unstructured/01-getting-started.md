@@ -127,4 +127,4 @@ The `precheck()` method pings the server and verifies connectivity. It raises `D
 
 URI example: `valkey://user:pass@host:6379` or `valkeys://host:6379` (TLS).
 
-[Next: 02 Document Ingestion Pipeline →](02-document-ingestion.md)
+[Next: 02 Document Ingestion Pipeline →](02-ingestion-and-search.md)

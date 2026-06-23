@@ -27,8 +27,7 @@ Step-by-step guides for building AI applications with Valkey, migrated from [Val
 | --- | --- |
 | [📖 All Cookbooks](cookbooks/) | Main index — use cases and framework integrations |
 | [Use Cases](cookbooks/use-cases/) | Semantic caching, conversation memory, vector search, RAG pipelines, rate limiting, pub/sub streaming, feature store, context engineering |
-| [Framework Integrations](cookbooks/framework-integrations/) | Mem0, LangChain/LangGraph, CrewAI, Strands, Haystack, BetterDB, vLLM Semantic Router, CocoIndex |
-| [Framework Integrations](cookbooks/framework-integrations/) | Mem0, LangChain/LangGraph, CrewAI, Strands, Haystack, BetterDB, Google ADK, Unstructured |
+| [Framework Integrations](cookbooks/framework-integrations/) | Mem0, LangChain/LangGraph, CrewAI, Strands, Haystack, BetterDB, vLLM Semantic Router, CocoIndex, Unstructured |
 
 <hr>
 
