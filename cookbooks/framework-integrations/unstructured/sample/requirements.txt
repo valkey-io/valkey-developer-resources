@@ -1,0 +1,9 @@
+# Unstructured document processing + Valkey destination
+unstructured-ingest[valkey]~=0.4.0
+unstructured[all-docs]~=0.17.0
+
+# Local embedding model (no API key required)
+sentence-transformers~=3.0
+
+# Valkey client for querying (used in search demo)
+valkey-glide~=2.4
