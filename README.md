@@ -27,7 +27,7 @@ Step-by-step guides for building AI applications with Valkey, migrated from [Val
 | --- | --- |
 | [📖 All Cookbooks](cookbooks/) | Main index — use cases and framework integrations |
 | [Use Cases](cookbooks/use-cases/) | Semantic caching, conversation memory, vector search, RAG pipelines, rate limiting, pub/sub streaming, feature store, context engineering |
-| [Framework Integrations](cookbooks/framework-integrations/) | Mem0, LangChain/LangGraph, CrewAI, Strands, Haystack, BetterDB, vLLM Semantic Router, CocoIndex |
+| [Framework Integrations](cookbooks/framework-integrations/) | Mem0, LangChain/LangGraph, CrewAI, Strands, Haystack, BetterDB, vLLM Semantic Router, CocoIndex, OpenAI |
 
 <hr>
 
@@ -55,6 +55,7 @@ Real-world applications and libraries using Valkey:
 | [LMCache](https://github.com/LMCache/LMCache) | High-performance KV cache layer for LLM inference engines (vLLM, SGLang) that uses Valkey as a storage backend to reduce time-to-first-token by up to 10× |
 | [Mem0 Valkey Vector Store](https://docs.mem0.ai/components/vectordbs/dbs/valkey) | Vector database adapter enabling Mem0 to use Valkey for storing and searching embeddings with HNSW or FLAT indexing |
 | [node-rate-limiter-flexible](https://github.com/animir/node-rate-limiter-flexible) | Atomic counters and rate limiting at any scale. Protects from DoS and brute force attacks with Valkey, Redis, and other backends |
+| [OpenAI](https://platform.openai.com/docs/guides/embeddings) | Use Valkey as a vector database for OpenAI embeddings — semantic vector search, hybrid (TAG filter + KNN) queries, and FLAT/HNSW indexing over JSON documents via the valkey-glide client |
 | [Recall](https://github.com/joseairosa/recall) | Persistent cross-session memory for Claude and AI agents that survives context limits and session restarts. Available as managed SaaS or self-hosted |
 | [redlock-universal](https://github.com/alexpota/redlock-universal/blob/main/VALKEY.md) | Distributed locking implementation with Valkey support using the Redlock algorithm |
 | [TensorZero](https://github.com/tensorzero/tensorzero) | Open-source LLM gateway and optimization stack that uses Valkey as a backend for rate limiting and model inference caching |
