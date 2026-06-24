@@ -11,7 +11,7 @@ Together they give you an end-to-end pipeline: documents in, searchable vectors 
   * **Any document format** — PDF, DOCX, HTML, Markdown, email, images
   * **Automatic chunking** — splits documents into semantic chunks with metadata
   * **Vector embeddings** — each chunk stored with its embedding for similarity search
-  * **Sub-millisecond KNN** — Valkey Search HNSW returns nearest neighbors in <1ms
+  * **Low-latency KNN** — Valkey Search HNSW returns nearest neighbors in-memory
 
 ## Step 1: Start Valkey
 
@@ -81,7 +81,7 @@ from unstructured_ingest.processes.connectors.valkey import (
 connection_config = ValkeyConnectionConfig(
     host="localhost",
     port=6379,
-    ssl=False,  # Set True for cloud (ElastiCache, MemoryDB)
+    ssl=False,  # Set True for TLS-enabled servers and cloud (ElastiCache, MemoryDB)
     access_config=ValkeyAccessConfig(
         # password="your-password",  # Uncomment for auth
     ),

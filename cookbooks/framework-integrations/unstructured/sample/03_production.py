@@ -1,7 +1,5 @@
 """03 — Production: TLS connection, TTL, index monitoring."""
 
-import os
-
 from glide_sync import (
     GlideClient,
     GlideClientConfiguration,
@@ -9,9 +7,9 @@ from glide_sync import (
     ft,
 )
 
-VALKEY_HOST = os.getenv("VALKEY_HOST", "localhost")
-VALKEY_PORT = int(os.getenv("VALKEY_PORT", "6379"))
-INDEX_NAME = os.getenv("INDEX_NAME", "documents_index")
+VALKEY_HOST = "localhost"
+VALKEY_PORT = 6379
+INDEX_NAME = "documents_index"
 
 
 def check_index():
@@ -30,9 +28,9 @@ def check_index():
         print(f"  Documents: {num_docs}")
         print(f"  Indexing: {'backfilling' if indexing == '1' else 'idle'}")
     except Exception as e:
-        print(f"Index '{INDEX_NAME}' not found: {e}")
-        print("Run 02_ingestion_and_search.py first.")
-        return
+        print(f"Index '{INDEX_NAME}' not found — no documents ingested yet.")
+        print(f"  (Error: {e})")
+        print("  This is expected if you haven't ingested any documents.")
 
     client.close()
 

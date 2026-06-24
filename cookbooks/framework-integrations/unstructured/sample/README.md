@@ -30,14 +30,16 @@ python 02_ingestion_and_search.py     # Ingest sample.pdf + KNN search
 python 03_production.py               # Index monitoring, TTL config, URI examples
 ```
 
-## Environment Variables
+## Configuration
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `VALKEY_HOST` | `localhost` | Valkey server hostname |
-| `VALKEY_PORT` | `6379` | Valkey server port |
-| `SAMPLE_PDF` | `sample.pdf` | Path to a PDF to ingest |
-| `INDEX_NAME` | `documents_index` | Index name for monitoring |
+The scripts use these defaults (hardcoded for simplicity):
+
+- **Valkey host**: `localhost`
+- **Valkey port**: `6379`
+- **Sample PDF**: `sample.pdf` (place any PDF with this name in this directory)
+- **Index name**: `documents_index`
+
+Edit the constants at the top of each script if your setup differs.
 
 ## Troubleshooting
 

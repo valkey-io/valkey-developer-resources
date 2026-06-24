@@ -1,7 +1,5 @@
 """01 — Getting Started: connect to Valkey and verify the connector works."""
 
-import os
-
 from unstructured_ingest.processes.connectors.valkey import (
     ValkeyAccessConfig,
     ValkeyConnectionConfig,
@@ -9,8 +7,8 @@ from unstructured_ingest.processes.connectors.valkey import (
     ValkeyUploaderConfig,
 )
 
-VALKEY_HOST = os.getenv("VALKEY_HOST", "localhost")
-VALKEY_PORT = int(os.getenv("VALKEY_PORT", "6379"))
+VALKEY_HOST = "localhost"
+VALKEY_PORT = 6379
 
 
 def main():

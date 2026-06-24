@@ -1,7 +1,4 @@
 # Unstructured document processing + Valkey destination
-# NOTE: unstructured-ingest[valkey] is not yet published on PyPI.
-# Once merged, update to the released version. For now, install from:
-#   pip install 'unstructured-ingest[valkey] @ git+https://github.com/atao2004/unstructured-ingest@integrate-valkey'
 unstructured-ingest[valkey]~=0.4.0
 unstructured[all-docs]~=0.17.0
 

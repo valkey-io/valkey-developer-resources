@@ -1,7 +1,6 @@
 """02 — Document Ingestion & Search: partition, embed, upload, then query."""
 
 import asyncio
-import os
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
@@ -17,9 +16,9 @@ from unstructured_ingest.processes.connectors.valkey import (
     ValkeyUploaderConfig,
 )
 
-VALKEY_HOST = os.getenv("VALKEY_HOST", "localhost")
-VALKEY_PORT = int(os.getenv("VALKEY_PORT", "6379"))
-SAMPLE_PDF = os.getenv("SAMPLE_PDF", "sample.pdf")
+VALKEY_HOST = "localhost"
+VALKEY_PORT = 6379
+SAMPLE_PDF = "sample.pdf"
 INDEX_NAME = "documents_index"
 KEY_PREFIX = "doc:unstructured:"
 
