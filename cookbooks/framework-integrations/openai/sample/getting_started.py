@@ -145,6 +145,7 @@ async def search(client: GlideClient, query: str, k: int = 3) -> list[dict]:
             ReturnField("url"),
             ReturnField("vector_score", alias="score"),
         ],
+        dialect=2,  # valkey-search supports only DIALECT 2 for vector queries
     )
     count, docs = await ft.search(client, INDEX_NAME, knn_query, options)
 

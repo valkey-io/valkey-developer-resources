@@ -95,7 +95,10 @@ async def create_hnsw_index(client: GlideClient) -> None:
         VectorField(
             name="$.content_vector",
             alias="content_vector",
-            algorithm=VectorAlgorithm.HNSW,  # HNSW = approximate; faster for >1000 docs
+            # HNSW = approximate; faster for >1000 docs. The tiny demo corpus
+            # below would use FLAT in production — HNSW is shown here to
+            # demonstrate the API and its tuning parameters.
+            algorithm=VectorAlgorithm.HNSW,
             attributes=VectorFieldAttributesHnsw(
                 dimensions=EMBED_DIM,
                 distance_metric=DistanceMetricType.COSINE,
@@ -136,6 +139,7 @@ async def search(client: GlideClient, query: str, k: int = 3, genre: str = "") -
             ReturnField("genre"),
             ReturnField("vector_score", alias="score"),
         ],
+        dialect=2,  # valkey-search supports only DIALECT 2 for vector queries
     )
     count, docs = await ft.search(client, INDEX_NAME, knn_query, options)
 

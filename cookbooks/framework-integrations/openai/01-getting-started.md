@@ -177,6 +177,7 @@ knn_query = f"(*)=>[KNN {k} @content_vector $query_vec AS vector_score]"
 options = FtSearchOptions(
     params={"query_vec": query_blob},
     return_fields=[ReturnField("title"), ReturnField("vector_score", alias="score")],
+    dialect=2,  # valkey-search supports only DIALECT 2 for vector queries
 )
 count, docs = await ft.search(client, INDEX_NAME, knn_query, options)
 

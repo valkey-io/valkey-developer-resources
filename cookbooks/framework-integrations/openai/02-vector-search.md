@@ -23,6 +23,8 @@ FLAT search compares the query against every vector — exact, but linear in the
 | **FLAT** | Exact (100%) | Linear scan | < 1000 documents |
 | **HNSW** | Approximate (99%+) | Sub-linear | > 1000 documents |
 
+> The handful of demo documents below would be better served by FLAT in production — we use HNSW here only to demonstrate the API and its tuning parameters. Choose the algorithm based on your real corpus size.
+
 Define the schema with `VectorFieldAttributesHnsw`. We add a `genre` TAG so we can filter on it later:
 
 ```python
@@ -112,7 +114,7 @@ from glide_shared.commands.server_modules.ft_options.ft_search_options import (
 )
 
 # `embed` and `client` come from the steps above.
-def search(query, k=3, genre=""):
+async def search(query, k=3, genre=""):
     query_blob = np.array(embed([query])[0], dtype=np.float32).tobytes()
 
     # Guard the variable-built TAG filter: fall back to '*' (match everything)
@@ -129,8 +131,9 @@ def search(query, k=3, genre=""):
             ReturnField("genre"),
             ReturnField("vector_score", alias="score"),
         ],
+        dialect=2,  # valkey-search supports only DIALECT 2 for vector queries
     )
-    return ft.search(client, INDEX_NAME, knn_query, options)  # await this call
+    return await ft.search(client, INDEX_NAME, knn_query, options)
 
 # Only "tech" documents are ranked, then ordered by similarity to the query.
 count, docs = await search("in-memory database", k=3, genre="tech")
