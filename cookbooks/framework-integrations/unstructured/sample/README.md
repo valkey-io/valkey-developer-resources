@@ -24,10 +24,7 @@ pip install -r requirements.txt
 ## Running
 
 ```bash
-# Run the full pipeline: connection test → ingest → search
-python main.py
-
-# Or run individual steps:
+# Run individual steps:
 python 01_getting_started.py          # Connection test
 python 02_ingestion_and_search.py     # Ingest sample.pdf + KNN search
 python 03_production.py               # Index monitoring, TTL config, URI examples
