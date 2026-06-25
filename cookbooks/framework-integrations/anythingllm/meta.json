@@ -1,0 +1,54 @@
+{
+  "trackName": "AnythingLLM",
+  "cookbooks": [
+    {
+      "num": "01",
+      "source": "01-getting-started.md",
+      "output": "01-getting-started.html",
+      "title": "Getting Started with AnythingLLM + Valkey",
+      "h1": "Getting Started with AnythingLLM + Valkey",
+      "breadcrumb": "Getting Started",
+      "lead": "Configure AnythingLLM to use Valkey as its vector database, understand the per-namespace storage model, and run a minimal GLIDE mirror that creates an index, stores a chunk, and runs a KNN search.",
+      "difficulty": "Beginner",
+      "time": "15 min",
+      "next": {
+        "file": "02-vector-search.html",
+        "title": "02 - Vector Search & Retrieval"
+      }
+    },
+    {
+      "num": "02",
+      "source": "02-vector-search.md",
+      "output": "02-vector-search.html",
+      "title": "Vector Search & Retrieval with AnythingLLM + Valkey",
+      "h1": "Vector Search & Retrieval with AnythingLLM + Valkey",
+      "breadcrumb": "Vector Search & Retrieval",
+      "lead": "Reproduce AnythingLLM's retrieval path: KNN search with bound PARAMS, COSINE distance to similarity scoring, similarity-threshold and topN filtering, and pinned-source exclusion.",
+      "difficulty": "Intermediate",
+      "time": "20 min",
+      "prev": {
+        "file": "01-getting-started.html",
+        "title": "01 - Getting Started"
+      },
+      "next": {
+        "file": "03-production.html",
+        "title": "03 - Production Operations"
+      }
+    },
+    {
+      "num": "03",
+      "source": "03-production.md",
+      "output": "03-production.html",
+      "title": "Production Operations with AnythingLLM + Valkey",
+      "h1": "Production Operations with AnythingLLM + Valkey",
+      "breadcrumb": "Production Operations",
+      "lead": "Run AnythingLLM's Valkey provider in production: TLS and auth, request timeouts, the dimension-change guard, namespace deletion, bounded SCAN cleanup, full reset, and cluster considerations.",
+      "difficulty": "Advanced",
+      "time": "20 min",
+      "prev": {
+        "file": "02-vector-search.html",
+        "title": "02 - Vector Search & Retrieval"
+      }
+    }
+  ]
+}

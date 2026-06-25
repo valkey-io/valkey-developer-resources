@@ -1,0 +1,9 @@
+# Valkey with the search + JSON modules (valkey-bundle) for the AnythingLLM sample.
+# Start with:  docker compose up -d   (or: podman compose up -d)
+services:
+  valkey:
+    image: valkey/valkey-bundle:latest
+    container_name: anythingllm-valkey-sample
+    ports:
+      - "6379:6379"
+    command: ["valkey-server", "--save", "60", "1"]

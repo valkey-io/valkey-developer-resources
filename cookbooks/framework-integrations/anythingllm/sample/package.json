@@ -1,0 +1,15 @@
+{
+  "name": "anythingllm-valkey-sample",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Runnable samples for the AnythingLLM + Valkey cookbook series",
+  "scripts": {
+    "getting-started": "node src/getting-started.js",
+    "vector-search": "node src/vector-search.js",
+    "production": "node src/production.js"
+  },
+  "dependencies": {
+    "@valkey/valkey-glide": "2.4.1"
+  }
+}
