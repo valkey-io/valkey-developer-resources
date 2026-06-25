@@ -1,0 +1,35 @@
+{
+  "trackName": "CocoIndex",
+  "cookbooks": [
+    {
+      "num": "01",
+      "source": "01-getting-started.md",
+      "output": "01-getting-started.html",
+      "title": "Getting Started with CocoIndex + Valkey",
+      "h1": "Getting Started with CocoIndex + Valkey",
+      "breadcrumb": "Getting Started",
+      "lead": "Install CocoIndex with Valkey support, configure the connector, and run your first incremental indexing pipeline in under 15 minutes.",
+      "difficulty": "Beginner",
+      "time": "15 min",
+      "next": {
+        "file": "02-rag-pipeline.html",
+        "title": "02 - RAG Pipeline with Incremental Sync"
+      }
+    },
+    {
+      "num": "02",
+      "source": "02-rag-pipeline.md",
+      "output": "02-rag-pipeline.html",
+      "title": "RAG Pipeline with Incremental Sync",
+      "h1": "RAG Pipeline with Incremental Sync",
+      "breadcrumb": "RAG Pipeline",
+      "lead": "Build a production-ready RAG pipeline: chunk documents, embed with sentence-transformers, store in Valkey with HNSW indexing, and query with KNN vector search — all with incremental updates.",
+      "difficulty": "Intermediate",
+      "time": "20 min",
+      "prev": {
+        "file": "01-getting-started.html",
+        "title": "01 - Getting Started"
+      }
+    }
+  ]
+}
