@@ -1,0 +1,5 @@
+# Go build artifacts
+/vllm-semantic-router-valkey-sample
+*.exe
+*.test
+*.out

@@ -1,0 +1,4 @@
+vllm>=0.8.0,<1
+lmcache>=0.5.0,<1
+valkey-glide>=2.4.0,<3
+requests>=2.31.0,<3

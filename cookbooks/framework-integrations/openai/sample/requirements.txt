@@ -1,0 +1,4 @@
+valkey-glide~=2.4
+openai~=2.0
+numpy~=2.0
+python-dotenv~=1.0

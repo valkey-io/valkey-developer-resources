@@ -27,7 +27,19 @@ __pycache__/
 
 # Node
 node_modules/
+.metals
+
+# Gradle
+.gradle/
+build/
+bin/
+
+# Local dev build artifacts
+**/.m2/
+**/target/
 
 # OS
 .DS_Store
 Thumbs.db
+
+
