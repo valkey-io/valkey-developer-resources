@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ValkeySearch Live GHL Analytics</title>
+    <link rel="stylesheet" href="/css/style.css?v=3">
+    <script src="https://cdn.jsdelivr.net/npm/uplot@1.6.30/dist/uPlot.iife.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uplot@1.6.30/dist/uPlot.min.css">
+</head>
+<body>
+<div class="app-layout">
+    <!-- Left Sidebar: Game Ticker -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>🏒 GHL Live</h1>
+            <div class="connection-status" id="connectionStatus">Connecting...</div>
+        </div>
+        <div class="game-ticker" id="gameTicker">
+            <div th:each="game : ${games}" class="ticker-item" th:classappend="${game.status}"
+                 th:attr="data-game-id=${game.gameId}" onclick="selectGame(this.dataset.gameId)">
+                <div class="ticker-status-dot"></div>
+                <div class="ticker-teams">
+                    <div class="ticker-team">
+                        <span th:text="${game.homeTeam}">ARC</span>
+                        <span class="ticker-score" th:text="${game.homeScore}">0</span>
+                    </div>
+                    <div class="ticker-team">
+                        <span th:text="${game.awayTeam}">CYG</span>
+                        <span class="ticker-score" th:text="${game.awayScore}">0</span>
+                    </div>
+                </div>
+                <div class="ticker-period" th:text="'P' + ${game.period}">P1</div>
+                <div class="ticker-sparkline" th:attr="data-game-id=${game.gameId}"></div>
+            </div>
+        </div>
+
+        <!-- Trending Matches -->
+        <div class="sidebar-section">
+            <h3>🔥 Trending <span class="badge">FT.AGGREGATE</span></h3>
+            <div class="trending-list" id="trendingList">
+                <p th:if="${#lists.isEmpty(trending)}" class="empty-state">No live games</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content: Detail View -->
+    <main class="main-content">
+        <header class="main-header">
+            <div>
+                <h2 id="detailTitle">Select a game</h2>
+                <p class="subtitle">Powered by ValkeySearch 1.2 Aggregation · <span id="gameCount">0</span> games tracked</p>
+            </div>
+        </header>
+
+        <!-- Game Detail Panel -->
+        <div id="gameDetail" class="game-detail">
+            <div class="detail-placeholder">
+                <p>← Select a game from the sidebar to see detailed analytics</p>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div id="chartsSection" class="charts-section hidden">
+            <div class="chart-row">
+                <div class="chart-card">
+                    <h4>Win Probability <span id="legendWinProb" class="chart-legend"></span></h4>
+                    <div id="chartWinProb" class="chart-container"></div>
+                </div>
+                <div class="chart-card">
+                    <h4>Momentum <span id="legendMomentum" class="chart-legend"></span></h4>
+                    <div id="chartMomentum" class="chart-container"></div>
+                </div>
+            </div>
+            <div class="chart-row">
+                <div class="chart-card chart-card-stacked">
+                    <h4>Shots on Goal <span id="legendShots" class="chart-legend"></span></h4>
+                    <div id="chartShots" class="chart-container-dots"></div>
+                    <h4>Shot Differential <span id="legendShotDiff" class="chart-legend"></span></h4>
+                    <div id="chartShotDiff" class="chart-container-half"></div>
+                </div>
+                <div class="chart-card chart-card-stacked">
+                    <h4>Corsi (Shot Attempts) <span id="legendCorsi" class="chart-legend"></span></h4>
+                    <div id="chartCorsi" class="chart-container-half"></div>
+                    <h4>Zone Time % <span id="legendZone" class="chart-legend"></span></h4>
+                    <div id="chartZone" class="chart-container-half"></div>
+                </div>
+            </div>
+            <div class="chart-row">
+                <div class="chart-card">
+                    <h4>Viewers</h4>
+                    <div id="chartViewers" class="chart-container"></div>
+                </div>
+                <div class="chart-card">
+                    <h4>📈 Per-Period Breakdown <span class="badge">FT.AGGREGATE</span></h4>
+                    <div id="periodStats" class="period-stats-grid"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Stats -->
+        <div id="bottomSection" class="bottom-section hidden">
+            <div class="stats-panel full-width">
+                <h4>📊 Advanced Stats</h4>
+                <div id="advancedStats" class="stats-grid"></div>
+            </div>
+        </div>
+
+        <!-- All Games Section -->
+        <div id="aggregateSection" class="aggregate-section hidden">
+            <div class="section-divider">
+                <span>All Games</span>
+            </div>
+            <div class="chart-card full-width-card">
+                <h4>🔥 Excitement Ranking <span class="badge">FT.AGGREGATE</span></h4>
+                <div id="excitementRanking" class="excitement-list"></div>
+            </div>
+        </div>
+
+        <!-- Win Probability Overview (all games) -->
+        <section class="section" id="allProbsSection">
+            <h3>📊 Win Probability — All Games</h3>
+            <div class="probabilities" id="probabilities"></div>
+        </section>
+
+        <!-- Benchmark -->
+        <section class="section" id="benchmarkSection">
+            <button id="runBenchmark" onclick="runBenchmark()">⚡ Run Benchmark (100 iterations)</button>
+            <div id="benchmarkResults" class="benchmark-results"></div>
+        </section>
+    </main>
+</div>
+
+<script>
+const TEAMS = {};
+</script>
+<script th:inline="javascript">
+/*<![CDATA[*/
+const teamsData = /*[[${teams}]]*/ {};
+Object.keys(teamsData).forEach(k => {
+    TEAMS[k] = teamsData[k].city + ' ' + teamsData[k].name;
+});
+/*]]>*/
+</script>
+<script src="/js/app.js?v=3"></script>
+</body>
+</html>

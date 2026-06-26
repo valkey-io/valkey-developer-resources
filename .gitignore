@@ -2,6 +2,31 @@
 .vscode/
 .idea/
 *.iml
+.metals/
+
+# Gradle / Maven
+.gradle/
+build/
+bin/
+target/
+
+# Local dev build artifacts
+**/.m2/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Cognee
+.cognee-data/
+.cognee-system/
+
+# Node
+node_modules/
 .metals
 
 # Gradle

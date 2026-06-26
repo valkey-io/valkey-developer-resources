@@ -1,0 +1,26 @@
+# docker-compose.local.yaml
+# Use when Valkey is already running locally (e.g. via brew or a separate container)
+# Usage: docker compose -f docker-compose.local.yaml up
+services:
+  feeder:
+    build:
+      context: app
+      dockerfile: Dockerfile
+      target: feeder
+    environment:
+      VALKEY_HOST: host.docker.internal
+      VALKEY_PORT: 6379
+      NUM_GAMES: 8
+      TICK_INTERVAL_MS: 2000
+      # SEED: 42  # Uncomment for reproducible matchups across runs
+
+  webapp:
+    build:
+      context: app
+      dockerfile: Dockerfile
+      target: webapp
+    environment:
+      VALKEY_HOST: host.docker.internal
+      VALKEY_PORT: 6379
+    ports:
+      - "8080:8080"
