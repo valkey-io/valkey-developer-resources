@@ -1,0 +1,10 @@
+server:
+  port: 8080
+
+valkey:
+  host: ${VALKEY_HOST:localhost}
+  port: ${VALKEY_PORT:6379}
+
+spring:
+  thymeleaf:
+    cache: false

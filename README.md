@@ -20,6 +20,7 @@
 | Sample App | Description |
 | --- | --- |
 | [Full-Text Search (FTS)](apps/fts/) | Full-text search demo showcasing Valkey's search capabilities for a movie discovery experience |
+| [ValkeyMart](apps/ecommerce/) | Product discovery demo with natural language search, hybrid vector + full-text queries, and adaptive recommendations powered by Valkey Search |
 
 ---
 
@@ -69,3 +70,4 @@ Production-ready integrations for popular AI agent frameworks. Checkpointing, ca
 | <nobr>[vLLM Semantic Router](cookbooks/framework-integrations/vllm-semantic-router/)</nobr> | Run the vLLM Semantic Router on Valkey - semantic cache, RAG vector store, and agentic memory backends with HNSW vector search via the `valkey-glide` Go client. |
 | <nobr>[Cognee](cookbooks/framework-integrations/cognee/)</nobr> | AI memory system that builds knowledge graphs from your data. Uses `valkey-glide` with Valkey Search for vector storage, providing more accurate context than traditional RAG. |
 | <nobr>[PraisonAI](cookbooks/framework-integrations/praisonai/)</nobr> | Give PraisonAI agents persistent state and vector knowledge retrieval backed by Valkey. `ValkeyStateStore` for session history and counters, `ValkeyVectorKnowledgeStore` for HNSW semantic search. |
+| <nobr>[OpenAI](cookbooks/framework-integrations/openai/)</nobr> | Use Valkey as a vector database for OpenAI embeddings. Semantic vector search, hybrid (TAG filter + KNN) queries, and FLAT vs HNSW indexing over JSON documents via `valkey-glide`. |

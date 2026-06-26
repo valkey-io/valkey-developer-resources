@@ -45,4 +45,5 @@ Production-ready integrations for popular AI agent frameworks. Checkpointing, ca
 | <nobr>[Cognee](framework-integrations/cognee/)</nobr> | AI memory system that builds knowledge graphs from your data. Uses `valkey-glide` with Valkey Search for vector storage, providing more accurate context than traditional RAG. |
 | <nobr>[PraisonAI](framework-integrations/praisonai/)</nobr> | Give PraisonAI agents persistent state and vector knowledge retrieval backed by Valkey. `ValkeyStateStore` for session history and counters, `ValkeyVectorKnowledgeStore` for HNSW semantic search. |
 | <nobr>[AnythingLLM](framework-integrations/anythingllm/)</nobr> | Use Valkey as the vector database in AnythingLLM (`VECTOR_DB=valkey`). Per-workspace HNSW indexes, KNN retrieval with similarity-threshold filtering and pinned-source exclusion via `@valkey/valkey-glide`. |
+| <nobr>[OpenAI](framework-integrations/openai/)</nobr> | Use Valkey as a vector database for OpenAI embeddings. Semantic vector search, hybrid (TAG filter + KNN) queries, and FLAT vs HNSW indexing over JSON documents via `valkey-glide`. |
 

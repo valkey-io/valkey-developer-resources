@@ -1,0 +1,44 @@
+services:
+  valkey:
+    image: valkey/valkey-bundle:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - valkey-data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["uv", "run", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8001"]
+    ports:
+      - "8001:8001"
+    environment:
+      - VALKEY_HOST=valkey
+      - ALLOWED_ORIGINS=http://localhost:3001,http://frontend:3001
+    volumes:
+      - model-cache:/root/.cache/huggingface
+    depends_on:
+      valkey:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - VITE_API_URL=http://backend:8001
+    depends_on:
+      backend:
+        condition: service_started
+
+volumes:
+  valkey-data:
+  model-cache:
