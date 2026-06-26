@@ -37,4 +37,4 @@ dump.rdb
 .kiro/
 
 # Ingestion data
-valkey-ecommerce/scripts/data/
+apps/ecommerce/scripts/data/

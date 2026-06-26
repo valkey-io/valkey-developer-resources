@@ -40,7 +40,7 @@ Requires Docker Compose (or Finch) and [uv](https://docs.astral.sh/uv/) (Python 
 ### 1. Start the services
 
 ```bash
-cd valkey-ecommerce
+cd apps/ecommerce
 docker compose up
 ```
 
@@ -95,7 +95,7 @@ valkey-server --loadmodule /path/to/libsearch.so
 ### 2. Ingest the dataset
 
 ```bash
-cd valkey-ecommerce
+cd apps/ecommerce
 uv sync
 uv run python scripts/ingest.py
 ```

@@ -1,6 +1,6 @@
 services:
   valkey:
-    image: valkey/valkey-bundle:9.1-rc1 # TODO: replace with stable version once it comes out
+    image: valkey/valkey-bundle:latest
     ports:
       - "6379:6379"
     volumes:

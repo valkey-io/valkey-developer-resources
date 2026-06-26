@@ -20,6 +20,7 @@
 | Sample App | Description |
 | --- | --- |
 | [Full-Text Search (FTS)](apps/fts/) | Full-text search demo showcasing Valkey's search capabilities for a movie discovery experience |
+| [ValkeyMart](apps/ecommerce/) | Product discovery demo with natural language search, hybrid vector + full-text queries, and adaptive recommendations powered by Valkey Search |
 
 ---
 
