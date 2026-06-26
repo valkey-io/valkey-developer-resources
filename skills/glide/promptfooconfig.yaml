@@ -318,3 +318,252 @@ tests:
     assert:
       - type: llm-rubric
         value: "The response recommends valkey-glide (not redis, not the valkey PyPI package) as the official client, and steers away from Redis forks."
+
+  # ============================================================
+  # GAP 1: Python Performance (target: python-performance.md)
+  # ============================================================
+
+  # Eval 25: AZ Affinity configuration
+  - vars:
+      prompt: "I'm deploying a read-heavy Python app with valkey-glide on AWS ElastiCache. Over 90% of operations are reads. How do I configure the client to prefer reading from replicas in the same availability zone?"
+    assert:
+      - type: javascript
+        value: "/AZ_AFFINITY|az_affinity/i.test(output)"
+        metric: mentions-az-affinity
+      - type: javascript
+        value: "/client_az|clientAZ/i.test(output)"
+        metric: mentions-client-az
+      - type: javascript
+        value: "/ReadFrom/i.test(output)"
+        metric: mentions-read-from
+
+  # Eval 26: Serverless / Lambda lazy_connect
+  - vars:
+      prompt: "I'm writing a Python Lambda function that uses valkey-glide. Cold starts are killing me because the client connects immediately. How do I defer the connection until the first command is sent?"
+    assert:
+      - type: javascript
+        value: "/lazy_connect.*True|lazy_connect=True/i.test(output)"
+        metric: uses-lazy-connect
+      - type: javascript
+        value: "const codeBlocks = output.match(/```[\\s\\S]*?```/g) || []; const codeLen = codeBlocks.join('').length; codeLen / output.length > 0.3"
+        metric: code-density
+
+  # Eval 27: Concurrent operations with asyncio.gather
+  - vars:
+      prompt: "I need to fetch a user profile, their recent posts, and their notifications from Valkey concurrently in my Python async app using valkey-glide. Show me how."
+    assert:
+      - type: javascript
+        value: "/asyncio\\.gather/i.test(output)"
+        metric: uses-asyncio-gather
+      - type: javascript
+        value: "const codeBlocks = output.match(/```[\\s\\S]*?```/g) || []; const codeLen = codeBlocks.join('').length; codeLen / output.length > 0.3"
+        metric: code-density
+
+  # Eval 28: Throughput tuning - inflight_requests_limit
+  - vars:
+      prompt: "My valkey-glide Python app is hitting throughput limits under high concurrency. How do I increase the number of in-flight requests allowed?"
+    assert:
+      - type: javascript
+        value: "/inflight_requests_limit/i.test(output)"
+        metric: mentions-inflight-limit
+      - type: javascript
+        value: "/1000|2000/i.test(output)"
+        metric: mentions-default-or-increased
+
+  # Eval 29: OpenTelemetry monitoring setup
+  - vars:
+      prompt: "How do I enable OpenTelemetry tracing and metrics for my valkey-glide Python client? I want 1% trace sampling in production."
+    assert:
+      - type: javascript
+        value: "/OpenTelemetry\\.init|OpenTelemetryConfig/i.test(output)"
+        metric: uses-otel-init
+      - type: javascript
+        value: "/sample_percentage|samplePercentage/i.test(output)"
+        metric: mentions-sampling
+
+  # ============================================================
+  # GAP 2: Java Vector Search (target: java-vector-search.md)
+  # ============================================================
+
+  # Eval 30: Java FT imports and index creation
+  - vars:
+      prompt: "Write Java code using valkey-glide that creates a vector search index with a 768-dim COSINE embedding field. Show the imports."
+    assert:
+      - type: javascript
+        value: "/import glide\\.api\\.commands\\.servermodules\\.FT/i.test(output)"
+        metric: correct-ft-import
+      - type: javascript
+        value: "/FT\\.create\\(client/i.test(output)"
+        metric: uses-static-ft-create
+      - type: javascript
+        value: "/VectorFieldFlat|VectorFieldHnsw|DistanceMetric\\.COSINE/i.test(output)"
+        metric: uses-vector-field-builder
+
+  # Eval 31: Java vector encoding with GlideString
+  - vars:
+      prompt: "In valkey-glide Java, how do I store a float[] embedding vector in a hash field? I tried using String but the search returns no results."
+    assert:
+      - type: javascript
+        value: "/GlideString\\.of/i.test(output)"
+        metric: uses-glide-string
+      - type: javascript
+        value: "/ByteBuffer|LITTLE_ENDIAN|ByteOrder/i.test(output)"
+        metric: mentions-byte-encoding
+      - type: llm-rubric
+        value: "The response explains that String corrupts binary vector data and you must use GlideString.of(byte[]) with little-endian float encoding."
+
+  # Eval 32: Java vector search query execution
+  - vars:
+      prompt: "Write a Java function using valkey-glide that performs a KNN vector similarity search on an index called 'products_idx', finding the 5 nearest neighbors to a query vector. Show how to parse the results."
+    assert:
+      - type: javascript
+        value: "/FT\\.search\\(client/i.test(output)"
+        metric: uses-static-ft-search
+      - type: javascript
+        value: "/FTSearchOptions/i.test(output)"
+        metric: uses-search-options
+      - type: javascript
+        value: "/results\\[0\\]|\\(Long\\)/i.test(output)"
+        metric: parses-count-from-results
+
+  # Eval 33: Java FT - code review of client method pattern
+  - vars:
+      prompt: |
+        Review this Java valkey-glide code:
+        ```java
+        import glide.api.GlideClient;
+
+        public void createIndex(GlideClient client) throws Exception {
+            client.ftCreate("my_idx", schema).get();
+        }
+        ```
+    assert:
+      - type: javascript
+        value: "/(incorrect|wrong|invalid|doesn't exist|does not exist|not.*(method|valid))/i.test(output)"
+        metric: identifies-error
+      - type: javascript
+        value: "/FT\\.create\\(client/i.test(output)"
+        metric: suggests-static-ft-create
+
+  # ============================================================
+  # GAP 2b: Java Performance (target: java-performance.md)
+  # ============================================================
+
+  # Eval 34: Java client lifecycle - Spring Bean
+  - vars:
+      prompt: "How do I configure a valkey-glide GlideClient as a Spring Boot bean with proper cleanup?"
+    assert:
+      - type: javascript
+        value: "/@Bean/i.test(output)"
+        metric: uses-bean-annotation
+      - type: javascript
+        value: "/destroyMethod.*close|close/i.test(output)"
+        metric: mentions-close-cleanup
+
+  # Eval 35: Java thread safety - Batch not shared
+  - vars:
+      prompt: "Is the valkey-glide Java GlideClient thread-safe? Can I share Batch objects across threads?"
+    assert:
+      - type: llm-rubric
+        value: "The response says the client IS thread-safe and can be shared across threads, but Batch objects are NOT thread-safe and must be created per-thread or per-operation."
+
+  # Eval 36: Java CompletableFuture exception unwrapping
+  - vars:
+      prompt: |
+        Review this Java valkey-glide error handling:
+        ```java
+        try {
+            client.get("key").get();
+        } catch (ExecutionException e) {
+            logger.error("Failed: " + e.getMessage());
+        }
+        ```
+    assert:
+      - type: llm-rubric
+        value: "The response identifies that ExecutionException wraps the real exception and you must call e.getCause() to get the actual GLIDE exception (TimeoutException, RequestException, etc.)."
+
+  # Eval 37: Java retry strategy with BackoffStrategy
+  - vars:
+      prompt: "How do I configure exponential backoff reconnection in valkey-glide Java?"
+    assert:
+      - type: javascript
+        value: "/BackoffStrategy/i.test(output)"
+        metric: uses-backoff-strategy
+      - type: javascript
+        value: "/reconnectStrategy|reconnect_strategy/i.test(output)"
+        metric: sets-reconnect-strategy
+
+  # ============================================================
+  # GAP 3: Routing Accuracy
+  # ============================================================
+
+  # Eval 38: Language detection - Java vs Python
+  - vars:
+      prompt: "Write a Java function using valkey-glide that connects to a cluster and performs a SET operation with proper error handling."
+    assert:
+      - type: javascript
+        value: "/import glide\\.api/i.test(output)"
+        metric: uses-java-imports
+      - type: javascript
+        value: "/CompletableFuture|ExecutionException|\\.get\\(\\)/i.test(output)"
+        metric: uses-java-async-pattern
+      - type: javascript
+        value: "!/(await|async def|import glide$|from glide)/i.test(output)"
+        metric: no-python-code
+
+  # Eval 39: FT trigger routes to vector search content
+  - vars:
+      prompt: "I need to build a semantic search feature in my Java app using valkey-glide. How do I create a vector index and query it?"
+    assert:
+      - type: javascript
+        value: "/import glide\\.api\\.commands\\.servermodules\\.FT|FT\\.create/i.test(output)"
+        metric: routes-to-java-ft
+      - type: javascript
+        value: "/DistanceMetric|VectorField/i.test(output)"
+        metric: has-vector-specific-content
+      - type: javascript
+        value: "!/(from glide|import glide$|ft\\.create\\(client)/i.test(output)"
+        metric: not-python-ft
+
+  # Eval 40: Performance trigger routes to performance content
+  - vars:
+      prompt: "How do I optimize my valkey-glide Python client for a serverless deployment on AWS Lambda with high read throughput?"
+    assert:
+      - type: javascript
+        value: "/lazy_connect|lazyConnect/i.test(output)"
+        metric: mentions-lazy-connect
+      - type: javascript
+        value: "/inflight_requests_limit|AZ_AFFINITY|az_affinity/i.test(output)"
+        metric: mentions-perf-config
+
+  # ============================================================
+  # GAP 4: python-ft-api.md specifics
+  # ============================================================
+
+  # Eval 41: FtSearchOptions with FtSearchLimit (pagination)
+  - vars:
+      prompt: "How do I paginate FT.SEARCH results in valkey-glide Python? I want to get results 10-20."
+    assert:
+      - type: javascript
+        value: "/FtSearchLimit/i.test(output)"
+        metric: uses-ft-search-limit
+      - type: javascript
+        value: "/offset.*count|FtSearchLimit\\(/i.test(output)"
+        metric: correct-limit-params
+      - type: javascript
+        value: "!/(first_result.*limit.*10|FtSearchOptions\\(.*limit=10)/i.test(output)"
+        metric: no-wrong-pagination
+
+  # Eval 42: FT.AGGREGATE response format
+  - vars:
+      prompt: "What format does ft.aggregate return in valkey-glide Python? Is it [count, row1, row2, ...] like valkey-py?"
+    assert:
+      - type: llm-rubric
+        value: "The response explains that GLIDE returns List[dict] (a flat list of dictionaries), NOT the [count, row1, row2, ...] format used by valkey-py/redis-py. Each dict represents one row with field names as keys."
+
+  # Eval 43: FT.AGGREGATE LOAD requirement
+  - vars:
+      prompt: "I'm using ft.aggregate in valkey-glide Python with a SUM reducer on the 'price' field but it always returns 0. What am I doing wrong?"
+    assert:
+      - type: llm-rubric
+        value: "The response identifies the missing LOAD clause as the issue. FT.AGGREGATE reducers like SUM, AVG, MIN, MAX require explicit loadFields=['@price'] in the FtAggregateOptions. Without LOAD, the field data is not available to the reducer and it silently returns 0. COUNT is the exception that doesn't need LOAD."

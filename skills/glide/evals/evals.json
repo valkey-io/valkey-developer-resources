@@ -247,6 +247,120 @@
         }
       ],
       "files": []
+    },
+    {
+      "id": 25,
+      "prompt": "I'm deploying a read-heavy Python app with valkey-glide on AWS ElastiCache. Over 90% of operations are reads. How do I configure the client to prefer reading from replicas in the same availability zone?",
+      "expected_output": "Should show GlideClusterClientConfiguration with read_from=ReadFrom.AZ_AFFINITY and client_az='us-east-1a'. Must import ReadFrom from glide.",
+      "files": []
+    },
+    {
+      "id": 26,
+      "prompt": "I'm writing a Python Lambda function that uses valkey-glide. Cold starts are killing me because the client connects immediately. How do I defer the connection until the first command is sent?",
+      "expected_output": "Should show lazy_connect=True in GlideClientConfiguration. This defers the TCP connection until the first command is issued, reducing Lambda cold start time.",
+      "files": []
+    },
+    {
+      "id": 27,
+      "prompt": "I need to fetch a user profile, their recent posts, and their notifications from Valkey concurrently in my Python async app using valkey-glide. Show me how.",
+      "expected_output": "Should use asyncio.gather() with multiple client operations. Should NOT await them sequentially in a loop.",
+      "files": []
+    },
+    {
+      "id": 28,
+      "prompt": "My valkey-glide Python app is hitting throughput limits under high concurrency. How do I increase the number of in-flight requests allowed?",
+      "expected_output": "Should show inflight_requests_limit parameter in GlideClientConfiguration. Default is 1000, can increase to 2000+ for high-throughput scenarios.",
+      "files": []
+    },
+    {
+      "id": 29,
+      "prompt": "How do I enable OpenTelemetry tracing and metrics for my valkey-glide Python client? I want 1% trace sampling in production.",
+      "expected_output": "Should use OpenTelemetry.init(OpenTelemetryConfig(...)) with traces and metrics config. Should show sample_percentage=1 for 1% sampling.",
+      "files": []
+    },
+    {
+      "id": 30,
+      "prompt": "Write Java code using valkey-glide that creates a vector search index with a 768-dim COSINE embedding field. Show the imports.",
+      "expected_output": "Should import glide.api.commands.servermodules.FT and use FT.create(client, ...) as a static method. Must use VectorFieldFlat or VectorFieldHnsw builder with DistanceMetric.COSINE and 768 dimensions.",
+      "files": []
+    },
+    {
+      "id": 31,
+      "prompt": "In valkey-glide Java, how do I store a float[] embedding vector in a hash field? I tried using String but the search returns no results.",
+      "expected_output": "Must explain that String corrupts binary vector data. Must use GlideString.of(byte[]) with ByteBuffer in LITTLE_ENDIAN byte order to encode float[] to bytes.",
+      "files": []
+    },
+    {
+      "id": 32,
+      "prompt": "Write a Java function using valkey-glide that performs a KNN vector similarity search on an index called 'products_idx', finding the 5 nearest neighbors to a query vector. Show how to parse the results.",
+      "expected_output": "Should use FT.search(client, ...) static method with FTSearchOptions.builder().params(...). Results are Object[]: results[0] is Long count, results[1] is documents map. Must check results.length > 1 before accessing docs.",
+      "files": []
+    },
+    {
+      "id": 33,
+      "prompt": "Review this Java valkey-glide code:\n```java\nimport glide.api.GlideClient;\n\npublic void createIndex(GlideClient client) throws Exception {\n    client.ftCreate(\"my_idx\", schema).get();\n}\n```",
+      "expected_output": "Must identify client.ftCreate() as incorrect — FT methods are static on the FT class, not client methods. Should recommend FT.create(client, ...) instead.",
+      "files": []
+    },
+    {
+      "id": 34,
+      "prompt": "How do I configure a valkey-glide GlideClient as a Spring Boot bean with proper cleanup?",
+      "expected_output": "Should show @Bean(destroyMethod = \"close\") annotation with GlideClient.createClient(config).get(). The destroyMethod ensures the client is closed on application shutdown.",
+      "files": []
+    },
+    {
+      "id": 35,
+      "prompt": "Is the valkey-glide Java GlideClient thread-safe? Can I share Batch objects across threads?",
+      "expected_output": "Client IS thread-safe — share one instance across all threads. Batch objects are NOT thread-safe — create per-thread or per-operation.",
+      "files": []
+    },
+    {
+      "id": 36,
+      "prompt": "Review this Java valkey-glide error handling:\n```java\ntry {\n    client.get(\"key\").get();\n} catch (ExecutionException e) {\n    logger.error(\"Failed: \" + e.getMessage());\n}\n```",
+      "expected_output": "Must identify that ExecutionException wraps the real cause. Should recommend e.getCause() to get the actual GLIDE exception (TimeoutException, RequestException, etc.). Logging e.getMessage() loses the real error info.",
+      "files": []
+    },
+    {
+      "id": 37,
+      "prompt": "How do I configure exponential backoff reconnection in valkey-glide Java?",
+      "expected_output": "Should use BackoffStrategy.builder() with numberOfRetries, factor, and exponentBase, passed to .reconnectStrategy() on the client configuration builder.",
+      "files": []
+    },
+    {
+      "id": 38,
+      "prompt": "Write a Java function using valkey-glide that connects to a cluster and performs a SET operation with proper error handling.",
+      "expected_output": "Must use Java imports (glide.api.*), CompletableFuture/.get() patterns, try-with-resources or explicit close. Must NOT contain Python syntax (await, async def, from glide import).",
+      "files": []
+    },
+    {
+      "id": 39,
+      "prompt": "I need to build a semantic search feature in my Java app using valkey-glide. How do I create a vector index and query it?",
+      "expected_output": "Must use Java FT static methods (FT.create, FT.search), Java imports (glide.api.commands.servermodules.FT), GlideString for vectors. Must NOT use Python ft.create(client, ...) patterns.",
+      "files": []
+    },
+    {
+      "id": 40,
+      "prompt": "How do I optimize my valkey-glide Python client for a serverless deployment on AWS Lambda with high read throughput?",
+      "expected_output": "Should mention lazy_connect=True for deferred connection, inflight_requests_limit for throughput, and optionally AZ_AFFINITY for read optimization. These are Python performance config options.",
+      "files": []
+    },
+    {
+      "id": 41,
+      "prompt": "How do I paginate FT.SEARCH results in valkey-glide Python? I want to get results 10-20.",
+      "expected_output": "Should use FtSearchOptions(limit=FtSearchLimit(offset=10, count=10)). Must NOT use FtSearchOptions(first_result=10, limit=10) which is the wrong API.",
+      "files": []
+    },
+    {
+      "id": 42,
+      "prompt": "What format does ft.aggregate return in valkey-glide Python? Is it [count, row1, row2, ...] like valkey-py?",
+      "expected_output": "GLIDE returns List[dict] (flat list of dictionaries), NOT [count, row1, ...] like valkey-py/redis-py. Each dict represents one aggregation result row with field names as keys.",
+      "files": []
+    },
+    {
+      "id": 43,
+      "prompt": "I'm using ft.aggregate in valkey-glide Python with a SUM reducer on the 'price' field but it always returns 0. What am I doing wrong?",
+      "expected_output": "The issue is missing LOAD clause. FT.AGGREGATE reducers (SUM, AVG, MIN, MAX) require explicit loadFields=['@price'] in FtAggregateOptions. Without LOAD, field data is unavailable and returns 0. COUNT is the exception that doesn't need LOAD.",
+      "files": []
     }
   ]
 }

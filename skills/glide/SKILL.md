@@ -17,7 +17,7 @@ Detect version from: `package.json` (`@valkey/valkey-glide`), `requirements.txt`
 |-----------|--------|
 | Target version **> v2.4.0** (newer than this skill) | **STOP.** Tell the operator: "The project uses GLIDE vX.Y.Z but this skill only covers up to v2.4.0. The GLIDE skill must be updated before I can reliably generate or review code for this version." Do not proceed until the skill is updated. |
 | Target version **= v2.4.0** | Proceed normally using this skill's guidance. |
-| Target version **< v2.4.0** (older) | Proceed with caution. Note that APIs may differ — the Batch API replaced Transaction/ClusterTransaction in v2.x, older versions use different class names and method signatures. Research the specific version's API via changelogs or docs before generating code. Flag any guidance from this skill that may not apply to the older version. |
+| Target version **< v2.4.0** (older) | Proceed with caution. Note that APIs may differ — the Batch API replaced Transaction/ClusterTransaction in v2.0, older versions use different class names and method signatures. Research the specific version's API via changelogs or docs before generating code. Flag any guidance from this skill that may not apply to the older version. |
 
 ## Language-Specific Guides
 **Activation Triggers** - Use this skill when:
@@ -49,13 +49,28 @@ Load the corresponding guide when generating or reviewing code:
 | Language/Framework | Reference File | Key Topics |
 |-------------------|----------------|------------|
 | **Python** | [Python-specific skill](references/python.md) | Mutable Default Arguments, Exception Handling, Class Attributes, Client Lifecycle |
+| **Python Vector Search** | [Python Vector Search](references/python-vector-search.md) | FT.SEARCH, FT.CREATE, index management, KNN queries |
+| **Python Performance** | [Python Performance](references/python-performance.md) | AZ Affinity, throughput tuning, serverless/Lambda, monitoring, concurrent ops |
+| **Python FT API** | [Python FT API Reference](references/python-ft-api.md) | Complete FT module API (all functions, params, return types, aggregate) |
 | **Java** | [Java-specific skill](references/java.md) | CompletableFuture Patterns, Exception Unwrapping, GlideString for Binary Data, Client Lifecycle |
+| **Java Vector Search** | [Java Vector Search](references/java-vector-search.md) | FT static methods, GlideString vectors, index creation, KNN search |
+| **Java Performance** | [Java Performance](references/java-performance.md) | Spring Bean lifecycle, AZ Affinity, retry strategy, thread safety, monitoring |
 | **Go** | [Go-specific skill](references/go.md) | Context Pattern, Explicit Error Handling, Batch Pointer Dereferencing, Client Lifecycle |
 | **Node.js** | [Node.js-specific skill](references/nodejs.md) | Promise-Based API, Decoder.Bytes for Binary Data, Static FT Methods, Client Lifecycle |
 | **PHP** | [PHP-specific skill](references/php.md) | C Extension, PHPRedis Compatibility, Synchronous API, multi()/pipeline(), Client Lifecycle |
 | **C#** | [C#-specific skill](references/csharp.md) | Task-Based Async, await using Pattern, CustomCommand for FT Module, Client Lifecycle |
 
 Detect language via file extension (`.js`/`.ts`, `.py`, `.java`, `.go`, `.php`, `.cs`) or import (`@valkey/valkey-glide`, `from glide import`, `import glide.api.*`, `valkey-glide/go`, `use ValkeyGlide`, `using Valkey.Glide`) and load the matching guide.
+
+### ⚠️ Sub-Routing: Load Additional Files by Concern
+
+After loading the core language guide, also load sub-files when the user's request involves:
+
+| Trigger keywords | Additional file to load |
+|-----------------|------------------------|
+| vector, search, FT, index, embedding, KNN, similarity, semantic | `{lang}-vector-search.md` (Python also: `python-ft-api.md`) |
+| performance, optimize, tuning, serverless, Lambda, throughput, latency, AZ, monitoring, OpenTelemetry | `{lang}-performance.md` |
+| anti-pattern, mistake, wrong, review, pitfall | `{lang}-anti-patterns.md` |
 
 ### General Principles
 1. Catch GLIDE-specific exceptions, not general catch-alls.
