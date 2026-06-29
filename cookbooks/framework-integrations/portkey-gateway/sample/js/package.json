@@ -1,0 +1,13 @@
+{
+  "name": "portkey-gateway-valkey-sample",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "getting-started": "node getting_started.mjs",
+    "vector-search": "node vector_search.mjs",
+    "production": "node production.mjs"
+  },
+  "dependencies": {
+    "portkey-ai": "^3.1.0"
+  }
+}
