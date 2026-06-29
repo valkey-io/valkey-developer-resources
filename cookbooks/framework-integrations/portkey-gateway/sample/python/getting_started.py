@@ -8,7 +8,7 @@ Tests:
   1. Build a Portkey client targeting the gateway
   2. Verify the gateway is reachable and Valkey is the active backend
   3. (Optional) Make two identical cached chat completions and show MISS -> HIT.
-     Runs only when an LLM provider key is set via PROVIDER_API_KEY.
+     Runs only when OPENAI_API_KEY (or PROVIDER_API_KEY) is set.
 """
 
 from __future__ import annotations
@@ -25,12 +25,11 @@ except ImportError:
 
 GATEWAY_URL = os.environ.get("GATEWAY_URL", "http://localhost:8787") + "/v1"
 VALKEY_HOST = os.environ.get("VALKEY_CUSTOM_HOST", "valkey://localhost:6379")
-# Cached-completion demo provider. Use a cloud provider with PROVIDER_API_KEY,
-# or run locally with no key via PROVIDER=ollama (default below uses ollama).
-PROVIDER = os.environ.get("PROVIDER", "ollama")
-PROVIDER_API_KEY = os.environ.get("PROVIDER_API_KEY")
-OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
-MODEL = os.environ.get("MODEL", "llama3.2:latest")
+# Cached-completion demo provider. Requires OPENAI_API_KEY by default.
+# Set PROVIDER to use a different provider (e.g. anthropic, bedrock).
+PROVIDER = os.environ.get("PROVIDER", "openai")
+PROVIDER_API_KEY = os.environ.get("PROVIDER_API_KEY") or os.environ.get("OPENAI_API_KEY")
+MODEL = os.environ.get("MODEL", "gpt-4o-mini")
 
 
 def verify_valkey_backend() -> None:
@@ -63,21 +62,12 @@ def demo_cached_completion() -> None:
     The gateway caches the first response in Valkey (cache mode 'simple') and
     serves the second from Valkey — far faster.
 
-    Requires the gateway to be built with `"cache": true` in conf.json. Runs
-    against a local Ollama by default (no API key needed); set PROVIDER and
-    PROVIDER_API_KEY to use a cloud provider instead.
+    Requires the gateway to be built with `"cache": true` in conf.json.
+    Set OPENAI_API_KEY (or PROVIDER + PROVIDER_API_KEY for other providers).
     """
     import time
 
-    if PROVIDER == "ollama":
-        client = Portkey(
-            api_key="dummy",
-            base_url=GATEWAY_URL,
-            provider="ollama",
-            custom_host=OLLAMA_HOST,
-            config={"cache": {"mode": "simple"}},
-        )
-    elif PROVIDER_API_KEY:
+    if PROVIDER_API_KEY:
         client = Portkey(
             api_key="dummy",
             base_url=GATEWAY_URL,
@@ -86,7 +76,7 @@ def demo_cached_completion() -> None:
             config={"cache": {"mode": "simple"}},
         )
     else:
-        print("SKIP: set PROVIDER_API_KEY for a cloud provider, or run Ollama locally")
+        print("SKIP: set OPENAI_API_KEY (or PROVIDER_API_KEY) to run the cached completion demo")
         return
 
     # A unique prompt per run so the first call is always a fresh MISS

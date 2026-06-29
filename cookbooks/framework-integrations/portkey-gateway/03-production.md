@@ -21,6 +21,13 @@ Running the Portkey AI Gateway with Valkey in production means connecting to a m
 
 The gateway uses a single `@valkey/valkey-glide` connection (or cluster client) for all cache namespaces — LLM responses, sessions, config, OAuth, and MCP servers.
 
+> **Two connection paths:** The gateway connects to Valkey in two independent ways:
+>
+> 1. **Cache backend** (`VALKEY_CONNECTION_STRING` env var) — a shared GLIDE connection established at startup for all cache namespaces. Configured once at deploy time.
+> 2. **Vector search provider** (`customHost` SDK header) — a per-request connection used by the `valkey-search` provider for `FT.*` commands. Configured client-side in your SDK calls.
+>
+> In production, both typically point to the same ElastiCache cluster, but they are configured separately.
+
 ## Step 1: ElastiCache for Valkey Setup
 
 Create a Valkey 8.2+ cluster with the Search module (included by default in 8.2+):
@@ -34,13 +41,22 @@ aws elasticache create-serverless-cache \
 
 > **Important**: ElastiCache for Valkey 8.2+ includes the Search module by default — required for the `valkey-search` provider's vector operations.
 
-## Step 2: Connect the Gateway with TLS
+## Step 2: Connect the Cache Backend with TLS
 
 ElastiCache Serverless requires TLS. Use the `valkeys://` scheme (note the trailing `s`):
 
 ```bash
 export VALKEY_CONNECTION_STRING="valkeys://portkey-gateway-xxxxx.serverless.use1.cache.amazonaws.com:6379"
 npm run build && node build/start-server.js
+```
+
+This configures the **cache backend** (LLM response caching, sessions, config). For the **vector search provider**, pass the same endpoint via the SDK:
+
+```python
+client = Portkey(
+    provider="valkey-search",
+    custom_host="valkeys://portkey-gateway-xxxxx.serverless.use1.cache.amazonaws.com:6379",
+)
 ```
 
 The connection string parser enables TLS automatically for `valkeys://` and `rediss://` schemes.
