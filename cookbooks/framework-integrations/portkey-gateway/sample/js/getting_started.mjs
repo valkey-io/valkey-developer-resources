@@ -14,6 +14,7 @@
  * Requirements: Node.js 18+, portkey-ai (npm install)
  */
 
+import "dotenv/config";
 import { Portkey } from "portkey-ai";
 
 const GATEWAY_URL = (process.env.GATEWAY_URL || "http://localhost:8787") + "/v1";

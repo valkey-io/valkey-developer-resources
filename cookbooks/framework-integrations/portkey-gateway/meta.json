@@ -8,7 +8,7 @@
       "title": "Getting Started with Portkey AI Gateway + Valkey",
       "h1": "Getting Started with Portkey AI Gateway + Valkey",
       "breadcrumb": "Getting Started",
-      "lead": "Configure the Portkey AI Gateway to use Valkey as its LLM response cache via @valkey/valkey-glide. Replace the default in-memory cache with a persistent, shared cache that survives restarts and scales across gateway instances.",
+      "lead": "Configure the Portkey AI Gateway to use Valkey as its persistent LLM response cache via the portkey-ai SDK. Replace the default in-memory cache with a shared cache that survives restarts and scales across gateway instances.",
       "difficulty": "Beginner",
       "time": "15 min",
       "next": {

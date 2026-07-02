@@ -53,7 +53,12 @@ client.post(
     "/indexes",
     name="documents",
     schema={
-        "vector": {"type": "VECTOR", "algorithm": "HNSW", "dims": 3, "distance": "COSINE"},
+        "vector": {
+            "type": "VECTOR",
+            "algorithm": "HNSW",
+            "dims": 3,        # toy dimension for this demo — use 1536 for text-embedding-ada-002, 768 for MiniLM, etc.
+            "distance": "COSINE",
+        },
         "content": {"type": "TEXT"},
         "source": {"type": "TAG"},
     },
@@ -67,7 +72,12 @@ client.post(
 await client.post("/indexes", {
   name: "documents",
   schema: {
-    vector: { type: "VECTOR", algorithm: "HNSW", dims: 3, distance: "COSINE" },
+    vector: {
+      type: "VECTOR",
+      algorithm: "HNSW",
+      dims: 3, // toy dimension for this demo — use 1536 for text-embedding-ada-002, 768 for MiniLM, etc.
+      distance: "COSINE",
+    },
     content: { type: "TEXT" },
     source: { type: "TAG" },
   },
@@ -112,9 +122,10 @@ Find the two most similar documents to a query vector. Results are ordered by co
 **Python**
 
 ```python
+# Use a query vector distinct from stored documents so ranking is non-trivial
 results = client.post(
     "/indexes/documents/search",
-    vector=[0.1, 0.2, 0.3],
+    vector=[0.12, 0.22, 0.32],
     top_k=2,
     return_fields=["content", "source", "__score"],
 )
@@ -124,8 +135,9 @@ print(dict(results)["data"])
 **TypeScript**
 
 ```typescript
+// Use a query vector distinct from stored documents so ranking is non-trivial
 const results = await client.post("/indexes/documents/search", {
-  vector: [0.1, 0.2, 0.3],
+  vector: [0.12, 0.22, 0.32],
   top_k: 2,
   return_fields: ["content", "source", "__score"],
 });
@@ -141,7 +153,7 @@ Combine vector search with metadata filtering — only documents tagged `source:
 ```python
 client.post(
     "/indexes/documents/search",
-    vector=[0.1, 0.2, 0.3],
+    vector=[0.12, 0.22, 0.32],
     top_k=5,
     filter="@source:{docs}",
     return_fields=["content", "__score"],
@@ -152,7 +164,7 @@ client.post(
 
 ```typescript
 await client.post("/indexes/documents/search", {
-  vector: [0.1, 0.2, 0.3],
+  vector: [0.12, 0.22, 0.32],
   top_k: 5,
   filter: "@source:{docs}",
   return_fields: ["content", "__score"],

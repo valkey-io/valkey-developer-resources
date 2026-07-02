@@ -207,3 +207,7 @@ A higher cache hit rate directly reduces LLM spend — the main reason to run a 
 - [ ] Gateway and ElastiCache co-located in the same region/AZ
 
 **Source:** [`src/shared/services/valkey/client.ts`](https://github.com/Portkey-AI/gateway/blob/main/src/shared/services/valkey/client.ts) · [`src/shared/services/cache/index.ts`](https://github.com/Portkey-AI/gateway/blob/main/src/shared/services/cache/index.ts)
+
+---
+
+[← 02 - Vector Search](02-vector-search.md)

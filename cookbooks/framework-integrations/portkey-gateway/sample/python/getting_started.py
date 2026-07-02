@@ -16,12 +16,15 @@ from __future__ import annotations
 import os
 
 try:
+    from dotenv import load_dotenv
     from portkey_ai import Portkey
 except ImportError:
     raise SystemExit(
         "Missing dependency: portkey-ai\n"
         "Install first: pip install -r requirements.txt"
     )
+
+load_dotenv()
 
 GATEWAY_URL = os.environ.get("GATEWAY_URL", "http://localhost:8787") + "/v1"
 VALKEY_HOST = os.environ.get("VALKEY_CUSTOM_HOST", "valkey://localhost:6379")

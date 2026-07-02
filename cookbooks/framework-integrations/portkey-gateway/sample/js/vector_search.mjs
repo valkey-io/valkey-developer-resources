@@ -16,6 +16,7 @@
  * Requirements: Node.js 18+, portkey-ai (npm install)
  */
 
+import "dotenv/config";
 import { Portkey } from "portkey-ai";
 
 const GATEWAY_URL = (process.env.GATEWAY_URL || "http://localhost:8787") + "/v1";
@@ -32,11 +33,23 @@ const client = new Portkey({
 async function main() {
   console.log("=== Cookbook 02: Vector Search ===\n");
 
+  // Idempotent cleanup so reruns don't fail on "index already exists"
+  try {
+    await client.delete(`/indexes/${INDEX_NAME}`);
+  } catch {
+    // index didn't exist — safe to ignore
+  }
+
   // 1. Create index
   const created = await client.post("/indexes", {
     name: INDEX_NAME,
     schema: {
-      vector: { type: "VECTOR", algorithm: "HNSW", dims: 3, distance: "COSINE" },
+      vector: {
+        type: "VECTOR",
+        algorithm: "HNSW",
+        dims: 3, // toy dimension — use 1536 for text-embedding-ada-002, 768 for MiniLM, etc.
+        distance: "COSINE",
+      },
       content: { type: "TEXT" },
       source: { type: "TAG" },
     },
@@ -57,11 +70,11 @@ async function main() {
   if (!statuses.every((s) => s === "upserted")) throw new Error(`Upsert failed: ${statuses}`);
   console.log("OK: Upserted 3 documents");
 
-  await new Promise((r) => setTimeout(r, 1000));
+  await new Promise((r) => setTimeout(r, 1000)); // allow Valkey Search to index — increase on slow machines
 
   // 3. KNN search
   const knn = await client.post(`/indexes/${INDEX_NAME}/search`, {
-    vector: [0.1, 0.2, 0.3],
+    vector: [0.12, 0.22, 0.32], // distinct from stored docs so ranking is non-trivial
     top_k: 2,
     return_fields: ["content", "source", "__score"],
   });
@@ -70,7 +83,7 @@ async function main() {
 
   // 4. Filtered search
   const filtered = await client.post(`/indexes/${INDEX_NAME}/search`, {
-    vector: [0.1, 0.2, 0.3],
+    vector: [0.12, 0.22, 0.32], // distinct from stored docs so ranking is non-trivial
     top_k: 5,
     filter: "@source:{docs}",
     return_fields: ["content", "__score"],

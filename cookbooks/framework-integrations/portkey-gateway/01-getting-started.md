@@ -79,6 +79,8 @@ Supported connection string formats:
 | `valkey://:password@host:port` | No | `valkey://:secret@localhost:6379` |
 | `valkey://host1:6379,host2:6380?cluster=true` | No | Multi-seed cluster bootstrap |
 
+> **Timeout errors?** The gateway's GLIDE client defaults to a 5000ms request timeout. If you're connecting to a remote or high-latency Valkey instance, raise `requestTimeout` in the gateway's client config (`src/shared/services/valkey/client.ts`). See [03 - Production](03-production.md) Step 7 for details.
+
 ## Step 3: Install the Portkey SDK
 
 ```bash
@@ -153,7 +155,7 @@ console.log(`second call: ${Date.now() - t0}ms (HIT, served from Valkey)`);
 ## Step 5: Verify the Cache in Valkey
 
 ```bash
-docker exec valkey valkey-cli KEYS "default:*"
+docker exec valkey valkey-cli --scan --pattern "default:*"
 # Shows cached LLM response keys
 ```
 

@@ -19,12 +19,15 @@ import os
 import time
 
 try:
+    from dotenv import load_dotenv
     from portkey_ai import Portkey
 except ImportError:
     raise SystemExit(
         "Missing dependency: portkey-ai\n"
         "Install first: pip install -r requirements.txt"
     )
+
+load_dotenv()
 
 GATEWAY_URL = os.environ.get("GATEWAY_URL", "http://localhost:8787") + "/v1"
 VALKEY_HOST = os.environ.get("VALKEY_CUSTOM_HOST", "valkey://localhost:6379")
@@ -43,7 +46,12 @@ def create_index() -> None:
         "/indexes",
         name=INDEX_NAME,
         schema={
-            "vector": {"type": "VECTOR", "algorithm": "HNSW", "dims": 3, "distance": "COSINE"},
+            "vector": {
+                "type": "VECTOR",
+                "algorithm": "HNSW",
+                "dims": 3,  # toy dimension — use 1536 for text-embedding-ada-002, 768 for MiniLM, etc.
+                "distance": "COSINE",
+            },
             "content": {"type": "TEXT"},
             "source": {"type": "TAG"},
         },
@@ -73,7 +81,7 @@ def upsert_documents() -> None:
 def search_knn() -> None:
     resp = client.post(
         f"/indexes/{INDEX_NAME}/search",
-        vector=[0.1, 0.2, 0.3],
+        vector=[0.12, 0.22, 0.32],  # distinct from stored docs so ranking is non-trivial
         top_k=2,
         return_fields=["content", "source", "__score"],
     )
@@ -85,7 +93,7 @@ def search_knn() -> None:
 def search_filtered() -> None:
     resp = client.post(
         f"/indexes/{INDEX_NAME}/search",
-        vector=[0.1, 0.2, 0.3],
+        vector=[0.12, 0.22, 0.32],  # distinct from stored docs so ranking is non-trivial
         top_k=5,
         filter="@source:{docs}",
         return_fields=["content", "__score"],
@@ -101,11 +109,20 @@ def drop_index() -> None:
     print("OK: Dropped index")
 
 
+def drop_index_if_exists() -> None:
+    """Remove the index if it exists from a previous run."""
+    try:
+        client.delete(path=f"/indexes/{INDEX_NAME}")
+    except Exception:
+        pass  # index didn't exist — safe to ignore
+
+
 def main() -> None:
     print("=== Cookbook 02: Vector Search ===\n")
+    drop_index_if_exists()  # idempotent cleanup so reruns don't fail
     create_index()
     upsert_documents()
-    time.sleep(1)  # allow the index to update
+    time.sleep(1)  # allow Valkey Search to index — increase on slow machines
     search_knn()
     search_filtered()
     drop_index()
