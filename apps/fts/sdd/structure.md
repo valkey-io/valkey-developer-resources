@@ -60,7 +60,7 @@ All persistent data lives in PostgreSQL. Valkey is a caching and search accelera
 
 ### GLIDE Client, Not Jedis/Lettuce
 
-This project uses valkey-glide as the Valkey client library. Refer to the GLIDE skill (`../../skills/glide/`) for patterns.
+This project uses valkey-glide as the Valkey client library. Refer to the [valkey-glide documentation](https://github.com/valkey-io/valkey-glide) for patterns.
 
 ### Cache-Aside Pattern
 
@@ -99,7 +99,7 @@ The application creates PostgreSQL tables via `schema.sql` on startup if they do
 
 ### Policy
 
-- Minimum 70% line coverage enforced via JaCoCo Gradle plugin on service, db, valkey, and model layers. UI package (`com.flicenjoyer.ui`) and app entry points (`FlicEnjoyerApp`, `ResetData`) are excluded from the coverage gate.
+- Minimum 70% line coverage enforced via JaCoCo Gradle plugin on service, valkey, and model layers. UI package (`com.flicenjoyer.ui`), db package (`com.flicenjoyer.db`), and app entry points (`FlicEnjoyerApp`, `ResetData`) are excluded from the coverage gate.
 - Valkey interactions are mocked with Mockito (mock `GlideClient` and its return values) — unit tests must not require a running Valkey instance
 - DB interactions are mocked with Mockito (mock `DataSource`/`Connection`/`PreparedStatement`) — unit tests must not require a running PostgreSQL instance
 - Unit tests run as part of the standard `gradle test` task

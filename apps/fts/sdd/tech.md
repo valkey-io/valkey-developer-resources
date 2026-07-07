@@ -11,8 +11,8 @@
 
 ### Runtime Dependencies
 
-- `valkey-glide` (Java) — Valkey client library built from local clone at `../../../valkey-glide` (branch `edlng/vss-1.2-commands`). This branch contains unreleased ValkeySearch 1.2 command support. Build and install locally before compiling this project. Will switch to a published release once valkey-glide 2.4 ships.
-- See [glide-vss-1.2-api.md](glide-vss-1.2-api.md) for a summary of the new FT.CREATE, FT.SEARCH, FT.AGGREGATE, and FT.INFO APIs available on this branch. Refer to the Java source files listed in that document for full API contracts.
+- `valkey-glide` (Java) — Valkey client library, version 2.4.1 from Maven Central. Includes ValkeySearch 1.2 command support (FT.CREATE, FT.SEARCH, FT.AGGREGATE, FT.INFO).
+- See [glide-vss-1.2-api.md](glide-vss-1.2-api.md) for a summary of the FT.CREATE, FT.SEARCH, FT.AGGREGATE, and FT.INFO APIs. Refer to the [valkey-glide Java source](https://github.com/valkey-io/valkey-glide/tree/main/java) for full API contracts.
 - PostgreSQL JDBC driver (`org.postgresql:postgresql:42.7.4`) — JDBC connectivity to PostgreSQL
 - HikariCP (`com.zaxxer:HikariCP:6.2.1`) — High-performance JDBC connection pool
 - JavaFX SDK — desktop GUI toolkit (controls, fxml, media, swing modules)
@@ -39,7 +39,7 @@ All app icons (player transport, navigation, status) are individual SVG files in
 
 ## Valkey Client Patterns — GLIDE Skill Reference
 
-For valkey-glide usage patterns, anti-patterns, and configuration, refer to `../../skills/glide/`.
+For valkey-glide usage patterns, anti-patterns, and configuration, refer to the [valkey-glide documentation](https://github.com/valkey-io/valkey-glide).
 However, prioritize using [glide-vss-1.2-api.md](glide-vss-1.2-api.md) for specific API syntax and contract, where applicable, over associated prescriptions in the skill, as it is more up-to-date than the skill. 
 
 ## Valkey Server Requirements

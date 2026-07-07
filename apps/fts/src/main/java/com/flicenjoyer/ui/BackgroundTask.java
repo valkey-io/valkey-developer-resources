@@ -58,6 +58,9 @@ public abstract class BackgroundTask {
                       });
                 }
               } catch (Exception ex) {
+                if (ex instanceof InterruptedException) {
+                  Thread.currentThread().interrupt();
+                }
                 if (!cancelled.get()) {
                   LOG.warning("[task] Failed: " + ex.getMessage());
                   FxThread.run(

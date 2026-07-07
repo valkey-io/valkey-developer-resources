@@ -1,23 +1,6 @@
 # GLIDE ValkeySearch 1.2 API Reference — FlicEnjoyer
 
-Source: local valkey-glide clone at `../../../valkey-glide` branch `edlng/vss-1.2-commands`
-
-## Building & Publishing Locally
-
-Prerequisites: Java 21 (set `JAVA_HOME` appropriately), Rust/Cargo, protoc >= 4.29
-
-```bash
-cd ../../../valkey-glide/java
-./gradlew :client:publishToMavenLocal -x test -x spotbugsMain -x spotbugsTest -x javadoc
-```
-
-This publishes `io.valkey:valkey-glide:255.255.255` (the default dev version) to `~/.m2/repository/`. The classifier is platform-specific (e.g., `osx-aarch_64`). Reference it in Gradle as:
-
-```kotlin
-implementation("io.valkey:valkey-glide:255.255.255:${osdetector.classifier}")
-```
-
-The build compiles the Rust native core via Cargo, generates protobuf bindings, and produces a shadow JAR with the platform-specific native library embedded.
+Source: [valkey-glide](https://github.com/valkey-io/valkey-glide) version 2.4.1 (Maven Central)
 
 ## Java API Source Files
 - `java/client/src/main/java/glide/api/commands/servermodules/FT.java`

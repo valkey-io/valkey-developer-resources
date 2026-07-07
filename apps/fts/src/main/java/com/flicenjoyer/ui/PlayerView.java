@@ -512,18 +512,33 @@ public class PlayerView {
     return rootStack;
   }
 
-  private static void asyncSafe(String label, ThrowingRunnable task) {
+  private final java.util.concurrent.atomic.AtomicInteger consecutiveFailures =
+      new java.util.concurrent.atomic.AtomicInteger(0);
+  private static final int FAILURE_THRESHOLD = 3;
+
+  private void asyncSafe(String label, ThrowingRunnable task) {
     java.util.concurrent.CompletableFuture.runAsync(
         () -> {
           try {
             task.run();
+            consecutiveFailures.set(0);
           } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
             LOG.warning("[player] " + label + " interrupted");
           } catch (java.util.concurrent.ExecutionException ex) {
+            int failures = consecutiveFailures.incrementAndGet();
             LOG.warning("[player] " + label + ": " + ex.getCause().getMessage());
+            if (failures >= FAILURE_THRESHOLD) {
+              javafx.application.Platform.runLater(
+                  () -> banner.error(label + " — state may not be saved"));
+            }
           } catch (Exception ex) {
+            int failures = consecutiveFailures.incrementAndGet();
             LOG.warning("[player] " + label + ": " + ex.getMessage());
+            if (failures >= FAILURE_THRESHOLD) {
+              javafx.application.Platform.runLater(
+                  () -> banner.error(label + " — state may not be saved"));
+            }
           }
         });
   }

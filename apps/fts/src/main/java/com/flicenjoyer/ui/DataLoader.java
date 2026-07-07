@@ -53,6 +53,9 @@ public class DataLoader<T> {
                   FxThread.run(() -> onSuccess.accept(result));
                 }
               } catch (Exception ex) {
+                if (ex instanceof InterruptedException) {
+                  Thread.currentThread().interrupt();
+                }
                 if (!cancelled.get()) {
                   LOG.warning("[data-loader] Failed: " + ex.getMessage());
                   FxThread.run(() -> onFailure.accept(ex));

@@ -37,57 +37,63 @@ public final class BenchmarkService {
     // Warmup phase — not timed
     var warmupLatch = new CountDownLatch(threads);
     ExecutorService warmupPool = Executors.newFixedThreadPool(threads);
-    for (int t = 0; t < threads; t++) {
-      warmupPool.submit(
-          () -> {
-            try {
-              for (int i = 0; i < warmupOps; i++) task.run();
-            } catch (Exception e) {
-              java.util.logging.Logger.getLogger(BenchmarkService.class.getName())
-                  .fine("[bench] Warmup error: " + e.getMessage());
-            } finally {
-              warmupLatch.countDown();
-            }
-          });
+    try {
+      for (int t = 0; t < threads; t++) {
+        warmupPool.submit(
+            () -> {
+              try {
+                for (int i = 0; i < warmupOps; i++) task.run();
+              } catch (Exception e) {
+                java.util.logging.Logger.getLogger(BenchmarkService.class.getName())
+                    .fine("[bench] Warmup error: " + e.getMessage());
+              } finally {
+                warmupLatch.countDown();
+              }
+            });
+      }
+      warmupLatch.await();
+    } finally {
+      warmupPool.shutdown();
+      warmupPool.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS);
     }
-    warmupLatch.await();
-    warmupPool.shutdown();
-    warmupPool.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS);
 
     // Timed phase
     var latch = new CountDownLatch(threads);
     var errors = new AtomicInteger(0);
     ExecutorService pool = Executors.newFixedThreadPool(threads);
 
-    long startNs = System.nanoTime();
-    for (int t = 0; t < threads; t++) {
-      pool.submit(
-          () -> {
-            try {
-              for (int i = 0; i < timedOps; i++) {
-                task.run();
-                int done = completed.incrementAndGet();
-                if (onProgress != null && done % 50 == 0) {
-                  onProgress.accept(done);
+    try {
+      long startNs = System.nanoTime();
+      for (int t = 0; t < threads; t++) {
+        pool.submit(
+            () -> {
+              try {
+                for (int i = 0; i < timedOps; i++) {
+                  task.run();
+                  int done = completed.incrementAndGet();
+                  if (onProgress != null && done % 50 == 0) {
+                    onProgress.accept(done);
+                  }
                 }
+              } catch (Exception e) {
+                errors.incrementAndGet();
+                java.util.logging.Logger.getLogger(BenchmarkService.class.getName())
+                    .warning("[bench] Thread error: " + e.getMessage());
+              } finally {
+                latch.countDown();
               }
-            } catch (Exception e) {
-              errors.incrementAndGet();
-              java.util.logging.Logger.getLogger(BenchmarkService.class.getName())
-                  .warning("[bench] Thread error: " + e.getMessage());
-            } finally {
-              latch.countDown();
-            }
-          });
-    }
-    latch.await();
-    long elapsedNs = System.nanoTime() - startNs;
-    pool.shutdown();
-    pool.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS);
+            });
+      }
+      latch.await();
+      long elapsedNs = System.nanoTime() - startNs;
 
-    int actualCompleted = completed.get();
-    if (onProgress != null) onProgress.accept(actualCompleted);
-    return actualCompleted / (elapsedNs / 1_000_000_000.0);
+      int actualCompleted = completed.get();
+      if (onProgress != null) onProgress.accept(actualCompleted);
+      return actualCompleted / (elapsedNs / 1_000_000_000.0);
+    } finally {
+      pool.shutdown();
+      pool.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS);
+    }
   }
 
   /**

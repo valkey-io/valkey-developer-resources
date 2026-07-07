@@ -2,15 +2,14 @@
 
 A streaming platform demo app showcasing [ValkeySearch 1.2](https://github.com/valkey-io/Valkey-Search) Full Text Search capabilities — catalog search with typeahead and fuzzy matching, user watch history with resume, and offline analytics via FT.AGGREGATE.
 
-Built with Java 21, JavaFX, and [valkey-glide](https://github.com/valkey-io/valkey-glide).
+Built with Java 26, JavaFX, and [valkey-glide](https://github.com/valkey-io/valkey-glide).
 
-Part of the [Valkey-Samples](https://github.com/valkey-io/Valkey-Samples) repository. See [Jira AEA-325](https://bitquill.atlassian.net) for the full story.
+Part of the [Valkey-Samples](https://github.com/valkey-io/Valkey-Samples) repository.
 
 ## Prerequisites
 
-- **Java 21** — set `JAVA_HOME` to point to your JDK 21 installation
-- **Docker** — for running Valkey
-- **valkey-glide** — built locally from the `edlng/vss-1.2-commands` branch (see below)
+- **Java 26** — set `JAVA_HOME` to point to your JDK 26 installation
+- **Docker** — for running Valkey and PostgreSQL
 
 ## Setup
 
@@ -20,20 +19,9 @@ Part of the [Valkey-Samples](https://github.com/valkey-io/Valkey-Samples) reposi
 docker compose up -d
 ```
 
-The app connects to `localhost:6379` by default (configured in `config.yaml`). If port 6379 is already in use, change the host port in `docker-compose.yml` and update `config.yaml` to match.
+The app connects to Valkey and PostgreSQL on `localhost` via port mappings (`6379` and `5432`). If these ports are already in use on your machine, update the host ports in `docker-compose.yml` and `config.yaml` to match.
 
-### 2. Build valkey-glide locally
-
-The app requires an unreleased version of valkey-glide with ValkeySearch 1.2 support:
-
-```bash
-cd ../../../valkey-glide/java
-./gradlew :client:publishToMavenLocal -x test -x spotbugsMain -x spotbugsTest -x javadoc
-```
-
-This publishes `io.valkey:valkey-glide:255.255.255` to your local Maven repository. See `sdd/glide-vss-1.2-api.md` for details.
-
-### 3. Run the app
+### 2. Run the app
 
 ```bash
 ./gradlew run
@@ -48,7 +36,7 @@ On first launch you'll be prompted for your name. Your profile is saved to `~/.f
 - **Browse** — Filter catalog by genre with sortable results
 - **Watch History** — Resume playback from where you left off, per-user session state
 - **Reports** — FT.AGGREGATE analytics: top titles by viewer count, catalog summary by genre
-- **Benchmarks** — Measure search, resume, and aggregation latency (median, p95, p99, ops/sec)
+- **Benchmarks** — Compare PostgreSQL-direct vs Valkey-cached throughput under concurrent load (catalog, resume, search)
 
 ## Development
 
@@ -106,10 +94,58 @@ App icons are individual SVG files in `src/main/resources/icons/`. To add a new 
 
 ```
 src/main/java/com/flicenjoyer/
-├── model/       # Records: Movie, WatchHistoryEntry, AggregationResult
-├── valkey/      # AppConfig, ValkeyClientProvider, IndexManager, UserProfileManager
-├── service/     # CatalogService, UploadService, WatchHistoryService, AggregationService, BenchmarkService
-└── ui/          # MainController, UploadView (more views coming)
+├── FlicEnjoyerApp.java          # JavaFX Application entry point
+├── BenchmarkCli.java            # CLI benchmark runner
+├── SeedData.java                # Seeds demo catalog + watch history
+├── UnseedData.java              # Removes seeded demo data
+├── ResetData.java               # Erases all data from Valkey + local media
+├── model/                       # Domain records and enums
+│   ├── Movie.java
+│   ├── Genre.java
+│   ├── WatchHistoryEntry.java
+│   └── AggregationResult.java
+├── db/                          # PostgreSQL repositories and connection pool
+│   ├── DatabaseProvider.java
+│   ├── CatalogRepository.java
+│   └── WatchHistoryRepository.java
+├── valkey/                      # Valkey client, config, indexing, utilities
+│   ├── AppConfig.java
+│   ├── AppPaths.java
+│   ├── ValkeyClientProvider.java
+│   ├── ValkeyClient.java
+│   ├── GlideValkeyClient.java
+│   ├── ValkeyKeys.java
+│   ├── IndexManager.java
+│   ├── UserProfileManager.java
+│   ├── HashParser.java
+│   └── QueryEscaper.java
+├── service/                     # Business logic (cache-aside orchestration)
+│   ├── CatalogService.java
+│   ├── UploadService.java
+│   ├── WatchHistoryService.java
+│   ├── AggregationService.java
+│   └── BenchmarkService.java
+└── ui/                          # JavaFX views and UI utilities
+    ├── MainController.java
+    ├── SearchView.java
+    ├── CatalogView.java
+    ├── VideoFormView.java
+    ├── PlayerView.java
+    ├── WatchHistoryView.java
+    ├── BenchmarkView.java
+    ├── ReportsView.java
+    ├── AdminView.java
+    ├── PlaybackState.java
+    ├── BackgroundTask.java
+    ├── DataLoader.java
+    ├── UiExecutors.java
+    ├── UiFactory.java
+    ├── MovieCard.java
+    ├── StarRating.java
+    ├── IconLoader.java
+    ├── NotificationBanner.java
+    ├── FxThread.java
+    └── ViewId.java
 ```
 
 ## Configuration

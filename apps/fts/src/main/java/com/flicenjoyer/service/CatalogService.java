@@ -206,24 +206,20 @@ public class CatalogService {
 
   public void updateDuration(String catalogId, double durationMinutes)
       throws ExecutionException, InterruptedException {
-    // Write to DB first
-    try {
-      catalogRepo.updateDuration(catalogId, durationMinutes);
-    } catch (SQLException e) {
-      throw new RuntimeException("DB update failed", e);
-    }
-    // Update cache
-    setField(catalogId, "durationMinutes", String.valueOf(durationMinutes));
+    dbWriteThenCache(
+        () -> catalogRepo.updateDuration(catalogId, durationMinutes),
+        catalogId,
+        "durationMinutes",
+        String.valueOf(durationMinutes));
   }
 
   public void updateRating(String catalogId, double rating)
       throws ExecutionException, InterruptedException {
-    try {
-      catalogRepo.updateRating(catalogId, rating);
-    } catch (SQLException e) {
-      throw new RuntimeException("DB update failed", e);
-    }
-    setField(catalogId, "rating", String.valueOf(rating));
+    dbWriteThenCache(
+        () -> catalogRepo.updateRating(catalogId, rating),
+        catalogId,
+        "rating",
+        String.valueOf(rating));
   }
 
   public void updateMetadata(
@@ -253,17 +249,32 @@ public class CatalogService {
 
   public void updateThumbnail(String catalogId, String thumbnailPath)
       throws ExecutionException, InterruptedException {
-    try {
-      catalogRepo.updateThumbnail(catalogId, thumbnailPath);
-    } catch (SQLException e) {
-      throw new RuntimeException("DB update failed", e);
-    }
-    setField(catalogId, "thumbnailPath", thumbnailPath);
+    dbWriteThenCache(
+        () -> catalogRepo.updateThumbnail(catalogId, thumbnailPath),
+        catalogId,
+        "thumbnailPath",
+        thumbnailPath);
   }
 
   private void setField(String catalogId, String field, String value)
       throws ExecutionException, InterruptedException {
     client.hset(gs(ValkeyKeys.catalogKey(catalogId)), Map.of(gs(field), gs(value))).get();
+  }
+
+  /** Writes to DB (source of truth) then updates the single cache field. */
+  private void dbWriteThenCache(SqlAction dbWrite, String catalogId, String field, String value)
+      throws ExecutionException, InterruptedException {
+    try {
+      dbWrite.execute();
+    } catch (SQLException e) {
+      throw new RuntimeException("DB update failed", e);
+    }
+    setField(catalogId, field, value);
+  }
+
+  @FunctionalInterface
+  private interface SqlAction {
+    void execute() throws SQLException;
   }
 
   public void deleteVideo(String catalogId) throws ExecutionException, InterruptedException {

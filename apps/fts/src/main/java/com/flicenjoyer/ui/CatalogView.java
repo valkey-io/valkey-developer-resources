@@ -80,13 +80,15 @@ public class CatalogView {
         () -> {
           var movies = catalogService.browseAll(genre, sortField, descending);
           var resumeMap = new java.util.HashMap<String, Long>();
-          if (watchHistoryService != null) {
-            for (var m : movies) {
-              try {
-                resumeMap.put(m.id(), watchHistoryService.getResumePoint(m.id()));
-              } catch (Exception e) {
-                resumeMap.put(m.id(), 0L);
-              }
+          if (watchHistoryService != null && !movies.isEmpty()) {
+            try {
+              resumeMap.putAll(
+                  watchHistoryService.getResumePoints(
+                      movies.stream().map(m -> m.id()).toList()));
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            } catch (Exception e) {
+              // Fall back to empty resume map on failure
             }
           }
           return new CatalogData(movies, resumeMap);

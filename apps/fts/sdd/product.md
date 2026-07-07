@@ -31,7 +31,7 @@ It is a fictitious movie / TV show tracking application that a "flic" enjoyer wo
 
 ## Key Design Constraints
 
-- Must use ValkeySearch 1.2 and valkey-glide Java client library (local build from branch `edlng/vss-1.2-commands` at `../../../valkey-glide` until 2.4 release)
+- Must use ValkeySearch 1.2 and valkey-glide Java client library (version 2.4.1 from Maven Central)
 - PostgreSQL as primary datastore — Valkey is a caching/search acceleration layer, not the source of truth
 - No Redis dependency — Valkey-native from the ground up
 
@@ -60,6 +60,5 @@ It is a fictitious movie / TV show tracking application that a "flic" enjoyer wo
 
 ## References
 
-- Jira Story: AEA-325
 - Repository: https://github.com/valkey-io/Valkey-Samples
 - ValkeySearch: https://github.com/valkey-io/Valkey-Search

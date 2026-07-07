@@ -290,7 +290,7 @@ FT.aggregate(client, "idx:catalog", "*",
 | `UploadService` | `uploadVideo(title, genre, description, tags, releaseYear, videoFile, thumbnailFile)` | Writes to DB first, then populates Valkey cache hash (auto-indexed by ValkeySearch). |
 | `WatchHistoryService` | `getUserHistory()`, `getResumePoint(catalogId)`, `updateResumePoint(catalogId, seconds)`, `markCompleted(catalogId)` | Cache-aside: Valkey first, DB fallback. Writes go to DB then update cache. |
 | `AggregationService` | `topTitlesByViewers(limit)`, `catalogSummaryByGenre()` | FT.AGGREGATE against ValkeySearch indexes |
-| `BenchmarkService` | `benchmark(task, iterations)`, `benchmarkComparison(dbTask, cachedTask, iterations)` | Timing harness. New `benchmarkComparison` runs both DB-direct and Valkey-cached paths, returns paired results for side-by-side display. |
+| `BenchmarkService` | `benchmark(task, iterations)`, `concurrentThroughput(task, threads, opsPerThread, onProgress)`, `concurrentComparison(dbTask, valkeyTask, threads, opsPerThread, onProgress)`, `createTasks(operation, ids, catalogService, watchHistoryService)` | Timing harness. `concurrentComparison` runs both DB-direct and Valkey-cached paths under concurrent load, returns paired throughput results for side-by-side display. `createTasks` builds matched task pairs for a given operation. |
 
 ### ui/
 

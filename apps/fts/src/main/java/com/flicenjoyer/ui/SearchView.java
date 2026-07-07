@@ -135,6 +135,11 @@ public class SearchView {
               }
             });
       } catch (Exception ex) {
+        if (ex instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+          searchRunning.set(false);
+          return;
+        }
         if (pendingQuery.get() == null) {
           LOG.warning("[search] Error: " + ex.getMessage());
           javafx.application.Platform.runLater(
@@ -159,7 +164,10 @@ public class SearchView {
 
   private void showDetail(Movie movie) {
     detailPane.getChildren().clear();
+    detailPane.setVisible(true);
+    detailPane.setManaged(true);
 
+    // Show immediately with a loading state, then resolve playback action async
     var thumb = new StackPane();
     thumb.setPrefSize(140, 80);
     thumb.setMinSize(140, 80);
@@ -182,8 +190,7 @@ public class SearchView {
     desc.setWrapText(true);
     desc.setStyle("-fx-text-fill: #ccc; -fx-font-size: 13;");
 
-    var action = PlaybackState.resolve(movie, watchHistoryService);
-    var playBtn = PlaybackState.createButton(action);
+    var playBtn = PlaybackState.createButton(PlaybackState.Action.PLAY);
     playBtn.setOnAction(
         e -> {
           if (onPlayMovie != null) onPlayMovie.accept(movie);
@@ -193,8 +200,18 @@ public class SearchView {
     HBox.setHgrow(info, Priority.ALWAYS);
 
     detailPane.getChildren().addAll(thumb, info);
-    detailPane.setVisible(true);
-    detailPane.setManaged(true);
+
+    // Resolve actual playback state off the FX thread
+    Thread.startVirtualThread(
+        () -> {
+          var action = PlaybackState.resolve(movie, watchHistoryService);
+          javafx.application.Platform.runLater(
+              () -> {
+                playBtn.setText(" " + action.label());
+                playBtn.setGraphic(
+                    IconLoader.plainIcon(action.iconName(), 14, javafx.scene.paint.Color.WHITE));
+              });
+        });
   }
 
   public VBox getRoot() {

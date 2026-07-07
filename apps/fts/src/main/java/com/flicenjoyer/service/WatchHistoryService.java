@@ -77,6 +77,31 @@ public class WatchHistoryService {
     }
   }
 
+  /**
+   * Batch fetch resume points for multiple catalog IDs using a non-atomic Batch (pipeline). Returns
+   * a map of catalogId → resumeSeconds. Cache misses are not individually backfilled here to keep
+   * the batch fast; callers tolerate 0 for missing entries.
+   */
+  public Map<String, Long> getResumePoints(List<String> catalogIds)
+      throws ExecutionException, InterruptedException {
+    if (catalogIds.isEmpty()) return Map.of();
+    var userId = profileManager.getUserId();
+    var batch = new glide.api.models.Batch(false); // non-atomic pipeline
+    for (var catalogId : catalogIds) {
+      batch.hget(gs(ValkeyKeys.watchKey(userId, catalogId)), gs("resumeTimestamp"));
+    }
+    var results = client.exec(batch, false).get();
+    var resumeMap = new java.util.HashMap<String, Long>();
+    for (int i = 0; i < catalogIds.size(); i++) {
+      long resumeSec = 0;
+      if (results != null && i < results.length && results[i] instanceof String val) {
+        resumeSec = Long.parseLong(val);
+      }
+      resumeMap.put(catalogIds.get(i), resumeSec);
+    }
+    return resumeMap;
+  }
+
   /** Direct DB lookup — bypasses cache. Used for benchmark comparison. */
   public long getResumePointFromDb(String catalogId) {
     try {
