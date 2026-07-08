@@ -1,8 +1,0 @@
-gradle
-.gradle
-build
-.idea
-gradlew*
-*.ipc
-*.ipc.lock
-backups/
