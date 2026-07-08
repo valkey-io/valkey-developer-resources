@@ -1,0 +1,21 @@
+# lychee link checker configuration
+# https://lychee.cli.rs/usage/config/
+
+# Skip URLs that require authentication or are rate-limited
+exclude = [
+  # GitHub edit/new file links (always 404 for unauthenticated checks)
+  "https://github.com/.*/edit/",
+  "https://github.com/.*/new/",
+  # Localhost URLs used in code examples
+  "http://localhost.*",
+  "http://127\\.0\\.0\\.1.*",
+]
+
+# Accept these status codes as valid
+accept = [200, 204, 206, 301, 302, 308]
+
+# Timeout per request
+timeout = 30
+
+# Max concurrent requests (be polite to external servers)
+max_concurrency = 5
