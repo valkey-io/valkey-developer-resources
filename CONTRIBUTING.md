@@ -199,11 +199,11 @@ Use the appropriate image:
 - `valkey/valkey-bundle` — when the Search module is needed
 - `valkey/valkey` — for plain key-value operations
 
-```markdown
+````markdown
 ```bash
 docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:latest
 ```
-```
+````
 
 > **Note:** All examples use `docker`. Substitute `podman` if that's your container runtime — the commands are identical.
 
@@ -261,7 +261,8 @@ Every cookbook **should** include a `sample/` directory with code that can be bu
 
 ### Runnable Container
 
-If the sample has dependencies beyond Valkey (an API key, a GPU, a proprietary model), provide a `docker-compose.yml` or `Dockerfile` that runs the parts that *can* run locally. If the entire sample requires a paid/external service, document that clearly and provide a mock or stub mode where possible.
+If the sample has dependencies beyond Valkey (an API key, a GPU, a proprietary model), provide a `docker-compose.yml` or `Dockerfile` that runs the parts that *can* run locally.
+If the entire sample requires a paid/external service, document that clearly and provide a mock or stub mode where possible.
 
 The ideal experience:
 
