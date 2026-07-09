@@ -38,13 +38,13 @@ For significant additions (new cookbooks, new sample apps, major restructuring),
 
 Every contribution must meet these requirements to be merged:
 
-- **Buildable from a clean clone** — no private dependencies, no unpublished branches, no local paths
+- **Buildable from a clean clone** — all dependencies are publicly available and pinned to stable versions
 - **Runs against stable Valkey** — use `valkey/valkey:latest` or `valkey/valkey-bundle:latest` (released stable tags). Never depend on `:unstable` or unreleased features.
 - **Uses current stable client libraries** — use the latest published release of the official Valkey client for your language (valkey-glide, valkey-py, etc.)
 - **Focused on Valkey** — the sample demonstrates Valkey features, not application scaffolding. Readers should be able to identify the Valkey patterns without excavating them from UI code.
 - **Self-contained** — each sample directory is independently runnable with its own dependency file (`requirements.txt`, `go.mod`, `package.json`, etc.)
-- **No internal references** — no private Jira links, local file paths, internal wiki references, or proprietary package names in any committed file
-- **No marketing language** — no uncited performance claims ("60% cost reduction"), no promotional tone. State facts; link to benchmarks if making quantitative claims.
+- **All references publicly accessible** — all links, paths, and package names resolve for any community member (no private trackers, local paths, or internal wikis)
+- **Factual and substantiated** — all performance claims backed with objective, measurable proof and linked to source benchmarks. Use a neutral, technical tone.
 
 ## Vendor Neutrality
 
@@ -149,6 +149,8 @@ Every numbered `.md` file follows this structure:
 
 **Difficulty** · Language · ~Time
 
+**Who is this for:** [Target audience — e.g., "Python developers building RAG pipelines who want low-latency vector caching" or "Backend engineers adding rate limiting to an existing Express app"]
+
 [Optional 1–2 paragraph intro explaining why this matters]
 
 ## Prerequisites
@@ -184,6 +186,7 @@ Every numbered `.md` file follows this structure:
 |---------|---------|
 | **Lead blockquote** | One sentence after the `# Title`, wrapped in `> ...` |
 | **Difficulty badge line** | `**Difficulty** · Language · ~Time` |
+| **Audience line** | `**Who is this for:**` — one sentence identifying the target reader |
 | **Prerequisites section** | Explicit `## Prerequisites` with bullet list |
 | **Step-based headings** | `## Step N: Title` — progressive, numbered |
 | **Navigation footer** | `---` rule + prev/next links at bottom |
