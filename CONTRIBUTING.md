@@ -6,6 +6,16 @@ Thank you for contributing! This repository collects cookbooks, sample applicati
 
 See the [README](README.md) for this repository's audience and purpose. Contributions that fall outside that scope will be redirected during review.
 
+### Out of Scope
+
+The following do **not** belong in this repository:
+
+- **Full applications** (>~500 LoC of non-Valkey code) — showcase apps deserve their own repo with their own maintenance commitment. Extract the Valkey-specific patterns into a focused sample instead.
+- **Curated link lists** — belong on the [Valkey website](https://valkey.io) or documentation wiki where they can be maintained as living content.
+- **Unreproducible builds** — anything requiring private artifacts, unreleased software, or local-only dependencies.
+- **Marketing content** — uncited performance claims, promotional language, or product demos disguised as tutorials.
+- **Single-vendor tutorials** — content that can only be completed with one cloud provider's credentials. The default path must be completable without any specific vendor account.
+
 ## Code of Conduct
 
 This project follows the [Contributor Covenant v2.0](https://www.contributor-covenant.org/version/2/0/code_of_conduct/). By participating you agree to abide by its terms.
@@ -51,9 +61,10 @@ Every contribution must meet these requirements to be merged:
 Valkey is a community project under the Linux Foundation. Content in this repository must be vendor-neutral by default:
 
 - **LLM/AI examples** use a widely accessible provider (e.g., OpenAI, Ollama for local) as the default path. Vendor-specific alternatives (AWS Bedrock, GCP Vertex AI, Azure OpenAI) are welcome as clearly labeled optional sections, not the primary walkthrough.
-- **Production deployment** guidance must be generic (connection strings, TLS config) or cover multiple providers equally. No single cloud provider should be the default deployment target.
+- **Production deployment** guidance must cover at least two cloud providers equally, OR remain generic (connection strings, TLS config) and link to provider-specific documentation externally. No single cloud provider should be the default deployment target.
 - **Client libraries** use official Valkey clients. If a cloud-specific client wrapper is demonstrated, the generic equivalent must be shown first.
 - **Integrations** are listed based on their relevance to Valkey, not their organizational origin. Disclose provenance where it's not obvious (e.g., "Strands Agents (Amazon)" alongside "CrewAI").
+- **Affiliation disclosure** — if a sample integrates a product from a specific company, that relationship must be disclosed in the sample's README (e.g., "Strands Agents is an Amazon open-source project"). Undisclosed corporate promotion is not acceptable in a Linux Foundation project.
 
 Contributions that route readers exclusively through one vendor's ecosystem will be asked to refactor during review.
 
@@ -68,8 +79,20 @@ Contributions that route readers exclusively through one vendor's ecosystem will
 
 - Every PR requires **at least one maintainer approval** before merge
 - Samples are **tested in CI** — if CI can't build and run your sample, it won't merge
-- Reviewers will flag: internal references, vendor bias, marketing language, missing dependency files, and broken builds
 - For new cookbooks or sample categories, open an issue or discussion **before** writing code to align on scope
+
+### PR Review Checklist
+
+Reviewers evaluate every PR against this checklist. Use it as a self-check before submitting:
+
+- [ ] Builds and runs from a clean clone
+- [ ] Runs against current stable Valkey (or Valkey Bundle)
+- [ ] No private links, internal references, or local paths
+- [ ] No marketing language or uncited claims
+- [ ] Vendor-neutral by default (affiliation disclosed where applicable)
+- [ ] README explains the Valkey concept demonstrated, prerequisites, and how to run
+- [ ] Dependencies pinned to specific versions
+- [ ] CI validates the sample
 
 ---
 
