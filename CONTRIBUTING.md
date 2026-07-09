@@ -82,7 +82,6 @@ cookbooks/
 ├── framework-integrations/
 │   └── <framework-name>/
 │       ├── README.md
-│       ├── meta.json
 │       ├── 01-getting-started.md
 │       ├── 02-<topic>.md
 │       ├── ...
@@ -104,39 +103,7 @@ Every cookbook **must** have:
 | File | Purpose |
 |------|---------|
 | `README.md` | Overview with linked table of all cookbooks in the track |
-| `meta.json` | Machine-readable metadata for rendering and navigation |
 | `01-getting-started.md` | First cookbook — always Beginner difficulty |
-
-### meta.json Schema
-
-```json
-{
-  "trackName": "Human-Readable Name",
-  "language": "Python",
-  "cookbooks": [
-    {
-      "num": "01",
-      "source": "01-getting-started.md",
-      "output": "01-getting-started.html",
-      "title": "Getting Started with X + Valkey",
-      "h1": "Getting Started with X + Valkey",
-      "breadcrumb": "Getting Started",
-      "lead": "One sentence describing what the reader will accomplish.",
-      "difficulty": "Beginner",
-      "time": "15 min",
-      "next": { "file": "02-topic.html", "title": "02 - Topic" }
-    }
-  ]
-}
-```
-
-**Required fields per entry:** `num`, `source`, `output`, `title`, `h1`, `breadcrumb`, `lead`, `difficulty`, `time`
-
-**Navigation:** Include `prev`/`next` links on all entries except the first/last respectively.
-
-**`language`:** Top-level field. One of: `Python`, `Go`, `Java`, `TypeScript`, `Rust`.
-
-**`difficulty`:** One of: `Beginner`, `Intermediate`, `Advanced`.
 
 ### Cookbook File Structure
 
