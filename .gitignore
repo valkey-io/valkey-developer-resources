@@ -43,6 +43,7 @@ dist/
 
 # Go
 bin/
+vendor/
 *.exe
 *.exe~
 *.dll
@@ -64,9 +65,13 @@ Cargo.lock
 # Docker
 .docker/
 
+# Valkey
+dump.rdb
+
 # General
 *.log
 *.tmp
 .env
 .env.*
 !.env.example
+.kiro/
