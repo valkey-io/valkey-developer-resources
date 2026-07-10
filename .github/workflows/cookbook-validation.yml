@@ -1,0 +1,80 @@
+name: Cookbook Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cookbooks/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "cookbooks/**"
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      node-cookbooks: ${{ steps.filter.outputs.node-cookbooks }}
+      # Future: python-cookbooks, java-cookbooks, go-cookbooks
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 # v3
+        id: filter
+        with:
+          filters: |
+            node-cookbooks:
+              - 'cookbooks/**/package.json'
+              - 'cookbooks/**/src/**'
+              - 'cookbooks/**/tsconfig.json'
+
+  node-typecheck:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.node-cookbooks == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        cookbook: [node-rate-limiter-flexible]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "20"
+      - name: Install dependencies
+        working-directory: cookbooks/framework-integrations/${{ matrix.cookbook }}/sample
+        run: npm ci
+      - name: Type check
+        working-directory: cookbooks/framework-integrations/${{ matrix.cookbook }}/sample
+        run: npx tsc --noEmit
+      - name: Audit dependencies (informational)
+        working-directory: cookbooks/framework-integrations/${{ matrix.cookbook }}/sample
+        continue-on-error: true
+        run: npm audit --audit-level=high
+
+  node-integration-test:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.node-cookbooks == 'true'
+    runs-on: ubuntu-latest
+    services:
+      valkey:
+        image: valkey/valkey:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    strategy:
+      matrix:
+        cookbook: [node-rate-limiter-flexible]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "20"
+      - name: Install dependencies
+        working-directory: cookbooks/framework-integrations/${{ matrix.cookbook }}/sample
+        run: npm ci
+      - name: Run integration tests
+        working-directory: cookbooks/framework-integrations/${{ matrix.cookbook }}/sample
+        run: npm test
