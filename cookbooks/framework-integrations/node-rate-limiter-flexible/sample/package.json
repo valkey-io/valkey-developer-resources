@@ -1,0 +1,23 @@
+{
+  "name": "node-rate-limiter-flexible-valkey-sample",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "getting-started": "tsx src/getting-started.ts",
+    "middleware": "tsx src/middleware-patterns.ts",
+    "advanced": "tsx src/advanced-patterns.ts",
+    "test": "tsx src/test-all.ts"
+  },
+  "dependencies": {
+    "@valkey/valkey-glide": "2.4.0",
+    "express": "4.22.2",
+    "rate-limiter-flexible": "11.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6",
+    "@types/node": "22.19.19",
+    "tsx": "4.22.3",
+    "typescript": "5.9.3"
+  }
+}
