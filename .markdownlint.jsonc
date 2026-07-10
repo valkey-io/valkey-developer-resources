@@ -21,5 +21,4 @@
   "MD040": false,
   // Don't require first line to be h1 (PR templates start with ##)
   "MD041": false
-  }
 }
