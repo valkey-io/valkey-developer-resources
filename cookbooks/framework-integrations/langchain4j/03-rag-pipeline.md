@@ -52,7 +52,8 @@ The default path runs entirely locally. An optional section shows how to swap in
 </dependencies>
 ```
 
-> **Note:** The sample [`pom.xml`](sample/pom.xml) is the source of truth for tested version combinations. Core `langchain4j` uses the stable release track, while community and extension modules use the beta track.
+> **Note:** The sample [`pom.xml`](sample/pom.xml) is the source of truth for tested version combinations.
+> Core `langchain4j` uses the stable release track, while community and extension modules use the beta track.
 
 ## Step 2: Connect to Valkey and Set Up the Embedding Model
 
@@ -222,6 +223,7 @@ System.out.println(answer);
 ```
 
 **What happens under the hood:**
+
 1. The question is embedded using your embedding model
 2. `FT.SEARCH rag-docs "*=>[KNN 3 @vector $BLOB]"` finds the top 3 relevant chunks
 3. Retrieved chunks are injected into the prompt as context
@@ -303,6 +305,7 @@ BedrockChatModel chatModel = BedrockChatModel.builder()
 ```
 
 When switching embedding models, remember to update:
+
 - `dimension` in `ValkeyEmbeddingStore.builder()` (384 → 1024)
 - Re-ingest all documents (embeddings from different models are not compatible)
 

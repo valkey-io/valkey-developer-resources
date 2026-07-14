@@ -6,7 +6,9 @@
 
 **Who is this for:** Java developers exploring vector search who want a local, self-contained introduction to storing and querying embeddings in Valkey using LangChain4j.
 
-LangChain4j provides a unified `EmbeddingStore` interface for vector storage. The `langchain4j-community-valkey` module implements it using Valkey's built-in vector search — HNSW indexing, native JSON storage, and automatic index management via the official valkey-glide client.
+LangChain4j provides a unified `EmbeddingStore` interface for vector storage.
+The `langchain4j-community-valkey` module implements it using Valkey's built-in vector search —
+HNSW indexing, native JSON storage, and automatic index management via the official valkey-glide client.
 
 ## Prerequisites
 
@@ -21,6 +23,8 @@ docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:8.1.1
 ```
 
 > **Note:** All examples use `docker`. Substitute `podman` if that's your container runtime — the commands are identical.
+
+<!-- markdownlint-disable-next-line MD028 -->
 
 > ⚠️ **Security:** These examples use no authentication or TLS for simplicity.
 > For any non-localhost deployment, enable authentication and TLS.
@@ -51,7 +55,9 @@ docker exec valkey valkey-cli PING
 implementation 'dev.langchain4j:langchain4j-community-valkey:1.0.0-beta3'
 ```
 
-> **Note:** The sample [`pom.xml`](sample/pom.xml) is the source of truth for tested version combinations. The core `langchain4j` artifact uses a separate release track from the community modules. See the pom.xml `<properties>` block for details.
+> **Note:** The sample [`pom.xml`](sample/pom.xml) is the source of truth for tested version combinations.
+> The core `langchain4j` artifact uses a separate release track from the community modules.
+> See the pom.xml `<properties>` block for details.
 
 This pulls in `valkey-glide` (the official Valkey Java client) transitively.
 
@@ -181,7 +187,8 @@ embeddingStore.close();
 
 See [`sample/src/main/java/.../ValkeyQuickStart.java`](sample/src/main/java/com/valkey/samples/langchain4j/ValkeyQuickStart.java) for the full runnable version.
 
-**Source:** [`langchain4j-community-valkey`](https://github.com/langchain4j/langchain4j-community/tree/main/embedding-stores/langchain4j-community-valkey) — The official LangChain4j embedding store for Valkey.
+**Source:** [`langchain4j-community-valkey`](https://github.com/langchain4j/langchain4j-community/tree/main/embedding-stores/langchain4j-community-valkey)
+— The official LangChain4j embedding store for Valkey.
 
 ---
 

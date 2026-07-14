@@ -54,6 +54,7 @@ ValkeyEmbeddingStore store = ValkeyEmbeddingStore.builder()
 | EF_CONSTRUCTION | 200 | Build-time search width. Higher = better graph quality, slower indexing |
 
 **Rules of thumb:**
+
 - For 100K–1M documents: M=16, EF_CONSTRUCTION=200
 - For 1M–10M documents: M=32, EF_CONSTRUCTION=400
 - For maximum recall: M=64, EF_CONSTRUCTION=500
@@ -144,7 +145,8 @@ ValkeyEmbeddingStore cacheStore = ValkeyEmbeddingStore.builder()
 Runtime.getRuntime().addShutdownHook(new Thread(client::close));
 ```
 
-> **Warning:** Calling `close()` on any `ValkeyEmbeddingStore` closes the underlying `GlideClient`. If you share a client across multiple stores, manage the client lifecycle separately with a shutdown hook.
+> **Warning:** Calling `close()` on any `ValkeyEmbeddingStore` closes the underlying `GlideClient`.
+> If you share a client across multiple stores, manage the client lifecycle separately with a shutdown hook.
 
 ### Connection Configuration
 
@@ -259,6 +261,7 @@ ValkeyEmbeddingStore newStore = ValkeyEmbeddingStore.builder()
 ### Memory Estimation
 
 Rough memory per document (1024-dimension float32 vectors):
+
 - Vector storage: ~4 KB
 - HNSW graph overhead: ~1–2 KB (depends on M)
 - JSON document (text + metadata): varies
@@ -283,7 +286,8 @@ For 1M documents at 1024 dimensions: estimate ~6–8 GB RAM.
 
 ## Complete Example
 
-See [`sample/src/main/java/.../ProductionPatternsExample.java`](sample/src/main/java/com/valkey/samples/langchain4j/ProductionPatternsExample.java) for the full runnable version demonstrating batch ingestion, concurrent writes, shared clients, and error handling.
+See [`sample/src/main/java/.../ProductionPatternsExample.java`](sample/src/main/java/com/valkey/samples/langchain4j/ProductionPatternsExample.java)
+for the full runnable version demonstrating batch ingestion, concurrent writes, shared clients, and error handling.
 
 ---
 

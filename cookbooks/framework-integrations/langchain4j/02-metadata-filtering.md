@@ -14,7 +14,10 @@
 
 ## Why Metadata Filtering?
 
-Vector similarity alone isn't always enough. When you search for "deployment best practices," you probably want results from a specific category, within a date range, or from a particular source. Metadata filtering lets you combine vector similarity with structured constraints — Valkey evaluates both in a single query.
+Vector similarity alone isn't always enough. When you search for "deployment best practices,"
+you probably want results from a specific category, within a date range, or from a particular source.
+Metadata filtering lets you combine vector similarity with structured constraints —
+Valkey evaluates both in a single query.
 
 ## Supported Filter Types
 
@@ -57,6 +60,7 @@ ValkeyEmbeddingStore store = ValkeyEmbeddingStore.builder()
 ```
 
 **Key points:**
+
 - The first argument (`$.category`) is the JSON path in the stored document
 - The second argument (`category`) is the field alias used in queries
 - The third argument defines the field type and its options
@@ -105,6 +109,7 @@ store.addAll(embeddings, segments);
 ```
 
 **Under the hood:** Each document is stored as:
+
 ```json
 {
   "vector": [0.12, -0.34, ...],
@@ -163,6 +168,7 @@ Filter either = metadataKey("category").isEqualTo("security")
 ```
 
 **Generated Valkey queries:**
+
 - AND: `(@category:{security} @year:[2025 inf])=>[KNN 5 @vector $BLOB]`
 - OR: `(@category:{security} | @category:{performance})=>[KNN 5 @vector $BLOB]`
 
