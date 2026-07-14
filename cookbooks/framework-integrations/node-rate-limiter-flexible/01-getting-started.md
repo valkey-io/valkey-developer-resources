@@ -17,7 +17,7 @@ The `RateLimiterValkeyGlide` class uses Valkey server-side functions for atomic 
 Docker and Node.js 20+ required.
 
 ```bash
-docker run -d --name valkey -p 6379:6379 valkey/valkey:latest
+docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:8.1.7
 ```
 
 Verify:

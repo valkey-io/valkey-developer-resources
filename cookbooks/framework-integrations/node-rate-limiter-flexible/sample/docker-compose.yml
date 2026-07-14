@@ -1,6 +1,6 @@
 services:
   valkey:
-    image: valkey/valkey:latest
+    image: valkey/valkey-bundle:8.1.7
     ports:
       - "6379:6379"
     healthcheck:
