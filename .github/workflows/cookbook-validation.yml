@@ -54,9 +54,14 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.node-cookbooks == 'true'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cookbook: [node-rate-limiter-flexible]
+        valkey-version: ["8.1.7", "9.1.1"]
     services:
       valkey:
-        image: valkey/valkey:latest
+        image: valkey/valkey-bundle:${{ matrix.valkey-version }}
         ports:
           - 6379:6379
         options: >-
@@ -64,9 +69,6 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 5
-    strategy:
-      matrix:
-        cookbook: [node-rate-limiter-flexible]
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -75,6 +77,6 @@ jobs:
       - name: Install dependencies
         working-directory: cookbooks/framework-integrations/${{ matrix.cookbook }}/sample
         run: npm ci
-      - name: Run integration tests
+      - name: Run integration tests (Valkey ${{ matrix.valkey-version }})
         working-directory: cookbooks/framework-integrations/${{ matrix.cookbook }}/sample
         run: npm test
