@@ -49,7 +49,7 @@ For significant additions (new cookbooks, new sample apps, major restructuring),
 Every contribution must meet these requirements to be merged:
 
 - **Buildable from a clean clone** — all dependencies are publicly available and pinned to stable versions
-- **Runs against stable Valkey** — use `valkey/valkey:latest` or `valkey/valkey-bundle:latest` (released stable tags). Never depend on `:unstable` or unreleased features.
+- **Runs against stable Valkey** — use `valkey/valkey-bundle` with a pinned version tag (e.g., `valkey/valkey-bundle:8.1.7`). Never use `:latest` or `:unstable`. CI validates samples against a matrix of supported Valkey versions.
 - **Uses current stable client libraries** — use the latest published release of the official Valkey client for your language (valkey-glide, valkey-py, etc.)
 - **Focused on Valkey** — the sample demonstrates Valkey features, not application scaffolding. Readers should be able to identify the Valkey patterns without excavating them from UI code.
 - **Self-contained** — each sample directory is independently runnable with its own dependency file (`requirements.txt`, `go.mod`, `package.json`, etc.)
@@ -194,14 +194,11 @@ Every `01-getting-started.md` must include this after the Docker startup:
 
 ### Valkey Startup
 
-Use the appropriate image:
-
-- `valkey/valkey-bundle` — when the Search module is needed
-- `valkey/valkey` — for plain key-value operations
+Prefer `valkey/valkey-bundle` — it includes the Search and JSON modules that most cookbooks need. Always pin a specific version tag; never use `:latest`.
 
 ````markdown
 ```bash
-docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:latest
+docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:8.1.7
 ```
 ````
 
@@ -274,7 +271,7 @@ docker compose up        # starts Valkey + runs the sample
 Or at minimum:
 
 ```bash
-docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:latest
+docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:8.1.7
 <language-specific run command>   # e.g. go run ., python main.py, npm start
 ```
 
@@ -303,7 +300,8 @@ docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:latest
 All samples must pass CI before merge:
 
 - **Build check** — dependency install and compilation succeed in a clean environment
-- **Run check** — the sample executes successfully against a Valkey container (no external services required for the default path)
+- **Run check** — the sample executes successfully against `valkey/valkey-bundle` (no external services required for the default path)
+- **Version matrix** — CI runs tests against multiple Valkey versions (currently 8.1.x and 9.x) to ensure compatibility across supported releases
 - **Lint check** — markdown files pass linting, links resolve
 
 If your sample requires paid external services (API keys, cloud accounts), provide a mock/stub mode that CI can exercise without credentials.
