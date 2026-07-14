@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.valkey.samples</groupId>
+    <artifactId>langchain4j-valkey-cookbook</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>LangChain4j + Valkey Cookbook Sample</name>
+    <description>Sample code for the LangChain4j + Valkey cookbook series</description>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!--
+            Version strategy:
+            - langchain4j.version: core langchain4j (released on Maven Central)
+            - langchain4j-community.version: community modules incl. valkey store (beta track)
+            Update when langchain4j-community-valkey reaches a stable release.
+        -->
+        <langchain4j.version>1.17.2</langchain4j.version>
+        <langchain4j-community.version>1.17.2-beta27</langchain4j-community.version>
+        <valkey-glide.version>2.3.1</valkey-glide.version>
+        <junit.version>5.11.4</junit.version>
+    </properties>
+
+    <dependencies>
+        <!-- LangChain4j core -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j</artifactId>
+            <version>${langchain4j.version}</version>
+        </dependency>
+
+        <!-- Valkey embedding store -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-community-valkey</artifactId>
+            <version>${langchain4j-community.version}</version>
+            <exclusions>
+                <!-- Exclude the platform-specific glide jar pulled transitively -->
+                <exclusion>
+                    <groupId>io.valkey</groupId>
+                    <artifactId>valkey-glide</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- Valkey GLIDE client — platform classifier set via Maven profile -->
+        <dependency>
+            <groupId>io.valkey</groupId>
+            <artifactId>valkey-glide</artifactId>
+            <version>${valkey-glide.version}</version>
+            <classifier>${glide.classifier}</classifier>
+        </dependency>
+
+        <!-- Local embedding model (no API key needed) -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-embeddings-all-minilm-l6-v2</artifactId>
+            <version>${langchain4j-community.version}</version>
+        </dependency>
+
+        <!-- Amazon Bedrock (optional — for RAG pipeline with cloud models) -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-bedrock</artifactId>
+            <version>${langchain4j.version}</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Logging -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>2.0.16</version>
+        </dependency>
+
+        <!-- Test dependencies -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>3.27.3</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <profiles>
+        <!-- Linux x86_64 (CI default) -->
+        <profile>
+            <id>linux-x86_64</id>
+            <activation>
+                <os>
+                    <name>linux</name>
+                    <arch>amd64</arch>
+                </os>
+            </activation>
+            <properties>
+                <glide.classifier>linux-x86_64</glide.classifier>
+            </properties>
+        </profile>
+        <!-- Linux aarch64 -->
+        <profile>
+            <id>linux-aarch64</id>
+            <activation>
+                <os>
+                    <name>linux</name>
+                    <arch>aarch64</arch>
+                </os>
+            </activation>
+            <properties>
+                <glide.classifier>linux-aarch_64</glide.classifier>
+            </properties>
+        </profile>
+        <!-- macOS ARM (Apple Silicon) -->
+        <profile>
+            <id>osx-aarch64</id>
+            <activation>
+                <os>
+                    <family>mac</family>
+                    <arch>aarch64</arch>
+                </os>
+            </activation>
+            <properties>
+                <glide.classifier>osx-aarch_64</glide.classifier>
+            </properties>
+        </profile>
+        <!-- macOS x86_64 (Intel) -->
+        <profile>
+            <id>osx-x86_64</id>
+            <activation>
+                <os>
+                    <family>mac</family>
+                    <arch>x86_64</arch>
+                </os>
+            </activation>
+            <properties>
+                <glide.classifier>osx-x86_64</glide.classifier>
+            </properties>
+        </profile>
+    </profiles>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.14.0</version>
+                <configuration>
+                    <source>17</source>
+                    <target>17</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.3</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>3.5.3</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
+            </plugin>
+        </plugins>
+    </build>
+</project>

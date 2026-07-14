@@ -1,0 +1,78 @@
+name: Cookbook Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cookbooks/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "cookbooks/**"
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      java-cookbooks: ${{ steps.filter.outputs.java-cookbooks }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 # v3
+        id: filter
+        with:
+          filters: |
+            java-cookbooks:
+              - 'cookbooks/**/pom.xml'
+              - 'cookbooks/**/src/**/*.java'
+
+  java-compile:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.java-cookbooks == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        cookbook: [langchain4j]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+          cache: "maven"
+      - name: Compile
+        working-directory: cookbooks/framework-integrations/${{ matrix.cookbook }}/sample
+        run: mvn compile -B -q
+      - name: Verify dependency convergence
+        working-directory: cookbooks/framework-integrations/${{ matrix.cookbook }}/sample
+        continue-on-error: true
+        run: mvn dependency:analyze -B -q
+
+  java-integration-test:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.java-cookbooks == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cookbook: [langchain4j]
+        valkey-version: ["8.1.1", "9.1.1"]
+    services:
+      valkey:
+        image: valkey/valkey-bundle:${{ matrix.valkey-version }}
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+          cache: "maven"
+      - name: Run integration tests (Valkey ${{ matrix.valkey-version }})
+        working-directory: cookbooks/framework-integrations/${{ matrix.cookbook }}/sample
+        run: mvn verify -B
