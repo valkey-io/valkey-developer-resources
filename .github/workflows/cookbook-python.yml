@@ -6,11 +6,13 @@ on:
     paths:
       - "cookbooks/**/*.py"
       - "cookbooks/**/requirements.txt"
+      - ".github/workflows/cookbook-python.yml"
   pull_request:
     branches: [main]
     paths:
       - "cookbooks/**/*.py"
       - "cookbooks/**/requirements.txt"
+      - ".github/workflows/cookbook-python.yml"
 
 jobs:
   detect-python-changes:
