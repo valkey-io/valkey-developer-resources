@@ -31,6 +31,25 @@ def make_vector(seed: int) -> np.ndarray:
     return vec
 
 
+def parse_ft_search_fields(fields: list) -> dict:
+    """Parse FT.SEARCH result field array into a dict.
+
+    FT.SEARCH returns fields as a flat list: [key, value, key, value, ...].
+    Keys and values may be bytes that need decoding.
+    """
+    field_dict = {}
+    for j in range(0, len(fields), 2):
+        k = fields[j].decode() if isinstance(fields[j], bytes) else fields[j]
+        v = fields[j + 1]
+        if isinstance(v, bytes):
+            try:
+                v = v.decode()
+            except UnicodeDecodeError:
+                pass  # binary field (e.g., embedding)
+        field_dict[k] = v
+    return field_dict
+
+
 def similar_vector(base: np.ndarray, noise_scale: float = 0.01) -> np.ndarray:
     """Create a vector similar to base by adding small noise.
 
@@ -164,17 +183,7 @@ class TestCacheHit:
         assert results[0] > 0, "Expected at least 1 KNN result"
 
         # Parse fields
-        fields = results[2]
-        field_dict = {}
-        for j in range(0, len(fields), 2):
-            k = fields[j].decode() if isinstance(fields[j], bytes) else fields[j]
-            v = fields[j + 1]
-            if isinstance(v, bytes):
-                try:
-                    v = v.decode()
-                except UnicodeDecodeError:
-                    pass
-            field_dict[k] = v
+        field_dict = parse_ft_search_fields(results[2])
 
         score = float(field_dict.get("score", "999"))
         assert score < SIMILARITY_THRESHOLD, (
@@ -216,21 +225,7 @@ class TestCacheHit:
             "test_store_and_retrieve_similar must run first"
         )
 
-        fields = results[2]
-        field_dict = {}
-        for j in range(0, len(fields), 2):
-            k = (
-                fields[j].decode()
-                if isinstance(fields[j], bytes)
-                else fields[j]
-            )
-            v = fields[j + 1]
-            if isinstance(v, bytes):
-                try:
-                    v = v.decode()
-                except UnicodeDecodeError:
-                    pass
-            field_dict[k] = v
+        field_dict = parse_ft_search_fields(results[2])
 
         score = float(field_dict.get("score", "999"))
         # Random unrelated vector should have high cosine distance

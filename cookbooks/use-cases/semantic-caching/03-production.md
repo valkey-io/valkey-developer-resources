@@ -39,7 +39,8 @@ def evaluate_threshold(test_pairs: list, threshold: float):
     false_positives = 0
 
     for query, expected_similar in test_pairs:
-        result = semantic_cache_lookup(query)
+        query_vec = get_embedding(query)
+        result = semantic_cache_lookup(query, query_vec)
         if result["hit"] and result["score"] < threshold:
             hits += 1
             if not expected_similar:
@@ -138,11 +139,24 @@ print(f"Memory: {used_mb:.1f} MB")
 ## Step 5: Cache Invalidation
 
 ```python
+import re
+
+
+def sanitize_ft_query(value: str) -> str:
+    """Escape FT.SEARCH special characters in user-provided values.
+
+    The query DSL uses these as operators: | ( ) { } @ ! * ~ - " ' \\ [ ]
+    Backslash-escaping prevents them from altering query semantics.
+    """
+    return re.sub(r'([\\@{}\(\)|!*~\-\[\]"\':])', r'\\\1', value)
+
+
 def invalidate_by_topic(topic_keyword: str):
     """Remove cached entries matching a topic (e.g., after a data update)."""
+    safe_keyword = sanitize_ft_query(topic_keyword)
     results = client.execute_command(
         "FT.SEARCH", "cache_idx",
-        f"@prompt:({topic_keyword})",
+        f"@prompt:({safe_keyword})",
         "NOCONTENT",  # Only return keys, not fields
         "LIMIT", "0", "1000",
     )
@@ -171,6 +185,8 @@ invalidate_by_topic("pricing")
 | Isolation | TAG filters for multi-tenant deployments |
 | Embeddings | Use `nomic-embed-text` (fast, local, 768 dims) or cloud embeddings |
 | Index | HNSW with COSINE distance metric |
+| Authentication | Use `--requirepass` or ACL; pass credentials via env var |
+| TLS | Enable for any non-localhost deployment |
 
 ## Configuration Reference
 
