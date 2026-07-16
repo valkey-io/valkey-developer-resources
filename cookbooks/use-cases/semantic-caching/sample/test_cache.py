@@ -219,10 +219,9 @@ class TestCacheHit:
             different_vec.tobytes(),
         )
 
-        # Must have at least one document (from test_store_and_retrieve_similar)
+        # Must have at least one document to compare against
         assert results[0] > 0, (
-            "Expected at least 1 document in index — "
-            "test_store_and_retrieve_similar must run first"
+            "Expected at least 1 document in index"
         )
 
         field_dict = parse_ft_search_fields(results[2])
@@ -253,3 +252,59 @@ class TestTTL:
 
         ttl = valkey_client.ttl(cache_key)
         assert 0 < ttl <= 60
+
+
+class TestEdgeCases:
+    """Test edge cases and boundary conditions."""
+
+    def test_knn_on_empty_index(self, valkey_client):
+        """KNN search on an empty index should return 0 results gracefully."""
+        # Create a fresh empty index
+        empty_idx = "test_empty_idx"
+        try:
+            valkey_client.execute_command("FT.DROPINDEX", empty_idx)
+        except valkey.ResponseError:
+            pass
+
+        valkey_client.execute_command(
+            "FT.CREATE",
+            empty_idx,
+            "ON",
+            "HASH",
+            "PREFIX",
+            "1",
+            "empty_test:",
+            "SCHEMA",
+            "embedding",
+            "VECTOR",
+            "HNSW",
+            "6",
+            "TYPE",
+            "FLOAT32",
+            "DIM",
+            str(EMBEDDING_DIM),
+            "DISTANCE_METRIC",
+            "COSINE",
+        )
+        time.sleep(0.2)
+
+        # Search with no documents in the index
+        query_vec = make_vector(seed=555)
+        results = valkey_client.execute_command(
+            "FT.SEARCH",
+            empty_idx,
+            "*=>[KNN 1 @embedding $query_vec AS score]",
+            "PARAMS",
+            "2",
+            "query_vec",
+            query_vec.tobytes(),
+        )
+
+        # Should return 0 results, not error
+        assert results[0] == 0, f"Expected 0 results on empty index, got {results[0]}"
+
+        # Cleanup
+        try:
+            valkey_client.execute_command("FT.DROPINDEX", empty_idx)
+        except valkey.ResponseError:
+            pass
