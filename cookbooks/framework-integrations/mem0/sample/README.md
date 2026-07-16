@@ -59,6 +59,8 @@ Bob memories:
 .venv/bin/python -m pytest test_mem0.py -v
 ```
 
+TODO: remove workflow session after #45 gets merged.
+
 These commands reproduce the relevant steps from the shared Python cookbook
 workflow in PR #45:
 
@@ -69,9 +71,9 @@ workflow in PR #45:
 .venv/bin/python -m pytest test_mem0.py -v
 ```
 
-The shared workflow should add `framework-integrations/mem0` to its cookbook
-matrix and run `test_mem0.py` for this directory. This sample does not add a
-second Python workflow.
+The temporary workflow in this branch adds `framework-integrations/mem0` to
+the matrix and runs `test_mem0.py` for this directory. Remove that temporary
+workflow after PR #45's shared workflow includes this cookbook.
 
 ## Optional LLM and Embeddings
 
