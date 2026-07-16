@@ -1,6 +1,6 @@
-# Multi-User Memory with Mem0 + Valkey
+# Multi-User Memory
 
-> Scope Mem0 memories by user, agent, and session so searches return only the intended records.
+> Isolate Mem0 memories by user, agent, and conversation while keeping the application on Mem0's public API.
 
 **Intermediate** · Python · ~20 min
 
@@ -9,101 +9,174 @@
 ## Prerequisites
 
 - Docker or Podman
-- Python 3.9 or newer
-- The dependencies and local Valkey instance from [Getting Started](01-getting-started.md)
+- Python 3.10 or newer
+- The dependencies and local Valkey instance from
+  [Getting Started](01-getting-started.md)
 
-## Step 1: Create a Mem0 Store
+The API examples use OpenAI for embeddings and fact extraction and require an
+`OPENAI_API_KEY`. The runnable sample uses deterministic local embeddings
+instead.
 
-Use the same provider configuration as the first cookbook with a collection dedicated to this application:
+## Memory Isolation
+
+Mem0 supports three levels of memory isolation through filterable fields in
+Valkey:
+
+| Level | Parameter | Use Case |
+| --- | --- | --- |
+| User | `user_id` | Per-user preferences across all sessions |
+| Agent | `agent_id` | Per-agent knowledge, such as support or sales |
+| Session | `run_id` | Per-conversation context |
+
+## Step 1: Setup
 
 ```python
+import os
+
 from mem0 import Memory
 
-memory = Memory.from_config(
-    {
-        "vector_store": {
-            "provider": "valkey",
-            "config": {
-                "valkey_url": "valkey://localhost:6379?socket_timeout=5",
-                "collection_name": "multi_user_app",
-                "embedding_model_dims": 10,
-                "index_type": "hnsw",
-            }
+config = {
+    "vector_store": {
+        "provider": "valkey",
+        "config": {
+            "valkey_url": "valkey://localhost:6379?socket_timeout=5",
+            "collection_name": "multi_user_app",
+            "embedding_model_dims": 1536,
+            "index_type": "hnsw",
         },
-        "llm": {
-            "provider": "openai",
-            "config": {
-                "api_key": "unused-with-infer-false",
-                "model": "gpt-4o-mini",
-            },
+    },
+    "llm": {
+        "provider": "openai",
+        "config": {
+            "api_key": os.environ["OPENAI_API_KEY"],
+            "model": "gpt-4o-mini",
         },
-    }
-)
+    },
+    "embedder": {
+        "provider": "openai",
+        "config": {
+            "api_key": os.environ["OPENAI_API_KEY"],
+            "model": "text-embedding-3-small",
+        },
+    },
+}
+memory = Memory.from_config(config)
 ```
 
-For a no-credential local run, assign Mem0's `MockEmbeddings` instance as shown in [Getting Started](01-getting-started.md) and pass `infer=False` to `add`.
+For a no-credential local run, use the runnable sample in
+[`sample/README.md`](sample/README.md), which replaces the embedder with
+`MockEmbeddings` and passes `infer=False` to `add`.
 
-## Step 2: Add User Memories
-
-Pass a `user_id` to associate each memory with a user:
+## Step 2: Per-User Memories
 
 ```python
+# User Alice
 memory.add(
-    [{"role": "user", "content": "Alice prefers Python."}],
+    [{"role": "user", "content": "I prefer dark mode and Python."}],
     user_id="alice",
-    infer=False,
 )
+
+# User Bob
 memory.add(
-    [{"role": "user", "content": "Bob prefers TypeScript."}],
+    [{"role": "user", "content": "I use TypeScript and like light mode."}],
     user_id="bob",
-    infer=False,
 )
-```
 
-## Step 3: Search Within a Scope
-
-Mem0 accepts scope fields through its `filters` argument:
-
-```python
 alice_results = memory.search(
-    "Preferred programming language",
+    "What are the user preferences?",
     filters={"user_id": "alice"},
-    threshold=1.0,
 )
+print("Alice:", [r["memory"] for r in alice_results["results"]])
 
 bob_results = memory.search(
-    "Preferred programming language",
+    "What are the user preferences?",
     filters={"user_id": "bob"},
-    threshold=1.0,
 )
+print("Bob:", [r["memory"] for r in bob_results["results"]])
+
+# Representative output:
+# Alice: ['Prefers dark mode and Python']
+# Bob: ['Uses TypeScript and likes light mode']
 ```
 
-The Alice search is scoped to Alice's records, and the Bob search is scoped to Bob's records. The filter is applied by the Mem0 Valkey provider when it builds the vector query.
+**How isolation works:** Each memory stores a `user_id` TAG field. When you
+search with `filters={"user_id": "alice"}`, Mem0 passes the scope to its Valkey
+provider, which adds a TAG filter to the `FT.SEARCH` query so Bob's memories are
+not returned.
 
-## Step 4: Combine User and Agent Scopes
-
-Use more than one scope field when an agent has private knowledge for each user:
+## Step 3: Per-Agent Memories
 
 ```python
+# Support agent knowledge
 memory.add(
-    [{"role": "user", "content": "The refund window is 30 days."}],
-    user_id="alice",
-    agent_id="support",
-    infer=False,
+    [{"role": "user", "content": "Our refund policy is 30 days for unused items."}],
+    agent_id="support_bot",
+)
+
+# Sales agent knowledge
+memory.add(
+    [{"role": "user", "content": "Current promotion: 20% off all premium plans."}],
+    agent_id="sales_bot",
 )
 
 support_results = memory.search(
-    "What is the refund window?",
-    filters={"user_id": "alice", "agent_id": "support"},
-    threshold=1.0,
+    "What is the refund policy?",
+    filters={"agent_id": "support_bot"},
 )
+sales_results = memory.search(
+    "Any promotions?",
+    filters={"agent_id": "sales_bot"},
+)
+# Each agent only sees its own knowledge.
 ```
 
-`run_id` is available for a conversation or task scope. Use the narrowest set of filters that matches the data-access boundary in your application.
+## Step 4: Combined User + Agent
+
+```python
+# Add a memory scoped to both user and agent
+memory.add(
+    [{"role": "user", "content": "I had an issue with order #12345."}],
+    user_id="alice",
+    agent_id="support_bot",
+)
+
+results = memory.search(
+    "Previous issues",
+    filters={"user_id": "alice", "agent_id": "support_bot"},
+)
+# This finds Alice's support interactions only.
+```
+
+`run_id` is available for a conversation or task scope. Use the narrowest set
+of filters that matches the data-access boundary in your application.
+
+## Valkey Data Model
+
+```text
+# Each memory is stored as a Valkey Hash at:
+#   mem0:multi_user_app:<memory_id>
+#
+# Fields:
+#   memory_id: TAG
+#   user_id: TAG      (enables per-user filtering)
+#   agent_id: TAG     (enables per-agent filtering)
+#   run_id: TAG       (enables per-session filtering)
+#   memory: TEXT      (the extracted memory text)
+#   embedding: VECTOR (HNSW FLOAT32 COSINE)
+#   created_at: NUMERIC
+#   updated_at: NUMERIC
+```
+
+The `memory` field is `TEXT` in the current Mem0 Valkey provider so it can
+support full-text search alongside vector search.
+
+The provider implementation is documented in
+[Mem0's Valkey vector store](https://github.com/mem0ai/mem0/blob/main/mem0/vector_stores/valkey.py).
 
 ## How It Works
 
-Mem0 stores scope fields with each memory and uses them as Valkey Search TAG filters. The application calls Mem0's `search` and `get_all` methods; it does not need to construct search commands itself.
+The application calls Mem0's `search` and `get_all` methods. It does not need
+to construct Valkey Search commands itself.
 
 ## Configuration Reference
 
@@ -113,20 +186,7 @@ Mem0 stores scope fields with each memory and uses them as Valkey Search TAG fil
 | `agent_id` | No | - | Scope memories to one agent. |
 | `run_id` | No | - | Scope memories to one run or conversation. |
 | `filters` | Yes for search/list | - | Dictionary containing one or more scope fields. |
-| `threshold` | No | `0.1` | Minimum semantic score required by Mem0's search API. |
-
-## Teardown
-
-Remove the collection keys and index using the cleanup function in the sample:
-
-```python
-from main import build_memory, reset_memory
-
-memory = build_memory("multi_user_app")
-reset_memory(memory)
-memory.close()
-```
 
 ---
 
-[<- 01 - Getting Started](01-getting-started.md) | [03 - Production Configuration ->](03-production.md)
+[<- 01 - Getting Started](01-getting-started.md) | [03 - Production ->](03-production.md)

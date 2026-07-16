@@ -1,0 +1,51 @@
+{
+  "trackName": "Mem0",
+  "cookbooks": [
+    {
+      "num": "01",
+      "source": "01-getting-started.md",
+      "output": "01-getting-started.html",
+      "title": "Getting Started with Mem0 + Valkey",
+      "h1": "Getting Started with Mem0 + Valkey",
+      "breadcrumb": "Getting Started",
+      "difficulty": "Beginner",
+      "time": "15 min",
+      "next": {
+        "file": "02-multi-user-memory.html",
+        "title": "02 - Multi-User Memory"
+      }
+    },
+    {
+      "num": "02",
+      "source": "02-multi-user-memory.md",
+      "output": "02-multi-user-memory.html",
+      "title": "Multi-User Memory",
+      "h1": "Multi-User Memory",
+      "breadcrumb": "Multi-User Memory",
+      "difficulty": "Intermediate",
+      "time": "20 min",
+      "prev": {
+        "file": "01-getting-started.html",
+        "title": "01 - Getting Started"
+      },
+      "next": {
+        "file": "03-production.html",
+        "title": "03 - Production"
+      }
+    },
+    {
+      "num": "03",
+      "source": "03-production.md",
+      "output": "03-production.html",
+      "title": "Production with Mem0 + Valkey",
+      "h1": "Production with Mem0 + Valkey",
+      "breadcrumb": "Production",
+      "difficulty": "Advanced",
+      "time": "20 min",
+      "prev": {
+        "file": "02-multi-user-memory.html",
+        "title": "02 - Multi-User Memory"
+      }
+    }
+  ]
+}
