@@ -142,7 +142,7 @@ def invalidate_by_topic(topic_keyword: str):
     """Remove cached entries matching a topic (e.g., after a data update)."""
     results = client.execute_command(
         "FT.SEARCH", "cache_idx",
-        f"@prompt:{{{topic_keyword}}}",
+        f"@prompt:({topic_keyword})",
         "NOCONTENT",  # Only return keys, not fields
         "LIMIT", "0", "1000",
     )

@@ -48,7 +48,7 @@ def similar_vector(base: np.ndarray, noise_scale: float = 0.01) -> np.ndarray:
 @pytest.fixture(scope="module")
 def valkey_client():
     """Create a Valkey client and clean up test keys after tests."""
-    client = valkey.Valkey(host=VALKEY_HOST, port=VALKEY_PORT)
+    client = valkey.Valkey(host=VALKEY_HOST, port=VALKEY_PORT, socket_timeout=5.0)
     assert client.ping(), "Valkey is not reachable"
     yield client
     # Cleanup: drop test index and delete test keys
@@ -56,6 +56,25 @@ def valkey_client():
         client.execute_command("FT.DROPINDEX", INDEX_NAME)
     except valkey.ResponseError:
         pass
+    for key in client.scan_iter(match="test_cache:*"):
+        client.delete(key)
+
+
+def wait_for_indexing(client, index_name: str, expected_docs: int, timeout: float = 5.0):
+    """Poll FT.INFO until num_docs reaches expected count or timeout."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        info = client.execute_command("FT.INFO", index_name)
+        # FT.INFO returns flat list; find num_docs value
+        for i, item in enumerate(info):
+            if isinstance(item, bytes):
+                item = item.decode()
+            if item == "num_docs" and i + 1 < len(info):
+                num = int(info[i + 1])
+                if num >= expected_docs:
+                    return
+        time.sleep(0.1)
+    raise TimeoutError(f"Index {index_name} did not reach {expected_docs} docs in {timeout}s")
 
 
 @pytest.fixture(scope="module")
@@ -76,9 +95,9 @@ def cache_index(valkey_client):
         "test_cache:",
         "SCHEMA",
         "prompt",
-        "TAG",
+        "TEXT",
         "response",
-        "TAG",
+        "TEXT",
         "embedding",
         "VECTOR",
         "HNSW",
@@ -90,8 +109,8 @@ def cache_index(valkey_client):
         "DISTANCE_METRIC",
         "COSINE",
     )
-    # Give index time to be ready
-    time.sleep(0.5)
+    # Wait for index to be ready (no documents yet, just verify it exists)
+    time.sleep(0.2)
     return INDEX_NAME
 
 
@@ -126,7 +145,7 @@ class TestCacheHit:
         )
 
         # Wait for indexing
-        time.sleep(0.5)
+        wait_for_indexing(valkey_client, cache_index, expected_docs=1)
 
         # Query with a similar vector (small noise added)
         query_vec = similar_vector(base_vec)
@@ -165,7 +184,20 @@ class TestCacheHit:
 
     def test_different_vector_exceeds_threshold(self, valkey_client, cache_index):
         """Query with a completely different vector — should exceed threshold."""
-        # Use a very different seed to get an unrelated vector
+        # Insert a known document so the test is self-contained
+        known_vec = make_vector(seed=77)
+        cache_key = "test_cache:self_contained"
+        valkey_client.hset(
+            cache_key,
+            mapping={
+                "prompt": "self-contained test doc",
+                "response": "test response",
+                "embedding": known_vec.tobytes(),
+            },
+        )
+        wait_for_indexing(valkey_client, cache_index, expected_docs=2)
+
+        # Query with a completely unrelated vector
         different_vec = make_vector(seed=9999)
 
         results = valkey_client.execute_command(

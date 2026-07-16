@@ -41,6 +41,7 @@ try:
     client.execute_command(
         "FT.CREATE", "conv_cache_idx",
         "ON", "HASH",
+        "PREFIX", "1", "conv_cache:",
         "SCHEMA",
         "context_summary", "TEXT",
         "response", "TEXT",
@@ -84,17 +85,32 @@ def get_embedding(text: str) -> bytes:
 ## Step 3: Context-Aware Cache Lookup
 
 ```python
+import re
+
+
+def sanitize_tag_value(value: str) -> str:
+    """Validate tag values to prevent query injection.
+
+    FT.SEARCH query DSL uses special characters ({, }, |, @, \\) that
+    could alter query semantics if interpolated unsanitized.
+    """
+    if not re.match(r'^[a-zA-Z0-9_.\-]+$', value):
+        raise ValueError(f"Invalid tag value: {value!r}")
+    return value
+
+
 def lookup_conversation_cache(
     messages: list, user_id: str, threshold: float = 0.12
 ) -> dict:
     """Search cache for similar conversation contexts, scoped to user."""
+    safe_id = sanitize_tag_value(user_id)
     context = build_context_string(messages)
     query_vec = get_embedding(context)
 
     # Hybrid query: filter by user_id TAG + KNN on context embedding
     results = client.execute_command(
         "FT.SEARCH", "conv_cache_idx",
-        f"@user_id:{{{user_id}}}=>[KNN 1 @embedding $query_vec AS score]",
+        f"@user_id:{{{safe_id}}}=>[KNN 1 @embedding $query_vec AS score]",
         "PARAMS", "2", "query_vec", query_vec,
     )
 

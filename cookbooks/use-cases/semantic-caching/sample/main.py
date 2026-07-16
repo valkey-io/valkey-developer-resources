@@ -25,7 +25,7 @@ CACHE_TTL = 3600  # 1 hour
 LLM_MODEL = "llama3.2:1b"
 
 # --- Clients ---
-client = valkey.Valkey(host=VALKEY_HOST, port=VALKEY_PORT)
+client = valkey.Valkey(host=VALKEY_HOST, port=VALKEY_PORT, socket_timeout=5.0)
 
 
 def create_cache_index():
@@ -41,9 +41,9 @@ def create_cache_index():
             "cache:",
             "SCHEMA",
             "prompt",
-            "TAG",
+            "TEXT",
             "response",
-            "TAG",
+            "TEXT",
             "embedding",
             "VECTOR",
             "HNSW",   # Algorithm: Hierarchical Navigable Small World
@@ -70,10 +70,8 @@ def get_embedding(text: str) -> bytes:
     return np.array(vec, dtype=np.float32).tobytes()
 
 
-def semantic_cache_lookup(prompt: str) -> dict:
+def semantic_cache_lookup(prompt: str, query_vec: bytes) -> dict:
     """Check if a semantically similar prompt is cached."""
-    query_vec = get_embedding(prompt)
-
     results = client.execute_command(
         "FT.SEARCH",
         "cache_idx",
@@ -109,11 +107,11 @@ def semantic_cache_lookup(prompt: str) -> dict:
     return {"hit": False}
 
 
-def cache_response(prompt: str, response: str):
+def cache_response(prompt: str, response: str, embedding_bytes: bytes):
     """Store a prompt+response in the cache."""
-    embedding_bytes = get_embedding(prompt)
     cache_key = f"cache:{hashlib.md5(prompt.encode()).hexdigest()}"
-    client.hset(
+    pipe = client.pipeline()
+    pipe.hset(
         cache_key,
         mapping={
             "prompt": prompt,
@@ -122,15 +120,19 @@ def cache_response(prompt: str, response: str):
             "created_at": str(time.time()),
         },
     )
-    client.expire(cache_key, CACHE_TTL)
+    pipe.expire(cache_key, CACHE_TTL)
+    pipe.execute()
 
 
 def ask_with_cache(prompt: str) -> dict:
     """Check cache first, then call LLM if needed."""
     start = time.time()
 
+    # Compute embedding once — reused for both lookup and storage
+    embedding = get_embedding(prompt)
+
     # 1. Check cache
-    cache_result = semantic_cache_lookup(prompt)
+    cache_result = semantic_cache_lookup(prompt, embedding)
 
     if cache_result["hit"]:
         elapsed = (time.time() - start) * 1000
@@ -148,8 +150,8 @@ def ask_with_cache(prompt: str) -> dict:
     )
     answer = llm_response["message"]["content"]
 
-    # 3. Cache the response
-    cache_response(prompt, answer)
+    # 3. Cache the response (reuse embedding computed above)
+    cache_response(prompt, answer, embedding)
 
     elapsed = (time.time() - start) * 1000
     return {
