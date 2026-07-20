@@ -35,6 +35,7 @@ jobs:
     needs: detect-python-changes
     if: needs.detect-python-changes.outputs.python-cookbooks == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     strategy:
       matrix:
         cookbook: [framework-integrations/mem0]

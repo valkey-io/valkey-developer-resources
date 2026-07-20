@@ -54,12 +54,17 @@ def build_memory(collection_name: str = COLLECTION_NAME) -> Memory:
             ),
         }
     )
+    # Internal Mem0 attribute; this sample is pinned to mem0ai==2.0.12.
     memory.embedding_model = MockEmbeddings()
     return memory
 
 
 def reset_memory(memory: Memory) -> None:
-    """Remove sample keys and recreate the Mem0 index for an idempotent run."""
+    """Remove sample keys and recreate the Mem0 index for an idempotent run.
+
+    Uses Mem0 internal ``vector_store.client`` and ``collection_name``
+    attributes; this sample is pinned to mem0ai==2.0.12.
+    """
     client = memory.vector_store.client
     for key in client.scan_iter(
         match=f"mem0:{memory.collection_name}:*"

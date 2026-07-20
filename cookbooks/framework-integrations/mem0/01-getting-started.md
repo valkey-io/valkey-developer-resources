@@ -201,6 +201,7 @@ The official connector implementation is in
 | Field | Required | Default | Description |
 | --- | --- | --- | --- |
 | `valkey_url` | Yes | - | Valkey connection URL, such as `valkey://localhost:6379`. |
+| `socket_timeout` | No | None (no timeout) | Seconds before a socket read/write times out. Passed as a URL query parameter. |
 | `collection_name` | Yes | - | Name of the Mem0 collection and Valkey index. |
 | `embedding_model_dims` | Yes | - | Number of values produced by the embedder. |
 | `index_type` | No | `hnsw` | `hnsw` for approximate search or `flat` for exact search. |
