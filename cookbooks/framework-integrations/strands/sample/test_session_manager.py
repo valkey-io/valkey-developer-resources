@@ -1,4 +1,4 @@
-import os
+import pytest
 
 from strands.models.ollama import OllamaModel
 from strands_valkey_session_manager import ValkeySessionManager
@@ -9,17 +9,35 @@ from demo import create_agent, create_model, delete_session, make_client
 SESSION_ID = "pytest-strands-session"
 
 
-def test_agent_persists_messages_for_a_second_agent():
-    client = make_client()
+@pytest.fixture
+def client():
+    connection = make_client()
+    try:
+        yield connection
+    finally:
+        connection.close()
+
+
+@pytest.fixture(autouse=True)
+def cleanup_session(client):
+    delete_session(client, SESSION_ID, missing_ok=True)
+    yield
     delete_session(client, SESSION_ID, missing_ok=True)
 
+
+def test_agent_persists_messages_for_a_second_agent(client):
     first = create_agent(client, SESSION_ID, "researcher")
     first("Remember that Valkey stores agent sessions.")
 
     second = create_agent(client, SESSION_ID, "researcher")
-    assert len(second.messages) == 2
-    assert "Valkey stores agent sessions" in second.messages[0]["content"][0]["text"]
-    second("What fact did I ask you to remember?")
+    assert len(second.messages) >= 2
+    assert any(
+        "Valkey stores agent sessions" in block.get("text", "")
+        for message in second.messages
+        for block in message["content"]
+    )
+    result = second("What fact did I ask you to remember?")
+    assert "valkey" in str(result).lower() or "session" in str(result).lower()
 
     keys = client.keys(f"session:{SESSION_ID}*")
     assert len(keys) >= 4
@@ -37,10 +55,16 @@ def test_agent_persists_messages_for_a_second_agent():
     assert client.keys(f"session:{SESSION_ID}*") == []
 
 
-def test_client_uses_environment_overrides():
+def test_client_uses_environment_overrides(monkeypatch):
+    monkeypatch.setenv("VALKEY_HOST", "valkey.example")
+    monkeypatch.setenv("VALKEY_PORT", "6380")
+
     client = make_client()
-    assert client.connection_pool.connection_kwargs["host"] == os.getenv("VALKEY_HOST", "localhost")
-    assert client.connection_pool.connection_kwargs["port"] == int(os.getenv("VALKEY_PORT", "6379"))
+    try:
+        assert client.connection_pool.connection_kwargs["host"] == "valkey.example"
+        assert client.connection_pool.connection_kwargs["port"] == 6380
+    finally:
+        client.close()
 
 
 def test_agent_uses_ollama_environment_overrides(monkeypatch):

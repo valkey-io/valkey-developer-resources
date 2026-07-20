@@ -27,7 +27,8 @@ The session manager persists three types of data to Valkey:
 ## Prerequisites
 
 - Docker or Podman
-- Python 3.11
+- Python 3.10 or newer
+- Valkey 8.1+ with the JSON module (use `valkey/valkey-bundle` for local development)
 - The pinned dependencies in [`sample/requirements.txt`](sample/requirements.txt)
 - Enough local disk and memory for the `llama3.2:1b` Ollama model
 

@@ -6,8 +6,9 @@ without external model credentials.
 
 ## Prerequisites
 
-- Python 3.11
+- Python 3.10 or newer
 - Docker or Podman
+- Valkey 8.1+ with the JSON module (use `valkey/valkey-bundle` for local development)
 - A container runtime that can run `valkey/valkey-bundle:9.1.1`
 - Enough local disk and memory for the `llama3.2:1b` Ollama model
 

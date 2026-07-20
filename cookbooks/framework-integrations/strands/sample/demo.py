@@ -19,6 +19,8 @@ def make_client() -> valkey.Valkey:
         host=os.getenv("VALKEY_HOST", "localhost"),
         port=int(os.getenv("VALKEY_PORT", "6379")),
         decode_responses=True,
+        socket_timeout=5,
+        socket_connect_timeout=5,
     )
 
 

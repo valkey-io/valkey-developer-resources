@@ -9,7 +9,8 @@ shared session history and explicit cleanup.
 
 ## Prerequisites
 
-- Python 3.11
+- Python 3.10 or newer
+- Valkey 8.1+ with the JSON module (use `valkey/valkey-bundle` for local development)
 - Docker or Podman with the sample Valkey service running
 - The sample Ollama service with `llama3.2:1b` pulled
 - The pinned dependencies in [`sample/requirements.txt`](sample/requirements.txt)
@@ -107,6 +108,16 @@ for k in sorted(keys):
 # session:user-42:agent:default
 # session:user-42:agent:default:message:0
 ```
+
+> **Production note:** Set a TTL on every key belonging to a session to
+> prevent unbounded growth. The session manager stores the session record,
+> agent state, and each message as separate keys, so expire all matching keys
+> and refresh them when the session is active:
+>
+> ```python
+> for key in client.scan_iter(match="session:user-42*"):
+>     client.expire(key, 86400)
+> ```
 
 ## Configuration Reference
 

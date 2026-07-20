@@ -2,7 +2,7 @@ services:
   valkey:
     image: valkey/valkey-bundle:9.1.1
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
       interval: 5s
@@ -11,7 +11,7 @@ services:
   ollama:
     image: ollama/ollama:0.12.6
     ports:
-      - "11434:11434"
+      - "127.0.0.1:11434:11434"
     healthcheck:
       test: ["CMD", "ollama", "list"]
       interval: 5s

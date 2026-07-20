@@ -8,7 +8,8 @@
 
 ## Prerequisites
 
-- Python 3.11
+- Python 3.10 or newer
+- Valkey 8.1+ with the JSON module (use `valkey/valkey-bundle` for local development)
 - Docker or Podman with the sample Valkey service running
 - The sample Ollama service with `llama3.2:1b` pulled
 - The pinned dependencies in [`sample/requirements.txt`](sample/requirements.txt)
