@@ -1,0 +1,5 @@
+strands-agents==1.48.0
+strands-valkey-session-manager==0.1.0
+ollama==0.6.2
+valkey==6.1.1
+pytest==8.4.1
