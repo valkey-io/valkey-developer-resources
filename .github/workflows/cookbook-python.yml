@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        cookbook: [use-cases/semantic-caching]
+        cookbook: [use-cases/semantic-caching, framework-integrations/haystack]
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
@@ -60,17 +60,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        cookbook: [use-cases/semantic-caching]
-        valkey-version: ["9.1.0"]
-        # NOTE: valkey-bundle 8.x ships valkey-search module v1.0.0 which does NOT
-        # support TEXT field types or SORTBY/DIALECT in FT.SEARCH. This cookbook
-        # requires valkey-search >= v1.2.0 (shipped in valkey-bundle 9.x).
-        # If someone is running Valkey 8.x (e.g., ElastiCache for Valkey 8.x),
-        # they'll hit "Unknown argument TEXT" errors. Once valkey-search is
-        # backported or updated in an 8.x bundle release, add "8.x.y" back here.
+        include:
+          # Semantic caching requires valkey-search module (only in bundle 9.x+)
+          - cookbook: use-cases/semantic-caching
+            valkey-image: valkey/valkey-bundle:9.1.0
+            test-file: test_cache.py
+          # Haystack uses ValkeyDocumentStore (requires search + json modules)
+          - cookbook: framework-integrations/haystack
+            valkey-image: valkey/valkey-bundle:9.1.0
+            test-file: test_haystack.py
     services:
       valkey:
-        image: valkey/valkey-bundle:${{ matrix.valkey-version }}
+        image: ${{ matrix.valkey-image }}
         ports:
           - 6379:6379
         options: >-
@@ -88,6 +89,6 @@ jobs:
       - name: Install dependencies
         working-directory: cookbooks/${{ matrix.cookbook }}/sample
         run: pip install -r requirements.txt
-      - name: Run tests (Valkey ${{ matrix.valkey-version }})
+      - name: Run tests (${{ matrix.valkey-image }})
         working-directory: cookbooks/${{ matrix.cookbook }}/sample
-        run: python -m pytest test_cache.py -v
+        run: python -m pytest ${{ matrix.test-file }} -v
