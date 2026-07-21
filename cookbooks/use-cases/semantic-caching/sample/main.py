@@ -196,6 +196,8 @@ def main():
     hit_rate = hits / total * 100 if total > 0 else 0
     print(f"Cache Stats: {misses} misses, {hits} hits ({hit_rate:.0f}% hit rate)")
 
+    client.close()
+
 
 if __name__ == "__main__":
     main()

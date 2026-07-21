@@ -140,15 +140,16 @@ def lookup_conversation_cache(
 
 def store_conversation_cache(messages: list, response: str, user_id: str):
     """Cache a conversation context + response."""
+    safe_id = sanitize_tag_value(user_id)
     context = build_context_string(messages)
     embedding_bytes = get_embedding(context)
     key_hash = hashlib.md5(context.encode()).hexdigest()
-    cache_key = f"conv_cache:{user_id}:{key_hash}"
+    cache_key = f"conv_cache:{safe_id}:{key_hash}"
 
     client.hset(cache_key, mapping={
         "context_summary": context,
         "response": response,
-        "user_id": user_id,
+        "user_id": safe_id,
         "turn_count": str(len(messages)),
         "embedding": embedding_bytes,
     })

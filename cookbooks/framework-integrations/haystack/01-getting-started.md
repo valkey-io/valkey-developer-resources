@@ -163,6 +163,7 @@ Metadata filters are applied server-side in Valkey Search — they don't downloa
 | `embedding_dim` | — | `768` | Must match your embedding model's output dimensions |
 | `distance_metric` | — | `"cosine"` | Similarity metric: `cosine`, `l2`, or `ip` |
 | `metadata_fields` | — | `None` | Dict mapping field names to types for filtered search |
+| `request_timeout` | — | `5000` | Request timeout in milliseconds |
 
 ## Teardown
 

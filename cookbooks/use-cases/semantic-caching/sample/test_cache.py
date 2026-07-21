@@ -77,6 +77,7 @@ def valkey_client():
         pass
     for key in client.scan_iter(match="test_cache:*"):
         client.delete(key)
+    client.close()
 
 
 def wait_for_indexing(client, index_name: str, expected_docs: int, timeout: float = 5.0):
@@ -193,6 +194,11 @@ class TestCacheHit:
 
     def test_different_vector_exceeds_threshold(self, valkey_client, cache_index):
         """Query with a completely different vector — should exceed threshold."""
+        # Clean existing test keys to ensure self-contained execution
+        for key in valkey_client.scan_iter(match="test_cache:*"):
+            valkey_client.delete(key)
+        time.sleep(0.2)  # Allow index to reflect deletions
+
         # Insert a known document so the test is self-contained
         known_vec = make_vector(seed=77)
         cache_key = "test_cache:self_contained"
@@ -204,7 +210,7 @@ class TestCacheHit:
                 "embedding": known_vec.tobytes(),
             },
         )
-        wait_for_indexing(valkey_client, cache_index, expected_docs=2)
+        wait_for_indexing(valkey_client, cache_index, expected_docs=1)
 
         # Query with a completely unrelated vector
         different_vec = make_vector(seed=9999)

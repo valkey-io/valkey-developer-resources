@@ -28,6 +28,7 @@ jobs:
             python-cookbooks:
               - 'cookbooks/**/requirements.txt'
               - 'cookbooks/**/*.py'
+              - '.github/workflows/cookbook-python.yml'
 
   python-lint:
     needs: detect-python-changes

@@ -5,6 +5,7 @@
 ## Prerequisites
 
 - Docker or Podman
+- Valkey Bundle 9.0+ (requires the Search module; plain `valkey/valkey` won't work)
 - Python 3.9+
 - [Ollama](https://ollama.com/) installed and running
 
