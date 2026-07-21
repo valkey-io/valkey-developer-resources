@@ -1,18 +1,12 @@
 # LangChain + Valkey
 
-> Learn the Valkey persistence, cache, and vector-store APIs used by a local LangGraph sample.
-
-This four-page progression uses a deterministic, credential-free local default. Optional provider addenda explain where Bedrock-backed models or embeddings can fit without changing the default path.
+> 4 cookbooks for using Valkey as the complete persistence layer for LangGraph agents - checkpointing, semantic caching, and vector search through the official langgraph-checkpoint-aws package.
 
 ## Cookbooks
 
 | # | Cookbook | Description | Tags |
 | --- | --- | --- | --- |
-| 01 | [Getting Started](01-getting-started.md) | Start the pinned Valkey bundle and persist LangGraph checkpoint state with `ValkeySaver`. | Beginner, about 15 minutes, Python |
-| 02 | [LLM Response Caching](02-llm-caching.md) | Use `ValkeyCache` for deterministic exact-key cache reads and writes, including TTL configuration. | Intermediate, about 20 minutes, Python |
-| 03 | [Semantic Search with ValkeyStore](03-semantic-search.md) | Store documents and search by meaning with deterministic embeddings and `ValkeyStore`. | Intermediate, about 20 minutes, Python |
-| 04 | [Full Agent](04-full-agent.md) | Wire `ValkeySaver`, `ValkeyStore`, and `ValkeyCache` together in a help-desk flow with semantic caching and checkpointing. | Advanced, about 25 minutes, Python |
-
-All commands and snippets are based on [`sample/main.py`](sample/main.py). The
-sample does not call a hosted model by default; provider setup is optional and
-is documented only as an addendum in the relevant pages.
+| 01 | <nobr>[Getting Started](01-getting-started.md)</nobr> | Install `langgraph-checkpoint-aws[valkey]`, connect to Valkey, and persist your first LangGraph agent with `ValkeySaver`. | Beginner, ~15 min, Python |
+| 02 | <nobr>[LLM Response Caching](02-llm-caching.md)</nobr> | Cache repeatable LangChain results with `ValkeyCache`, including per-entry TTLs. | Intermediate, ~20 min, Python |
+| 03 | <nobr>[Semantic Search with ValkeyStore](03-semantic-search.md)</nobr> | Store documents with local embeddings and search by meaning using HNSW indexes and `ValkeyStore`. | Intermediate, ~20 min, Python |
+| 04 | <nobr>[Full Agent - All Three Components](04-full-agent.md)</nobr> | Wire `ValkeySaver` + `ValkeyStore` + `ValkeyCache` together in a local LangGraph flow with semantic caching and checkpointing. | Advanced, ~25 min, Python |

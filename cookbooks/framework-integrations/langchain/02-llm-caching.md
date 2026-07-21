@@ -1,211 +1,190 @@
 # LLM Caching with LangChain + Valkey
 
-> Use `ValkeyCache` to store and retrieve deterministic exact-key results without making a provider call.
+> Cache repeatable LangChain results in Valkey so identical requests do not repeat the same work.
 
 **Intermediate** · Python · ~20 min
 
-**Who is this for:** This page is for developers adding repeatable cache reads
-and writes around LangChain work while keeping the local example independent of
-a hosted model.
+**Who is this for:** Python developers adding exact-key response caching to a
+LangChain application.
 
 ## Prerequisites
 
 - Complete [01 - Getting Started](01-getting-started.md), or start the sample from its directory.
-- Python 3.10 or newer and an active virtual environment.
-- Docker Compose with the pinned Valkey bundle running.
+- Python 3.10 or newer with the pinned requirements installed
+- A local Valkey Bundle running on `127.0.0.1:6379`
 
-From the sample directory, the setup is:
+## The Problem
 
-```bash
-cd cookbooks/framework-integrations/langchain/sample
-docker compose up -d
-python -m pip install -r requirements.txt
-```
+LLM API calls can be expensive and slow. Users often send identical or near-identical prompts:
 
-## Step 1: Create a cache
+- Multiple users asking the same FAQ
+- Retry logic re-sending the same prompt
+- Agents re-invoking the same tool with the same input
 
-`main.py` creates `ValkeyCache` with the connection, configured prefix, and default TTL from `Settings`:
+Exact-match caching eliminates redundant calls. (For meaning-based matching, see [Guide 03](03-semantic-search.md).)
+
+**Upstream Contribution:** The `ValkeyCache` integration was contributed to `langchain-ai/langchain-aws` in [PR #717](<https://github.com/langchain-ai/langchain-aws/pull/717>) by the Valkey team.
+
+## Step 1: Initialize ValkeyCache
 
 ```python
 from langgraph_checkpoint_aws import ValkeyCache
-from main import Settings, create_valkey_client
+from valkey import Valkey
 
-settings = Settings.from_env()
-client = create_valkey_client(settings)
+# Create Valkey client
+valkey_client = Valkey.from_url(
+    "valkey://127.0.0.1:6379",
+    decode_responses=False,
+)
+
+# Initialize cache with 1-hour TTL
 cache = ValkeyCache(
-    client=client,
-    prefix=settings.cache_prefix,
-    ttl=settings.cache_ttl_seconds,
+    client=valkey_client,
+    prefix="llm_cache:",
+    ttl=3600,
 )
 ```
 
-The default cache TTL is five minutes. The cache key is a tuple containing a namespace tuple and a string key, which is the shape expected by the package and by `run_cache_demo`.
+## Step 2: Cache Key Generation
 
-## Step 2: Read and write one entry
-
-The public async methods used by the sample are `aget` and `aset`:
-
-```python
-from main import run_cache_demo
-
-key = (("langchain-cookbook", "lesson"), "answer-1")
-value = {"answer": "Valkey is a data store for this exercise."}
-
-first = run_cache_demo(cache, key=key, value=value)
-second = run_cache_demo(
-    cache,
-    key=key,
-    value={"answer": "This value is not written after a hit."},
-)
-print(first)
-print(second)
-
-client.close()
-```
-
-`run_cache_demo` calls `await cache.aget([key])`, then calls
-`await cache.aset({key: (value, None)})` only on a miss. To use the public class
-directly in an async application, the equivalent operations are:
-
-The following helper is illustrative and assumes the `cache` from Step 1 and
-the public `ValkeyCache` class:
-
-```python
-from langgraph_checkpoint_aws import ValkeyCache
-
-
-async def lookup_or_store(cache: ValkeyCache, key, value):
-    cached_values = await cache.aget([key])
-    if key in cached_values:
-        return cached_values[key]
-    await cache.aset({key: (value, None)})
-    return value
-```
-
-The `None` entry TTL delegates to the cache's configured default. A per-entry positive TTL can be supplied as the second element of the `(value, ttl)` tuple.
-
-## Cache key design
-
-Exact caching is only useful when equivalent requests produce the same key.
-Include the model configuration and normalized prompt in the key so different
-configurations do not collide:
+Generate deterministic keys from prompt + model + temperature so different model configs don't collide:
 
 ```python
 import hashlib
 
-def cache_key(
-    prompt: str,
-    model_name: str = "local-deterministic",
-    temperature: float = 0.0,
-) -> tuple[tuple[str, ...], str]:
-    content = f"{model_name}|temperature={temperature}|{prompt.strip()}"
-    digest = hashlib.sha256(content.encode()).hexdigest()[:16]
-    return (("llm-responses",), digest)
+def cache_key(prompt: str, model: str = "local-deterministic", temp: float = 0.0) -> tuple:
+    content = f"{model}|temp={temp}|{prompt.strip()}"
+    key = hashlib.sha256(content.encode()).hexdigest()[:16]
+    return (("llm_responses",), key)
 ```
 
-## Wrap a model call
+## Step 3: Cached Inference Function
 
-The cache can surround any async LangChain model call. The provider remains
-outside the default sample:
-
-This helper continues after the `cache_key` example and reuses that function:
+The default path uses a deterministic local response. Replace
+`generate_response` with an async LangChain model call when adding a provider
+to an application; the Valkey cache operations stay the same.
 
 ```python
-async def cached_response(cache, prompt: str, generate):
+import time
+
+
+async def generate_response(prompt: str) -> str:
+    return f"Local response for: {prompt}"
+
+
+async def cached_llm_call(prompt: str) -> dict:
     key = cache_key(prompt)
-    cached_values = await cache.aget([key])
-    if key in cached_values:
-        return {"value": cached_values[key], "cached": True}
 
-    response = await generate(prompt)
-    await cache.aset({key: (response, None)})
-    return {"value": response, "cached": False}
+    # 1. Check cache
+    start = time.time()
+    cached = await cache.aget([key])
+    cache_time = time.time() - start
+
+    if key in cached:
+        return {
+            "response": cached[key]["response"],
+            "cached": True,
+            "latency_ms": cache_time * 1000,
+        }
+
+    # 2. Cache miss - generate a response
+    start = time.time()
+    response = await generate_response(prompt)
+    llm_time = time.time() - start
+
+    # 3. Store in cache
+    await cache.aset({key: ({"response": response}, 3600)})
+
+    return {
+        "response": response,
+        "cached": False,
+        "latency_ms": llm_time * 1000,
+    }
 ```
 
-`generate` can call a LangChain model such as a local or hosted provider. Keep
-that provider choice and its data-handling policy separate from cache storage.
-
-## Step 3: Run the local example
-
-Run `main.py` to exercise the cache as part of the complete deterministic flow:
-
-```bash
-python main.py
-```
-
-The one-shot demo starts with an empty run namespace, prints the cache result,
-and cleans that run's keys in `finally`. Run the focused test command to verify
-a miss followed by a hit and explicit TTL behavior:
-
-```bash
-python -m pytest -q test_langchain.py
-```
-
-## Step 4: Apply cache safety rules
-
-Use a prefix and namespace that identify the owning application. Do not cache
-access tokens, credentials, personal data, or unreviewed provider output. Treat
-cached values as data with the same retention and access requirements as the
-source response. Keep the local Compose service on loopback and use approved
-authentication, TLS, and network controls for shared Valkey deployments.
-
-For explicit retention or namespace cleanup, use the public cache methods:
-
-This example reuses the `cache`, `key`, and `value` created above:
+## Step 4: Verify a Cache Hit
 
 ```python
-await cache.aset({key: (value, 300)})
-await cache.aclear([("llm-responses",)])
+import asyncio
+
+
+async def benchmark():
+    prompt = "What is Valkey?"
+
+    # First call - cache miss
+    r1 = await cached_llm_call(prompt)
+    print(f"Cache MISS: {r1['response']}")
+
+    # Second call - cache hit
+    r2 = await cached_llm_call(prompt)
+    print(f"Cache HIT:  {r2['response']}")
+
+
+asyncio.run(benchmark())
 ```
 
-## How It Works
+## Step 5: TTL Management
 
-`ValkeyCache` turns the tuple key into a namespaced cache key, checks for
-existing values with `aget`, and serializes new values through `aset`. The
-default TTL from `CACHE_TTL_SECONDS` applies when the entry does not provide its
-own TTL. `cleanup_sample` removes only entries for the requested run under the
-configured cache prefix.
+```python
+# Default TTL (set at cache creation)
+cache = ValkeyCache(client=valkey_client, ttl=3600)  # 1 hour
 
-Under the hood, the integration may map these operations to Valkey key-value
-reads, writes with expiration, and scans during cleanup. Those command details
-explain lifecycle behavior; application code should call `ValkeyCache.aget`,
-`ValkeyCache.aset`, and `ValkeyCache.aclear` rather than issuing raw commands.
+key = cache_key("What is Valkey?")
+data = {"response": "Valkey is a data store."}
+
+async def apply_ttl():
+    # Custom TTL per entry
+    await cache.aset({key: (data, 300)})  # 5 minutes for volatile data
+
+    # Clear all cached entries
+    await cache.aclear()
+
+
+import asyncio
+
+
+asyncio.run(apply_ttl())
+```
+
+**Valkey Commands Fired:**
+
+```text
+# Cache lookup
+GET llm_cache:a1b2c3d4e5f6g7h8
+
+# Cache store
+SET llm_cache:a1b2c3d4e5f6g7h8 '{"response":"..."}' EX 3600
+
+# Cache clear
+SCAN 0 MATCH llm_cache:* COUNT 100
+DEL llm_cache:a1b2c3d4e5f6g7h8 ...
+```
+
+The complete local sample uses the same public API and removes only its own
+run-scoped cache entries. Do not cache access tokens, credentials, or
+unreviewed provider output.
 
 ## Configuration Reference
 
-| Variable | Default | Meaning |
+| Option | Default | Description |
 | --- | --- | --- |
-| `VALKEY_URL` | `valkey://127.0.0.1:6379` when unset | Full Valkey URL; takes precedence over host and port. |
-| `VALKEY_HOST` | `127.0.0.1` | Host fallback when `VALKEY_URL` is unset. |
-| `VALKEY_PORT` | `6379` | Port fallback when `VALKEY_URL` is unset. |
-| `VALKEY_SOCKET_TIMEOUT` | `5.0` | Socket and connection timeout in seconds. |
-| `CHECKPOINT_TTL_SECONDS` | `3600` | Checkpoint lifetime in seconds. |
-| `CACHE_TTL_SECONDS` | `300` | Default exact-cache lifetime in seconds. |
-| `STORE_TTL_MINUTES` | `60` | Default store lifetime in minutes. |
-| `VALKEY_CACHE_PREFIX` | `langchain:cache:` | Prefix used by `ValkeyCache`. |
-| `VALKEY_STORE_COLLECTION` | `langchain_store_idx` | Search collection used by `ValkeyStore`. |
-| `VALKEY_STORE_NAMESPACE` | `langchain-cookbook` | Namespace prefix used by the sample store. |
-
-## Optional Bedrock/provider addendum
-
-The default cache path does not call an LLM and does not require provider
-credentials. An optional Bedrock-backed LangChain model can be placed before
-`ValkeyCache.aset` in an application, but model selection, authentication,
-request serialization, privacy review, and provider package installation are
-outside this sample. Keep the provider path opt-in.
+| `prefix` | `llm_cache:` | Prefix used for cache keys. |
+| `ttl` | `3600` | Default entry lifetime in seconds. |
+| Per-entry TTL | — | Overrides the default for one `aset` call. |
 
 ## Teardown
 
-Close a client created by the sample after direct API experiments, then stop Valkey:
+Close the client created for direct experiments:
 
 ```python
-client.close()
+valkey_client.close()
 ```
 
-```bash
-docker compose down --volumes
-```
+## Next Steps
+
+Exact-match caching is useful when requests are identical. Next, we'll add semantic search to match by meaning.
 
 ---
 
-[Previous: 01 - Getting Started](01-getting-started.md) | [Back to LangChain + Valkey](README.md) | [Next: 03 - Semantic Search](03-semantic-search.md)
+[Previous: 01 Getting Started ←](01-getting-started.md) |
+[Next: 03 Semantic Search with ValkeyStore →](03-semantic-search.md)

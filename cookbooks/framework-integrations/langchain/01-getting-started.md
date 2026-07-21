@@ -1,210 +1,186 @@
 # Getting Started with LangChain + Valkey
 
-> Start the local LangGraph sample and see how `ValkeySaver` persists conversation state in Valkey.
+> Persist LangGraph conversation state in Valkey and resume it after a restart.
 
 **Beginner** · Python · ~15 min
 
-**Who is this for:** This page is for Python developers who want a small,
-repeatable starting point for LangGraph checkpoint persistence without cloud
-credentials.
+**Who is this for:** Python developers building LangGraph agents who want
+checkpoint persistence backed by Valkey.
 
 ## Prerequisites
 
+- Docker installed
 - Python 3.10 or newer
-- Docker with Compose
-- The files in [`sample/`](sample/), including `main.py`, `requirements.txt`, and `docker-compose.yml`
+- The files in [`sample/`](sample/) for the credential-free local path
 
-## Step 1: Open the sample
+## What is LangGraph + Valkey?
 
-Run the remaining commands from the sample directory:
+LangGraph lets you build multi-step AI agents with branching logic and tool use.
+The problem: if your agent crashes mid-conversation or you restart your server,
+all state is lost. Valkey stores checkpoints after every step, so agents pick up
+exactly where they left off.
+
+[LangGraph](https://github.com/langchain-ai/langgraph) agents are stateless by
+default. `ValkeySaver` from the `langgraph-checkpoint-aws` package adds
+persistent checkpointing backed by Valkey. The package is an AWS-published
+integration; the local sample uses only its Valkey APIs and does not require AWS
+credentials:
+
+- **Checkpoint persistence** - conversation state survives process restarts
+- **Atomic writes** - no partial state corruption
+- **Built-in TTL** - sessions expire automatically
+- **Local-first setup** - the same Valkey API can be used with a remote deployment
+
+## Step 1: Start Valkey
+
+Docker installed and Python 3.10+ required.
 
 ```bash
-cd cookbooks/framework-integrations/langchain/sample
+docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.1
 ```
 
-The sample is the canonical runnable path for this cookbook. It creates a Valkey
-client from `Settings.from_env()`, constructs the three LangGraph checkpoint,
-cache, and store resources, runs the local demo, and cleans up data belonging to
-that run.
+> ⚠️ **Security:** These examples use no authentication or TLS for simplicity.
+> For any non-localhost deployment, enable authentication and TLS. See the
+> [Valkey security documentation](https://valkey.io/topics/security/).
 
-## Step 2: Start Valkey
-
-Start the pinned Valkey bundle:
+The `valkey-bundle` image includes JSON and Search modules needed for ValkeyStore. Verify:
 
 ```bash
-docker compose up -d
-docker compose exec valkey valkey-cli ping
+docker exec valkey valkey-cli PING
 # PONG
 ```
 
-The bundle provides the JSON and Search capabilities used by `ValkeyStore`.
+## Step 2: Install the Package
 
-> **Security:** The Compose file binds port `6379` to loopback (`127.0.0.1`) by
-> default. Keep that binding for local work, do not publish Valkey on `0.0.0.0`,
-> and do not put credentials or private application data in this demo. A shared
-> or production deployment needs an approved network boundary plus authentication
-> and TLS settings; this local sample does not configure those controls.
-
-## Step 3: Install the pinned requirements
-
-Create an isolated environment and install the versions used by the sample:
+For the deterministic local sample, install its pinned dependencies:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
+python -m pip install -r sample/requirements.txt
 ```
 
-## Step 4: Construct a checkpointer
+This installs `ValkeySaver`, `ValkeyStore`, and `ValkeyCache` from
+`langgraph-checkpoint-aws`. The runnable sample uses deterministic local
+embeddings and does not require a hosted model or provider credentials.
 
-`main.py` uses the same public constructor directly inside `create_checkpointer`:
+## Step 3: Understand the Data Model
 
-```python
-from langgraph_checkpoint_aws import ValkeySaver
-from main import (
-    Settings,
-    cleanup_sample,
-    create_valkey_client,
-    run_checkpoint_demo,
-)
-
-settings = Settings.from_env()
-client = create_valkey_client(settings)
-checkpointer = ValkeySaver(
-    client=client,
-    ttl=settings.checkpoint_ttl_seconds,
-)
-
-try:
-    result = run_checkpoint_demo(
-        checkpointer,
-        thread_id="lesson-1",
-        message="I am learning how Valkey stores state.",
-    )
-    print(result)
-finally:
-    cleanup_sample(client, settings=settings, run_id="lesson-1")
-    client.close()
-```
-
-The `client`, `ttl`, `thread_id`, and `message` arguments match the sample's
-construction and helper signatures. The full sample uses its managed factory so
-cleanup also handles resources created by the other two components.
-
-## Step 5: Verify persistence after restart
-
-The checkpoint contains graph state associated with a thread. Recreate the
-checkpointer and invoke the same thread to verify that the earlier message is
-loaded:
+`ValkeySaver` stores each checkpoint as a JSON document in Valkey:
 
 ```python
-from main import (
-    Settings,
-    cleanup_sample,
-    create_checkpointer,
-    create_valkey_client,
-    run_checkpoint_demo,
-)
-
-settings = Settings.from_env()
-client = create_valkey_client(settings)
-try:
-    with create_checkpointer(settings, client=client) as checkpointer:
-        first = run_checkpoint_demo(
-            checkpointer,
-            thread_id="restart-check",
-            message="first message",
-        )
-    with create_checkpointer(settings, client=client) as checkpointer:
-        second = run_checkpoint_demo(
-            checkpointer,
-            thread_id="restart-check",
-            message="message after reopening",
-        )
-    print(first)
-    print(second)
-finally:
-    cleanup_sample(client, settings=settings, run_id="restart-check")
-    client.close()
-```
-
-The second result contains both messages. In a service, the second block can
-run in a later process as long as it uses the same Valkey URL and thread ID.
-
-## Checkpoint data model
-
-The integration serializes checkpoint state together with thread and namespace
-metadata. The exact serialized representation is an implementation detail, but
-the conceptual record looks like this:
-
-```python
+# Key format: checkpoint:{thread_id}:{checkpoint_ns}:{checkpoint_id}
+# Each checkpoint contains:
 {
-    "thread_id": "restart-check",
-    "checkpoint_ns": "",
-    "channel_values": {"messages": ["first message"]},
-    "metadata": {"source": "input"},
+    "v": 1,
+    "ts": "2026-03-12T10:00:00+00:00",
+    "channel_values": {"messages": [...]},
+    "channel_versions": {"__start__": 2, "messages": 3},
+    "versions_seen": {...}
 }
 ```
 
-| Operation | Public API | Retention |
-| --- | --- | --- |
-| Save graph state | `ValkeySaver` used by `graph.invoke` | `CHECKPOINT_TTL_SECONDS` |
-| Load the latest state | Reuse the same `thread_id` | Until the TTL expires |
-| Inspect history | `checkpointer.list(config)` | Same checkpoint TTL |
+**Under the Hood:** `ValkeySaver` uses Valkey JSON (`JSON.SET`) for structured storage and `FT.CREATE`/`FT.SEARCH` for indexing checkpoints by thread ID and namespace. TTL is applied via `EXPIRE`.
 
-## Step 6: Run and verify the sample
+## Step 4: Persist a LangGraph Agent
 
-Run the complete local demo:
+The following provider-neutral example uses the same public `ValkeySaver`
+constructor as the local sample:
 
-```bash
-python main.py
+```python
+from langchain_core.messages import AIMessage, HumanMessage
+from langgraph.graph import MessagesState, StateGraph
+from langgraph_checkpoint_aws import ValkeySaver
+from valkey import Valkey
+
+
+def chatbot(state: MessagesState):
+    message = state["messages"][-1].content
+    return {"messages": [AIMessage(content=f"Valkey received: {message}")]}
+
+
+builder = StateGraph(MessagesState)
+builder.add_node("chatbot", chatbot)
+builder.set_entry_point("chatbot")
+builder.set_finish_point("chatbot")
+
+client = Valkey.from_url(
+    "valkey://127.0.0.1:6379",
+    decode_responses=False,
+)
+checkpointer = ValkeySaver(client=client, ttl=3600)
+
+try:
+    graph = builder.compile(checkpointer=checkpointer)
+    config = {"configurable": {"thread_id": "session-1"}}
+
+    result = graph.invoke(
+        {"messages": [HumanMessage(content="What is Valkey?")]},
+        config,
+    )
+    print(result["messages"][-1].content)
+
+    # Continue the conversation - state is persisted!
+    result = graph.invoke(
+        {"messages": [HumanMessage(content="How fast is it?")]},
+        config,
+    )
+    print(result["messages"][-1].content)
+finally:
+    client.close()
 ```
 
-Then run the integration tests against the same local Valkey service:
+For a complete run that also demonstrates caching and semantic search, use
+[`sample/main.py`](sample/main.py).
 
-```bash
-python -m pytest -q test_langchain.py
+## Step 5: Verify Persistence
+
+Stop and restart your script - the conversation state is still in Valkey:
+
+Run this block from the sample directory so `main.py` is importable:
+
+```python
+# In a NEW Python process:
+from main import Settings, create_checkpointer, create_valkey_client
+
+settings = Settings.from_env()
+client = create_valkey_client(settings)
+config = {"configurable": {"thread_id": "session-1"}}
+
+try:
+    with create_checkpointer(settings, client=client) as checkpointer:
+        for checkpoint in checkpointer.list(config):
+            print(checkpoint.metadata)  # Shows previous conversation
+finally:
+    client.close()
 ```
 
-The demo prints `checkpoint:`, `cache:`, and `semantic search:` results. Its `finally` block removes data created for the `demo` run, so use the tests when you want to verify state across two calls.
+## How It Works Under the Hood
 
-## How It Works
+| Operation | Valkey Command |
+|-----------|---------------|
+| Save checkpoint | `JSON.SET checkpoint:{thread}:{ns}:{id} $ '{...}'` |
+| Set TTL | `EXPIRE checkpoint:{thread}:{ns}:{id} 3600` |
+| Load latest | `FT.SEARCH checkpoints_idx '@thread_id:{session-1}' LIMIT 0 1` |
+| List history | `FT.SEARCH checkpoints_idx '@thread_id:{session-1}'` |
 
-`run_checkpoint_demo` builds a one-node `StateGraph`, compiles it with the
-supplied `ValkeySaver`, and invokes it with a `thread_id`. A second invocation
-with the same thread identifier can load the earlier message from Valkey.
-`Settings.from_env()` supplies the checkpoint TTL and connection timeout, while
-`create_valkey_client` creates a byte-preserving client for the integration
-classes.
-
-Under the hood, the checkpoint package stores structured checkpoint records and
-maintains Search indexes for lookup. The package may use Valkey JSON, Search,
-key scans, and expiration operations as part of that lifecycle; learners should
-use `ValkeySaver` rather than issuing those commands directly.
+**Source:** [`langgraph-checkpoint-aws`](https://github.com/langchain-ai/langgraph-checkpoint-aws) - the package that provides the Valkey checkpointer used here.
 
 ## Configuration Reference
 
-| Variable | Default | Meaning |
+| Option | Default | Description |
 | --- | --- | --- |
-| `VALKEY_URL` | `valkey://127.0.0.1:6379` when unset | Full Valkey URL; takes precedence over host and port. |
-| `VALKEY_HOST` | `127.0.0.1` | Host fallback when `VALKEY_URL` is unset. |
-| `VALKEY_PORT` | `6379` | Port fallback when `VALKEY_URL` is unset. |
-| `VALKEY_SOCKET_TIMEOUT` | `5.0` | Socket and connection timeout in seconds. |
-| `CHECKPOINT_TTL_SECONDS` | `3600` | Checkpoint lifetime in seconds. |
-| `CACHE_TTL_SECONDS` | `300` | Default exact-cache lifetime in seconds. |
-| `STORE_TTL_MINUTES` | `60` | Default store lifetime in minutes. |
-| `VALKEY_CACHE_PREFIX` | `langchain:cache:` | Prefix used by `ValkeyCache`. |
-| `VALKEY_STORE_COLLECTION` | `langchain_store_idx` | Search collection used by `ValkeyStore`. |
-| `VALKEY_STORE_NAMESPACE` | `langchain-cookbook` | Namespace prefix used by the sample store. |
+| `VALKEY_URL` | `valkey://127.0.0.1:6379` | Valkey connection URL used by the sample. |
+| `thread_id` | — | Identifier used to resume one conversation. |
+| `ttl` | `3600` | Checkpoint retention in seconds. |
 
 ## Teardown
 
-The sample removes its own run data after `main.py` finishes. Stop the pinned Valkey service and remove its Compose resources when you are done:
+Remove the local Valkey container when you are done:
 
 ```bash
-docker compose down --volumes
+docker stop valkey
+docker rm valkey
 ```
 
 ---
 
-[Back to LangChain + Valkey](README.md) | [Next: 02 - LLM Response Caching](02-llm-caching.md)
+[Next: 02 LLM Response Caching →](02-llm-caching.md)
