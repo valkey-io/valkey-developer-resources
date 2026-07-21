@@ -1,0 +1,8 @@
+langgraph-checkpoint-aws==1.2.0
+langgraph==1.2.9
+langgraph-checkpoint==4.1.1
+langchain-core==1.5.0
+valkey==6.1.1
+orjson==3.11.9
+pytest==9.1.1
+ruff==0.15.22
