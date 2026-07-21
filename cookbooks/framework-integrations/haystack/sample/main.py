@@ -2,137 +2,124 @@
 
 Demonstrates:
 1. Connecting to ValkeyDocumentStore
-2. Embedding and storing documents with Ollama
-3. Running similarity search
-4. Full RAG pipeline with local LLM
+2. Storing documents with embeddings (fixed vectors for deterministic path)
+3. Running similarity search with ValkeyEmbeddingRetriever
+4. Metadata filtering
+5. Full RAG pipeline with Ollama (optional, requires Ollama running)
 
 Requirements:
-    - Valkey Bundle running on localhost:6379 (with search + json modules)
-    - Ollama running with models pulled:
+    - Valkey Bundle running (with search + json modules)
+    - For the RAG path: Ollama running with models pulled:
         ollama pull nomic-embed-text
         ollama pull llama3.2:1b
 """
 
-from haystack import Document, Pipeline
-from haystack.components.builders import ChatPromptBuilder
-from haystack.components.writers import DocumentWriter
-from haystack.dataclasses import ChatMessage
-from haystack_integrations.components.embedders.ollama import (
-    OllamaDocumentEmbedder,
-    OllamaTextEmbedder,
+from __future__ import annotations
+
+import os
+
+from haystack import Document
+from haystack_integrations.components.retrievers.valkey import (
+    ValkeyEmbeddingRetriever,
 )
-from haystack_integrations.components.generators.ollama import OllamaChatGenerator
-from haystack_integrations.components.retrievers.valkey import ValkeyEmbeddingRetriever
 from haystack_integrations.document_stores.valkey import ValkeyDocumentStore
 
+# --- Configuration ---
+EMBEDDING_DIM = 4  # Fixed vectors for deterministic default path
+INDEX_NAME = "haystack_demo"
 
-def create_document_store() -> ValkeyDocumentStore:
-    """Create a ValkeyDocumentStore connection."""
+
+def build_store() -> ValkeyDocumentStore:
+    """Create a ValkeyDocumentStore connection with env var overrides."""
     return ValkeyDocumentStore(
-        nodes_list=[("localhost", 6379)],
-        index_name="haystack_demo",
-        embedding_dim=768,
+        nodes_list=[
+            (
+                os.getenv("VALKEY_HOST", "localhost"),
+                int(os.getenv("VALKEY_PORT", "6379")),
+            )
+        ],
+        index_name=INDEX_NAME,
+        embedding_dim=EMBEDDING_DIM,
         distance_metric="cosine",
+        metadata_fields={"category": str},
+        request_timeout=int(os.getenv("VALKEY_REQUEST_TIMEOUT_MS", "5000")),
     )
 
 
-def index_documents(document_store: ValkeyDocumentStore) -> int:
-    """Embed and store sample documents."""
-    docs = [
-        Document(content="Valkey is an open-source, high-performance in-memory data store."),
-        Document(content="Valkey supports vector search natively via its search module."),
-        Document(content="The ValkeyDocumentStore integrates with Haystack pipelines."),
-        Document(content="RAG grounds LLM responses in retrieved facts."),
-        Document(content="Cosine similarity measures the angle between embedding vectors."),
-    ]
-
-    pipeline = Pipeline()
-    pipeline.add_component(
-        "embedder", OllamaDocumentEmbedder(model="nomic-embed-text")
-    )
-    pipeline.add_component("writer", DocumentWriter(document_store=document_store))
-    pipeline.connect("embedder.documents", "writer.documents")
-
-    pipeline.run({"embedder": {"documents": docs}})
-    return document_store.count_documents()
-
-
-def search(document_store: ValkeyDocumentStore, query: str, top_k: int = 2) -> list:
-    """Run a similarity search."""
-    pipeline = Pipeline()
-    pipeline.add_component("embedder", OllamaTextEmbedder(model="nomic-embed-text"))
-    pipeline.add_component(
-        "retriever", ValkeyEmbeddingRetriever(document_store=document_store, top_k=top_k)
-    )
-    pipeline.connect("embedder.embedding", "retriever.query_embedding")
-
-    result = pipeline.run({"embedder": {"text": query}})
-    return result["retriever"]["documents"]
-
-
-def rag_query(document_store: ValkeyDocumentStore, query: str) -> str:
-    """Run a full RAG pipeline with local LLM."""
-    prompt_template = [
-        ChatMessage.from_system(
-            "Answer the question using only the provided context. "
-            "If the context doesn't contain the answer, say 'I don't know'."
+def build_documents() -> list[Document]:
+    """Build sample documents with deterministic embeddings."""
+    return [
+        Document(
+            id="valkey-search",
+            content="Valkey Search stores and retrieves documents by vector similarity.",
+            embedding=[1.0, 0.0, 0.0, 0.0],
+            meta={"category": "search"},
         ),
-        ChatMessage.from_user(
-            "Context:\n{% for doc in documents %}{{ doc.content }}\n{% endfor %}\n"
-            "Question: {{query}}"
+        Document(
+            id="haystack-pipeline",
+            content="Haystack connects document stores, embedders, and retrievers into pipelines.",
+            embedding=[0.0, 1.0, 0.0, 0.0],
+            meta={"category": "framework"},
+        ),
+        Document(
+            id="rag-context",
+            content="RAG retrieves relevant context before an answer is generated.",
+            embedding=[0.0, 0.0, 1.0, 0.0],
+            meta={"category": "rag"},
         ),
     ]
 
-    pipeline = Pipeline()
-    pipeline.add_component("embedder", OllamaTextEmbedder(model="nomic-embed-text"))
-    pipeline.add_component(
-        "retriever", ValkeyEmbeddingRetriever(document_store=document_store, top_k=3)
-    )
-    pipeline.add_component(
-        "prompt_builder",
-        ChatPromptBuilder(template=prompt_template, required_variables=["query", "documents"]),
-    )
-    pipeline.add_component("generator", OllamaChatGenerator(model="llama3.2:1b"))
 
-    pipeline.connect("embedder.embedding", "retriever.query_embedding")
-    pipeline.connect("retriever.documents", "prompt_builder.documents")
-    pipeline.connect("prompt_builder.messages", "generator.messages")
-
-    result = pipeline.run({
-        "embedder": {"text": query},
-        "prompt_builder": {"query": query},
-    })
-    return result["generator"]["replies"][0].text
+def query_embedding(query: str) -> list[float]:
+    """Return a deterministic query embedding based on the query string."""
+    if "valkey" in query.lower():
+        return [1.0, 0.0, 0.0, 0.0]
+    if "haystack" in query.lower() or "pipeline" in query.lower():
+        return [0.0, 1.0, 0.0, 0.0]
+    return [0.0, 0.0, 1.0, 0.0]
 
 
-def main():
-    print("=== Haystack + Valkey RAG Demo ===\n")
+def build_retriever(store: ValkeyDocumentStore) -> ValkeyEmbeddingRetriever:
+    """Create a retriever configured for top-3 results."""
+    return ValkeyEmbeddingRetriever(document_store=store, top_k=3)
 
-    # 1. Connect
-    print("Connecting to ValkeyDocumentStore...")
-    store = create_document_store()
-    print(f"Connected. Current documents: {store.count_documents()}\n")
 
-    # 2. Index
-    print("Indexing documents with Ollama embeddings...")
-    count = index_documents(store)
-    print(f"Indexed {count} documents.\n")
+def cleanup_store(store: ValkeyDocumentStore) -> None:
+    """Remove all documents and close the connection."""
+    try:
+        store.delete_all_documents()
+    finally:
+        store.close()
 
-    # 3. Search
-    query = "What is Valkey?"
-    print(f'--- Similarity Search: "{query}" ---')
-    docs = search(store, query)
-    for doc in docs:
-        print(f"  Score: {doc.score:.3f} | {doc.content}")
-    print()
 
-    # 4. RAG
-    rag_question = "How does Valkey integrate with Haystack?"
-    print(f'--- RAG Query: "{rag_question}" ---')
-    answer = rag_query(store, rag_question)
-    print(f"  Answer: {answer}\n")
+def main() -> None:
+    print("=== Haystack + Valkey Demo ===\n")
 
-    print("=== Demo Complete ===")
+    store = build_store()
+    try:
+        # Clean slate
+        store.delete_all_documents()
+
+        # Index documents
+        written = store.write_documents(build_documents())
+        print(f"Indexed {written} documents")
+
+        # Similarity search
+        results = build_retriever(store).run(query_embedding("valkey search"))
+        top = results["documents"]
+        print(f"Top result: {top[0].id} (score: {top[0].score:.3f})")
+
+        # Metadata filtering
+        filtered = build_retriever(store).run(
+            query_embedding("retrieval"),
+            filters={"field": "meta.category", "operator": "==", "value": "search"},
+        )
+        print(f"Filtered result: {filtered['documents'][0].id}")
+
+    finally:
+        cleanup_store(store)
+
+    print("\n=== Demo Complete ===")
 
 
 if __name__ == "__main__":

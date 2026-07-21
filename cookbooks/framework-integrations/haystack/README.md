@@ -2,6 +2,11 @@
 
 > Build production RAG pipelines using Valkey as a high-performance vector store inside Haystack. From first connection to a full retrieval-augmented generation pipeline.
 
+Haystack is an open-source framework maintained by [deepset](https://www.deepset.ai/) for building search and RAG applications.
+The `valkey-haystack` integration exposes Valkey-backed document storage and retrieval as Haystack components.
+
+The default sample path uses fixed vectors and needs no API key, model download, or external service. The cookbook pages show how to add Ollama embedders and generators for a complete local RAG experience.
+
 ## Cookbooks
 
 | # | Cookbook | Description | Tags |

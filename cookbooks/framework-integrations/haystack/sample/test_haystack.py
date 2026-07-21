@@ -1,122 +1,98 @@
 """Tests for Haystack + Valkey integration.
 
 Requires:
-    - Valkey Bundle running on localhost:6379 (with search + json modules)
+    - Valkey Bundle running (with search + json modules)
 
-Tests use Haystack's built-in MockDocumentEmbedder and MockTextEmbedder
-to generate deterministic embeddings without requiring Ollama. This validates
-the Haystack ↔ ValkeyDocumentStore pipeline (write, retrieve, count, delete)
-independently of the embedding provider.
+Tests use fixed 4-dimensional vectors for deterministic results.
+No Ollama, no model downloads, no API keys needed.
 """
 
+from unittest.mock import patch
+
 import pytest
-from haystack import Document, Pipeline
-from haystack.components.embedders import MockDocumentEmbedder, MockTextEmbedder
-from haystack.components.writers import DocumentWriter
-from haystack_integrations.components.retrievers.valkey import ValkeyEmbeddingRetriever
-from haystack_integrations.document_stores.valkey import ValkeyDocumentStore
 
-VALKEY_HOST = "localhost"
-VALKEY_PORT = 6379
-# MockDocumentEmbedder defaults to 768-dim; using 384 for a smaller test footprint
-EMBEDDING_DIM = 384
-INDEX_NAME = "test_haystack_idx"
+from main import (
+    EMBEDDING_DIM,
+    build_documents,
+    build_retriever,
+    build_store,
+    cleanup_store,
+    query_embedding,
+)
 
 
-@pytest.fixture(scope="module")
-def document_store():
-    """Create a ValkeyDocumentStore for testing and clean up after."""
-    store = ValkeyDocumentStore(
-        nodes_list=[(VALKEY_HOST, VALKEY_PORT)],
-        index_name=INDEX_NAME,
-        embedding_dim=EMBEDDING_DIM,
+def test_retriever_returns_closest_document():
+    """Write documents and verify KNN retrieval returns the best match."""
+    store = build_store()
+    try:
+        store.delete_all_documents()
+        written = store.write_documents(build_documents())
+        assert written == 3
+
+        result = build_retriever(store).run(query_embedding("valkey search"))
+        documents = result["documents"]
+
+        assert documents
+        assert documents[0].id == "valkey-search"
+        assert len(documents[0].embedding) == EMBEDDING_DIM
+    finally:
+        cleanup_store(store)
+
+
+def test_retriever_applies_metadata_filters():
+    """Metadata filters narrow results to matching documents only."""
+    store = build_store()
+    try:
+        store.delete_all_documents()
+        store.write_documents(build_documents())
+
+        result = build_retriever(store).run(
+            query_embedding("retrieval"),
+            filters={
+                "field": "meta.category",
+                "operator": "==",
+                "value": "search",
+            },
+        )
+
+        assert [doc.id for doc in result["documents"]] == ["valkey-search"]
+    finally:
+        cleanup_store(store)
+
+
+def test_build_store_uses_environment_overrides(monkeypatch):
+    """Environment variables override connection parameters."""
+    monkeypatch.setenv("VALKEY_HOST", "valkey.example")
+    monkeypatch.setenv("VALKEY_PORT", "6380")
+    monkeypatch.setenv("VALKEY_REQUEST_TIMEOUT_MS", "2500")
+
+    with patch("main.ValkeyDocumentStore") as mock_store:
+        build_store()
+
+    mock_store.assert_called_once_with(
+        nodes_list=[("valkey.example", 6380)],
+        index_name="haystack_demo",
+        embedding_dim=4,
         distance_metric="cosine",
+        metadata_fields={"category": str},
+        request_timeout=2500,
     )
-    yield store
-    # Cleanup: delete all documents in the test index
-    store.delete_documents(store.filter_documents())
 
 
-class TestDocumentStore:
-    """Test basic ValkeyDocumentStore operations."""
+def test_cleanup_closes_store_when_deletion_fails():
+    """Store.close() is called even if delete_all_documents() raises."""
 
-    def test_connection(self, document_store):
-        """ValkeyDocumentStore connects and responds to count."""
-        count = document_store.count_documents()
-        assert isinstance(count, int)
+    class FailingStore:
+        def __init__(self):
+            self.closed = False
 
-    def test_write_and_count(self, document_store):
-        """Write documents with embeddings and verify count increases."""
-        docs = [
-            Document(content="Valkey is a high-performance data store."),
-            Document(content="Haystack builds RAG pipelines."),
-            Document(content="Vector search enables semantic matching."),
-        ]
+        def delete_all_documents(self):
+            raise RuntimeError("delete failed")
 
-        # Use mock embedder for deterministic embeddings
-        pipeline = Pipeline()
-        pipeline.add_component("embedder", MockDocumentEmbedder(dimension=EMBEDDING_DIM))
-        pipeline.add_component("writer", DocumentWriter(document_store=document_store))
-        pipeline.connect("embedder.documents", "writer.documents")
+        def close(self):
+            self.closed = True
 
-        pipeline.run({"embedder": {"documents": docs}})
-        assert document_store.count_documents() >= 3
-
-
-class TestRetrieval:
-    """Test embedding-based retrieval from ValkeyDocumentStore."""
-
-    @pytest.fixture(autouse=True)
-    def setup(self, document_store):
-        """Ensure documents are indexed before retrieval tests."""
-        self.store = document_store
-        # Write docs if not already present
-        if document_store.count_documents() < 3:
-            docs = [
-                Document(content="Valkey is a high-performance data store."),
-                Document(content="Haystack builds RAG pipelines."),
-                Document(content="Vector search enables semantic matching."),
-            ]
-            pipeline = Pipeline()
-            pipeline.add_component(
-                "embedder", MockDocumentEmbedder(dimension=EMBEDDING_DIM)
-            )
-            pipeline.add_component("writer", DocumentWriter(document_store=document_store))
-            pipeline.connect("embedder.documents", "writer.documents")
-            pipeline.run({"embedder": {"documents": docs}})
-
-    def test_retriever_returns_documents(self):
-        """ValkeyEmbeddingRetriever returns documents for a query embedding."""
-        pipeline = Pipeline()
-        pipeline.add_component(
-            "embedder", MockTextEmbedder(dimension=EMBEDDING_DIM)
-        )
-        pipeline.add_component(
-            "retriever",
-            ValkeyEmbeddingRetriever(document_store=self.store, top_k=2),
-        )
-        pipeline.connect("embedder.embedding", "retriever.query_embedding")
-
-        result = pipeline.run({"embedder": {"text": "What is Valkey?"}})
-        docs = result["retriever"]["documents"]
-
-        assert len(docs) > 0
-        assert all(hasattr(doc, "content") for doc in docs)
-        assert all(hasattr(doc, "score") for doc in docs)
-
-    def test_retriever_respects_top_k(self):
-        """Retriever returns at most top_k documents."""
-        pipeline = Pipeline()
-        pipeline.add_component(
-            "embedder", MockTextEmbedder(dimension=EMBEDDING_DIM)
-        )
-        pipeline.add_component(
-            "retriever",
-            ValkeyEmbeddingRetriever(document_store=self.store, top_k=1),
-        )
-        pipeline.connect("embedder.embedding", "retriever.query_embedding")
-
-        result = pipeline.run({"embedder": {"text": "data store"}})
-        docs = result["retriever"]["documents"]
-
-        assert len(docs) <= 1
+    store = FailingStore()
+    with pytest.raises(RuntimeError, match="delete failed"):
+        cleanup_store(store)
+    assert store.closed

@@ -61,12 +61,15 @@ document_store = ValkeyDocumentStore(
     index_name="my_documents",
     embedding_dim=768,         # must match your embedding model (nomic-embed-text = 768)
     distance_metric="cosine",  # cosine | l2 | ip
+    metadata_fields={"category": str},  # indexed fields for filtered search
 )
 
 print(document_store.count_documents())  # 0
 ```
 
 > **Note:** On first run you may see `Index not found` — this is expected. The document store creates the index automatically when you write your first documents.
+>
+> **Lifecycle:** Always call `document_store.close()` when done to release the GLIDE connection. Use try/finally in production code.
 
 ## Step 5: Embed and Store Documents
 
@@ -121,6 +124,25 @@ Expected output:
 Score: 0.921 | Valkey is a high-performance in-memory data store.
 Score: 0.743 | Vector search finds semantically similar documents.
 ```
+
+## Step 7: Metadata Filtering
+
+Pass filters to narrow results to documents matching specific metadata:
+
+```python
+result = query_pipeline.run({"text_embedder": {"text": "What about vector search?"}})
+
+# Filter by category (requires metadata_fields={"category": str} in the store)
+filtered = retriever.run(
+    query_embedding=result["text_embedder"]["embedding"],
+    filters={"field": "meta.category", "operator": "==", "value": "search"},
+)
+
+for doc in filtered["documents"]:
+    print(f"Filtered: {doc.content}")
+```
+
+Metadata filters are applied server-side in Valkey Search — they don't download all documents and filter in Python.
 
 ## How It Works
 

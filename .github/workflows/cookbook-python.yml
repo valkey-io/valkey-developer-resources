@@ -67,7 +67,10 @@ jobs:
             test-file: test_cache.py
           # Haystack uses ValkeyDocumentStore (requires search + json modules)
           - cookbook: framework-integrations/haystack
-            valkey-image: valkey/valkey-bundle:9.1.0
+            valkey-image: valkey/valkey-bundle:8.1.4
+            test-file: test_haystack.py
+          - cookbook: framework-integrations/haystack
+            valkey-image: valkey/valkey-bundle:9.1.1
             test-file: test_haystack.py
     services:
       valkey:
