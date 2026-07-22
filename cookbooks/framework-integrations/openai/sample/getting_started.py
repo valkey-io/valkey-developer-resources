@@ -37,6 +37,7 @@ from common import (
     embedding_dimension,
     field_text,
     vector_similarity,
+    validate_k,
 )
 
 INDEX_NAME = "openai-getting-started"
@@ -86,7 +87,7 @@ async def index_documents(
     client, documents: list[dict], tracked_keys: list[str] | None = None
 ) -> list[str]:
     """Embed and store the documents through GLIDE's JSON API."""
-    vectors = embed([doc["text"] for doc in documents])
+    vectors = await asyncio.to_thread(embed, [doc["text"] for doc in documents])
     keys = tracked_keys if tracked_keys is not None else []
     for doc, vector in zip(documents, vectors):
         key = f"{PREFIX}{doc['id']}"
@@ -102,7 +103,10 @@ async def index_documents(
 
 async def search(client, query: str, k: int = 3) -> list[dict]:
     """Run a KNN search with a bound vector parameter."""
-    query_blob = np.array(embed([query])[0], dtype=np.float32).tobytes()
+    k = validate_k(k)
+    query_blob = np.array(
+        (await asyncio.to_thread(embed, [query]))[0], dtype=np.float32
+    ).tobytes()
     _, docs = await ft.search(
         client,
         INDEX_NAME,

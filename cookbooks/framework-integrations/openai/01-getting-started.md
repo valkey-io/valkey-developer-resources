@@ -277,7 +277,9 @@ The top hit will be the Valkey document — it's the closest in meaning to "open
 | `OPENAI_API_KEY` | No | unset | Enables the OpenAI embedding path when set |
 | `EMBED_MODEL` | No | `text-embedding-3-small` | OpenAI embedding model |
 | `OPENAI_EMBEDDING_DIM` | No | `1536` | Dimension requested from OpenAI and used by the JSON vector index |
-| `EMBED_DIM` | Internal | `16` local, `1536` OpenAI | Vector dimension selected from the active embedding configuration |
+
+> **Note:** The vector dimension is `16` for the deterministic local path or the
+> value of `OPENAI_EMBEDDING_DIM` when using OpenAI.
 
 ## Teardown
 

@@ -73,6 +73,13 @@ def embedding_dimension() -> int:
     return dimension
 
 
+def validate_k(k: int) -> int:
+    """Bound KNN result size before placing it in query syntax."""
+    if isinstance(k, bool) or not isinstance(k, int) or not 1 <= k <= 1000:
+        raise ValueError("k must be an integer between 1 and 1000")
+    return k
+
+
 def _local_embedding(text: str) -> list[float]:
     """Create a stable, normalized vector without network access or model downloads."""
     vector = [0.0] * LOCAL_EMBEDDING_DIM

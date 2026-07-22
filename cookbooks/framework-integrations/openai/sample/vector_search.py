@@ -38,6 +38,7 @@ from common import (
     embedding_dimension,
     field_text,
     vector_similarity,
+    validate_k,
 )
 
 INDEX_NAME = "openai-vector-search"
@@ -87,7 +88,7 @@ async def create_hnsw_index(client) -> None:
 async def index_documents(
     client, documents: list[dict], tracked_keys: list[str] | None = None
 ) -> list[str]:
-    vectors = embed([doc["text"] for doc in documents])
+    vectors = await asyncio.to_thread(embed, [doc["text"] for doc in documents])
     # Demo loop; batch with the client's pipeline API for large corpora.
     keys = tracked_keys if tracked_keys is not None else []
     for doc, vector in zip(documents, vectors):
@@ -109,17 +110,12 @@ def validate_genre(genre: str) -> str:
     return genre
 
 
-def validate_k(k: int) -> int:
-    """Bound KNN result size before placing it in query syntax."""
-    if isinstance(k, bool) or not isinstance(k, int) or not 1 <= k <= 1000:
-        raise ValueError("k must be an integer between 1 and 1000")
-    return k
-
-
 async def search(client, query: str, k: int = 3, genre: str = "") -> list[dict]:
     genre = validate_genre(genre)
     k = validate_k(k)
-    query_blob = np.array(embed([query])[0], dtype=np.float32).tobytes()
+    query_blob = np.array(
+        (await asyncio.to_thread(embed, [query]))[0], dtype=np.float32
+    ).tobytes()
     filter_expr = f"@genre:{{{genre}}}" if genre else "*"
     _, docs = await ft.search(
         client,

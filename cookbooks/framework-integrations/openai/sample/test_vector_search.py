@@ -22,6 +22,7 @@ from common import (
 )
 from getting_started import INDEX_NAME as GETTING_STARTED_INDEX
 from getting_started import run_demo as run_getting_started
+from getting_started import search as search_getting_started
 from vector_search import (
     DOCUMENTS,
     INDEX_NAME as VECTOR_INDEX,
@@ -101,6 +102,20 @@ def test_hybrid_search_rejects_invalid_k(monkeypatch):
 
     with pytest.raises(ValueError, match="k"):
         asyncio.run(search(object(), "query", k=0))
+
+
+def test_getting_started_search_rejects_invalid_k(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "")
+
+    with pytest.raises(ValueError, match="k"):
+        asyncio.run(search_getting_started(object(), "query", k="3"))
+
+
+def test_hybrid_search_rejects_invalid_genre(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "")
+
+    with pytest.raises(ValueError, match="genre"):
+        asyncio.run(search(object(), "query", genre="tech|*"))
 
 
 def test_drop_index_does_not_hide_real_request_errors(monkeypatch):
