@@ -108,7 +108,9 @@ def cleanup_sample(
         for pattern in store_patterns:
             store_keys.update(client.scan_iter(match=pattern))
 
-        cache_namespace = f"{settings.cache_prefix}langchain-cookbook/{run_id}"
+        cache_namespace = (
+            f"{settings.cache_prefix}{settings.store_namespace}/{run_id}"
+        )
         if settings.cache_prefix:
             for key in client.scan_iter(match=f"{settings.cache_prefix}*"):
                 key_text = _key_text(key)
@@ -125,7 +127,7 @@ def cleanup_sample(
             ):
                 keys_to_delete.add(key)
 
-        checkpoint_marker = f"langchain-cookbook:{run_id}"
+        checkpoint_marker = f"{settings.store_namespace}:{run_id}"
         for key in client.scan_iter(match="*"):
             if _checkpoint_key_with_marker(
                 key,

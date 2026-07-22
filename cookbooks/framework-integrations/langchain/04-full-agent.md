@@ -13,6 +13,9 @@ caching, and semantic search in a LangGraph agent.
 - Python 3.10 or newer with the pinned requirements installed
 - A local Valkey Bundle running on `127.0.0.1:6379`
 
+> ⚠️ These examples use no authentication or TLS. See the
+> [security note in Getting Started](01-getting-started.md#step-1-start-valkey).
+
 ## Architecture
 
 ```text

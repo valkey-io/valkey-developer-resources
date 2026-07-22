@@ -64,7 +64,6 @@ jobs:
         run: pip install -r requirements.txt
       - name: Lint with ruff
         run: |
-          pip install ruff==0.15.22
           ruff check --output-format=github cookbooks/${{ matrix.cookbook }}/sample/
 
   python-integration-test:
@@ -107,9 +106,9 @@ jobs:
         working-directory: cookbooks/${{ matrix.cookbook }}/sample
         run: |
           python - <<'PY'
-          from main import Settings, create_valkey_client
+          from valkey import Valkey
 
-          client = create_valkey_client(Settings.from_env())
+          client = Valkey.from_url("valkey://127.0.0.1:6379")
           try:
               client.ping()
           finally:

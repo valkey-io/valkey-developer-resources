@@ -20,6 +20,7 @@ from main import (
     run_demo,
     run_store_demo,
 )
+from resources import _validate_run_id
 from valkey import Valkey
 
 
@@ -85,6 +86,28 @@ def _index_exists(client: Valkey, index_name: str) -> bool:
     return True
 
 
+class _RecordingCleanupClient:
+    def __init__(self) -> None:
+        self.patterns: list[str] = []
+
+    def exists(self, key: str) -> bool:
+        return False
+
+    def scan_iter(self, match: str):
+        self.patterns.append(match)
+        return iter(())
+
+
+def test_checkpoint_cleanup_scans_the_keyspace_once_for_checkpoints(
+    settings: Settings,
+) -> None:
+    client = _RecordingCleanupClient()
+
+    cleanup_sample(client, settings=settings)
+
+    assert client.patterns.count("*") == 1
+
+
 @pytest.mark.parametrize(
     ("key", "expected"),
     [
@@ -112,7 +135,7 @@ def test_checkpoint_cleanup_requires_an_exact_thread_id_boundary(
 
 def _seed_run_keys(client: Valkey, settings: Settings, run_id: str) -> None:
     client.set(
-        f"{settings.cache_prefix}langchain-cookbook/{run_id}/answer",
+        f"{settings.cache_prefix}{settings.store_namespace}/{run_id}/answer",
         "cached",
     )
     client.hset(
@@ -120,7 +143,7 @@ def _seed_run_keys(client: Valkey, settings: Settings, run_id: str) -> None:
         mapping={"value": "stored"},
     )
     client.set(
-        f"thread:{{langchain-cookbook:{run_id}}}:default",
+        f"thread:{{{settings.store_namespace}:{run_id}}}:default",
         "checkpoint",
     )
 
@@ -136,22 +159,25 @@ def test_cleanup_is_scoped_to_the_requested_run_by_default(
 
     assert not _scan_keys(
         valkey_client,
-        f"{settings.cache_prefix}langchain-cookbook/demo/*",
+        f"{settings.cache_prefix}{settings.store_namespace}/demo/*",
     )
     assert not _scan_keys(
         valkey_client,
         f"langgraph:{settings.store_namespace}:demo/*",
     )
-    assert not _scan_keys(valkey_client, "*langchain-cookbook:demo*")
+    assert not _scan_keys(valkey_client, f"*{settings.store_namespace}:demo*")
     assert _scan_keys(
         valkey_client,
-        f"{settings.cache_prefix}langchain-cookbook/other-run/*",
+        f"{settings.cache_prefix}{settings.store_namespace}/other-run/*",
     )
     assert _scan_keys(
         valkey_client,
         f"langgraph:{settings.store_namespace}:other-run/*",
     )
-    assert _scan_keys(valkey_client, "*langchain-cookbook:other-run*")
+    assert _scan_keys(
+        valkey_client,
+        f"*{settings.store_namespace}:other-run*",
+    )
 
     cleanup_sample(valkey_client, settings=settings, run_id="other-run")
 
@@ -165,7 +191,7 @@ def test_graph_checkpoint_persists_state_and_expires(
     with create_checkpointer(settings, client=valkey_client) as checkpointer:
         first = run_checkpoint_demo(
             checkpointer,
-            thread_id=thread_id,
+            thread_id=f"{settings.store_namespace}:{thread_id}",
             message="first message",
         )
 
@@ -174,7 +200,7 @@ def test_graph_checkpoint_persists_state_and_expires(
     with create_checkpointer(settings, client=valkey_client) as checkpointer:
         resumed = run_checkpoint_demo(
             checkpointer,
-            thread_id=thread_id,
+            thread_id=f"{settings.store_namespace}:{thread_id}",
             message="resumed message",
         )
 
@@ -192,7 +218,7 @@ def test_cache_miss_then_hit_and_explicit_ttl(
     settings: Settings, test_run_id: str, valkey_client: Valkey
 ) -> None:
     cache = create_cache(settings, client=valkey_client)
-    key = (("langchain-cookbook", test_run_id), f"answer-{test_run_id}")
+    key = ((settings.store_namespace, test_run_id), f"answer-{test_run_id}")
     value = {"answer": "Valkey is fast."}
 
     first = run_cache_demo(cache, key=key, value=value)
@@ -201,7 +227,7 @@ def test_cache_miss_then_hit_and_explicit_ttl(
     assert first == {"hit": False, "value": value}
     assert second == {"hit": True, "value": value}
 
-    short_ttl_key = (("langchain-cookbook", test_run_id), f"short-{test_run_id}")
+    short_ttl_key = ((settings.store_namespace, test_run_id), f"short-{test_run_id}")
     short_ttl = 3
     asyncio.run(
         cache.aset(
@@ -335,6 +361,39 @@ def test_environment_overrides_are_used(
     finally:
         cleanup_sample(client, settings=runtime_settings, run_id="demo")
         client.close()
+
+
+@pytest.mark.parametrize("run_id", ["demo*", "demo?", "demo[1]", "demo]"])
+def test_run_id_allows_glob_characters(run_id: str) -> None:
+    _validate_run_id(run_id)
+
+
+@pytest.mark.parametrize("url", [
+    "valkey://127.0.0.1:6379",
+    "valkeys://127.0.0.1:6379",
+    "unix:///tmp/valkey.sock",
+])
+def test_settings_accepts_supported_valkey_url_schemes(
+    monkeypatch: pytest.MonkeyPatch,
+    url: str,
+) -> None:
+    monkeypatch.setenv("VALKEY_URL", url)
+
+    assert Settings.from_env().valkey_url == url
+
+
+@pytest.mark.parametrize(
+    "url",
+    ["http://attacker.example.com:6379", "https://example.com", "ftp://host"],
+)
+def test_settings_rejects_unsupported_valkey_url_schemes(
+    monkeypatch: pytest.MonkeyPatch,
+    url: str,
+) -> None:
+    monkeypatch.setenv("VALKEY_URL", url)
+
+    with pytest.raises(ValueError, match="VALKEY_URL"):
+        Settings.from_env()
 
 
 def test_cleanup_runs_after_failure_and_second_run_is_idempotent(

@@ -13,6 +13,9 @@ LangChain application.
 - Python 3.10 or newer with the pinned requirements installed
 - A local Valkey Bundle running on `127.0.0.1:6379`
 
+> ⚠️ These examples use no authentication or TLS. See the
+> [security note in Getting Started](01-getting-started.md#step-1-start-valkey).
+
 ## The Problem
 
 LLM API calls can be expensive and slow. Users often send identical or near-identical prompts:
@@ -155,7 +158,7 @@ GET llm_cache:a1b2c3d4e5f6g7h8
 # Cache store
 SET llm_cache:a1b2c3d4e5f6g7h8 '{"response":"..."}' EX 3600
 
-# Cache clear
+# Cache clear (iterates; not atomic; concurrent writes may be missed)
 SCAN 0 MATCH llm_cache:* COUNT 100
 DEL llm_cache:a1b2c3d4e5f6g7h8 ...
 ```

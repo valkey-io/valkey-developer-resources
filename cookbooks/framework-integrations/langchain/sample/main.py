@@ -55,7 +55,7 @@ def run_checkpoint_demo(
 
     config = {
         "configurable": {
-            "thread_id": f"langchain-cookbook:{thread_id}",
+            "thread_id": thread_id,
         }
     }
     result = graph.invoke(
@@ -131,13 +131,13 @@ def run_demo(
         ):
             checkpoint = run_checkpoint_demo(
                 checkpointer,
-                thread_id=run_id,
+                thread_id=f"{settings.store_namespace}:{run_id}",
                 message=f"Run {run_id}: I forgot my password.",
             )
             _raise_if_requested("checkpoint", fail_at)
 
             cache_key = (
-                ("langchain-cookbook", run_id),
+                (settings.store_namespace, run_id),
                 f"answer-{run_id}",
             )
             cache_result = run_cache_demo(

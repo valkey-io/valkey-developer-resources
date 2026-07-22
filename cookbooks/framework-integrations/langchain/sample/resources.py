@@ -4,6 +4,7 @@ import math
 import os
 from dataclasses import dataclass
 from typing import Any, Generic, TypeVar
+from urllib.parse import urlsplit
 
 from langchain_core.embeddings import Embeddings
 from langgraph_checkpoint_aws import ValkeyCache, ValkeySaver, ValkeyStore
@@ -37,6 +38,19 @@ def _positive_float(name: str, value: Any) -> float:
     return parsed
 
 
+def _validate_valkey_url(value: str) -> str:
+    parsed = urlsplit(value) if isinstance(value, str) else None
+    if parsed is None or parsed.scheme.lower() not in {
+        "valkey",
+        "valkeys",
+        "unix",
+    }:
+        raise ValueError(
+            "VALKEY_URL must use valkey://, valkeys://, or unix:// scheme"
+        )
+    return value
+
+
 @dataclass(frozen=True)
 class Settings:
     valkey_url: str = "valkey://127.0.0.1:6379"
@@ -49,6 +63,7 @@ class Settings:
     store_namespace: str = "langchain-cookbook"
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "valkey_url", _validate_valkey_url(self.valkey_url))
         object.__setattr__(
             self,
             "socket_timeout",
