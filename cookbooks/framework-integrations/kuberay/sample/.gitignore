@@ -1,0 +1,11 @@
+# Kubernetes generated
+*.bak
+*.swp
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
