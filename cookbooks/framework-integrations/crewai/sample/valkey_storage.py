@@ -326,16 +326,20 @@ class ValkeyStorageBackend:
             limit=FtSearchLimit(0, 1000),
             nocontent=True,
         )
-        result = await ft.search(client, self._index_name, query, options)
-        count = result[0]
-        if count > 0:
-            keys_to_delete = []
-            # When nocontent=True, result[1] is still a dict with empty field maps
-            for key in result[1].keys():
-                k = key.decode() if isinstance(key, bytes) else key
-                keys_to_delete.append(k)
+        # Loop until no more matching records (handles >1000 records)
+        while True:
+            result = await ft.search(client, self._index_name, query, options)
+            count = result[0]
+            if count == 0:
+                break
+            keys_to_delete = [
+                key.decode() if isinstance(key, bytes) else key
+                for key in result[1].keys()
+            ]
             if keys_to_delete:
-                deleted = await client.delete(keys_to_delete)
+                deleted += await client.delete(keys_to_delete)
+            else:
+                break
 
         return int(deleted)
 
@@ -543,5 +547,6 @@ class ValkeyStorageBackend:
         if hasattr(self, "_loop") and self._loop and not self._loop.is_closed():
             self._loop.call_soon_threadsafe(self._loop.stop)
             self._loop_thread.join(timeout=5)
-            self._loop.close()
+            if not self._loop_thread.is_alive():
+                self._loop.close()
             self._loop = None

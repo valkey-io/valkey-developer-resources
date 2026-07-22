@@ -59,7 +59,7 @@ hnsw = VectorFieldAttributesHnsw(
 )
 schema = [
     TagField("scope"),
-    TagField("categories"),
+    TagField("categories", separator="|"),
     NumericField("importance"),
     NumericField("created_at"),
     VectorField("embedding", VectorAlgorithm.HNSW, hnsw),
@@ -87,7 +87,7 @@ def record_to_hash(record: MemoryRecord) -> dict[str, str | bytes]:
         "id": record.id,
         "content": record.content,
         "scope": record.scope,
-        "categories": ",".join(record.categories),
+        "categories": "|".join(record.categories),
         "metadata_json": json.dumps(record.metadata),
         "importance": str(record.importance),
         "created_at": str(record.created_at.timestamp()),

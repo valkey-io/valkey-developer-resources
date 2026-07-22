@@ -107,6 +107,11 @@ class TestSaveAndRetrieve:
             backend.save([record])
 
     def test_get_record_by_id(self, backend: ValkeyStorageBackend):
+        backend.reset()
+        vec = make_vector(42)
+        record = make_record("rec-1", "Test memory content", embedding=vec)
+        backend.save([record])
+        wait_for_indexing(backend, 1)
         retrieved = backend.get_record("rec-1")
         assert retrieved is not None
         assert retrieved.id == "rec-1"
@@ -226,12 +231,25 @@ class TestScopeOperations:
         assert backend.count(scope_prefix="/team/beta") == 1
 
     def test_get_scope_info(self, backend: ValkeyStorageBackend):
+        backend.reset()
+        backend.save([
+            make_record("info-1", "A", scope="/team/alpha", embedding=make_vector(510)),
+            make_record("info-2", "B", scope="/team/alpha", embedding=make_vector(511)),
+        ])
+        wait_for_indexing(backend, 2)
         info = backend.get_scope_info("/team/alpha")
         assert isinstance(info, ScopeInfo)
         assert info.path == "/team/alpha"
         assert info.record_count == 2
 
     def test_list_records(self, backend: ValkeyStorageBackend):
+        backend.reset()
+        backend.save([
+            make_record("list-1", "A", scope="/team/alpha", embedding=make_vector(520)),
+            make_record("list-2", "B", scope="/team/alpha", embedding=make_vector(521)),
+            make_record("list-3", "C", scope="/team/beta", embedding=make_vector(522)),
+        ])
+        wait_for_indexing(backend, 3)
         records = backend.list_records(scope_prefix="/team/alpha")
         assert len(records) == 2
         assert all(r.scope == "/team/alpha" for r in records)
