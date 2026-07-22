@@ -7,7 +7,7 @@ Requires only Valkey running on localhost:6379 with the search module.
 from __future__ import annotations
 
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 import numpy as np
 import pytest
@@ -55,8 +55,8 @@ def make_record(
         categories=categories or [],
         metadata={},
         importance=importance,
-        created_at=datetime.now(),
-        last_accessed=datetime.now(),
+        created_at=datetime.now(timezone.utc),
+        last_accessed=datetime.now(timezone.utc),
         embedding=embedding,
     )
 
@@ -98,6 +98,13 @@ class TestSaveAndRetrieve:
         backend.save([record])
         wait_for_indexing(backend, 1)
         assert backend.count() >= 1
+
+    def test_save_rejects_wrong_embedding_dimension(self, backend: ValkeyStorageBackend):
+        """Embedding dimension mismatch must raise ValueError, not silently corrupt."""
+        wrong_dim_vec = [0.1] * (EMBEDDING_DIM + 2)  # Wrong dimension
+        record = make_record("bad-dim", "Should fail", embedding=wrong_dim_vec)
+        with pytest.raises(ValueError, match="Embedding dimension mismatch"):
+            backend.save([record])
 
     def test_get_record_by_id(self, backend: ValkeyStorageBackend):
         retrieved = backend.get_record("rec-1")

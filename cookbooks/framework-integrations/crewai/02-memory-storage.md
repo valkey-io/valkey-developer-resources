@@ -105,13 +105,21 @@ Embeddings are packed as FLOAT32 bytes — the format `FT.SEARCH` expects for KN
 ```python
 from glide_shared.commands.server_modules.ft_options.ft_search_options import FtSearchOptions
 
+# All 32 token separator characters from RediSearch/valkey-search ToksepMap_g
+_TAG_SPECIAL = set(' \t,./(){}[]:;~!@#$%^&*-=+|\'`"<>?\\')
+
+def _sanitize_tag_value(value: str) -> str:
+    """Escape TAG-special characters to prevent query injection."""
+    return "".join(f"\\{ch}" if ch in _TAG_SPECIAL else ch for ch in value)
+
 async def search(client, query_embedding, scope=None, categories=None, limit=10):
     filters = []
     if scope:
-        escaped = scope.replace("/", "\\/")
+        escaped = _sanitize_tag_value(scope)
         filters.append(f"@scope:{{{escaped}}}")
     if categories:
-        joined = "|".join(categories)
+        sanitized = [_sanitize_tag_value(c) for c in categories]
+        joined = "|".join(sanitized)
         filters.append(f"@categories:{{{joined}}}")
 
     filter_str = " ".join(filters) if filters else "*"

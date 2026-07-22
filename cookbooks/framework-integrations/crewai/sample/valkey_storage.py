@@ -15,8 +15,7 @@ import asyncio
 import json
 import struct
 import threading
-import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from glide import (
@@ -48,8 +47,9 @@ from crewai.memory.types import MemoryRecord, ScopeInfo
 INDEX_NAME = "crewai_memory_idx"
 KEY_PREFIX = "crewai:mem:"
 
-# Characters that are special in FT.SEARCH TAG query syntax
-_TAG_SPECIAL = set(r'\|{}@-*$!(),.~\'"')
+# Characters that are token separators in FT.SEARCH TAG query syntax.
+# Sourced from RediSearch ToksepMap_g (src/toksep.h) — 32 characters total.
+_TAG_SPECIAL = set(' \t,./(){}[]:;~!@#$%^&*-=+|\'`"<>?\\')
 
 
 def _sanitize_tag_value(value: str) -> str:
@@ -109,13 +109,16 @@ class ValkeyStorageBackend:
     async def _ensure_index(self) -> None:
         """Create the HNSW vector index if it doesn't exist."""
         client = self._client
-        assert client is not None
+        if client is None:
+            raise RuntimeError("Client not initialized before _ensure_index")
         try:
             existing = await ft.list(client)
             if self._index_name.encode() in existing:
                 return
-        except RequestError:
-            pass
+        except RequestError as exc:
+            # Only swallow "unknown command" (module not loaded); re-raise real errors
+            if "unknown command" not in str(exc).lower():
+                raise
 
         hnsw = VectorFieldAttributesHnsw(
             dimensions=self._embedding_dim,
@@ -140,6 +143,11 @@ class ValkeyStorageBackend:
         """Serialize a MemoryRecord to HASH field mapping."""
         embedding_bytes = b""
         if record.embedding:
+            if len(record.embedding) != self._embedding_dim:
+                raise ValueError(
+                    f"Embedding dimension mismatch: got {len(record.embedding)}, "
+                    f"expected {self._embedding_dim}"
+                )
             embedding_bytes = struct.pack(
                 f"<{len(record.embedding)}f", *record.embedding
             )
@@ -196,8 +204,8 @@ class ValkeyStorageBackend:
             categories=categories,
             metadata=metadata,
             importance=float(_get("importance") or "0.5"),
-            created_at=datetime.fromtimestamp(created_ts) if created_ts else datetime.now(),
-            last_accessed=datetime.fromtimestamp(accessed_ts) if accessed_ts else datetime.now(),
+            created_at=datetime.fromtimestamp(created_ts, tz=timezone.utc) if created_ts else datetime.now(timezone.utc),
+            last_accessed=datetime.fromtimestamp(accessed_ts, tz=timezone.utc) if accessed_ts else datetime.now(timezone.utc),
             embedding=embedding,
             source=_get("source") or None,
             private=_get("private") == "1",
@@ -223,6 +231,10 @@ class ValkeyStorageBackend:
         limit: int = 10,
         min_score: float = 0.0,
     ) -> list[tuple[MemoryRecord, float]]:
+        if metadata_filter:
+            raise NotImplementedError(
+                "metadata_filter is not yet implemented in ValkeyStorageBackend"
+            )
         client = await self._get_client()
 
         # Build filter
@@ -267,6 +279,14 @@ class ValkeyStorageBackend:
         older_than: datetime | None = None,
         metadata_filter: dict[str, Any] | None = None,
     ) -> int:
+        if older_than is not None:
+            raise NotImplementedError(
+                "older_than filtering is not yet implemented in ValkeyStorageBackend"
+            )
+        if metadata_filter:
+            raise NotImplementedError(
+                "metadata_filter is not yet implemented in ValkeyStorageBackend"
+            )
         client = await self._get_client()
         deleted = 0
 
@@ -494,8 +514,10 @@ class ValkeyStorageBackend:
                 client = await self._get_client()
                 try:
                     await ft.dropindex(client, self._index_name)
-                except RequestError:
-                    pass
+                except RequestError as exc:
+                    # Only swallow "unknown index" (index doesn't exist); re-raise real errors
+                    if "not found" not in str(exc).lower() and "unknown index" not in str(exc).lower():
+                        raise
                 # Delete all keys with our prefix
                 # GLIDE v2 doesn't have scan_iter; use custom_command
                 cursor = "0"

@@ -8,8 +8,6 @@ Runs without any LLM or embedding service — uses fixed test vectors.
 from __future__ import annotations
 
 import asyncio
-import struct
-import time
 
 import numpy as np
 from glide import ft, GlideClient
@@ -89,7 +87,7 @@ async def run_demo() -> None:
         print(f"Stored {len(memories)} memory records")
 
         # Wait for indexing
-        time.sleep(0.5)
+        await asyncio.sleep(0.5)
 
         # Step 4: KNN search — find memories similar to a query vector
         query_vec = np.array([0.9, 0.1, 0.0, 0.0], dtype=np.float32)
