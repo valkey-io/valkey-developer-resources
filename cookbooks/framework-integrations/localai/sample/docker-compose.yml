@@ -9,7 +9,7 @@ services:
   valkey:
     image: valkey/valkey-bundle:8.1.7   # bundle ships the Valkey Search (FT.*) module
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       # Dependent services (a future localai service) can gate on this with
       # depends_on: { valkey: { condition: service_healthy } }.

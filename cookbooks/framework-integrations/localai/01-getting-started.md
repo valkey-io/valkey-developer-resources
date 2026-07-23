@@ -28,14 +28,12 @@ The backend needs a Valkey server with the **Valkey Search** (`FT.*`) module. Th
 `valkey/valkey-bundle` image ships it:
 
 ```bash
-docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:8.1.7
+docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:8.1.7
 ```
 
 > **Note:** All examples use `docker`. Substitute `podman` if that's your container runtime — the commands are identical.
 >
-> ⚠️ **Security:** These examples use no authentication or TLS for simplicity.
-> For any non-localhost deployment, enable authentication and TLS.
-> See the [Valkey security documentation](https://valkey.io/topics/security/).
+> **Security:** This local example uses no authentication or TLS. For any non-localhost deployment, enable authentication and TLS. See the [Valkey security documentation](https://valkey.io/topics/security/).
 
 Confirm the Search module is loaded:
 
@@ -208,4 +206,4 @@ configured through a LocalAI **model config** — see [03](03-production.md).
 
 ---
 
-[02 - Vector Search & Persistence →](02-vector-search.md)
+[02 - Vector Search & Persistence ->](02-vector-search.md)

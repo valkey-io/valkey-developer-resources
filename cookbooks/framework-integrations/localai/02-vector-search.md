@@ -211,4 +211,4 @@ idempotent upsert.
 
 ---
 
-[← 01 - Getting Started](01-getting-started.md) | [03 - Production Configuration →](03-production.md)
+[<- 01 - Getting Started](01-getting-started.md) | [03 - Production Configuration ->](03-production.md)

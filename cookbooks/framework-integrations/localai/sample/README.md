@@ -31,7 +31,7 @@ pip install -r requirements.txt
 Or start Valkey manually:
 
 ```bash
-docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:8.1.7
+docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:8.1.7
 pip install -r requirements.txt
 ```
 
