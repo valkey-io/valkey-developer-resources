@@ -6,9 +6,9 @@
 
 | Cookbook | Level | Description |
 | --- | --- | --- |
-| [Getting Started](./01-getting-started/) | Beginner | Connect LangChain.js to Valkey, store embeddings, and run similarity searches |
-| [Metadata Filtering](./02-metadata-filtering/) | Intermediate | Filter vector search results using metadata fields and hybrid queries |
-| [RAG Pipeline](./03-rag-pipeline/) | Intermediate | Build a retrieval-augmented generation pipeline with Valkey as the retriever |
+| [Getting Started](./01-getting-started.md) | Beginner | Connect LangChain.js to Valkey, store embeddings, and run similarity searches |
+| [Metadata Filtering](./02-metadata-filtering.md) | Intermediate | Filter vector search results using metadata fields and hybrid queries |
+| [RAG Pipeline](./03-rag-pipeline.md) | Intermediate | Build a retrieval-augmented generation pipeline with Valkey as the retriever |
 
 ## Prerequisites
 
