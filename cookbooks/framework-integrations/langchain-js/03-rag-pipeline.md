@@ -17,7 +17,7 @@ end-to-end RAG pipeline that answers questions from your own documents.
 - Installed packages:
 
 ```bash
-npm install langchain @langchain/openai @langchain/community ioredis
+npm install @langchain/valkey @langchain/openai @langchain/core @valkey/valkey-glide langchain
 ```
 
 ## Security Note
@@ -69,20 +69,25 @@ The `chunkOverlap` ensures context isn't lost at split boundaries. Adjust `chunk
 Use `ValkeyVectorStore.fromDocuments` to embed all chunks and store them in a single call.
 
 ```typescript
-import { ValkeyVectorStore } from "@langchain/community/vectorstores/valkey";
+import { ValkeyVectorStore } from "@langchain/valkey";
 import { OpenAIEmbeddings } from "@langchain/openai";
+import { GlideClient } from "@valkey/valkey-glide";
 
 const embeddings = new OpenAIEmbeddings({
   model: "text-embedding-3-small",
 });
 
+const client = await GlideClient.createClient({
+  addresses: [{ host: "localhost", port: 6379 }],
+});
+
 const vectorStore = await ValkeyVectorStore.fromDocuments(docs, embeddings, {
-  redisUrl: "redis://localhost:6379",
+  valkeyClient: client,
   indexName: "rag-docs",
-  keyPrefix: "doc:",
+  keyPrefix: "doc:rag-docs:",
   indexOptions: {
-    algorithm: "HNSW",
-    distanceMetric: "COSINE",
+    ALGORITHM: "HNSW",
+    DISTANCE_METRIC: "COSINE",
   },
 });
 
@@ -172,8 +177,9 @@ The response includes both the generated answer and the source documents used, e
 ```typescript
 import { TextLoader } from "langchain/document_loaders/fs/text";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
-import { ValkeyVectorStore } from "@langchain/community/vectorstores/valkey";
+import { ValkeyVectorStore } from "@langchain/valkey";
 import { OpenAIEmbeddings, ChatOpenAI } from "@langchain/openai";
+import { GlideClient } from "@valkey/valkey-glide";
 import { createRetrievalChain } from "langchain/chains/retrieval";
 import { createStuffDocumentsChain } from "langchain/chains/combine_documents";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
@@ -191,17 +197,21 @@ async function main() {
   console.log(`Split into ${docs.length} chunks`);
 
   // 2. Create vector store and ingest
+  const client = await GlideClient.createClient({
+    addresses: [{ host: "localhost", port: 6379 }],
+  });
+
   const embeddings = new OpenAIEmbeddings({
     model: "text-embedding-3-small",
   });
 
   const vectorStore = await ValkeyVectorStore.fromDocuments(docs, embeddings, {
-    redisUrl: "redis://localhost:6379",
+    valkeyClient: client,
     indexName: "rag-docs",
-    keyPrefix: "doc:",
+    keyPrefix: "doc:rag-docs:",
     indexOptions: {
-      algorithm: "HNSW",
-      distanceMetric: "COSINE",
+      ALGORITHM: "HNSW",
+      DISTANCE_METRIC: "COSINE",
     },
   });
   console.log(`Ingested ${docs.length} chunks into Valkey`);
@@ -241,7 +251,7 @@ Context:
   );
 
   // Clean up connection
-  await vectorStore.client?.disconnect();
+  client.close();
 }
 
 main().catch(console.error);
@@ -253,13 +263,13 @@ For time-limited document sets (e.g., daily reports, session-scoped context), se
 
 ```typescript
 const vectorStore = await ValkeyVectorStore.fromDocuments(docs, embeddings, {
-  redisUrl: "redis://localhost:6379",
+  valkeyClient: client,
   indexName: "ephemeral-rag",
   keyPrefix: "session:abc123:",
   ttl: 3600, // Expire documents after 1 hour
   indexOptions: {
-    algorithm: "HNSW",
-    distanceMetric: "COSINE",
+    ALGORITHM: "HNSW",
+    DISTANCE_METRIC: "COSINE",
   },
 });
 ```
@@ -280,34 +290,35 @@ For large document sets, use `batchSize` to control how many embeddings are gene
 
 ```typescript
 const vectorStore = await ValkeyVectorStore.fromDocuments(docs, embeddings, {
-  redisUrl: "redis://localhost:6379",
+  valkeyClient: client,
   indexName: "rag-docs",
-  keyPrefix: "doc:",
+  keyPrefix: "doc:rag-docs:",
   batchSize: 100, // Process 100 chunks at a time
   indexOptions: {
-    algorithm: "HNSW",
-    distanceMetric: "COSINE",
+    ALGORITHM: "HNSW",
+    DISTANCE_METRIC: "COSINE",
   },
 });
 ```
 
 ### Connection Pooling
 
-For production workloads with concurrent queries, use a connection pool instead of a single client.
+`GlideClient` from `@valkey/valkey-glide` manages connection pooling internally.
+For production workloads with concurrent queries, create the client once and reuse it:
 
 ```typescript
-import Redis from "ioredis";
+import { GlideClient } from "@valkey/valkey-glide";
 
-const redisClient = new Redis("redis://localhost:6379", {
-  maxRetriesPerRequest: 3,
-  retryDelayOnFailover: 100,
-  lazyConnect: true,
+// Create once at application startup
+const client = await GlideClient.createClient({
+  addresses: [{ host: "valkey.internal", port: 6379 }],
 });
 
+// Reuse across vector store instances
 const vectorStore = new ValkeyVectorStore(embeddings, {
-  redisClient,
+  valkeyClient: client,
   indexName: "rag-docs",
-  keyPrefix: "doc:",
+  keyPrefix: "doc:rag-docs:",
 });
 ```
 

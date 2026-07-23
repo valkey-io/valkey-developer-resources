@@ -36,7 +36,7 @@ When you call `ValkeyVectorStore.fromDocuments()` or `addDocuments()`, LangChain
 ```typescript
 import { ValkeyVectorStore } from "@langchain/valkey";
 import { OpenAIEmbeddings } from "@langchain/openai";
-import GlideClient from "@valkey/valkey-glide";
+import { GlideClient } from "@valkey/valkey-glide";
 
 // Connect to Valkey
 const client = await GlideClient.createClient({
