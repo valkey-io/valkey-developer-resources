@@ -152,75 +152,79 @@ class TestVectorStorePattern:
 
         index_name = "test-langflow-search"
 
-        # Clean up from previous runs
         try:
-            client.execute_command("FT.DROPINDEX", index_name)
-        except valkey.ResponseError:
-            pass
-        # Also clean up any leftover keys
-        for key in client.scan_iter(b"test:vec:*"):
-            client.delete(key)
+            # Clean up from previous runs
+            try:
+                client.execute_command("FT.DROPINDEX", index_name)
+            except valkey.ResponseError:
+                pass
+            # Also clean up any leftover keys
+            for key in client.scan_iter(b"test:vec:*"):
+                client.delete(key)
 
-        # Create index (TAG for metadata fields in valkey-search)
-        client.execute_command(
-            "FT.CREATE",
-            index_name,
-            "ON",
-            "HASH",
-            "PREFIX",
-            "1",
-            "test:vec:",
-            "SCHEMA",
-            "content",
-            "TAG",
-            "content_vector",
-            "VECTOR",
-            "FLAT",
-            "6",
-            "TYPE",
-            "FLOAT32",
-            "DIM",
-            "4",
-            "DISTANCE_METRIC",
-            "COSINE",
-        )
-
-        # Store documents with fake 4-dimensional vectors
-        vectors = [
-            ([1.0, 0.0, 0.0, 0.0], "Valkey is a fast database"),
-            ([0.0, 1.0, 0.0, 0.0], "Python is a programming language"),
-            ([0.9, 0.1, 0.0, 0.0], "Valkey supports vector search"),
-        ]
-
-        for i, (vec, content) in enumerate(vectors):
-            vec_bytes = struct.pack(f"{len(vec)}f", *vec)
-            client.hset(
-                f"test:vec:{i}",
-                mapping={"content": content, "content_vector": vec_bytes},
+            # Create index (TAG for metadata fields in valkey-search)
+            client.execute_command(
+                "FT.CREATE",
+                index_name,
+                "ON",
+                "HASH",
+                "PREFIX",
+                "1",
+                "test:vec:",
+                "SCHEMA",
+                "content",
+                "TAG",
+                "content_vector",
+                "VECTOR",
+                "FLAT",
+                "6",
+                "TYPE",
+                "FLOAT32",
+                "DIM",
+                "4",
+                "DISTANCE_METRIC",
+                "COSINE",
             )
 
-        # Search for vectors similar to [1.0, 0.0, 0.0, 0.0]
-        query_vec = struct.pack("4f", 1.0, 0.0, 0.0, 0.0)
-        results = client.execute_command(
-            "FT.SEARCH",
-            index_name,
-            "*=>[KNN 2 @content_vector $BLOB AS score]",
-            "PARAMS",
-            "2",
-            "BLOB",
-            query_vec,
-            "DIALECT",
-            "2",
-        )
+            # Store documents with fake 4-dimensional vectors
+            vectors = [
+                ([1.0, 0.0, 0.0, 0.0], "Valkey is a fast database"),
+                ([0.0, 1.0, 0.0, 0.0], "Python is a programming language"),
+                ([0.9, 0.1, 0.0, 0.0], "Valkey supports vector search"),
+            ]
 
-        # Results format: [total_count, key1, fields1, key2, fields2, ...]
-        assert results[0] >= 2
-        # First result should be the exact match or closest
-        first_fields = dict(zip(results[2][::2], results[2][1::2]))
-        assert b"Valkey" in first_fields[b"content"]
+            for i, (vec, content) in enumerate(vectors):
+                vec_bytes = struct.pack(f"{len(vec)}f", *vec)
+                client.hset(
+                    f"test:vec:{i}",
+                    mapping={"content": content, "content_vector": vec_bytes},
+                )
 
-        # Clean up
-        client.execute_command("FT.DROPINDEX", index_name)
-        for key in client.scan_iter(b"test:vec:*"):
-            client.delete(key)
-        client.close()
+            # Search for vectors similar to [1.0, 0.0, 0.0, 0.0]
+            query_vec = struct.pack("4f", 1.0, 0.0, 0.0, 0.0)
+            results = client.execute_command(
+                "FT.SEARCH",
+                index_name,
+                "*=>[KNN 2 @content_vector $BLOB AS score]",
+                "PARAMS",
+                "2",
+                "BLOB",
+                query_vec,
+                "DIALECT",
+                "2",
+            )
+
+            # Results format: [total_count, key1, fields1, key2, fields2, ...]
+            assert results[0] >= 2
+            # First result should be the exact match or closest
+            first_fields = dict(zip(results[2][::2], results[2][1::2]))
+            assert b"Valkey" in first_fields[b"content"]
+        finally:
+            # Clean up index and keys
+            try:
+                client.execute_command("FT.DROPINDEX", index_name)
+            except valkey.ResponseError:
+                pass
+            for key in client.scan_iter(b"test:vec:*"):
+                client.delete(key)
+            client.close()

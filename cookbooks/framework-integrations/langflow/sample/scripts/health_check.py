@@ -28,10 +28,12 @@ def check_valkey(host: str = "localhost", port: int = 6379) -> bool:
     """Verify Valkey is responding to PING."""
     try:
         sock = socket.create_connection((host, port), timeout=2)
-        sock.sendall(b"PING\r\n")
-        response = sock.recv(64)
-        sock.close()
-        return b"PONG" in response
+        try:
+            sock.sendall(b"PING\r\n")
+            response = sock.recv(64)
+            return b"PONG" in response
+        finally:
+            sock.close()
     except (socket.error, OSError):
         return False
 

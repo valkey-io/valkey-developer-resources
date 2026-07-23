@@ -26,9 +26,12 @@ def valkey_client(valkey_host: str, valkey_port: int) -> valkey.Valkey:
 
 @pytest.fixture
 def clean_prefix(valkey_client: valkey.Valkey) -> str:
-    """Provide a unique key prefix and clean up after the test."""
+    """Provide a unique key prefix and clean up before/after the test."""
     prefix = "test:langflow:"
+    # Pre-clean: remove leftover keys from crashed runs
+    for key in valkey_client.scan_iter(f"{prefix}*"):
+        valkey_client.delete(key)
     yield prefix
-    # Clean up all keys with this prefix
+    # Post-clean
     for key in valkey_client.scan_iter(f"{prefix}*"):
         valkey_client.delete(key)

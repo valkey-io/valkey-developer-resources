@@ -10,11 +10,17 @@ services:
       retries: 5
 
   langflow:
-    image: langflowai/langflow:latest
+    image: langflowai/langflow:1.11.0
     ports:
       - "7860:7860"
     environment:
       - LANGFLOW_AUTO_LOGIN=true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7860/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     depends_on:
       valkey:
         condition: service_healthy

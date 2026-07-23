@@ -3,10 +3,10 @@
 > Build a persistent memory chatbot in Langflow using Valkey Chat Memory —
 > no additional modules required.
 
-## Who is this for
+**Beginner** · Python · ~15 min
 
-Developers and AI practitioners who want to use Langflow's visual workflow builder
-with Valkey as a persistent chat memory backend.
+**Who is this for:** Developers and AI practitioners who want to use Langflow's
+visual workflow builder with Valkey as a persistent chat memory backend.
 You should be comfortable running Docker containers and navigating a web UI.
 
 ## Prerequisites

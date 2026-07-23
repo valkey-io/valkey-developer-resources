@@ -3,11 +3,11 @@
 > Ingest documents into Valkey Vector Store and build a RAG chatbot
 > that answers questions using semantic similarity search.
 
-## Who is this for
+**Intermediate** · Python · ~20 min
 
-Developers building Retrieval-Augmented Generation (RAG) applications who want
-a visual workflow for document ingestion and retrieval, backed by Valkey's
-vector search capabilities.
+**Who is this for:** Developers building Retrieval-Augmented Generation (RAG)
+applications who want a visual workflow for document ingestion and retrieval,
+backed by Valkey's vector search capabilities.
 You should have completed the [Getting Started](01-getting-started.md) guide.
 
 ## Prerequisites

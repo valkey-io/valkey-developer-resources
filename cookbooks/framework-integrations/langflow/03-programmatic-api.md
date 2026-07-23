@@ -4,11 +4,11 @@
 > ingestion, query flows with custom parameters, and integrate Valkey-backed
 > AI workflows into your applications.
 
-## Who is this for
+**Intermediate** · Python · ~15 min
 
-Developers who have built Langflow flows (from the previous cookbooks) and want to
-trigger them from code — for batch processing, integration with existing applications,
-or CI/CD pipelines.
+**Who is this for:** Developers who have built Langflow flows (from the previous
+cookbooks) and want to trigger them from code — for batch processing, integration
+with existing applications, or CI/CD pipelines.
 You should have completed the [Vector Store RAG](02-vector-store-rag.md) guide.
 
 ## Prerequisites
