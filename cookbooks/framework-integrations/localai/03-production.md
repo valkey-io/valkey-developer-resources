@@ -76,7 +76,7 @@ both are set, but `*_env` keeps secrets out of the config file.
 
 ## Step 3: Enable TLS for any non-localhost connection
 
-> **Security:** `tls` defaults to `false` (plaintext). Whenever Valkey is not
+> ⚠️ **Security:** `tls` defaults to `false` (plaintext). Whenever Valkey is not
 > on `localhost`, or you send a password, set `tls:true` — otherwise credentials
 > and vectors travel the network unencrypted.
 
@@ -172,4 +172,4 @@ When no config exists for a store, the backend uses these defaults against
 
 ---
 
-[<- 02 - Vector Search & Persistence](02-vector-search.md)
+[← 02 - Vector Search & Persistence](02-vector-search.md)
