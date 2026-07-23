@@ -1,0 +1,19 @@
+# Starts the Valkey Search server the valkey-store backend connects to.
+#
+# LocalAI itself is intentionally NOT in this compose file: the valkey-store
+# backend is added in mudler/LocalAI#10770, which is not yet in a released
+# image or the backend gallery, so LocalAI must be built from the PR branch for
+# now (see ../01-getting-started.md, Steps 2-3). Once the PR merges and ships,
+# a localai service can be added here pointing at this valkey service.
+services:
+  valkey:
+    image: valkey/valkey-bundle:8.1.7   # bundle ships the Valkey Search (FT.*) module
+    ports:
+      - "6379:6379"
+    healthcheck:
+      # Dependent services (a future localai service) can gate on this with
+      # depends_on: { valkey: { condition: service_healthy } }.
+      test: ["CMD", "valkey-cli", "PING"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
