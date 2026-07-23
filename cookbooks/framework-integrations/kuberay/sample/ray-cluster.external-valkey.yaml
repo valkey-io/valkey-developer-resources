@@ -23,8 +23,8 @@ metadata:
   name: valkey-password-secret
 type: Opaque
 data:
-  # echo -n "5241590000000000" | base64
-  password: NTI0MTU5MDAwMDAwMDAwMA==
+  # echo -n "REPLACE-ME-WITH-STRONG-PASSWORD" | base64
+  password: UkVQTEFDRS1NRS1XSVRILVNUUk9ORy1QQVNTV09SRA==
 ---
 kind: ConfigMap
 apiVersion: v1
@@ -60,9 +60,15 @@ spec:
       labels:
         app: valkey
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        fsGroup: 1000
       containers:
       - name: valkey
         image: valkey/valkey:8.1.8-alpine
+        securityContext:
+          allowPrivilegeEscalation: false
         command:
         - "sh"
         - "-c"
@@ -75,14 +81,27 @@ spec:
               key: password
         ports:
         - containerPort: 6379
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "256Mi"
         volumeMounts:
         - name: config
           mountPath: /usr/local/etc/valkey/valkey.conf
           subPath: valkey.conf
+        - name: data
+          mountPath: /data
       volumes:
       - name: config
         configMap:
           name: valkey-config
+      # emptyDir survives container restarts but NOT pod deletion.
+      # For production persistence, replace with a PersistentVolumeClaim.
+      - name: data
+        emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
@@ -173,7 +192,7 @@ spec:
         - name: ray-example-configmap
           configMap:
             name: ray-example
-            defaultMode: 0777
+            defaultMode: 0555
             items:
             - key: detached_actor.py
               path: detached_actor.py
@@ -203,3 +222,24 @@ spec:
         volumes:
         - name: ray-logs
           emptyDir: {}
+# ---
+# # Uncomment for production: restrict Valkey access to Ray pods only.
+# # Requires a CNI that supports NetworkPolicy (Calico, Cilium, etc.).
+# apiVersion: networking.k8s.io/v1
+# kind: NetworkPolicy
+# metadata:
+#   name: valkey-allow-ray-only
+# spec:
+#   podSelector:
+#     matchLabels:
+#       app: valkey
+#   policyTypes:
+#   - Ingress
+#   ingress:
+#   - from:
+#     - podSelector:
+#         matchLabels:
+#           ray.io/cluster: raycluster-external-valkey
+#     ports:
+#     - protocol: TCP
+#       port: 6379

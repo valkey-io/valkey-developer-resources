@@ -64,7 +64,7 @@ Run it again: `2`, `3`, etc. The counter state lives in the worker process; the 
 Check that Valkey has the actor metadata:
 
 ```bash
-kubectl exec deploy/valkey -- valkey-cli -a "5241590000000000" --no-auth-warning DBSIZE
+kubectl exec deploy/valkey -- valkey-cli -a "REPLACE-ME-WITH-STRONG-PASSWORD" --no-auth-warning DBSIZE
 ```
 
 The count should be > 0, confirming GCS data is persisted.

@@ -2,6 +2,8 @@
 
 Kubernetes manifests for deploying a RayCluster with Valkey-backed GCS fault tolerance.
 
+> This is a Kubernetes-native sample — `kubectl apply` replaces `docker-compose up`.
+
 ## Prerequisites
 
 - Kubernetes cluster (minikube, kind, EKS, GKE)
@@ -23,8 +25,8 @@ kubectl apply -f ray-cluster.external-valkey.yaml
 # Wait for pods
 kubectl get pods -w
 
-# Verify Valkey has GCS data
-kubectl exec deploy/valkey -- valkey-cli -a "5241590000000000" --no-auth-warning DBSIZE
+# Verify Valkey has GCS data (replace password if you changed the Secret)
+kubectl exec deploy/valkey -- valkey-cli -a "REPLACE-ME-WITH-STRONG-PASSWORD" --no-auth-warning DBSIZE
 ```
 
 ## Expected Output

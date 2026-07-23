@@ -105,7 +105,7 @@ You should see lines indicating GCS connected to the external store.
 Verify Valkey has GCS data:
 
 ```bash
-kubectl exec deploy/valkey -- valkey-cli -a "5241590000000000" --no-auth-warning DBSIZE
+kubectl exec deploy/valkey -- valkey-cli -a "REPLACE-ME-WITH-STRONG-PASSWORD" --no-auth-warning DBSIZE
 ```
 
 Expected: `(integer) N` where N > 0 (GCS has written metadata).
