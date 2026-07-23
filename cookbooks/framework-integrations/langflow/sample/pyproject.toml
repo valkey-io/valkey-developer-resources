@@ -1,0 +1,25 @@
+[project]
+name = "langflow-valkey-cookbook"
+version = "0.1.0"
+description = "Sample scripts for the Langflow + Valkey cookbook"
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.28.0",
+    "valkey>=6.0.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.4.0",
+    "pytest-timeout>=2.2.0",
+]
+langflow = [
+    "langflow>=1.11.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+timeout = 120
+markers = [
+    "integration: marks tests that require running Valkey and Langflow (deselect with '-m \"not integration\"')",
+]
