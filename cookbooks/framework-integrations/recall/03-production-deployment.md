@@ -104,6 +104,8 @@ maxmemory 256mb
 maxmemory-policy noeviction
 
 # Security hardening
+# NOTE: rename-command is deprecated in Valkey 8.x — prefer ACL rules (see below).
+# Shown here for environments where ACL support is limited.
 rename-command FLUSHALL ""
 rename-command FLUSHDB ""
 rename-command CONFIG "RECALL_CONFIG"
