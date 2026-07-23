@@ -1,0 +1,15 @@
+{
+  "name": "langchain-js-valkey-cookbook",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Sample project for the LangChain.js + Valkey cookbook",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test tests/*.mjs"
+  },
+  "dependencies": {
+    "@valkey/valkey-glide": "1.3.0"
+  }
+}
