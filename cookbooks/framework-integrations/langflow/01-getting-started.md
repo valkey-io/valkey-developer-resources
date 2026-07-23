@@ -19,7 +19,7 @@ You should be comfortable running Docker containers and navigating a web UI.
 
 > **Security:** Never expose Valkey to the public internet without authentication.
 > Use `requirepass` or ACLs in production. See the
-> [Valkey security documentation](https://valkey.io/docs/management/security/).
+> [Valkey security documentation](https://valkey.io/topics/security/).
 
 ## Step 1: Start Valkey
 

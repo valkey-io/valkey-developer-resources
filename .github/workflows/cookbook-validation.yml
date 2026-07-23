@@ -95,6 +95,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-      - uses: DavidAnson/markdownlint-cli2-action@db4f23e79b1caa3f9949bac3e71f03aa0e23d524 # v19
+      - uses: DavidAnson/markdownlint-cli2-action@6bf21b07787794f89a243495939cd651942aeabe # v24
         with:
           globs: "cookbooks/**/*.md"

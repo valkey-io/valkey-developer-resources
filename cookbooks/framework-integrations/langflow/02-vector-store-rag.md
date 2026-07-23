@@ -21,7 +21,7 @@ You should have completed the [Getting Started](01-getting-started.md) guide.
 
 > **Security:** Never expose Valkey to the public internet without authentication.
 > Use `requirepass` or ACLs in production. See the
-> [Valkey security documentation](https://valkey.io/docs/management/security/).
+> [Valkey security documentation](https://valkey.io/topics/security/).
 
 ## Step 1: Start Valkey with Search Module
 

@@ -22,7 +22,7 @@ You should have completed the [Vector Store RAG](02-vector-store-rag.md) guide.
 
 > **Security:** Never expose Valkey to the public internet without authentication.
 > Store API keys in environment variables, not in source code.
-> See the [Valkey security documentation](https://valkey.io/docs/management/security/).
+> See the [Valkey security documentation](https://valkey.io/topics/security/).
 
 ## Step 1: Get Your Flow ID and API Key
 
