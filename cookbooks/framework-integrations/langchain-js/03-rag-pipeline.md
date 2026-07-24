@@ -11,7 +11,7 @@ end-to-end RAG pipeline that answers questions from your own documents.
 ## Prerequisites
 
 - Completed [01 - Getting Started](./01-getting-started.md) and [02 - Metadata Filtering](./02-metadata-filtering.md)
-- Valkey 8.0+ running with the Search module (`localhost:6379`)
+- Valkey 8.1+ running with the Search module (`localhost:6379`)
 - Node.js 18+
 - OpenAI API key (set as `OPENAI_API_KEY` environment variable)
 - Installed packages:

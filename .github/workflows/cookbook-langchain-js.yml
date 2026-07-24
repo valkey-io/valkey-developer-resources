@@ -1,0 +1,39 @@
+name: "Cookbook: LangChain.js Integration Tests"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cookbooks/framework-integrations/langchain-js/sample/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "cookbooks/framework-integrations/langchain-js/sample/**"
+
+jobs:
+  node-integration-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        valkey-version: ["8.1.1"]
+    services:
+      valkey:
+        image: valkey/valkey-bundle:${{ matrix.valkey-version }}
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "20"
+      - name: Install dependencies
+        working-directory: cookbooks/framework-integrations/langchain-js/sample
+        run: npm ci
+      - name: Run integration tests
+        working-directory: cookbooks/framework-integrations/langchain-js/sample
+        run: node --test tests/*.mjs

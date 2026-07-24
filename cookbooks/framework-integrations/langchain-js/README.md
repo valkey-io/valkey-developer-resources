@@ -61,11 +61,11 @@ const results = await vectorStore.similaritySearch("fast database", 2);
 console.log(results);
 ```
 
-> **Note:** `@langchain/valkey` is from PR [langchain-ai/langchainjs#9915](https://github.com/langchain-ai/langchainjs/pull/9915). Until published, install from git:
->
-> ```bash
-> npm install langchain-ai/langchainjs#9915
-> ```
+> **Note:** `@langchain/valkey` is not yet published on npm. The implementation is from
+> PR [langchain-ai/langchainjs#9915](https://github.com/langchain-ai/langchainjs/pull/9915)
+> (currently closed). This cookbook documents the designed API so it's ready when the
+> package ships. The sample project tests validate the underlying Valkey vector operations
+> independently via `@valkey/valkey-glide`.
 
 ---
 

@@ -37,7 +37,7 @@ The `customSchema` option maps metadata field names to their index type and conf
 import { ValkeyVectorStore, SchemaFieldTypes } from "@langchain/valkey";
 
 const vectorStore = new ValkeyVectorStore(embeddings, {
-  client,
+  valkeyClient: client,
   indexName: "products",
   customSchema: {
     category: {
@@ -91,7 +91,7 @@ const embeddings = new OpenAIEmbeddings({
 
 // Create vector store with custom schema
 const vectorStore = new ValkeyVectorStore(embeddings, {
-  client,
+  valkeyClient: client,
   indexName: "product-catalog",
   customSchema: {
     category: {

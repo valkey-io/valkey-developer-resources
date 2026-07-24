@@ -7,6 +7,24 @@ const PREFIX = "doc:test:";
 const VECTOR_DIM = 4;
 
 /**
+ * Poll FT.INFO until all documents are indexed (indexing_failures + docs being indexed = 0).
+ * Falls back to a maximum wait of 5 seconds.
+ */
+async function waitForIndexing(client, indexName, expectedDocs, maxWaitMs = 5000) {
+  const start = Date.now();
+  while (Date.now() - start < maxWaitMs) {
+    try {
+      const info = await GlideFt.info(client, indexName);
+      const numDocs = Number(info.num_docs ?? info.numDocs ?? 0);
+      if (numDocs >= expectedDocs) return;
+    } catch {
+      // index may not be ready yet
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}
+
+/**
  * Convert valkey-glide hgetall result [{field, value}...] to a plain object.
  * valkey-glide returns field/value pairs as an array, not a plain object.
  */
@@ -245,8 +263,8 @@ describe("ValkeyVectorStore Patterns", () => {
           });
         }
 
-        // Wait for indexing
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        // Wait for indexing to complete
+        await waitForIndexing(client, INDEX_NAME, 3);
 
         // Search for nearest to [1.0, 0.0, 0.0, 0.0]
         const queryVector = vectorToBuffer([1.0, 0.0, 0.0, 0.0]);
@@ -320,8 +338,8 @@ describe("ValkeyVectorStore Patterns", () => {
           });
         }
 
-        // Wait for indexing
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        // Wait for indexing to complete
+        await waitForIndexing(client, INDEX_NAME, 3);
 
         // Search with TAG filter — only "science" category
         const queryVector = vectorToBuffer([1.0, 0.0, 0.0, 0.0]);

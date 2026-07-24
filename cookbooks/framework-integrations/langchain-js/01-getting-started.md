@@ -8,7 +8,7 @@
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js 20+
 - Docker (for running Valkey)
 - An OpenAI API key (or another LangChain-compatible embedding provider)
 
@@ -61,11 +61,11 @@ const embeddings = new OpenAIEmbeddings({
 
 // Create the vector store
 const vectorStore = new ValkeyVectorStore(embeddings, {
-  client,
+  valkeyClient: client,
   indexName: "my-documents",
   indexOptions: {
-    algorithm: "HNSW",
-    distanceMetric: "COSINE",
+    ALGORITHM: "HNSW",
+    DISTANCE_METRIC: "COSINE",
   },
 });
 ```
@@ -88,11 +88,11 @@ const metadata = [
 ];
 
 await ValkeyVectorStore.fromTexts(texts, metadata, embeddings, {
-  client,
+  valkeyClient: client,
   indexName: "my-documents",
   indexOptions: {
-    algorithm: "HNSW",
-    distanceMetric: "COSINE",
+    ALGORITHM: "HNSW",
+    DISTANCE_METRIC: "COSINE",
   },
 });
 ```
@@ -151,7 +151,7 @@ When you call `addDocuments`, the following happens:
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
 | `indexName` | `string` | `"langchain"` | Name of the Valkey search index |
-| `indexOptions` | `object` | `{ algorithm: "HNSW", distanceMetric: "COSINE" }` | Index algorithm and distance metric |
+| `indexOptions` | `object` | `{ ALGORITHM: "HNSW", DISTANCE_METRIC: "COSINE" }` | Index algorithm and distance metric |
 | `keyPrefix` | `string` | `"doc:<indexName>:"` | Prefix for all document hash keys |
 | `contentKey` | `string` | `"content"` | Hash field name for document text |
 | `vectorKey` | `string` | `"content_vector"` | Hash field name for the embedding vector |
