@@ -43,7 +43,7 @@ git clone https://github.com/mendableai/firecrawl.git
 cd firecrawl
 
 # Switch Redis to Valkey in docker-compose.yaml
-sed -i '' 's|image: redis:alpine|image: valkey/valkey:alpine|' docker-compose.yaml
+sed -i.bak 's|image: redis:alpine|image: valkey/valkey:alpine|' docker-compose.yaml && rm docker-compose.yaml.bak
 
 # Configure environment
 cp .env.example .env
@@ -61,7 +61,11 @@ docker exec firecrawl-redis-1 valkey-cli INFO SERVER | grep server_name
 
 - [Firecrawl Documentation](https://docs.firecrawl.dev/)
 - [Firecrawl GitHub](https://github.com/mendableai/firecrawl)
-- [PR #2901 — Official Valkey Compatibility](https://github.com/mendableai/firecrawl/pull/2901)
+- [PR #2901 — Valkey Test Coverage](https://github.com/firecrawl/firecrawl/pull/2901) (open)
+
+> **Note:** This cookbook demonstrates community-tested compatibility between
+> Firecrawl and Valkey. The upstream PR adds CI matrix testing but has not yet
+> merged. The integration works because ioredis is wire-compatible with both backends.
 - [Valkey Documentation](https://valkey.io/docs/)
 - [BullMQ Documentation](https://docs.bullmq.io/)
 

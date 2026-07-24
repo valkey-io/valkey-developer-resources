@@ -28,8 +28,6 @@ services:
   valkey:
     image: valkey/valkey:alpine
     container_name: firecrawl-valkey
-    ports:
-      - "6379:6379"
     volumes:
       - valkey-data:/data
       - ./valkey.conf:/usr/local/etc/valkey/valkey.conf
@@ -42,7 +40,7 @@ services:
     restart: unless-stopped
 
   firecrawl-api:
-    image: ghcr.io/mendableai/firecrawl:latest
+    image: ghcr.io/firecrawl/firecrawl:latest
     container_name: firecrawl-api
     ports:
       - "3002:3002"
@@ -57,7 +55,7 @@ services:
     restart: unless-stopped
 
   firecrawl-worker:
-    image: ghcr.io/mendableai/firecrawl-worker:latest
+    image: ghcr.io/firecrawl/firecrawl:latest
     container_name: firecrawl-worker
     environment:
       - REDIS_URL=redis://valkey:6379
@@ -85,8 +83,8 @@ Valkey speaks the same protocol.
 | `REDIS_URL` | Primary Valkey connection for BullMQ queues and state | `redis://valkey:6379` |
 | `REDIS_RATE_LIMIT_URL` | Valkey connection for rate limiting (can be same instance) | `redis://valkey:6379` |
 | `NUM_WORKERS_PER_QUEUE` | Concurrent jobs per queue per worker container | `2` |
-| `QUEUE_CONCURRENCY` | BullMQ concurrency setting per worker | `10` |
-| `SCRAPING_CONCURRENCY` | Max concurrent browser sessions | `10` |
+| `CRAWL_CONCURRENT_REQUESTS` | Max concurrent requests per crawl | `10` |
+| `MAX_CONCURRENT_JOBS` | Max concurrent jobs across all queues | `5` |
 
 For high-throughput deployments, you can point `REDIS_RATE_LIMIT_URL` to a separate Valkey
 instance to isolate rate-limiting load from job queue operations.
@@ -166,7 +164,7 @@ BullMQ retries failed jobs with exponential backoff. Default settings:
 Failed jobs move to the `failed` set after all retries are exhausted. Monitor with:
 
 ```bash
-docker exec firecrawl-valkey valkey-cli LLEN bull:scrape:failed
+docker exec firecrawl-valkey valkey-cli ZCARD bull:scrape:failed
 ```
 
 ## Rate Limiting

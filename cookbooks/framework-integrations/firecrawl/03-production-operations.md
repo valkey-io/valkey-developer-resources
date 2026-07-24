@@ -58,7 +58,7 @@ docker exec firecrawl-valkey valkey-cli SLOWLOG GET 10
 # BullMQ queue depths
 echo "Scrape waiting: $(docker exec firecrawl-valkey valkey-cli LLEN bull:scrape:wait)"
 echo "Scrape active:  $(docker exec firecrawl-valkey valkey-cli LLEN bull:scrape:active)"
-echo "Scrape failed:  $(docker exec firecrawl-valkey valkey-cli LLEN bull:scrape:failed)"
+echo "Scrape failed:  $(docker exec firecrawl-valkey valkey-cli ZCARD bull:scrape:failed)"
 echo "Crawl waiting:  $(docker exec firecrawl-valkey valkey-cli LLEN bull:crawl:wait)"
 echo "Crawl active:   $(docker exec firecrawl-valkey valkey-cli LLEN bull:crawl:active)"
 ```
@@ -186,7 +186,7 @@ docker exec firecrawl-valkey valkey-cli DEL "lock:crawl:some-job-id"
 
 Valkey is wire-compatible with Redis. Migration is straightforward.
 
-### Zero-Downtime Swap (Docker)
+### Offline Migration (Docker)
 
 1. **Stop the Redis container:**
 
