@@ -111,7 +111,8 @@ options:
   - index_algo:HNSW
   - hnsw_m:16                 # graph degree: neighbours per node. Higher = better recall, more memory.
   - hnsw_ef_construction:200  # build-time candidate list. Higher = better graph, slower builds.
-  - hnsw_ef_runtime:10        # query-time candidate list. Higher = better recall, slower queries.
+  - hnsw_ef_runtime:100       # query-time candidate list. Higher = better recall, slower queries.
+                              # 10 is the backend minimum; use 50-200 for production recall targets.
 ```
 
 > The algorithm is fixed when the index is first created. To change it for an

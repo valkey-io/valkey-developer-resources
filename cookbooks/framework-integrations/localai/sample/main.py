@@ -12,7 +12,7 @@ Dependencies (see requirements.txt):
 
 Prerequisites:
   - A Valkey server with the Valkey Search (FT.*) module, e.g.
-        docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:8.1.7
+        docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:8.1.7
   - A running LocalAI with the `valkey-store` backend registered. Until
     mudler/LocalAI#10770 merges and ships in the backend gallery, build the
     backend from the PR branch (see the cookbook's 01-getting-started.md).
@@ -155,6 +155,11 @@ if __name__ == "__main__":
         sys.exit(
             f"Could not reach LocalAI at {BASE_URL}.\n"
             "Is the server running and reachable? See 01-getting-started.md."
+        )
+    except requests.exceptions.Timeout:
+        sys.exit(
+            f"Request to LocalAI timed out after {TIMEOUT}s.\n"
+            "Raise REQUEST_TIMEOUT or check server responsiveness."
         )
     except requests.exceptions.HTTPError as exc:
         # A 500 here usually means the valkey-store backend can't reach Valkey.

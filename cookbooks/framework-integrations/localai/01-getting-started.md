@@ -17,8 +17,8 @@ persistence, and [03](03-production.md) covers auth, TLS, and index tuning.
 ## Prerequisites
 
 - Docker or Podman installed (for Valkey)
-- Python 3.10+ (the sample client uses only the standard library plus `requests`)
-- A Go 1.24+ toolchain **only until the PR merges** — you build the backend from
+- Python 3.10+ (the sample needs `requests` and `python-dotenv` — see [`sample/requirements.txt`](sample/requirements.txt))
+- A Go 1.26+ toolchain **only until the PR merges** — you build the backend from
   the [`valkey-store` PR branch](https://github.com/mudler/LocalAI/pull/10770).
   Once it ships in the backend gallery this step disappears.
 
@@ -83,10 +83,15 @@ mkdir -p ./backends/valkey-store
 cp backend/go/valkey-store/valkey-store backend/go/valkey-store/run.sh ./backends/valkey-store/
 
 # Launch. LOCALAI_BACKENDS_PATH tells LocalAI where to find the backend.
-LOCALAI_BACKENDS_PATH="$(pwd)/backends" ./local-ai run --address :8080
+LOCALAI_BACKENDS_PATH="$(pwd)/backends" ./local-ai run --address 127.0.0.1:8080
 ```
 
-Wait for the log line reporting the API is listening on `:8080`.
+Wait for the log line reporting the API is listening on `127.0.0.1:8080`.
+
+> ⚠️ **Security:** Binding to `127.0.0.1` keeps LocalAI's unauthenticated
+> `/stores/*` API (vector read/write/delete) reachable only from this machine.
+> Never bind to `:8080` (all interfaces) on a shared network or public-IP host
+> without adding authentication in front of it.
 
 ## Step 4: Store your first vectors
 

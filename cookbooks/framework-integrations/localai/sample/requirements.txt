@@ -5,5 +5,5 @@
 # ../01-getting-started.md (Step 2). Until mudler/LocalAI#10770 merges and ships
 # in the backend gallery, that backend is built from the PR branch.
 
-requests~=2.32       # HTTP client for the /stores/* REST API
-python-dotenv~=1.0   # loads .env for configuration (LOCALAI_BASE_URL, etc.)
+requests==2.34.2       # HTTP client for the /stores/* REST API
+python-dotenv==1.2.2   # loads .env for configuration (LOCALAI_BASE_URL, etc.)

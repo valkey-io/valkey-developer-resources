@@ -43,15 +43,16 @@ def stores_set(keys, values):
     resp.raise_for_status()
 
 
-try:
-    # +X, +Y, +Z, and -X unit vectors.
-    keys = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [-1.0, 0.0, 0.0]]
-    values = ["pos-x", "pos-y", "pos-z", "neg-x"]
-    stores_set(keys, values)
-    print("seeded", len(keys), "vectors")
-finally:
-    SESSION.close()
+# +X, +Y, +Z, and -X unit vectors.
+keys = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [-1.0, 0.0, 0.0]]
+values = ["pos-x", "pos-y", "pos-z", "neg-x"]
+stores_set(keys, values)
+print("seeded", len(keys), "vectors")
 ```
+
+> **Note:** The snippets in this guide share one `SESSION`, so we don't close it
+> between steps — copy them into a single file and add `SESSION.close()` once at
+> the very end (see the [cleanup note](#cleanup) below).
 
 ## Step 2: Find the nearest neighbours
 
@@ -208,6 +209,15 @@ idempotent upsert.
 | `topk` | ✓ | — | Number of nearest neighbours to return (≥ 1). |
 | `store` | ✓ | — | Store namespace. |
 | `backend` | — | `local-store` | `valkey-store` to route to Valkey. |
+
+## Cleanup
+
+If you assembled the snippets above into one script, close the shared HTTP
+session once, after the last request:
+
+```python
+SESSION.close()
+```
 
 ---
 
