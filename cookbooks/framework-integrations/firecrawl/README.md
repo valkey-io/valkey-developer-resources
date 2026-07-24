@@ -66,6 +66,7 @@ docker exec firecrawl-redis-1 valkey-cli INFO SERVER | grep server_name
 > **Note:** This cookbook demonstrates community-tested compatibility between
 > Firecrawl and Valkey. The upstream PR adds CI matrix testing but has not yet
 > merged. The integration works because ioredis is wire-compatible with both backends.
+
 - [Valkey Documentation](https://valkey.io/docs/)
 - [BullMQ Documentation](https://docs.bullmq.io/)
 
