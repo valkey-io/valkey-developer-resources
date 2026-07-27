@@ -31,7 +31,7 @@ A contact form processor that demonstrates reliable serverless message queuing:
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/) 20.9+ (LTS)
+- [Node.js](https://nodejs.org/) 20.19+ (LTS)
 - [Docker](https://docs.docker.com/get-docker/) or [Finch](https://github.com/runfinch/finch) for running Valkey
 - A code editor and terminal
 

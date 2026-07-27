@@ -2,7 +2,7 @@
 
 > Deploy your Valkey Streams application to Vercel with proper networking, security, and monitoring for production workloads.
 
-**Difficulty** · TypeScript · ~25 min
+**Advanced** · TypeScript · ~25 min
 
 **Who is this for:** Developers ready to move from local development to a production deployment, connecting Vercel Functions to a managed Valkey instance.
 

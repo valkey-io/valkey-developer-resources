@@ -8,7 +8,10 @@ export const runtime = 'nodejs'
 
 const STREAM_NAME = 'contact-messages'
 const CONSUMER_GROUP = 'contact-processors'
-const CONSUMER_NAME = `consumer-${process.env.HOSTNAME || 'default'}`
+// NOTE: HOSTNAME is not a Vercel-provided env var, so this defaults to 'consumer-default'
+// in production. This is fine — consumer groups deliver messages regardless of consumer name.
+// For per-instance tracking, use VERCEL_DEPLOYMENT_ID or crypto.randomUUID().
+const CONSUMER_NAME = `consumer-${process.env.VERCEL_DEPLOYMENT_ID || process.env.HOSTNAME || 'default'}`
 
 let client: GlideClient | undefined
 

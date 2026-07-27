@@ -4,7 +4,7 @@ A Next.js application demonstrating reliable message queuing with Valkey Streams
 
 ## Prerequisites
 
-- Node.js 20.9+ (LTS)
+- Node.js 20.19+ (LTS)
 - Docker or Finch (for running Valkey)
 
 ## Setup

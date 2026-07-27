@@ -2,7 +2,7 @@
 
 > Understand how Valkey Streams provide at-least-once delivery, automatic message recovery, and distributed processing through consumer groups.
 
-**Difficulty** · TypeScript · ~25 min
+**Intermediate** · TypeScript · ~25 min
 
 **Who is this for:** Developers who have completed the Getting Started guide and want to understand the reliability guarantees of Valkey Streams in a serverless environment.
 
@@ -24,7 +24,7 @@ Key properties:
 
 - **Stream**: `contact-messages` — the ordered log of all messages
 - **Group**: `contact-processors` — tracks which messages have been delivered
-- **Consumer**: `consumer-{hostname}` — identifies each worker instance
+- **Consumer**: `consumer-{id}` — identifies the worker (per-deployment on Vercel, shared locally)
 - **Pending Entries List (PEL)**: Messages delivered but not yet acknowledged
 
 ## Step 2: The Message Lifecycle
@@ -159,7 +159,7 @@ docker exec valkey-vercel valkey-cli XINFO CONSUMERS contact-messages contact-pr
 | --------- | ----- | ----------- |
 | `STREAM_NAME` | `contact-messages` | The Valkey Stream key |
 | `CONSUMER_GROUP` | `contact-processors` | Consumer group name |
-| `CONSUMER_NAME` | `consumer-{hostname}` | Unique per serverless instance |
+| `CONSUMER_NAME` | `consumer-{id}` | Per-deployment on Vercel (`VERCEL_DEPLOYMENT_ID`), shared locally |
 | Idle threshold | `60000` ms | Time before auto-claiming |
 | MAXLEN | `~10000` | Approximate stream cap |
 

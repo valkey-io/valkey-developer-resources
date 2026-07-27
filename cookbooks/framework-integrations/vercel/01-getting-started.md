@@ -2,13 +2,13 @@
 
 > Set up a Next.js application that uses Valkey Streams for reliable message queuing, running locally with a single `docker compose up`.
 
-**Difficulty** · TypeScript · ~20 min
+**Beginner** · TypeScript · ~20 min
 
 **Who is this for:** Developers new to Valkey Streams who want to see a working message queue in a Next.js API route.
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/) 20.9+ (LTS)
+- [Node.js](https://nodejs.org/) 20.19+ (LTS)
 - [Docker](https://docs.docker.com/get-docker/) or [Finch](https://github.com/runfinch/finch)
 - Basic familiarity with Next.js App Router and TypeScript
 
