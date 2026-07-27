@@ -197,6 +197,19 @@ class ValkeyStorageBackend:
         metadata_str = _get("metadata_json")
         metadata = json.loads(metadata_str) if metadata_str else {}
 
+        # WORKAROUND: CrewAI's compute_composite_score uses datetime.utcnow() (naive UTC),
+        # which raises TypeError when subtracted from timezone-aware datetimes.
+        # Strip tzinfo at the boundary until upstream merges the fix.
+        # See: https://github.com/crewAIInc/crewAI/pull/6161
+        created_at = (
+            datetime.fromtimestamp(created_ts, tz=timezone.utc).replace(tzinfo=None)
+            if created_ts else datetime.utcnow()
+        )
+        last_accessed = (
+            datetime.fromtimestamp(accessed_ts, tz=timezone.utc).replace(tzinfo=None)
+            if accessed_ts else datetime.utcnow()
+        )
+
         return MemoryRecord(
             id=_get("id"),
             content=_get("content"),
@@ -204,8 +217,8 @@ class ValkeyStorageBackend:
             categories=categories,
             metadata=metadata,
             importance=float(_get("importance") or "0.5"),
-            created_at=datetime.fromtimestamp(created_ts, tz=timezone.utc) if created_ts else datetime.now(timezone.utc),
-            last_accessed=datetime.fromtimestamp(accessed_ts, tz=timezone.utc) if accessed_ts else datetime.now(timezone.utc),
+            created_at=created_at,
+            last_accessed=last_accessed,
             embedding=embedding,
             source=_get("source") or None,
             private=_get("private") == "1",

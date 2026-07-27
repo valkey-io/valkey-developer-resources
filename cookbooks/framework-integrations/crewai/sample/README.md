@@ -62,6 +62,17 @@ ollama pull llama3.2:1b
 | `VALKEY_PORT` | `6379` | Valkey server port |
 | `OPENAI_API_KEY` | unset | Optional: use OpenAI instead of Ollama for Memory LLM/embedder |
 
+## Known Issues
+
+**CrewAI timezone compatibility:** CrewAI's memory scoring internally uses
+`datetime.utcnow()` (a naive datetime), which raises `TypeError` when
+subtracted from timezone-aware timestamps. The storage backend strips
+timezone info at the CrewAI boundary as a workaround. Once
+[crewAIInc/crewAI#6161](https://github.com/crewAIInc/crewAI/pull/6161)
+is merged and released, this workaround can be removed. This affects
+`memory_demo.py` only — the unit tests do not exercise CrewAI's
+internal scoring path.
+
 ## Teardown
 
 ```bash
