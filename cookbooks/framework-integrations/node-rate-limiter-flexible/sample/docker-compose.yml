@@ -1,8 +1,8 @@
 services:
   valkey:
-    image: valkey/valkey-bundle:8.1.7
+    image: valkey/valkey-bundle:9.1.1
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
       interval: 5s
