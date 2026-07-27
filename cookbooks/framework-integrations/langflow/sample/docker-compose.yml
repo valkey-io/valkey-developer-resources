@@ -1,8 +1,8 @@
 services:
   valkey:
-    image: valkey/valkey-bundle:8.1.1
+    image: valkey/valkey-bundle:9.1.1
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
       interval: 5s
@@ -12,7 +12,7 @@ services:
   langflow:
     image: langflowai/langflow:1.11.0
     ports:
-      - "7860:7860"
+      - "127.0.0.1:7860:7860"
     environment:
       - LANGFLOW_AUTO_LOGIN=true
     healthcheck:
