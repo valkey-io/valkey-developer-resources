@@ -23,7 +23,7 @@ Start a Valkey instance with the search module enabled using the `valkey-bundle`
 
 ```bash
 docker run -d --name valkey-gptcache \
-  -p 6379:6379 \
+  -p 127.0.0.1:6379:6379 \
   valkey/valkey-bundle:8.1.1
 ```
 
@@ -210,7 +210,7 @@ You must use the `valkey-bundle` image which includes the search module. The bas
 
 ```bash
 docker rm -f valkey-gptcache
-docker run -d --name valkey-gptcache -p 6379:6379 valkey/valkey-bundle:8.1.1
+docker run -d --name valkey-gptcache -p 127.0.0.1:6379:6379 valkey/valkey-bundle:8.1.1
 ```
 
 ### Cache never hits (always misses)

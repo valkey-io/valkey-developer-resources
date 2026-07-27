@@ -27,12 +27,10 @@ services:
   valkey:
     image: valkey/valkey-bundle:8.1.1
     container_name: valkey-gptcache
-    ports:
-      - "6379:6379"
     volumes:
       - valkey-data:/data
       - ./valkey.conf:/etc/valkey/valkey.conf
-    command: valkey-server /etc/valkey/valkey.conf
+    command: valkey-server /etc/valkey/valkey.conf --requirepass ${VALKEY_PASSWORD}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
@@ -75,9 +73,9 @@ CMD ["python", "main.py"]
 And `requirements.txt`:
 
 ```text
-gptcache[redis]>=0.1.43
-openai>=1.0.0
-redis>=4.5.0
+gptcache[redis]==0.1.43
+openai==1.82.0
+redis==5.2.1
 ```
 
 ## Valkey Configuration
@@ -98,8 +96,9 @@ save 60 10000
 maxmemory 2gb
 maxmemory-policy allkeys-lru
 
-# Authentication
-requirepass ${VALKEY_PASSWORD}
+# Authentication — injected at runtime via docker-compose command
+# (Valkey config does not support env var substitution)
+# requirepass is set via: --requirepass ${VALKEY_PASSWORD}
 
 # Network
 bind 0.0.0.0
@@ -167,10 +166,10 @@ services:
 ### Connect with TLS from Python
 
 ```python
-import redis
+import valkey
 
 # TLS connection to Valkey
-r = redis.Redis(
+r = valkey.Valkey(
     host="localhost",
     port=6380,
     password="your-secure-password",
@@ -244,13 +243,13 @@ class MonitoredCache:
 Create a monitoring script:
 
 ```python
-import redis
+import valkey
 import json
 
 
 def get_cache_stats(host: str = "localhost", port: int = 6379, password: str = None):
     """Collect cache and index statistics from Valkey."""
-    r = redis.Redis(host=host, port=port, password=password)
+    r = valkey.Valkey(host=host, port=port, password=password)
 
     # Memory info
     memory = r.info("memory")
@@ -283,7 +282,7 @@ if __name__ == "__main__":
 
 ```python
 from fastapi import FastAPI
-import redis
+import valkey
 
 app = FastAPI()
 
@@ -292,7 +291,7 @@ app = FastAPI()
 def health_check():
     """Check Valkey connectivity and index status."""
     try:
-        r = redis.Redis(host="valkey", port=6379)
+        r = valkey.Valkey(host="valkey", port=6379)
         r.ping()
         indexes = r.execute_command("FT._LIST")
         return {
@@ -300,7 +299,7 @@ def health_check():
             "valkey": "connected",
             "indexes": len(indexes),
         }
-    except redis.ConnectionError:
+    except valkey.ConnectionError:
         return {"status": "unhealthy", "valkey": "disconnected"}, 503
 ```
 
@@ -330,13 +329,13 @@ services:
 Configure your application to read from replicas:
 
 ```python
-import redis
+import valkey
 
 # Write to primary
-primary = redis.Redis(host="valkey-primary", port=6379)
+primary = valkey.Valkey(host="valkey-primary", port=6379)
 
 # Read from replicas (for KNN search)
-replica = redis.Redis(host="valkey-replica", port=6379)
+replica = valkey.Valkey(host="valkey-replica", port=6379)
 ```
 
 ### Sharding considerations
@@ -458,15 +457,15 @@ docker restart valkey-new
 - Consider connection pooling:
 
 ```python
-import redis
+import valkey
 
-pool = redis.ConnectionPool(
+pool = valkey.ConnectionPool(
     host="valkey",
     port=6379,
     password="your-password",
     max_connections=20,
 )
-r = redis.Redis(connection_pool=pool)
+r = valkey.Valkey(connection_pool=pool)
 ```
 
 ### Index not created after migration

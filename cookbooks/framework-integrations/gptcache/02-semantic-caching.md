@@ -133,10 +133,10 @@ For cache workloads, you want to evict stale or least-used entries. Configure Va
 Set a TTL on cached entries so they expire automatically:
 
 ```python
-import redis
+import valkey
 
 # Connect to Valkey
-r = redis.Redis(host="localhost", port=6379)
+r = valkey.Valkey(host="localhost", port=6379)
 
 # After GPTCache stores a document, set TTL on the hash keys
 # GPTCache keys follow the pattern: {namespace}doc:{id}
@@ -161,9 +161,9 @@ docker exec valkey-gptcache valkey-cli CONFIG SET maxmemory-policy allkeys-lru
 Track cache size and evict oldest entries:
 
 ```python
-import redis
+import valkey
 
-r = redis.Redis(host="localhost", port=6379)
+r = valkey.Valkey(host="localhost", port=6379)
 
 
 def evict_oldest_entries(namespace: str, max_entries: int = 10000):
