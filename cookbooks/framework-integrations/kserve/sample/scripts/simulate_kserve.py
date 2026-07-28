@@ -27,7 +27,7 @@ def main() -> None:
         chunk_size = 256  # tokens per chunk
         # Simulate KV cache chunk (simplified: normally this is layers × heads × dim × chunk × dtype)
         rng = np.random.default_rng(42)
-        chunk_data = rng.random(1024, dtype=np.float16).tobytes()  # ~2KB simulated chunk
+        chunk_data = rng.random(1024).astype(np.float16).tobytes()  # ~2KB simulated chunk
 
         # LMCache key format: model@worker@layer@hash@dtype
         chunks_stored = 0
