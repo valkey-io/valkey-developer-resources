@@ -1,0 +1,53 @@
+# TODO: Remove this temporary copy after a shared Python workflow is
+# merged and includes framework-integrations/testcontainers-python.
+name: Cookbook Python Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cookbooks/framework-integrations/testcontainers-python/**"
+      - ".github/workflows/cookbook-python.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "cookbooks/framework-integrations/testcontainers-python/**"
+      - ".github/workflows/cookbook-python.yml"
+
+jobs:
+  python-lint:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        cookbook: [framework-integrations/testcontainers-python]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r cookbooks/${{ matrix.cookbook }}/sample/requirements.txt
+        timeout-minutes: 5
+      - name: Syntax check
+        run: |
+          python -m py_compile cookbooks/${{ matrix.cookbook }}/sample/main.py
+          python -m py_compile cookbooks/${{ matrix.cookbook }}/sample/test_valkey_container.py
+
+  python-integration-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        cookbook: [framework-integrations/testcontainers-python]
+        valkey-version: ["9.1.0"]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r cookbooks/${{ matrix.cookbook }}/sample/requirements.txt
+        timeout-minutes: 5
+      - name: Run integration tests
+        run: |
+          cd cookbooks/${{ matrix.cookbook }}/sample
+          python -m pytest test_valkey_container.py -v
