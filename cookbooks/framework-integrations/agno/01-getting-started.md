@@ -11,11 +11,11 @@ with secondary indexes out of the box.
 ## How Agno Storage Works
 
 Agno agents store session data (conversation history, memories, metrics) in a pluggable
-storage backend. `ValkeyDb` implements the `BaseDb` interface using Valkey HASH keys with
-secondary index sets for filtered lookups.
+storage backend. `ValkeyDb` implements the `BaseDb` interface using Valkey STRING keys
+(JSON-serialized sessions) with secondary index sets for filtered lookups.
 
 ```text
-Agent.print_response("Hello") → ValkeyDb.upsert_session(session) → HSET agno:session:{id}
+Agent.print_response("Hello") → ValkeyDb.upsert_session(session) → SET agno:sessions:{id} <json>
 Agent.print_response("Follow-up") → reads history from Valkey → context-aware response
 ```
 
@@ -113,8 +113,8 @@ they're stored in Valkey, not in-memory.
 docker exec valkey valkey-cli KEYS "agno:*" | head -5
 ```
 
-Each session is stored as a HASH key with fields for the session data, metadata,
-and secondary index membership.
+Each session is stored as a STRING key containing JSON-serialized session data,
+with secondary index sets for filtered lookups.
 
 ## How It Works
 
@@ -122,7 +122,7 @@ and secondary index membership.
 | --------- | ---- |
 | `ValkeyDb()` | Agno storage adapter — implements `BaseDb` interface |
 | `valkey-glide-sync` | Valkey client library (sync API) |
-| Valkey HASH keys | One per session, keyed by `agno:session:{session_id}` |
+| Valkey STRING keys | One per session, keyed by `agno:sessions:{session_id}` |
 | Secondary index sets | Enable filtered lookups by `user_id`, `agent_id`, etc. |
 | `CLIENT SETNAME` | Connection named `agno_db_client` for observability |
 
