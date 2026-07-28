@@ -74,7 +74,7 @@ kubectl apply -f https://raw.githubusercontent.com/kserve/kserve/master/docs/sam
 
 ## References
 
-- [KServe LLMInferenceService Documentation](https://kserve.github.io/website/docs/model-serving/generative-inference/)
+- [KServe LLMInferenceService Documentation](https://kserve.github.io/website/docs/model-serving/generative-inference/kvcache-offloading)
 - [LMCache Documentation](https://docs.lmcache.ai/)
 - [LMCache Valkey Storage Backend](https://docs.lmcache.ai/kv_cache/storage_backends/valkey.html)
 - [llm-d-kv-cache (prefix-cache index)](https://github.com/llm-d/llm-d-kv-cache)
