@@ -1,5 +1,8 @@
 package com.example.springaivalkey;
 
+import static com.example.springaivalkey.VectorTestUtils.floatArrayToBytes;
+import static com.example.springaivalkey.VectorTestUtils.normalizeVector;
+import static com.example.springaivalkey.VectorTestUtils.randomVector;
 import static glide.api.models.GlideString.gs;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,11 +20,7 @@ import glide.api.models.commands.FT.FTCreateOptions.VectorFieldHnsw;
 import glide.api.models.commands.FT.FTSearchOptions;
 import glide.api.models.configuration.GlideClientConfiguration;
 import glide.api.models.configuration.NodeAddress;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.Arrays;
 import java.util.Map;
-import java.util.Random;
 
 /**
  * Simulates Spring AI's ValkeyVectorStore patterns using valkey-glide directly.
@@ -35,7 +34,6 @@ public class SimulateValkeyVectorStore {
     private static final String PREFIX = "demo:";
     private static final int DIMENSION = 128;
     private static final ObjectMapper objectMapper = new ObjectMapper();
-    private static final Random random = new Random(42);
 
     public static void main(String[] args) throws Exception {
         System.out.println("=== Spring AI ValkeyVectorStore Pattern Simulation ===\n");
@@ -70,6 +68,9 @@ public class SimulateValkeyVectorStore {
             System.out.println("\n3. Creating HNSW vector index");
             cleanupIndex(client);
 
+            // NOTE: $.content is indexed as TagField here for demonstration purposes only.
+            // Spring AI's real ValkeyVectorStore does NOT index content in the FT schema —
+            // it only stores content in the JSON document for retrieval after KNN search.
             FieldInfo[] fields = new FieldInfo[]{
                 new FieldInfo("$.content", "content", new TagField()),
                 new FieldInfo("$.embedding", "embedding",
@@ -100,7 +101,7 @@ public class SimulateValkeyVectorStore {
 
             for (int i = 0; i < contents.length; i++) {
                 String key = PREFIX + "doc-" + i;
-                float[] vector = normalizeVector(randomVector());
+                float[] vector = normalizeVector(randomVector(DIMENSION));
                 Map<String, Object> doc = Map.of(
                     "content", contents[i],
                     "embedding", vector,
@@ -112,11 +113,11 @@ public class SimulateValkeyVectorStore {
             System.out.println("   Stored " + contents.length + " documents ✓");
 
             // Wait for indexing
-            Thread.sleep(500);
+            waitForIndexing(client, contents.length);
 
             // Step 5: KNN search (like ValkeyVectorStore.doSimilaritySearch)
             System.out.println("\n5. KNN similarity search");
-            float[] queryVector = normalizeVector(randomVector());
+            float[] queryVector = normalizeVector(randomVector(DIMENSION));
             String query = "*=>[KNN 3 @embedding $BLOB AS vector_score]";
 
             FTSearchOptions options = FTSearchOptions.builder()
@@ -159,12 +160,48 @@ public class SimulateValkeyVectorStore {
         }
     }
 
+    private static void waitForIndexing(GlideClient client, int expectedDocs) throws Exception {
+        long deadline = System.currentTimeMillis() + 5000;
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                Object info = FT.info(client, INDEX_NAME).get();
+                if (info.toString().contains("num_docs") &&
+                    getNumDocs(info.toString()) >= expectedDocs) {
+                    return;
+                }
+            } catch (Exception ignored) {
+            }
+            Thread.sleep(50);
+        }
+    }
+
+    private static int getNumDocs(String infoStr) {
+        // FT.INFO output contains "num_docs" followed by the count
+        int idx = infoStr.indexOf("num_docs");
+        if (idx == -1) return 0;
+        String after = infoStr.substring(idx);
+        // Find first number after "num_docs"
+        StringBuilder num = new StringBuilder();
+        boolean foundDigit = false;
+        for (char c : after.toCharArray()) {
+            if (Character.isDigit(c)) {
+                num.append(c);
+                foundDigit = true;
+            } else if (foundDigit) {
+                break;
+            }
+        }
+        return num.isEmpty() ? 0 : Integer.parseInt(num.toString());
+    }
+
     private static void cleanupIndex(GlideClient client) {
         try {
             FT.dropindex(client, INDEX_NAME).get();
         } catch (Exception ignored) {
         }
         try {
+            // WARNING: KEYS is O(N) and blocks the server. Acceptable for demo cleanup
+            // with few keys. In production, use SCAN with a cursor loop instead.
             Object result = client.customCommand(new String[]{"KEYS", PREFIX + "*"}).get();
             if (result instanceof Object[] keys && keys.length > 0) {
                 String[] delArgs = new String[keys.length + 1];
@@ -176,38 +213,5 @@ public class SimulateValkeyVectorStore {
             }
         } catch (Exception ignored) {
         }
-    }
-
-    private static float[] randomVector() {
-        float[] vec = new float[DIMENSION];
-        for (int i = 0; i < DIMENSION; i++) {
-            vec[i] = random.nextFloat();
-        }
-        return vec;
-    }
-
-    private static float[] normalizeVector(float[] vector) {
-        float magnitude = 0.0f;
-        for (float v : vector) {
-            magnitude += v * v;
-        }
-        magnitude = (float) Math.sqrt(magnitude);
-        if (magnitude < 1e-10f) {
-            return vector;
-        }
-        float[] normalized = new float[vector.length];
-        for (int i = 0; i < vector.length; i++) {
-            normalized[i] = vector[i] / magnitude;
-        }
-        return normalized;
-    }
-
-    private static byte[] floatArrayToBytes(float[] floats) {
-        ByteBuffer buffer = ByteBuffer.allocate(floats.length * 4)
-            .order(ByteOrder.LITTLE_ENDIAN);
-        for (float f : floats) {
-            buffer.putFloat(f);
-        }
-        return buffer.array();
     }
 }

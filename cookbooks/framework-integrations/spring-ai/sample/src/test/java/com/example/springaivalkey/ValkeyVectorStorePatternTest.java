@@ -1,5 +1,8 @@
 package com.example.springaivalkey;
 
+import static com.example.springaivalkey.VectorTestUtils.floatArrayToBytes;
+import static com.example.springaivalkey.VectorTestUtils.normalizeVector;
+import static com.example.springaivalkey.VectorTestUtils.randomVector;
 import static glide.api.models.GlideString.gs;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -18,11 +21,8 @@ import glide.api.models.commands.FT.FTCreateOptions.VectorFieldHnsw;
 import glide.api.models.commands.FT.FTSearchOptions;
 import glide.api.models.configuration.GlideClientConfiguration;
 import glide.api.models.configuration.NodeAddress;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -43,7 +43,6 @@ class ValkeyVectorStorePatternTest {
     private static final String INDEX_NAME = "test-spring-ai-idx";
     private static final String PREFIX = "test-embedding:";
     private static final int DIMENSION = 128;
-    private static final Random random = new Random(42);
 
     @BeforeAll
     static void setUp() throws Exception {
@@ -116,7 +115,7 @@ class ValkeyVectorStorePatternTest {
             String key = PREFIX + "doc-1";
             Map<String, Object> doc = Map.of(
                 "content", "Spring AI integrates with Valkey",
-                "embedding", randomVector(),
+                "embedding", randomVector(DIMENSION),
                 "category", "ai"
             );
             String json = objectMapper.writeValueAsString(doc);
@@ -133,7 +132,7 @@ class ValkeyVectorStorePatternTest {
         void testJsonDelete() throws Exception {
             String key = PREFIX + "doc-del";
             String json = objectMapper.writeValueAsString(
-                Map.of("content", "to be deleted", "embedding", randomVector())
+                Map.of("content", "to be deleted", "embedding", randomVector(DIMENSION))
             );
 
             Json.set(client, key, "$", json).get();
@@ -153,6 +152,9 @@ class ValkeyVectorStorePatternTest {
         @Test
         @DisplayName("should create HNSW vector index on JSON")
         void testCreateHnswIndex() throws Exception {
+            // NOTE: $.content is indexed as TagField here for demonstration purposes only.
+            // Spring AI's real ValkeyVectorStore does NOT index content in the FT schema —
+            // it only stores content in the JSON document for retrieval after KNN search.
             FieldInfo[] fields = new FieldInfo[]{
                 new FieldInfo("$.content", "content", new TagField()),
                 new FieldInfo("$.embedding", "embedding",
@@ -207,9 +209,9 @@ class ValkeyVectorStorePatternTest {
         void testKnnSearch() throws Exception {
             createTestIndex();
             storeTestDocuments();
-            waitForIndexing();
+            waitForIndexing(5);
 
-            float[] queryVector = normalizeVector(randomVector());
+            float[] queryVector = normalizeVector(randomVector(DIMENSION));
             String query = "*=>[KNN 3 @embedding $BLOB AS vector_score]";
 
             FTSearchOptions options = FTSearchOptions.builder()
@@ -229,16 +231,16 @@ class ValkeyVectorStorePatternTest {
         void testResultsOrderedByDistance() throws Exception {
             createTestIndex();
 
-            // Store a known vector and vectors at varying distances
-            float[] baseVector = normalizeVector(new float[DIMENSION]);
+            // Create a known unit vector (all components equal)
+            float[] baseVector = new float[DIMENSION];
             Arrays.fill(baseVector, 1.0f / (float) Math.sqrt(DIMENSION));
 
             // Store base + nearby + far vectors
             storeDocument("near", baseVector, "near", 2025);
-            float[] farVector = normalizeVector(randomVector());
+            float[] farVector = normalizeVector(randomVector(DIMENSION));
             storeDocument("far", farVector, "far", 2024);
 
-            waitForIndexing();
+            waitForIndexing(2);
 
             String query = "*=>[KNN 5 @embedding $BLOB AS vector_score]";
             FTSearchOptions options = FTSearchOptions.builder()
@@ -257,12 +259,12 @@ class ValkeyVectorStorePatternTest {
         @DisplayName("should filter by TAG metadata in KNN query")
         void testKnnWithTagFilter() throws Exception {
             createTestIndex();
-            storeDocument("ai-1", normalizeVector(randomVector()), "ai", 2025);
-            storeDocument("db-1", normalizeVector(randomVector()), "database", 2024);
-            storeDocument("ai-2", normalizeVector(randomVector()), "ai", 2024);
-            waitForIndexing();
+            storeDocument("ai-1", normalizeVector(randomVector(DIMENSION)), "ai", 2025);
+            storeDocument("db-1", normalizeVector(randomVector(DIMENSION)), "database", 2024);
+            storeDocument("ai-2", normalizeVector(randomVector(DIMENSION)), "ai", 2024);
+            waitForIndexing(3);
 
-            float[] queryVector = normalizeVector(randomVector());
+            float[] queryVector = normalizeVector(randomVector(DIMENSION));
             String query = "(@category:{ai})=>[KNN 5 @embedding $BLOB AS vector_score]";
 
             FTSearchOptions options = FTSearchOptions.builder()
@@ -278,12 +280,12 @@ class ValkeyVectorStorePatternTest {
         @DisplayName("should filter by NUMERIC range in KNN query")
         void testKnnWithNumericFilter() throws Exception {
             createTestIndex();
-            storeDocument("new-1", normalizeVector(randomVector()), "ai", 2025);
-            storeDocument("old-1", normalizeVector(randomVector()), "ai", 2023);
-            storeDocument("new-2", normalizeVector(randomVector()), "database", 2025);
-            waitForIndexing();
+            storeDocument("new-1", normalizeVector(randomVector(DIMENSION)), "ai", 2025);
+            storeDocument("old-1", normalizeVector(randomVector(DIMENSION)), "ai", 2023);
+            storeDocument("new-2", normalizeVector(randomVector(DIMENSION)), "database", 2025);
+            waitForIndexing(3);
 
-            float[] queryVector = normalizeVector(randomVector());
+            float[] queryVector = normalizeVector(randomVector(DIMENSION));
             String query = "(@year:[2025 2025])=>[KNN 5 @embedding $BLOB AS vector_score]";
 
             FTSearchOptions options = FTSearchOptions.builder()
@@ -307,7 +309,8 @@ class ValkeyVectorStorePatternTest {
             String otherIndex = "test-other-idx";
 
             try {
-                // Create index for the other prefix
+                // NOTE: $.content indexed as TagField for demonstration only —
+                // see note in VectorIndexTests.testCreateHnswIndex.
                 FieldInfo[] fields = new FieldInfo[]{
                     new FieldInfo("$.content", "content", new TagField()),
                     new FieldInfo("$.embedding", "embedding",
@@ -324,7 +327,7 @@ class ValkeyVectorStorePatternTest {
                 ).get();
 
                 // Store in main prefix
-                float[] vec = normalizeVector(randomVector());
+                float[] vec = normalizeVector(randomVector(DIMENSION));
                 storeDocument("main-doc", vec, "main", 2025);
 
                 // Store in other prefix
@@ -335,7 +338,7 @@ class ValkeyVectorStorePatternTest {
                 ));
                 Json.set(client, otherKey, "$", json).get();
 
-                waitForIndexing();
+                waitForIndexing(1);
 
                 // Search main index — should only find main-doc
                 String query = "*=>[KNN 5 @embedding $BLOB AS vector_score]";
@@ -364,6 +367,8 @@ class ValkeyVectorStorePatternTest {
     // --- Helper Methods ---
 
     private void createTestIndex() throws Exception {
+        // NOTE: $.content indexed as TagField for demonstration purposes only.
+        // Spring AI's real ValkeyVectorStore does NOT index content in the FT schema.
         FieldInfo[] fields = new FieldInfo[]{
             new FieldInfo("$.content", "content", new TagField()),
             new FieldInfo("$.embedding", "embedding",
@@ -381,11 +386,11 @@ class ValkeyVectorStorePatternTest {
     }
 
     private void storeTestDocuments() throws Exception {
-        storeDocument("doc-1", normalizeVector(randomVector()), "ai", 2025);
-        storeDocument("doc-2", normalizeVector(randomVector()), "database", 2024);
-        storeDocument("doc-3", normalizeVector(randomVector()), "ai", 2024);
-        storeDocument("doc-4", normalizeVector(randomVector()), "infrastructure", 2025);
-        storeDocument("doc-5", normalizeVector(randomVector()), "database", 2025);
+        storeDocument("doc-1", normalizeVector(randomVector(DIMENSION)), "ai", 2025);
+        storeDocument("doc-2", normalizeVector(randomVector(DIMENSION)), "database", 2024);
+        storeDocument("doc-3", normalizeVector(randomVector(DIMENSION)), "ai", 2024);
+        storeDocument("doc-4", normalizeVector(randomVector(DIMENSION)), "infrastructure", 2025);
+        storeDocument("doc-5", normalizeVector(randomVector(DIMENSION)), "database", 2025);
     }
 
     private void storeDocument(String id, float[] vector, String category, int year) throws Exception {
@@ -400,46 +405,45 @@ class ValkeyVectorStorePatternTest {
         Json.set(client, key, "$", json).get();
     }
 
-    private static float[] randomVector() {
-        float[] vec = new float[DIMENSION];
-        for (int i = 0; i < DIMENSION; i++) {
-            vec[i] = random.nextFloat();
+    /**
+     * Poll FT.INFO until the indexed document count reaches the expected value.
+     * Times out after 5 seconds to prevent hanging in case of indexing failures.
+     */
+    private void waitForIndexing(int expectedDocs) throws Exception {
+        long deadline = System.currentTimeMillis() + 5000;
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                Object info = FT.info(client, INDEX_NAME).get();
+                if (info != null && getNumDocs(info.toString()) >= expectedDocs) {
+                    return;
+                }
+            } catch (Exception ignored) {
+            }
+            Thread.sleep(50);
         }
-        return vec;
     }
 
-    private static float[] normalizeVector(float[] vector) {
-        float magnitude = 0.0f;
-        for (float v : vector) {
-            magnitude += v * v;
+    private int getNumDocs(String infoStr) {
+        int idx = infoStr.indexOf("num_docs");
+        if (idx == -1) return 0;
+        String after = infoStr.substring(idx);
+        StringBuilder num = new StringBuilder();
+        boolean foundDigit = false;
+        for (char c : after.toCharArray()) {
+            if (Character.isDigit(c)) {
+                num.append(c);
+                foundDigit = true;
+            } else if (foundDigit) {
+                break;
+            }
         }
-        magnitude = (float) Math.sqrt(magnitude);
-        if (magnitude < 1e-10f) {
-            return vector;
-        }
-        float[] normalized = new float[vector.length];
-        for (int i = 0; i < vector.length; i++) {
-            normalized[i] = vector[i] / magnitude;
-        }
-        return normalized;
-    }
-
-    private static byte[] floatArrayToBytes(float[] floats) {
-        ByteBuffer buffer = ByteBuffer.allocate(floats.length * 4)
-            .order(ByteOrder.LITTLE_ENDIAN);
-        for (float f : floats) {
-            buffer.putFloat(f);
-        }
-        return buffer.array();
-    }
-
-    private void waitForIndexing() throws InterruptedException {
-        // Allow time for Valkey to index documents
-        Thread.sleep(500);
+        return num.isEmpty() ? 0 : Integer.parseInt(num.toString());
     }
 
     private void deleteKeysByPattern(String pattern) {
         try {
+            // WARNING: KEYS is O(N) and blocks the server. Acceptable for test cleanup
+            // with few keys. In production, use SCAN with a cursor loop instead.
             Object result = client.customCommand(new String[]{"KEYS", pattern}).get();
             if (result instanceof Object[] keys && keys.length > 0) {
                 String[] delArgs = new String[keys.length + 1];
