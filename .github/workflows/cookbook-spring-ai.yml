@@ -1,0 +1,39 @@
+name: "Cookbook: Spring AI Integration Tests"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cookbooks/framework-integrations/spring-ai/sample/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "cookbooks/framework-integrations/spring-ai/sample/**"
+
+jobs:
+  java-integration-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        valkey-version: ["8.1.1"]
+    services:
+      valkey:
+        image: valkey/valkey-bundle:${{ matrix.valkey-version }}
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+          cache: "maven"
+      - name: Run integration tests
+        working-directory: cookbooks/framework-integrations/spring-ai/sample
+        run: mvn test --batch-mode --no-transfer-progress
