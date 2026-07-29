@@ -87,7 +87,6 @@ def main() -> None:
             "FT.SEARCH", index_name,
             "*=>[KNN 1 @embedding $BLOB AS vector_score]",
             "PARAMS", "2", "BLOB", vector_to_bytes(query_vec),
-            "SORTBY", "vector_score",
             "DIALECT", "2",
         )
         count = result[0]
@@ -146,7 +145,6 @@ def main() -> None:
             "FT.SEARCH", routing_index,
             "*=>[KNN 1 @embedding $BLOB AS vector_score]",
             "PARAMS", "2", "BLOB", vector_to_bytes(request_vec),
-            "SORTBY", "vector_score",
             "DIALECT", "2",
         )
         if result[0] > 0:
