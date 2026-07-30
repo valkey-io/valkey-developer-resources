@@ -1,0 +1,16 @@
+{
+  "name": "voltagent-valkey-cookbook",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Sample project for the VoltAgent + Valkey cookbook",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test tests/test_voltagent_patterns.mjs"
+  },
+  "dependencies": {
+    "redis": "5.12.1"
+  }
+}
