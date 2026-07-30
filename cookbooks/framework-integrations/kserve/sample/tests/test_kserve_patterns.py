@@ -23,7 +23,7 @@ class TestConnectivity:
         assert version is not None
         parts = version.split(".")
         major, minor = int(parts[0]), int(parts[1])
-        assert (major, minor) >= (8, 0), f"Expected 8.0+, got {version}"
+        assert (major, minor) >= (9, 1), f"Expected 9.1+, got {version}"
 
     def test_redis_protocol_compatibility(self, valkey_client):
         """Valkey responds to standard Redis protocol commands (wire compat)."""
@@ -88,16 +88,17 @@ class TestLMCachePattern:
         errors = []
 
         def write_chunk(replica_id: int) -> None:
+            c = valkey.Valkey(host="localhost", port=6379)
             try:
-                c = valkey.Valkey(host="localhost", port=6379)
                 for layer in range(4):
                     key = f"model@{replica_id}@{layer}@concurrent_test@half"
                     data = rng.random(512, dtype=np.float32).astype(np.float16).tobytes()
                     c.set(key, data)
                     results[f"{replica_id}:{layer}"] = len(data)
-                c.close()
             except Exception as e:
                 errors.append(str(e))
+            finally:
+                c.close()
 
         threads = [threading.Thread(target=write_chunk, args=(i,)) for i in range(4)]
         for t in threads:

@@ -108,14 +108,19 @@ def main() -> None:
         # --- Cleanup ---
         print("\n4. Cleanup")
         # Delete LMCache keys
-        for key in client.keys(f"{model_name}@*"):
-            client.delete(key)
+        # WARNING: KEYS is O(N) — acceptable for demo cleanup with few keys.
+        # In production use SCAN instead: client.scan_iter("pattern*")
+        keys = client.keys(f"{model_name}@*")
+        if keys:
+            client.delete(*keys)
         # Delete index keys
-        for key in client.keys("idx:*"):
-            client.delete(key)
+        keys = client.keys("idx:*")
+        if keys:
+            client.delete(*keys)
         # Delete feast keys
-        for key in client.keys("feast:*"):
-            client.delete(key)
+        keys = client.keys("feast:*")
+        if keys:
+            client.delete(*keys)
         print("   All test data removed ✓")
 
         print("\n=== All KServe patterns validated successfully ===")

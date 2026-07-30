@@ -62,6 +62,12 @@ indexerConfig:
 
 Full manifest:
 
+> **Note:** The `ChildName` template expression in the YAML below (inside the
+> `--kv-events-config` JSON) is a KServe controller template function. It resolves
+> to the EPP Service name at admission time and only works inside
+> `LLMInferenceService.spec.template`. Do not copy this expression into a plain
+> `Deployment` spec — it will not be resolved.
+
 ```yaml
 apiVersion: serving.kserve.io/v1alpha1
 kind: LLMInferenceService

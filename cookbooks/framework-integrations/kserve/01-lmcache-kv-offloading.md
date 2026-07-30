@@ -260,9 +260,9 @@ Each KV cache chunk is approximately:
 `num_layers × 2 × num_heads × head_dim × chunk_size × dtype_size`
 
 For Llama-3.2-1B (16 layers, 8 heads, 64 dim, FP16):
-`16 × 2 × 8 × 64 × 256 × 2 bytes ≈ 8.4 MB per chunk`
+`16 × 2 × 8 × 64 × 256 × 2 bytes = 8.0 MiB per chunk`
 
-Plan Valkey memory accordingly — e.g., 4 GB supports ~475 chunks.
+Plan Valkey memory accordingly — e.g., 4 GiB supports ~512 chunks.
 
 ### Persistence
 
