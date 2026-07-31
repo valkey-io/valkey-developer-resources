@@ -1,0 +1,105 @@
+# TODO: Remove this temporary copy after a shared Go cookbook workflow
+# (analogous to cookbook-python.yml) merges and includes
+# framework-integrations/vllm-semantic-router.
+name: Cookbook Go Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cookbooks/**/*.go"
+      - "cookbooks/**/go.mod"
+      - "cookbooks/**/go.sum"
+      - ".github/workflows/cookbook-go.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "cookbooks/**/*.go"
+      - "cookbooks/**/go.mod"
+      - "cookbooks/**/go.sum"
+      - ".github/workflows/cookbook-go.yml"
+
+jobs:
+  detect-go-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      go-cookbooks: ${{ steps.filter.outputs.go-cookbooks }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 # v3
+        id: filter
+        with:
+          filters: |
+            go-cookbooks:
+              - 'cookbooks/**/*.go'
+              - 'cookbooks/**/go.mod'
+              - 'cookbooks/**/go.sum'
+              - '.github/workflows/cookbook-go.yml'
+
+  go-build-vet:
+    needs: detect-go-changes
+    if: needs.detect-go-changes.outputs.go-cookbooks == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        cookbook: [framework-integrations/vllm-semantic-router]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: "1.24"
+          cache-dependency-path: cookbooks/${{ matrix.cookbook }}/sample/go.sum
+      - name: Build
+        working-directory: cookbooks/${{ matrix.cookbook }}/sample
+        run: go build ./...
+      - name: Vet
+        working-directory: cookbooks/${{ matrix.cookbook }}/sample
+        run: go vet ./...
+      - name: Format check
+        working-directory: cookbooks/${{ matrix.cookbook }}/sample
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "The following files are not gofmt-formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+  go-integration-test:
+    needs: detect-go-changes
+    if: needs.detect-go-changes.outputs.go-cookbooks == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        cookbook: [framework-integrations/vllm-semantic-router]
+        valkey-version: ["9.1.0"]
+        # NOTE: the semantic-cache index uses a TEXT field, which requires
+        # valkey-search >= v1.2.0 (shipped in valkey-bundle 9.x). Bundle 8.1.x
+        # ships valkey-search v1.0.0, which rejects TEXT fields in FT.CREATE.
+    services:
+      valkey:
+        image: valkey/valkey-bundle:${{ matrix.valkey-version }}
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: "1.24"
+          cache-dependency-path: cookbooks/${{ matrix.cookbook }}/sample/go.sum
+      - name: Run cache demo (Valkey ${{ matrix.valkey-version }})
+        working-directory: cookbooks/${{ matrix.cookbook }}/sample
+        run: go run . cache | tee /dev/stderr | grep -q "✓ Cache HIT"
+      - name: Run vector store demo (Valkey ${{ matrix.valkey-version }})
+        working-directory: cookbooks/${{ matrix.cookbook }}/sample
+        run: go run . vectorstore | tee /dev/stderr | grep -q "✓ Deleted collection"
+      - name: Run agentic memory demo (Valkey ${{ matrix.valkey-version }})
+        working-directory: cookbooks/${{ matrix.cookbook }}/sample
+        run: go run . memory | tee /dev/stderr | grep -q "✓ Cleaned up index"

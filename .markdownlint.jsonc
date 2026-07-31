@@ -16,5 +16,7 @@
   // Allow trailing punctuation in headings (e.g., "## Questions?")
   "MD026": {
     "punctuation": ".,;:!"
-  }
+  },
+  // Disable table column style — our tables use compact separators
+  "MD060": false
 }
