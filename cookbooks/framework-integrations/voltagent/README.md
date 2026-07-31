@@ -32,16 +32,22 @@ Both stores support standalone and cluster deployment modes.
 > PR [VoltAgent/voltagent#1259](https://github.com/VoltAgent/voltagent/pull/1259)
 > (currently OPEN). This cookbook documents the designed API so it's ready when the
 > packages ship. The sample project tests validate the underlying Valkey patterns
-> independently using the `valkey` npm package.
+> independently using the `@valkey/valkey-glide` client library (via the `redis`
+> compatibility package in tests).
 
 ## Quick Start
 
 ```typescript
+import { GlideClient } from "@valkey/valkey-glide";
 import { createValkeyTaskStore } from "@voltagent/a2a-server/valkey-store";
 
-const taskStore = createValkeyTaskStore({
+const client = await GlideClient.createClient({
   addresses: [{ host: "localhost", port: 6379 }],
-  prefix: "a2a:tasks",
+});
+
+const taskStore = await createValkeyTaskStore({
+  client,
+  keyPrefix: "a2a-tasks",
   ttlSeconds: 86400, // 24 hours
 });
 ```

@@ -18,8 +18,13 @@ function channelName(taskId) {
 
 async function main() {
   const client = createClient({ url: "redis://localhost:6379" });
+  client.on("error", (err) => {
+    console.error("❌ Connection error:", err.message);
+    process.exit(1);
+  });
   await client.connect();
 
+  let subscriber;
   try {
     console.log("=== VoltAgent Task Store Simulation ===\n");
 
@@ -72,7 +77,7 @@ async function main() {
     const channel = channelName(taskId);
 
     // Create a subscriber
-    const subscriber = client.duplicate();
+    subscriber = client.duplicate();
     await subscriber.connect();
 
     const received = [];
@@ -105,13 +110,15 @@ async function main() {
 
     // Cleanup
     await subscriber.unsubscribe(channel);
-    await subscriber.quit();
     await client.del(key);
     await client.del(sKey);
     await client.del(seqKey);
 
     console.log("\n✅ Simulation complete — all VoltAgent patterns demonstrated.");
   } finally {
+    if (subscriber) {
+      await subscriber.quit();
+    }
     await client.quit();
   }
 }

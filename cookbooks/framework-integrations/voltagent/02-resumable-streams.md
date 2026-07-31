@@ -36,11 +36,17 @@ npm install @voltagent/resumable-streams @valkey/valkey-glide
 ## Step 3: Create the Resumable Stream Store
 
 ```typescript
+import { GlideClient } from "@valkey/valkey-glide";
 import { createResumableStreamValkeyStore } from "@voltagent/resumable-streams/valkey-store";
 
-const streamStore = createResumableStreamValkeyStore({
+const client = await GlideClient.createClient({
   addresses: [{ host: "localhost", port: 6379 }],
-  prefix: "streams",
+});
+
+const streamStore = await createResumableStreamValkeyStore({
+  client,
+  clientConfig: { addresses: [{ host: "localhost", port: 6379 }] },
+  keyPrefix: "resumable-stream",
   ttlSeconds: 3600, // Active stream keys expire after 1 hour
   maxSubscriptions: 100, // Cap on concurrent pub/sub channels
 });
@@ -72,19 +78,25 @@ The `maxSubscriptions` setting caps the number of concurrent subscriber connecti
 ## Step 5: Wire into Your A2A Server
 
 ```typescript
+import { GlideClient } from "@valkey/valkey-glide";
 import { A2AServer } from "@voltagent/a2a-server";
 import { createValkeyTaskStore } from "@voltagent/a2a-server/valkey-store";
 import { createResumableStreamValkeyStore } from "@voltagent/resumable-streams/valkey-store";
 
-const taskStore = createValkeyTaskStore({
+const client = await GlideClient.createClient({
   addresses: [{ host: "localhost", port: 6379 }],
-  prefix: "a2a:tasks",
+});
+
+const taskStore = await createValkeyTaskStore({
+  client,
+  keyPrefix: "a2a-tasks",
   ttlSeconds: 86400,
 });
 
-const streamStore = createResumableStreamValkeyStore({
-  addresses: [{ host: "localhost", port: 6379 }],
-  prefix: "streams",
+const streamStore = await createResumableStreamValkeyStore({
+  client,
+  clientConfig: { addresses: [{ host: "localhost", port: 6379 }] },
+  keyPrefix: "resumable-stream",
   ttlSeconds: 3600,
   maxSubscriptions: 100,
 });
@@ -127,17 +139,17 @@ The resumable stream store uses two Valkey patterns together:
 Each active stream has metadata stored as a JSON string:
 
 ```text
-streams:active:{taskId} → {"sequence": 12, "status": "streaming", "createdAt": "..."}
+resumable-stream:active:{userId}-{conversationId} → {"streamId": "...", ...}
 ```
 
 The sequence number (managed via `INCR`) tracks how many events have been published. Clients use this as their `Last-Event-ID`.
 
 ### 2. Pub/Sub for Real-Time Delivery
 
-New events are published to a channel matching the task:
+New events are published to a channel matching the stream:
 
 ```text
-PUBLISH streams:channel:{taskId} '{"seq":7,"type":"progress","data":"Thinking..."}'
+PUBLISH resumable-stream:channel:{streamId} '{"seq":7,"type":"progress","data":"Thinking..."}'
 ```
 
 Subscriber clients receive events in real-time. If a client disconnects and reconnects, the store:
@@ -158,19 +170,19 @@ Active stream keys have a TTL. Once a stream completes or expires:
 
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
-| `addresses` | `Array<{host, port}>` | — | Valkey server address(es) |
-| `prefix` | `string` | `"voltagent:streams"` | Key prefix for stream state |
-| `ttlSeconds` | `number` | `3600` | TTL for active stream keys |
-| `maxSubscriptions` | `number` | `100` | Maximum concurrent pub/sub subscriber connections |
-| `clusterMode` | `boolean` | `false` | Enable cluster mode (uses GlideClusterClient) |
-| `clientOptions` | `object` | `{}` | Additional valkey-glide client options |
+| `client` | `GlideClient \| GlideClusterClient` | — | Connected Valkey client instance (required) |
+| `clientConfig` | `ValkeyConnectionConfig` | — | Connection config reused for per-channel subscription clients (required) |
+| `keyPrefix` | `string` | `"resumable-stream"` | Key prefix for stream state |
+| `ttlSeconds` | `number` | `undefined` | TTL for active stream keys |
+| `maxSubscriptions` | `number` | `1000` | Maximum concurrent pub/sub subscriber connections |
+| `waitUntil` | `function \| null` | `null` | Optional callback to keep the process alive during background work |
 
 ## Resource Considerations
 
 Each active stream subscription consumes one Valkey client connection. Plan accordingly:
 
 - **Valkey `maxclients`** — default is 10,000. With 100 concurrent streams, the store uses ~101 connections (100 subscribers + 1 publisher).
-- **`maxSubscriptions`** — set this below your Valkey `maxclients` limit, leaving room for the task store and other clients.
+- **`maxSubscriptions`** — defaults to 1000 in the library. Set this below your Valkey `maxclients` limit, leaving room for the task store and other clients.
 - **TTL** — shorter TTLs free connections faster but risk expiring streams that are still active. Match to your expected stream duration.
 
 ```bash

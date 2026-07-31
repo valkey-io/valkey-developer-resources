@@ -50,11 +50,16 @@ npm install @voltagent/a2a-server @valkey/valkey-glide
 ## Step 3: Create the Task Store
 
 ```typescript
+import { GlideClient } from "@valkey/valkey-glide";
 import { createValkeyTaskStore } from "@voltagent/a2a-server/valkey-store";
 
-const taskStore = createValkeyTaskStore({
+const client = await GlideClient.createClient({
   addresses: [{ host: "localhost", port: 6379 }],
-  prefix: "a2a:tasks",
+});
+
+const taskStore = await createValkeyTaskStore({
+  client,
+  keyPrefix: "a2a-tasks",
   ttlSeconds: 86400, // 24 hours — tasks expire after this
 });
 ```
@@ -62,20 +67,25 @@ const taskStore = createValkeyTaskStore({
 The store persists tasks as JSON strings using the composite key pattern:
 
 ```text
-{prefix}:{agentId}::{taskId}
+{keyPrefix}:{agentId}::{taskId}
 ```
 
-For example: `a2a:tasks:weather-agent::task_abc123`
+For example: `a2a-tasks:weather-agent::task_abc123`
 
 ## Step 4: Wire into Your A2A Server
 
 ```typescript
+import { GlideClient } from "@valkey/valkey-glide";
 import { A2AServer } from "@voltagent/a2a-server";
 import { createValkeyTaskStore } from "@voltagent/a2a-server/valkey-store";
 
-const taskStore = createValkeyTaskStore({
+const client = await GlideClient.createClient({
   addresses: [{ host: "localhost", port: 6379 }],
-  prefix: "a2a:tasks",
+});
+
+const taskStore = await createValkeyTaskStore({
+  client,
+  keyPrefix: "a2a-tasks",
   ttlSeconds: 86400,
 });
 
@@ -104,14 +114,14 @@ curl -X POST http://localhost:3000/tasks \
 1. Check the task was stored in Valkey:
 
 ```bash
-docker exec valkey valkey-cli KEYS "a2a:tasks:*"
-# 1) "a2a:tasks:weather-agent::task_abc123"
+docker exec valkey valkey-cli KEYS "a2a-tasks:*"
+# 1) "a2a-tasks:weather-agent::task_abc123"
 ```
 
 1. Inspect the stored JSON:
 
 ```bash
-docker exec valkey valkey-cli GET "a2a:tasks:weather-agent::task_abc123"
+docker exec valkey valkey-cli GET "a2a-tasks:weather-agent::task_abc123"
 # {"id":"task_abc123","status":"completed","result":"Sunny, 72°F",...}
 ```
 
@@ -123,7 +133,7 @@ The `ValkeyTaskStore` implementation is straightforward:
 
 1. **SET** — When a task is created or updated, the entire task object is serialized to JSON and stored with `SET key value EX ttl`.
 2. **GET** — When a task is retrieved, the JSON string is fetched and parsed back into the task object.
-3. **Key pattern** — The composite key `{prefix}:{agentId}::{taskId}` ensures isolation between agents sharing the same Valkey instance.
+3. **Key pattern** — The composite key `{keyPrefix}:{agentId}::{taskId}` ensures isolation between agents sharing the same Valkey instance.
    The `::` double-colon separator distinguishes the agentId from the taskId.
 4. **TTL** — Optional time-to-live prevents abandoned tasks from consuming memory indefinitely.
 
@@ -131,11 +141,9 @@ The `ValkeyTaskStore` implementation is straightforward:
 
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
-| `addresses` | `Array<{host, port}>` | — | Valkey server address(es) |
-| `prefix` | `string` | `"voltagent:tasks"` | Key prefix for all task entries |
+| `client` | `GlideClient \| GlideClusterClient` | — | Connected Valkey client instance (required) |
+| `keyPrefix` | `string` | `"a2a-tasks"` | Key prefix for all task entries |
 | `ttlSeconds` | `number` | `undefined` | Optional TTL in seconds for task keys |
-| `clusterMode` | `boolean` | `false` | Enable cluster mode (uses GlideClusterClient) |
-| `clientOptions` | `object` | `{}` | Additional valkey-glide client options |
 
 ## Troubleshooting
 
@@ -154,7 +162,7 @@ If it's not listed, start it with the command from Step 1.
 Check the TTL setting. If `ttlSeconds` is set too low, tasks expire before you retrieve them:
 
 ```bash
-docker exec valkey valkey-cli TTL "a2a:tasks:weather-agent::task_abc123"
+docker exec valkey valkey-cli TTL "a2a-tasks:weather-agent::task_abc123"
 ```
 
 ### Key collisions between agents
@@ -162,8 +170,8 @@ docker exec valkey valkey-cli TTL "a2a:tasks:weather-agent::task_abc123"
 Each agent must have a unique `agentId`. The composite key pattern ensures isolation:
 
 ```text
-a2a:tasks:agent-one::task_1
-a2a:tasks:agent-two::task_1  ← different key, no collision
+a2a-tasks:agent-one::task_1
+a2a-tasks:agent-two::task_1  ← different key, no collision
 ```
 
 ---
