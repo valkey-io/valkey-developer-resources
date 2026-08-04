@@ -1,0 +1,81 @@
+# TODO: Remove this temporary copy after PR #43's shared cookbook-validation workflow
+# merges and includes framework-integrations/stagehand in its matrix.
+name: Cookbook TypeScript Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cookbooks/framework-integrations/stagehand/**"
+      - ".github/workflows/cookbook-ts.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "cookbooks/framework-integrations/stagehand/**"
+      - ".github/workflows/cookbook-ts.yml"
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      ts-cookbooks: ${{ steps.filter.outputs.ts-cookbooks }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 # v3
+        id: filter
+        with:
+          filters: |
+            ts-cookbooks:
+              - 'cookbooks/framework-integrations/stagehand/**'
+              - '.github/workflows/cookbook-ts.yml'
+
+  node-test:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.ts-cookbooks == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        cookbook: [framework-integrations/stagehand]
+        valkey-version: ["8.1.7", "9.1.0"]
+    services:
+      valkey:
+        image: valkey/valkey-bundle:${{ matrix.valkey-version }}
+        ports:
+          - "127.0.0.1:6379:6379"
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "20"
+      - name: Install pnpm
+        run: npm install -g pnpm@9.15.0
+      # Valkey caching isn't in a published @browserbasehq/stagehand release yet
+      # (browserbase/stagehand#2264 is open). Build the fork that implements it —
+      # see cookbooks/framework-integrations/stagehand/01-getting-started.md.
+      - name: Build the Valkey-cache fork
+        run: |
+          git clone https://github.com/edlng/stagehand.git /tmp/stagehand-fork
+          cd /tmp/stagehand-fork
+          git checkout e94a0ad06b717b3b7897797153d954dc4147e12a
+          pnpm install --ignore-scripts
+          npx turbo run build --filter=@browserbasehq/stagehand
+      - name: Link fork into sample
+        working-directory: cookbooks/${{ matrix.cookbook }}/sample
+        run: ln -s /tmp/stagehand-fork ../stagehand-fork
+      - name: Install dependencies
+        working-directory: cookbooks/${{ matrix.cookbook }}/sample
+        run: npm ci
+        timeout-minutes: 5
+      - name: Type check
+        working-directory: cookbooks/${{ matrix.cookbook }}/sample
+        run: npx tsc --noEmit
+      - name: Run tests (Valkey ${{ matrix.valkey-version }})
+        working-directory: cookbooks/${{ matrix.cookbook }}/sample
+        run: npm test

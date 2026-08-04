@@ -1,0 +1,4 @@
+git+https://github.com/edlng/stagehand-python.git@e4bbc4d0268fe83f2fea195621ecd32c4c624a3a
+valkey==6.1.1
+pytest==8.3.5
+
