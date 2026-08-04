@@ -20,7 +20,7 @@ not run that pipeline — instead it exercises the real LMCache config-loading
 and Valkey key-generation code (`lmcache==0.5.2`) against a real local
 Valkey server, so every command here runs on CPU and in CI. For the full
 GPU-based inference walkthrough with actual TTFT measurements, see
-[LMCache's own example](https://github.com/LMCache/LMCache/tree/main/examples/kv_cache_reuse/remote_backends/valkey).
+[LMCache's own example](https://github.com/LMCache/LMCache/tree/v0.5.2/examples/kv_cache_reuse/remote_backends/valkey).
 
 ## Cookbooks
 

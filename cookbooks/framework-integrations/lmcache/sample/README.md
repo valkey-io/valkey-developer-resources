@@ -7,7 +7,7 @@ Runnable code for the [LMCache + Valkey cookbook series](../README.md).
 > `lmcache.utils.CacheEngineKey`) against a real local Valkey server. It does
 > **not** run vLLM or require a GPU. Running the full inference pipeline
 > (vLLM + LMCache + Valkey, with actual TTFT reduction) additionally requires
-> an NVIDIA GPU — see [LMCache's own example](https://github.com/LMCache/LMCache/tree/main/examples/kv_cache_reuse/remote_backends/valkey)
+> an NVIDIA GPU — see [LMCache's own example](https://github.com/LMCache/LMCache/tree/v0.5.2/examples/kv_cache_reuse/remote_backends/valkey)
 > for that walkthrough.
 
 ## Prerequisites
