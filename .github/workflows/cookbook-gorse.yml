@@ -1,0 +1,45 @@
+name: "Cookbook: Gorse Integration Tests"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cookbooks/framework-integrations/gorse/sample/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "cookbooks/framework-integrations/gorse/sample/**"
+
+jobs:
+  go-integration-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        valkey-version: ["9.1.0"]
+    services:
+      valkey:
+        image: valkey/valkey-bundle:${{ matrix.valkey-version }}
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
+        with:
+          go-version: "1.23"
+      - name: Download dependencies
+        working-directory: cookbooks/framework-integrations/gorse/sample
+        run: go mod download
+      - name: Build
+        working-directory: cookbooks/framework-integrations/gorse/sample
+        run: go build ./...
+      - name: Run integration tests
+        working-directory: cookbooks/framework-integrations/gorse/sample
+        env:
+          VALKEY_ADDR: "127.0.0.1:6379"
+        run: go test -v -count=1 ./...
