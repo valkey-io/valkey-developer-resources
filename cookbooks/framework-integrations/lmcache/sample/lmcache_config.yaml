@@ -1,0 +1,12 @@
+# LMCache config for the 01-getting-started sample.
+# Loaded via lmcache.v1.config.load_engine_config_with_overrides (real
+# LMCache code) in getting_started.py. Format verified against the
+# in-process ValkeyConnector docs (deprecated in favor of MP mode — see
+# 03-production-deployment.md for the current recommended MP-mode config).
+chunk_size: 256
+local_cpu: true
+max_local_cpu_size: 5.0
+remote_url: "valkey://localhost:6379"
+remote_serde: "naive"
+extra_config:
+  valkey_num_workers: 4

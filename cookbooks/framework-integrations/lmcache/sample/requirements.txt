@@ -1,0 +1,4 @@
+lmcache==0.5.2
+torch==2.13.0
+valkey-glide==2.5.0
+pytest==8.3.5
