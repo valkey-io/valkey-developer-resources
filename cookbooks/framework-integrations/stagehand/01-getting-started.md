@@ -53,7 +53,7 @@ npm install -D typescript tsx
 
 # Temporary: build the Valkey-cache fork until browserbase/stagehand#2264 merges and releases.
 git clone https://github.com/edlng/stagehand.git ../stagehand-fork
-(cd ../stagehand-fork && git checkout e94a0ad06b717b3b7897797153d954dc4147e12a && pnpm install --ignore-scripts && npx turbo run build --filter=@browserbasehq/stagehand)
+(cd ../stagehand-fork && git checkout e94a0ad06b717b3b7897797153d954dc4147e12a && pnpm install --ignore-scripts --no-frozen-lockfile && npx turbo run build --filter=@browserbasehq/stagehand)
 npm install "file:../stagehand-fork/packages/core"
 ```
 

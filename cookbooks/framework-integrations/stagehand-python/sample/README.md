@@ -20,7 +20,7 @@ docker compose up -d
 
 # Start the Stagehand server from the fork with Valkey support
 git clone https://github.com/edlng/stagehand.git ../stagehand-fork
-cd ../stagehand-fork && git checkout e94a0ad06b717b3b7897797153d954dc4147e12a && pnpm install --ignore-scripts
+cd ../stagehand-fork && git checkout e94a0ad06b717b3b7897797153d954dc4147e12a && pnpm install --ignore-scripts --no-frozen-lockfile
 cd packages/server-v3
 VALKEY_HOST=localhost VALKEY_PORT=6379 VALKEY_KEY_PREFIX=stagehand-demo \
   VALKEY_CACHE_TTL=3600 PORT=3000 npx tsx src/server.ts

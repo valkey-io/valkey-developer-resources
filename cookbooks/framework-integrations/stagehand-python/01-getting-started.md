@@ -55,7 +55,7 @@ Valkey caching isn't in a released `stagehand` server yet, so run it from the fo
 git clone https://github.com/edlng/stagehand.git
 cd stagehand
 git checkout e94a0ad06b717b3b7897797153d954dc4147e12a
-pnpm install --ignore-scripts
+pnpm install --ignore-scripts --no-frozen-lockfile
 cd packages/server-v3
 
 VALKEY_HOST=localhost \

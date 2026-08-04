@@ -64,7 +64,7 @@ jobs:
           git clone https://github.com/edlng/stagehand.git /tmp/stagehand-fork
           cd /tmp/stagehand-fork
           git checkout e94a0ad06b717b3b7897797153d954dc4147e12a
-          pnpm install --ignore-scripts
+          pnpm install --ignore-scripts --no-frozen-lockfile
           npx turbo run build --filter=@browserbasehq/stagehand
       - name: Link fork into sample
         working-directory: cookbooks/${{ matrix.cookbook }}/sample

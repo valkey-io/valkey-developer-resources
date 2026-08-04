@@ -19,7 +19,7 @@ docker compose up -d
 
 # Build the Valkey-cache fork as a sibling of this directory
 git clone https://github.com/edlng/stagehand.git ../stagehand-fork
-(cd ../stagehand-fork && git checkout e94a0ad06b717b3b7897797153d954dc4147e12a && pnpm install --ignore-scripts && npx turbo run build --filter=@browserbasehq/stagehand)
+(cd ../stagehand-fork && git checkout e94a0ad06b717b3b7897797153d954dc4147e12a && pnpm install --ignore-scripts --no-frozen-lockfile && npx turbo run build --filter=@browserbasehq/stagehand)
 
 # Install sample dependencies (package.json points at the fork build above)
 npm install
