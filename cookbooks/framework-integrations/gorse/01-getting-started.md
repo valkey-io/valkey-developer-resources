@@ -178,7 +178,9 @@ func GetTimeSeriesPoints(ctx context.Context, client *redis.Client, name string,
 }
 ```
 
-**Trade-off:** This fetches all timestamps in the range into memory for client-side aggregation. For Gorse's use case (metrics with bounded density — hourly/daily points over weeks), this is fine. For extremely high-density data, consider adding `Count`/`Offset` pagination to `ZRangeByScore`.
+**Trade-off:** This fetches all timestamps in the range into memory for client-side aggregation.
+For Gorse's use case (metrics with bounded density — hourly/daily points over weeks), this is fine.
+For extremely high-density data, consider adding `Count`/`Offset` pagination to `ZRangeByScore`.
 
 ## Step 6: Verify the Integration
 
@@ -192,7 +194,7 @@ go run .
 
 Expected output:
 
-```
+```text
 Connected to Valkey (server_name:valkey detected)
 Stored 10 time series points
 Queried 5-second buckets: 2 results

@@ -16,7 +16,11 @@
 
 ## How Gorse Uses Valkey
 
-Gorse is an open-source recommendation system written in Go. It uses a cache store for intermediate computation results, item scores, and time series metrics. The Valkey integration (introduced in [gorse-io/gorse#1263](https://github.com/gorse-io/gorse/pull/1263)) reuses the existing `go-redis` client — zero new dependencies — since Valkey is wire-compatible with Redis for all commands except the TimeSeries module.
+Gorse is an open-source recommendation system written in Go.
+It uses a cache store for intermediate computation results, item scores, and time series metrics.
+The Valkey integration (introduced in [gorse-io/gorse#1263](https://github.com/gorse-io/gorse/pull/1263))
+reuses the existing `go-redis` client — zero new dependencies — since Valkey is wire-compatible
+with Redis for all commands except the TimeSeries module.
 
 Key patterns demonstrated:
 
