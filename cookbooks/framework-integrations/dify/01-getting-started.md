@@ -23,7 +23,7 @@ Dify's vector store requires the `valkey-search` module for `FT.CREATE` and `FT.
 ```bash
 docker run -d --name valkey-vector \
   -p 127.0.0.1:6379:6379 \
-  valkey/valkey-bundle:latest
+  valkey/valkey-bundle:9.1.0
 ```
 
 Verify the search module is loaded:
@@ -60,7 +60,7 @@ Add the Valkey service to your `docker-compose.yaml`:
 ```yaml
 services:
   valkey-vector:
-    image: valkey/valkey-bundle:latest
+    image: valkey/valkey-bundle:9.1.0
     restart: always
     volumes:
       - ./volumes/valkey:/data
@@ -217,4 +217,4 @@ With `COSINE` distance, scores range from 0 to 1. A threshold of 0.5 means only 
 
 ---
 
-**Back to** [README](./README.md)
+**Back to** [README](./README.md) · **Next:** [Vector Search & Filtering →](./02-vector-search.md)

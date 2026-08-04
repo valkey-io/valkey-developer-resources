@@ -7,6 +7,8 @@
 | Cookbook | Level | Description |
 | --- | --- | --- |
 | [Getting Started](./01-getting-started.md) | Beginner | Configure Dify to use Valkey as its vector store for RAG knowledge bases |
+| [Vector Search & Filtering](./02-vector-search.md) | Intermediate | KNN queries, full-text search, TAG filtering, and distance metric tuning |
+| [Production Deployment](./03-production.md) | Advanced | Authentication, TLS, persistence, monitoring, and scaling |
 
 ## Prerequisites
 
