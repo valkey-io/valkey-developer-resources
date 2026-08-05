@@ -14,7 +14,7 @@ similarity matching, all backed by Valkey.
 
 - Completed [01 - Getting Started](01-getting-started.md) (Kong + Valkey running)
 - Kong Gateway 3.14+ with AI plugins enabled
-- OpenAI API key
+- [Ollama](https://ollama.com/) running locally with `nomic-embed-text`
 
 > **Security:** This cookbook uses Valkey without authentication for local development.
 > For any network-accessible or production deployment, see the
@@ -38,19 +38,18 @@ plugins:
         <RAG><CONTEXT></RAG>
         User's question: <PROMPT>
       embeddings:
-        auth:
-          header_name: Authorization
-          header_value: "Bearer ${OPENAI_API_KEY}"
         model:
-          provider: openai
-          name: text-embedding-3-large
+          provider: ollama
+          name: nomic-embed-text
+          options:
+            upstream_url: http://host.docker.internal:11434/v1/embeddings
       vectordb:
         strategy: redis
         redis:
           host: valkey
           port: 6379
         distance_metric: cosine
-        dimensions: 3072
+        dimensions: 768
 ```
 
 ### How It Works
@@ -81,19 +80,18 @@ plugins:
   - name: ai-semantic-prompt-guard
     config:
       embeddings:
-        auth:
-          header_name: Authorization
-          header_value: "Bearer ${OPENAI_API_KEY}"
         model:
-          name: text-embedding-3-small
-          provider: openai
+          name: nomic-embed-text
+          provider: ollama
+          options:
+            upstream_url: http://host.docker.internal:11434/v1/embeddings
       search:
         threshold: 0.7
       vectordb:
         strategy: redis
         distance_metric: cosine
         threshold: 0.5
-        dimensions: 1024
+        dimensions: 768
         redis:
           host: valkey
           port: 6379
@@ -131,19 +129,18 @@ plugins:
   - name: ai-semantic-response-guard
     config:
       embeddings:
-        auth:
-          header_name: Authorization
-          header_value: "Bearer ${OPENAI_API_KEY}"
         model:
-          name: text-embedding-3-small
-          provider: openai
+          name: nomic-embed-text
+          provider: ollama
+          options:
+            upstream_url: http://host.docker.internal:11434/v1/embeddings
       search:
         threshold: 0.7
       vectordb:
         strategy: redis
         distance_metric: cosine
         threshold: 0.7
-        dimensions: 1024
+        dimensions: 768
         redis:
           host: valkey
           port: 6379

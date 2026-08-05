@@ -13,7 +13,7 @@ cached responses for semantically similar requests.
 
 - Docker and Docker Compose
 - Kong Gateway 3.14+ license or Free tier
-- An OpenAI API key
+- [Ollama](https://ollama.com/) running locally with `nomic-embed-text` and a chat model (e.g., `llama3.2`)
 - Valkey 8.x+ with search module (`valkey/valkey-bundle`)
 
 > **Security:** This cookbook uses Valkey without authentication for local development.
@@ -62,6 +62,53 @@ services:
 _format_version: "3.0"
 
 services:
+  - name: ollama
+    url: http://host.docker.internal:11434
+    routes:
+      - name: ollama-chat
+        paths:
+          - /ai
+        strip_path: true
+
+plugins:
+  - name: ai-proxy
+    config:
+      route_type: llm/v1/chat
+      model:
+        provider: ollama
+        name: llama3.2
+        options:
+          upstream_url: http://host.docker.internal:11434/v1/chat/completions
+
+  - name: ai-semantic-cache
+    config:
+      embeddings:
+        model:
+          provider: ollama
+          name: nomic-embed-text
+          options:
+            upstream_url: http://host.docker.internal:11434/v1/embeddings
+      vectordb:
+        dimensions: 768
+        distance_metric: cosine
+        strategy: redis
+        threshold: 0.1
+        redis:
+          host: valkey
+          port: 6379
+```
+
+<details>
+<summary>Optional: Using OpenAI instead of Ollama</summary>
+
+Replace the `kong.yml` above with this configuration if you prefer to use OpenAI
+(requires a paid API key set as `OPENAI_API_KEY`):
+
+```yaml
+# kong.yml (OpenAI variant)
+_format_version: "3.0"
+
+services:
   - name: openai
     url: https://api.openai.com
     routes:
@@ -102,8 +149,7 @@ plugins:
           port: 6379
 ```
 
-Replace `${OPENAI_API_KEY}` with your actual key, or use environment variable
-substitution if your Kong setup supports it.
+</details>
 
 ## Step 3: Start the Services
 
@@ -184,7 +230,7 @@ strategy or plugin configuration changes needed.
 | `vectordb.threshold` | Similarity threshold; lower = stricter match for cosine |
 | `vectordb.redis.host` | Valkey hostname |
 | `vectordb.redis.port` | Valkey port (default 6379) |
-| `embeddings.model.provider` | `openai`, `azure`, etc. |
+| `embeddings.model.provider` | `ollama`, `openai`, `azure`, etc. |
 | `embeddings.model.name` | Model name (e.g., `text-embedding-3-large`, `text-embedding-3-small`) |
 
 ## Embedding Model Dimensions

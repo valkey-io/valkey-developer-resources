@@ -14,7 +14,7 @@ model based on what the user is asking about.
 
 - Completed [01 - Getting Started](01-getting-started.md) (Kong + Valkey running)
 - Kong Gateway 3.14+ with AI Proxy Advanced plugin
-- OpenAI API key (or compatible provider)
+- [Ollama](https://ollama.com/) running locally with `nomic-embed-text` and `llama3.2`
 
 > **Security:** This cookbook uses Valkey without authentication for local development.
 > For any network-accessible or production deployment, see the
@@ -51,14 +51,13 @@ plugins:
   - name: ai-proxy-advanced
     config:
       embeddings:
-        auth:
-          header_name: Authorization
-          header_value: "Bearer ${OPENAI_API_KEY}"
         model:
-          name: text-embedding-3-small
-          provider: openai
+          name: nomic-embed-text
+          provider: ollama
+          options:
+            upstream_url: http://host.docker.internal:11434/v1/embeddings
       vectordb:
-        dimensions: 1024
+        dimensions: 768
         distance_metric: cosine
         strategy: redis
         threshold: 0.7
@@ -67,6 +66,46 @@ plugins:
           port: 6379
       balancer:
         algorithm: semantic
+      targets:
+        - model:
+            name: llama3.2
+            provider: ollama
+            options:
+              max_tokens: 826
+              temperature: 0
+              upstream_url: http://host.docker.internal:11434/v1/chat/completions
+          route_type: llm/v1/chat
+          description: "Specialist in code completions"
+        - model:
+            name: llama3.2
+            provider: ollama
+            options:
+              max_tokens: 512
+              temperature: 0.3
+              upstream_url: http://host.docker.internal:11434/v1/chat/completions
+          route_type: llm/v1/chat
+          description: "Requests related to IT support"
+        - model:
+            name: llama3.2
+            provider: ollama
+            options:
+              max_tokens: 256
+              temperature: 1.0
+              upstream_url: http://host.docker.internal:11434/v1/chat/completions
+          route_type: llm/v1/chat
+          description: "CATCHALL"
+```
+
+> **Note:** With a single local Ollama instance, all targets use the same model but with
+> different parameters (temperature, max_tokens). In production with multiple models, you
+> would use different `name` values pointing to specialized models.
+
+<details>
+<summary>Optional: Using OpenAI models for semantic routing</summary>
+
+Replace the targets with OpenAI models for differentiated routing to specialized models:
+
+```yaml
       targets:
         - model:
             name: gpt-3.5-turbo
@@ -82,26 +121,12 @@ plugins:
         - model:
             name: gpt-4o
             provider: openai
-            options:
-              max_tokens: 512
-              temperature: 0.3
-          route_type: llm/v1/chat
-          auth:
-            header_name: Authorization
-            header_value: "Bearer ${OPENAI_API_KEY}"
-          description: "Requests related to IT support"
-        - model:
-            name: gpt-4o-mini
-            provider: openai
-            options:
-              max_tokens: 256
-              temperature: 1.0
-          route_type: llm/v1/chat
-          auth:
-            header_name: Authorization
-            header_value: "Bearer ${OPENAI_API_KEY}"
-          description: "CATCHALL"
+          # ... (full config with auth for each target)
 ```
+
+This requires `OPENAI_API_KEY` set as an environment variable.
+
+</details>
 
 ## How Targets Are Matched
 

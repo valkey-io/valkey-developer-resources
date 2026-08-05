@@ -17,7 +17,7 @@
 - Docker and Docker Compose
 - Kong Gateway 3.14+ (Enterprise or Free tier with AI Gateway plugins)
 - Valkey 8.x+ with valkey-search module (`valkey/valkey-bundle`)
-- An OpenAI API key (for embedding generation)
+- [Ollama](https://ollama.com/) running locally with an embedding model (or OpenAI API key)
 
 ## How Kong AI Gateway Uses Valkey
 
