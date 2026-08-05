@@ -77,7 +77,7 @@ const vectorStore = new ValkeyVectorStore(embeddings, {
 ```typescript
 import { GlideClient } from "@valkey/valkey-glide";
 import { ValkeyVectorStore, SchemaFieldTypes } from "@langchain/valkey";
-import { OpenAIEmbeddings } from "@langchain/openai";
+import { OllamaEmbeddings } from "@langchain/ollama";
 import { Document } from "@langchain/core/documents";
 
 // Connect to Valkey
@@ -85,8 +85,8 @@ const client = await GlideClient.createClient({
   addresses: [{ host: "localhost", port: 6379 }],
 });
 
-const embeddings = new OpenAIEmbeddings({
-  model: "text-embedding-3-small",
+const embeddings = new OllamaEmbeddings({
+  model: "nomic-embed-text",
 });
 
 // Create vector store with custom schema

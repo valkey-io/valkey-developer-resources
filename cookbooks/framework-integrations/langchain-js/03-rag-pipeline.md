@@ -12,13 +12,26 @@ end-to-end RAG pipeline that answers questions from your own documents.
 
 - Completed [01 - Getting Started](./01-getting-started.md) and [02 - Metadata Filtering](./02-metadata-filtering.md)
 - Valkey 8.1+ running with the Search module (`localhost:6379`)
-- Node.js 18+
-- OpenAI API key (set as `OPENAI_API_KEY` environment variable)
+- Node.js 20+
+- [Ollama](https://ollama.com/) running locally with embedding and chat models
 - Installed packages:
 
 ```bash
-npm install @langchain/valkey @langchain/openai @langchain/core @valkey/valkey-glide langchain
+npm install @langchain/valkey @langchain/ollama @langchain/core @valkey/valkey-glide langchain
 ```
+
+<details>
+<summary>Optional: Using OpenAI instead of Ollama</summary>
+
+```bash
+npm install @langchain/openai
+```
+
+Set `OPENAI_API_KEY` as an environment variable. Replace `OllamaEmbeddings` with
+`OpenAIEmbeddings` and `ChatOllama` with `ChatOpenAI` in the code below. This requires
+a paid API key that sends data to OpenAI's servers.
+
+</details>
 
 ## Security Note
 
@@ -62,7 +75,7 @@ const docs = await splitter.splitDocuments(rawDocs);
 console.log(`Split into ${docs.length} chunks`);
 ```
 
-The `chunkOverlap` ensures context isn't lost at split boundaries. Adjust `chunkSize` based on your embedding model's token limit (OpenAI `text-embedding-3-small` supports up to 8191 tokens).
+The `chunkOverlap` ensures context isn't lost at split boundaries. Adjust `chunkSize` based on your embedding model's token limit (e.g., `nomic-embed-text` supports 8192 tokens).
 
 ## Step 2 — Create Vector Store and Ingest
 
@@ -70,11 +83,11 @@ Use `ValkeyVectorStore.fromDocuments` to embed all chunks and store them in a si
 
 ```typescript
 import { ValkeyVectorStore } from "@langchain/valkey";
-import { OpenAIEmbeddings } from "@langchain/openai";
+import { OllamaEmbeddings } from "@langchain/ollama";
 import { GlideClient } from "@valkey/valkey-glide";
 
-const embeddings = new OpenAIEmbeddings({
-  model: "text-embedding-3-small",
+const embeddings = new OllamaEmbeddings({
+  model: "nomic-embed-text",
 });
 
 const client = await GlideClient.createClient({
@@ -121,13 +134,13 @@ Increase `k` if answers feel incomplete; decrease it to reduce token usage and l
 Use `createRetrievalChain` to connect the retriever to a chat model with a prompt template.
 
 ```typescript
-import { ChatOpenAI } from "@langchain/openai";
+import { ChatOllama } from "@langchain/ollama";
 import { createRetrievalChain } from "langchain/chains/retrieval";
 import { createStuffDocumentsChain } from "langchain/chains/combine_documents";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 
-const llm = new ChatOpenAI({
-  model: "gpt-4o-mini",
+const llm = new ChatOllama({
+  model: "llama3.2",
   temperature: 0,
 });
 
@@ -178,7 +191,7 @@ The response includes both the generated answer and the source documents used, e
 import { TextLoader } from "langchain/document_loaders/fs/text";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { ValkeyVectorStore } from "@langchain/valkey";
-import { OpenAIEmbeddings, ChatOpenAI } from "@langchain/openai";
+import { OllamaEmbeddings, ChatOllama } from "@langchain/ollama";
 import { GlideClient } from "@valkey/valkey-glide";
 import { createRetrievalChain } from "langchain/chains/retrieval";
 import { createStuffDocumentsChain } from "langchain/chains/combine_documents";
@@ -201,8 +214,8 @@ async function main() {
     addresses: [{ host: "localhost", port: 6379 }],
   });
 
-  const embeddings = new OpenAIEmbeddings({
-    model: "text-embedding-3-small",
+  const embeddings = new OllamaEmbeddings({
+    model: "nomic-embed-text",
   });
 
   const vectorStore = await ValkeyVectorStore.fromDocuments(docs, embeddings, {
@@ -220,8 +233,8 @@ async function main() {
   const retriever = vectorStore.asRetriever({ k: 4 });
 
   // 4. Build the chain
-  const llm = new ChatOpenAI({
-    model: "gpt-4o-mini",
+  const llm = new ChatOllama({
+    model: "llama3.2",
     temperature: 0,
   });
 
@@ -324,12 +337,12 @@ const vectorStore = new ValkeyVectorStore(embeddings, {
 
 ### Performance Tips
 
-| Concern              | Recommendation                                              |
-| -------------------- | ----------------------------------------------------------- |
-| Ingestion speed      | Increase `batchSize` to 200–500 for bulk loads              |
-| Query latency        | Use `FLAT` algorithm for <10k docs, `HNSW` for larger sets  |
-| Memory usage         | Reduce embedding dimensions with `text-embedding-3-small`   |
-| Concurrent queries   | Use connection pooling with 10–50 connections               |
+| Concern            | Recommendation                                                   |
+| ------------------ | ---------------------------------------------------------------- |
+| Ingestion speed    | Increase `batchSize` to 200–500 for bulk loads                   |
+| Query latency      | Use `FLAT` algorithm for <10k docs, `HNSW` for larger sets       |
+| Memory usage       | Use a smaller embedding model (e.g., 768-dim `nomic-embed-text`) |
+| Concurrent queries | Use connection pooling with 10–50 connections                    |
 
 ## Troubleshooting
 
@@ -337,11 +350,11 @@ const vectorStore = new ValkeyVectorStore(embeddings, {
 | ------------------------------------ | ---------------------------------------- | ----------------------------------------------------------- |
 | `ResponseError: unknown index name`  | Index not created yet                    | Run ingestion first; `fromDocuments` creates the index      |
 | Empty retrieval results              | Embeddings model mismatch                | Use the same model for ingestion and queries                |
-| `OPENAI_API_KEY` error               | Missing environment variable             | `export OPENAI_API_KEY=sk-...` before running               |
+| `OPENAI_API_KEY` error               | Missing environment variable             | Only needed if using OpenAI; Ollama runs locally            |
 | Timeout on large ingestion           | Too many docs in one call                | Set `batchSize: 100` to chunk the ingestion                 |
 | Answers hallucinate beyond context   | Prompt not constraining the LLM          | Add explicit "only use provided context" in system prompt   |
 | Stale results after document update  | Old embeddings still in index            | Delete old keys or use a new `keyPrefix` per version        |
 
 ---
 
-[← Back to README](./README.md)
+[← Previous: Metadata Filtering](./02-metadata-filtering.md) · [← Back to README](./README.md)

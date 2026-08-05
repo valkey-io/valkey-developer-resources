@@ -14,7 +14,7 @@
 
 - **Valkey 8.1+** with search module (`valkey-bundle`)
 - **Node.js 20+**
-- **An embeddings provider API key** (e.g., OpenAI, Cohere, or any LangChain-supported provider)
+- **[Ollama](https://ollama.com/)** running locally with an embedding model (or any LangChain-supported provider)
 
 ## How LangChain.js Uses Valkey
 
@@ -35,7 +35,7 @@ When you call `ValkeyVectorStore.fromDocuments()` or `addDocuments()`, LangChain
 
 ```typescript
 import { ValkeyVectorStore } from "@langchain/valkey";
-import { OpenAIEmbeddings } from "@langchain/openai";
+import { OllamaEmbeddings } from "@langchain/ollama";
 import { GlideClient } from "@valkey/valkey-glide";
 
 // Connect to Valkey
@@ -44,8 +44,8 @@ const client = await GlideClient.createClient({
 });
 
 // Create the vector store
-const vectorStore = new ValkeyVectorStore(new OpenAIEmbeddings(), {
-  client,
+const vectorStore = new ValkeyVectorStore(new OllamaEmbeddings({ model: "nomic-embed-text" }), {
+  valkeyClient: client,
   indexName: "langchain-demo",
   keyPrefix: "doc:demo:",
 });

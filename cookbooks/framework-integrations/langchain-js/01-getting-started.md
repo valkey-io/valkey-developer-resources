@@ -10,7 +10,7 @@
 
 - Node.js 20+
 - Docker (for running Valkey)
-- An OpenAI API key (or another LangChain-compatible embedding provider)
+- [Ollama](https://ollama.com/) running locally with an embedding model (e.g., `nomic-embed-text`)
 
 > **Security note:** This guide runs Valkey without authentication for local development.
 > Never expose an unprotected Valkey instance to the internet.
@@ -21,7 +21,7 @@
 Run the Valkey bundle image, which includes the Search module required for vector indexing:
 
 ```bash
-docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:8.1.1
+docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:8.1.1
 ```
 
 Verify it's running:
@@ -34,29 +34,41 @@ docker exec valkey valkey-cli PING
 ## Step 2: Install Packages
 
 ```bash
-npm install @langchain/valkey @langchain/core @valkey/valkey-glide @langchain/openai
+npm install @langchain/valkey @langchain/core @valkey/valkey-glide @langchain/ollama
 ```
 
 - `@langchain/valkey` — ValkeyVectorStore integration
 - `@langchain/core` — Core LangChain abstractions (documents, embeddings)
 - `@valkey/valkey-glide` — Valkey client (used internally by the vector store)
-- `@langchain/openai` — OpenAI embeddings (swap for your preferred provider)
+- `@langchain/ollama` — Ollama embeddings (local, no API key required)
+
+<details>
+<summary>Optional: Using OpenAI embeddings instead</summary>
+
+```bash
+npm install @langchain/openai
+```
+
+Replace `OllamaEmbeddings` with `OpenAIEmbeddings` in the code below and set the
+`OPENAI_API_KEY` environment variable. This requires a paid API key.
+
+</details>
 
 ## Step 3: Create a Vector Store
 
 ```typescript
 import { GlideClient } from "@valkey/valkey-glide";
 import { ValkeyVectorStore } from "@langchain/valkey";
-import { OpenAIEmbeddings } from "@langchain/openai";
+import { OllamaEmbeddings } from "@langchain/ollama";
 
 // Create a Glide client connection
 const client = await GlideClient.createClient({
   addresses: [{ host: "localhost", port: 6379 }],
 });
 
-// Initialize the embeddings model
-const embeddings = new OpenAIEmbeddings({
-  model: "text-embedding-3-small",
+// Initialize the embeddings model (runs locally via Ollama)
+const embeddings = new OllamaEmbeddings({
+  model: "nomic-embed-text",
 });
 
 // Create the vector store
