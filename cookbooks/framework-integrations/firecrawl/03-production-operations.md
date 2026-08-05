@@ -205,9 +205,9 @@ Valkey is wire-compatible with Redis. Migration is straightforward.
 
     ```yaml
     # Change
-    image: redis:alpine
+    image: redis:7-alpine
     # To
-    image: valkey/valkey:alpine
+    image: valkey/valkey:8.1-alpine
     ```
 
 1. **Restore data and start:**
@@ -243,7 +243,8 @@ For production environments using DNS-based service discovery:
 4. Promote Valkey to primary with `REPLICAOF NO ONE`
 5. Decommission Redis
 
-## AWS ElastiCache with Valkey
+<details>
+<summary>Optional: AWS ElastiCache with Valkey</summary>
 
 AWS ElastiCache supports Valkey as a backend engine. Use it for managed production deployments.
 
@@ -282,6 +283,20 @@ If using a reader endpoint for rate-limit reads:
 ```bash
 REDIS_RATE_LIMIT_URL=rediss://:AUTH_TOKEN@reader-endpoint.cache.amazonaws.com:6379
 ```
+
+</details>
+
+## Configuration Reference
+
+| Setting | Location | Recommended Value |
+| --- | --- | --- |
+| `maxmemory` | `valkey.conf` | Based on workload (1–4GB typical) |
+| `maxmemory-policy` | `valkey.conf` | `noeviction` (critical for BullMQ) |
+| `appendonly` | `valkey.conf` | `yes` (durability) |
+| `appendfsync` | `valkey.conf` | `everysec` (balance durability/performance) |
+| `maxclients` | `valkey.conf` | `10000` (increase when scaling workers) |
+| `NUM_WORKERS_PER_QUEUE` | Environment | 2–16 (scale with container count) |
+| `REDIS_URL` | Environment | `redis://valkey:6379` or TLS endpoint |
 
 ## Troubleshooting
 

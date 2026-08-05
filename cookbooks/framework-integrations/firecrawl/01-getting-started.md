@@ -29,13 +29,13 @@ Edit `docker-compose.yaml` and change the Redis image to Valkey:
 ```yaml
 # Before
 redis:
-  image: redis:alpine
+  image: redis:7-alpine
   ports:
     - "6379:6379"
 
 # After
 redis:
-  image: valkey/valkey:alpine
+  image: valkey/valkey:8.1-alpine
   ports:
     - "6379:6379"
 ```
@@ -126,6 +126,15 @@ The response includes a `server_name` field:
 This detection is informational — Firecrawl uses the same code paths regardless of backend.
 The ioredis client library works identically with both servers since Valkey maintains full
 protocol compatibility.
+
+## Configuration Reference
+
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `REDIS_URL` | Valkey connection string for all BullMQ operations | `redis://redis:6379` |
+| `REDIS_RATE_LIMIT_URL` | Separate connection for rate limiting (optional) | Same as `REDIS_URL` |
+| `PORT` | Firecrawl API server listen port | `3002` |
+| `NUM_WORKERS_PER_QUEUE` | Concurrent jobs per queue per worker | `2` |
 
 ## Troubleshooting
 

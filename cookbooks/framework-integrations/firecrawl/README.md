@@ -1,7 +1,7 @@
 # Firecrawl + Valkey Cookbook
 
 > Use Valkey as Firecrawl's cache backend for job queues, rate limiting, and crawl state management.
-> Valkey is a drop-in replacement for Redis — same protocol, same client libraries, better performance.
+> Valkey is a drop-in replacement for Redis — same protocol, same client libraries, open governance.
 
 ## Cookbooks
 
@@ -43,7 +43,7 @@ git clone https://github.com/mendableai/firecrawl.git
 cd firecrawl
 
 # Switch Redis to Valkey in docker-compose.yaml
-sed -i.bak 's|image: redis:alpine|image: valkey/valkey:alpine|' docker-compose.yaml && rm docker-compose.yaml.bak
+sed -i.bak 's|image: redis:alpine|image: valkey/valkey:8.1-alpine|' docker-compose.yaml && rm docker-compose.yaml.bak
 
 # Configure environment
 cp .env.example .env

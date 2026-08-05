@@ -5,7 +5,7 @@
 
 **Intermediate** · Docker · ~20 min
 
-**Who is this for:** Teams self-hosting Firecrawl who want to use Valkey instead of Redis for better performance, open governance, and BSD-3 licensing.
+**Who is this for:** Teams self-hosting Firecrawl who want to use Valkey instead of Redis for open governance and BSD-3 licensing.
 
 ## Prerequisites
 
@@ -26,7 +26,7 @@ version: "3.9"
 
 services:
   valkey:
-    image: valkey/valkey:alpine
+    image: valkey/valkey:8.1-alpine
     container_name: firecrawl-valkey
     volumes:
       - valkey-data:/data
@@ -40,7 +40,7 @@ services:
     restart: unless-stopped
 
   firecrawl-api:
-    image: ghcr.io/firecrawl/firecrawl:latest
+    image: ghcr.io/firecrawl/firecrawl:1.1.0
     container_name: firecrawl-api
     ports:
       - "3002:3002"
@@ -55,7 +55,7 @@ services:
     restart: unless-stopped
 
   firecrawl-worker:
-    image: ghcr.io/firecrawl/firecrawl:latest
+    image: ghcr.io/firecrawl/firecrawl:1.1.0
     container_name: firecrawl-worker
     environment:
       - REDIS_URL=redis://valkey:6379
