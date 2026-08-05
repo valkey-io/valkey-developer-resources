@@ -17,5 +17,5 @@ test = [
 asyncio_mode = "auto"
 
 [build-system]
-requires = ["setuptools>=68.0"]
+requires = ["setuptools==75.0.0"]
 build-backend = "setuptools.build_meta"
