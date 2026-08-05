@@ -1,22 +1,30 @@
 """Fixtures for Open WebUI ValkeyClient pattern integration tests."""
 
-import struct
-import time
+import sys
+from pathlib import Path
 
 import numpy as np
 import pytest
 import valkey
 
-COLLECTION_PREFIX = "test_owui"
-COLLECTION_NAME = "test_collection"
-INDEX_NAME = f"idx:{COLLECTION_PREFIX}:{COLLECTION_NAME}"
-KEY_PREFIX = f"{COLLECTION_PREFIX}:{COLLECTION_NAME}:"
-DIMENSION = 128
+# Add sample root to path so helpers is importable from tests/
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from helpers import (  # noqa: E402
+    DIMENSION,
+    TEST_COLLECTION_NAME,
+    TEST_COLLECTION_PREFIX,
+    TEST_INDEX_NAME,
+    TEST_KEY_PREFIX,
+    vector_to_bytes,
+    wait_for_indexing,
+)
 
-def vector_to_bytes(vector: list[float]) -> bytes:
-    """Pack floats as little-endian float32."""
-    return struct.pack(f"<{len(vector)}f", *vector)
+# Re-export for tests that import from conftest
+COLLECTION_PREFIX = TEST_COLLECTION_PREFIX
+COLLECTION_NAME = TEST_COLLECTION_NAME
+INDEX_NAME = TEST_INDEX_NAME
+KEY_PREFIX = TEST_KEY_PREFIX
 
 
 @pytest.fixture
@@ -84,7 +92,7 @@ def indexed_collection(valkey_client, clean_collection, test_vectors):
         valkey_client.hset(key, mapping=mapping)
 
     # Wait for indexing
-    time.sleep(0.5)
+    wait_for_indexing(valkey_client, INDEX_NAME, expected=5)
     return test_vectors
 
 

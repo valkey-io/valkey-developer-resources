@@ -145,9 +145,9 @@ Or via CLI:
 # Drop the index
 docker exec open-webui-valkey valkey-cli FT.DROPINDEX idx:open_webui:my_knowledge_base
 
-# Delete the data keys
-docker exec open-webui-valkey valkey-cli KEYS "open_webui:my_knowledge_base:*" | \
-  xargs docker exec -i open-webui-valkey valkey-cli DEL
+# Delete the data keys (SCAN-based, non-blocking)
+docker exec open-webui-valkey valkey-cli --scan --pattern "open_webui:my_knowledge_base:*" | \
+  xargs -L 100 docker exec -i open-webui-valkey valkey-cli DEL
 ```
 
 ### Reset all vector data

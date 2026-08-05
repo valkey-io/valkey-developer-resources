@@ -183,7 +183,7 @@ Open WebUI requires Valkey 9.0.1+ with valkey-search 1.2.0+. Use
 ### Documents upload but search returns nothing
 
 - Check the index exists: `docker exec open-webui-valkey valkey-cli FT._LIST`
-- Verify documents: `docker exec open-webui-valkey valkey-cli KEYS "open_webui:*" | head`
+- Verify documents: `docker exec open-webui-valkey valkey-cli --scan --pattern "open_webui:*" | head`
 - The embedding model must be configured — check **Admin** → **Settings** → **Documents**
 
 ### Connection refused

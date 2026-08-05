@@ -2,23 +2,20 @@
 
 import json
 import re
-import struct
-import time
 
 import numpy as np
 import pytest
 import valkey
 
-COLLECTION_PREFIX = "test_owui"
-COLLECTION_NAME = "test_collection"
-INDEX_NAME = f"idx:{COLLECTION_PREFIX}:{COLLECTION_NAME}"
-KEY_PREFIX = f"{COLLECTION_PREFIX}:{COLLECTION_NAME}:"
-DIMENSION = 128
-
-
-def vector_to_bytes(vector: list[float]) -> bytes:
-    """Pack floats as little-endian float32."""
-    return struct.pack(f"<{len(vector)}f", *vector)
+from conftest import (
+    COLLECTION_PREFIX,
+    COLLECTION_NAME,
+    DIMENSION,
+    INDEX_NAME,
+    KEY_PREFIX,
+    vector_to_bytes,
+    wait_for_indexing,
+)
 
 
 class TestConnectivity:
@@ -322,7 +319,8 @@ class TestCollectionManagement:
                 "vector": vector_to_bytes(test_vectors[1].tolist()),
             })
 
-            time.sleep(0.5)
+            wait_for_indexing(valkey_client, INDEX_NAME, expected=1)
+            wait_for_indexing(valkey_client, other_index, expected=1)
 
             # Search main → only finds main docs
             query_vec = test_vectors[2].tolist()

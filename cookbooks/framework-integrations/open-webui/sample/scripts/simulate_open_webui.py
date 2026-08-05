@@ -9,23 +9,24 @@ Demonstrates the exact flow Open WebUI performs:
 """
 
 import json
-import struct
 import sys
+from pathlib import Path
 
 import numpy as np
 import valkey
 
-# Match Open WebUI's naming conventions
-COLLECTION_PREFIX = "open_webui"
-COLLECTION_NAME = "demo_knowledge_base"
-INDEX_NAME = f"idx:{COLLECTION_PREFIX}:{COLLECTION_NAME}"
-KEY_PREFIX = f"{COLLECTION_PREFIX}:{COLLECTION_NAME}:"
-DIMENSION = 128
+# Add sample root to path so helpers is importable
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-
-def vector_to_bytes(vector: list[float]) -> bytes:
-    """Pack floats as little-endian float32 (matches Open WebUI's _vector_to_bytes)."""
-    return struct.pack(f"<{len(vector)}f", *vector)
+from helpers import (  # noqa: E402
+    COLLECTION_NAME,
+    COLLECTION_PREFIX,
+    DIMENSION,
+    INDEX_NAME,
+    KEY_PREFIX,
+    vector_to_bytes,
+    wait_for_indexing,
+)
 
 
 def main() -> None:
@@ -98,8 +99,7 @@ def main() -> None:
         print(f"   Stored {len(docs)} chunks ✓")
 
         # Wait for indexing
-        import time
-        time.sleep(0.5)
+        wait_for_indexing(client, INDEX_NAME, expected=len(docs))
 
         # Step 4: KNN search (matches search method)
         print("\n4. KNN similarity search")

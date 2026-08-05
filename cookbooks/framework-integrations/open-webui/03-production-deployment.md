@@ -31,7 +31,7 @@ services:
       - valkey-data:/data
       - ./valkey.conf:/etc/valkey/valkey.conf:ro
     healthcheck:
-      test: ["CMD", "valkey-cli", "-a", "${VALKEY_PASSWORD}", "ping"]
+      test: ["CMD", "sh", "-c", "REDISCLI_AUTH=$$VALKEY_PASSWORD valkey-cli ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -156,20 +156,20 @@ Note: `valkeys://` (with `s`) enables TLS in the GLIDE client.
 
 ```bash
 # Memory usage (total and per-index)
-docker exec valkey-prod valkey-cli -a "$VALKEY_PASSWORD" INFO memory | grep used_memory_human
+docker exec -e REDISCLI_AUTH="$VALKEY_PASSWORD" valkey-prod valkey-cli INFO memory | grep used_memory_human
 
 # Index statistics
-docker exec valkey-prod valkey-cli -a "$VALKEY_PASSWORD" FT._LIST | while read idx; do
+docker exec -e REDISCLI_AUTH="$VALKEY_PASSWORD" valkey-prod valkey-cli FT._LIST | while read idx; do
   echo "=== $idx ==="
-  docker exec valkey-prod valkey-cli -a "$VALKEY_PASSWORD" FT.INFO "$idx" | \
+  docker exec -e REDISCLI_AUTH="$VALKEY_PASSWORD" valkey-prod valkey-cli FT.INFO "$idx" | \
     grep -E "num_docs|num_records|bytes"
 done
 
 # Client connections
-docker exec valkey-prod valkey-cli -a "$VALKEY_PASSWORD" INFO clients | grep connected_clients
+docker exec -e REDISCLI_AUTH="$VALKEY_PASSWORD" valkey-prod valkey-cli INFO clients | grep connected_clients
 
 # Slow queries
-docker exec valkey-prod valkey-cli -a "$VALKEY_PASSWORD" SLOWLOG GET 10
+docker exec -e REDISCLI_AUTH="$VALKEY_PASSWORD" valkey-prod valkey-cli SLOWLOG GET 10
 ```
 
 ### Health check endpoint
@@ -179,25 +179,25 @@ Add a simple monitoring script:
 ```bash
 #!/bin/bash
 # health_check.sh
-PASS="${VALKEY_PASSWORD}"
+export REDISCLI_AUTH="${VALKEY_PASSWORD}"
 HOST="localhost"
 PORT="6379"
 
 # Ping
-if ! docker exec valkey-prod valkey-cli -a "$PASS" ping | grep -q PONG; then
+if ! docker exec valkey-prod valkey-cli ping | grep -q PONG; then
   echo "CRITICAL: Valkey not responding"
   exit 2
 fi
 
 # Check search module
-if ! docker exec valkey-prod valkey-cli -a "$PASS" MODULE LIST | grep -q search; then
+if ! docker exec valkey-prod valkey-cli MODULE LIST | grep -q search; then
   echo "CRITICAL: valkey-search module not loaded"
   exit 2
 fi
 
 # Memory usage (warn at 80%)
-MEM_USED=$(docker exec valkey-prod valkey-cli -a "$PASS" INFO memory | grep used_memory: | cut -d: -f2 | tr -d '\r')
-MEM_MAX=$(docker exec valkey-prod valkey-cli -a "$PASS" CONFIG GET maxmemory | tail -1 | tr -d '\r')
+MEM_USED=$(docker exec valkey-prod valkey-cli INFO memory | grep used_memory: | cut -d: -f2 | tr -d '\r')
+MEM_MAX=$(docker exec valkey-prod valkey-cli CONFIG GET maxmemory | tail -1 | tr -d '\r')
 if [ "$MEM_MAX" -gt 0 ]; then
   PCT=$((MEM_USED * 100 / MEM_MAX))
   if [ "$PCT" -gt 80 ]; then
@@ -216,7 +216,7 @@ exit 0
 
 ```bash
 # Trigger RDB snapshot
-docker exec valkey-prod valkey-cli -a "$VALKEY_PASSWORD" BGSAVE
+docker exec -e REDISCLI_AUTH="$VALKEY_PASSWORD" valkey-prod valkey-cli BGSAVE
 
 # Copy the dump file
 docker cp valkey-prod:/data/dump.rdb ./backups/dump-$(date +%Y%m%d).rdb
@@ -323,7 +323,7 @@ Data survives container restarts and Open WebUI upgrades.
 
 ### Replication lag
 
-- Monitor: `docker exec valkey-prod valkey-cli -a "$PASS" INFO replication`
+- Monitor: `docker exec -e REDISCLI_AUTH="$VALKEY_PASSWORD" valkey-prod valkey-cli INFO replication`
 - High lag during bulk ingestion is normal — it catches up after
 
 ---
