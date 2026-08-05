@@ -1,0 +1,15 @@
+[project]
+name = "dspy-valkey-cookbook"
+version = "0.1.0"
+description = "Integration tests for DSPy + Valkey distributed cache cookbook"
+requires-python = ">=3.10"
+dependencies = [
+    "dspy==3.3.0",
+    "valkey-glide==2.5.0",
+    "pytest==8.4.2",
+    "pytest-asyncio==1.0.0",
+]
+
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
