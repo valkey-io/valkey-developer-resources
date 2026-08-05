@@ -42,7 +42,7 @@ services:
           memory: 4g
 
   open-webui:
-    image: ghcr.io/open-webui/open-webui:main
+    image: ghcr.io/open-webui/open-webui:0.11.0
     container_name: open-webui-prod
     ports:
       - "127.0.0.1:3000:8080"

@@ -38,7 +38,7 @@ services:
       retries: 5
 
   open-webui:
-    image: ghcr.io/open-webui/open-webui:main
+    image: ghcr.io/open-webui/open-webui:0.11.0
     container_name: open-webui
     ports:
       - "127.0.0.1:3000:8080"
@@ -86,8 +86,16 @@ Open <http://localhost:3000> in your browser and complete the initial setup:
 1. Create an admin account
 2. Go to **Admin Panel** → **Settings** → **Connections**
 3. Configure your LLM backend:
-   - **Ollama:** Set URL to `http://host.docker.internal:11434` (if Ollama runs on host)
-   - **OpenAI:** Add your API key under OpenAI connections
+   - **Ollama (recommended):** Set URL to `http://host.docker.internal:11434` (if Ollama runs on host)
+
+<details>
+<summary>Optional: Using OpenAI instead of Ollama</summary>
+
+If you prefer a hosted LLM, add your OpenAI API key under **Admin Panel** → **Settings** → **Connections** → **OpenAI**.
+
+This requires a paid API key and sends your prompts (including RAG context) to OpenAI's servers.
+
+</details>
 
 ## Step 5: Upload a Document
 
