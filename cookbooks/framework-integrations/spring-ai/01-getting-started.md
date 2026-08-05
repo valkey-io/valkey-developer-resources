@@ -13,7 +13,7 @@ capabilities to their applications using Valkey as the backend store.
 - Java 17+
 - Maven 3.9+
 - Docker
-- An OpenAI API key (or Ollama running locally)
+- [Ollama](https://ollama.com/) running locally with an embedding model (e.g., `nomic-embed-text`)
 
 > **Security:** This cookbook uses Valkey without authentication for local development.
 > For any network-accessible or production deployment, see the
@@ -48,7 +48,7 @@ Add these dependencies to your `pom.xml`:
     </dependency>
     <dependency>
         <groupId>org.springframework.ai</groupId>
-        <artifactId>spring-ai-openai-spring-boot-starter</artifactId>
+        <artifactId>spring-ai-ollama-spring-boot-starter</artifactId>
     </dependency>
 </dependencies>
 
@@ -57,13 +57,36 @@ Add these dependencies to your `pom.xml`:
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-bom</artifactId>
-            <version>2.0.0-SNAPSHOT</version>
+            <version>2.0.0</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>
     </dependencies>
 </dependencyManagement>
 ```
+
+<details>
+<summary>Optional: Using OpenAI instead of Ollama</summary>
+
+Replace the Ollama starter with:
+
+```xml
+<dependency>
+    <groupId>org.springframework.ai</groupId>
+    <artifactId>spring-ai-openai-spring-boot-starter</artifactId>
+</dependency>
+```
+
+And configure your API key in `application.properties`:
+
+```properties
+spring.ai.openai.api-key=${OPENAI_API_KEY}
+spring.ai.openai.embedding.options.model=text-embedding-3-small
+```
+
+This requires a paid API key and sends data to OpenAI's servers.
+
+</details>
 
 ## Step 3: Configure the Vector Store
 
@@ -104,11 +127,11 @@ public class ValkeyConfig {
 }
 ```
 
-Set your OpenAI key in `application.properties`:
+Set your Ollama embedding model in `application.properties`:
 
 ```properties
-spring.ai.openai.api-key=${OPENAI_API_KEY}
-spring.ai.openai.embedding.options.model=text-embedding-3-small
+spring.ai.ollama.embedding.options.model=nomic-embed-text
+spring.ai.ollama.base-url=http://localhost:11434
 ```
 
 ## Step 4: Add Documents
@@ -177,8 +200,8 @@ Each result includes:
                     via EmbeddingModel       on HNSW index
                            │                       │
                     ┌──────▼──────┐         ┌──────▼──────┐
-                    │   OpenAI /  │         │  JSON docs  │
-                    │   Ollama    │         │  + vectors  │
+                    │   Ollama /  │         │  JSON docs  │
+                    │   OpenAI    │         │  + vectors  │
                     └─────────────┘         └─────────────┘
 ```
 

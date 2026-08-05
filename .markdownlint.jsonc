@@ -7,7 +7,7 @@
   },
   // Allow HTML — needed for <nobr> in cookbook README tables
   "MD033": {
-    "allowed_elements": ["nobr", "br"]
+    "allowed_elements": ["nobr", "br", "details", "summary"]
   },
   // Allow duplicate headings in different sections (e.g., multiple "## Prerequisites")
   "MD024": {

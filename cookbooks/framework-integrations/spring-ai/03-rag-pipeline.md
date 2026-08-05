@@ -13,7 +13,7 @@ bases, or customer support systems.
 
 - Completed [01 - Getting Started](01-getting-started.md) and [02 - Metadata Filtering](02-metadata-filtering.md)
 - Valkey running with search module
-- OpenAI API key (or Ollama for local inference)
+- [Ollama](https://ollama.com/) running locally (or OpenAI API key for hosted inference)
 
 > **Security:** This cookbook uses Valkey without authentication for local development.
 > For any network-accessible or production deployment, see the
@@ -48,7 +48,7 @@ Add these dependencies to `pom.xml`:
     </dependency>
     <dependency>
         <groupId>org.springframework.ai</groupId>
-        <artifactId>spring-ai-openai-spring-boot-starter</artifactId>
+        <artifactId>spring-ai-ollama-spring-boot-starter</artifactId>
     </dependency>
     <dependency>
         <groupId>org.springframework.ai</groupId>
@@ -60,6 +60,23 @@ Add these dependencies to `pom.xml`:
     </dependency>
 </dependencies>
 ```
+
+<details>
+<summary>Optional: Using OpenAI instead of Ollama</summary>
+
+Replace `spring-ai-ollama-spring-boot-starter` with:
+
+```xml
+<dependency>
+    <groupId>org.springframework.ai</groupId>
+    <artifactId>spring-ai-openai-spring-boot-starter</artifactId>
+</dependency>
+```
+
+Configure `spring.ai.openai.api-key=${OPENAI_API_KEY}` in your properties. Requires a
+paid API key.
+
+</details>
 
 ## Step 2: Configure the Vector Store for RAG
 
@@ -282,7 +299,7 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
     environment:
-      - SPRING_AI_OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SPRING_AI_OLLAMA_BASE_URL=http://host.docker.internal:11434
     depends_on:
       valkey:
         condition: service_healthy

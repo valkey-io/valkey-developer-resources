@@ -17,7 +17,7 @@
 - Maven 3.9+
 - Docker (for Valkey)
 - Valkey 8.1+ with search module (`valkey/valkey-bundle`)
-- An embedding model provider (OpenAI, Ollama, or other Spring AI-supported model)
+- An embedding model provider ([Ollama](https://ollama.com/) recommended for local development, or OpenAI/other Spring AI-supported model)
 
 ## How Spring AI Uses Valkey
 
@@ -70,8 +70,7 @@ List<Document> results = vectorStore.similaritySearch(
 
 > **Note:** [spring-projects/spring-ai#5471](https://github.com/spring-projects/spring-ai/pull/5471)
 > is an open PR that adds the `spring-ai-valkey-store` module. It uses `valkey-glide` 2.2.5
-> and targets Spring AI 2.0.0. Until merged, build from the PR branch or use a snapshot
-> repository if available.
+> and targets Spring AI 2.0.0.
 
 ## References
 
