@@ -151,11 +151,11 @@ The `=>` token separates the filter expression from the KNN clause. If you inter
 value containing `=>`, `{`, or `}` could break out of the filter and rewrite the query. Two rules keep this safe:
 
 1. **Never string-interpolate the query vector** — pass it as the bound `$BLOB` parameter, as shown.
-2. **Always escape/encode values that go into the filter, and store them the same way** — `file_id` values go through `encode_file_id`
-   + `escape_tag` on the query side (Step 2), and the identical `encode_file_id` must be applied when the value is first stored (see the
-   note in Step 2). `escape_tag` neutralizes the TAG-syntax characters so a crafted value can't break out of the filter — it treats them
-   as literal text rather than rejecting the query, so a mismatched encoding fails *silently* (no match, no error), not loudly. Real
-   `file_id`s are UUIDs/hashes and need no encoding either way.
+2. **Always escape/encode values that go into the filter, and store them the same way** — on the query side (Step 2), `file_id` values
+   go through `encode_file_id` and then `escape_tag`, and the identical `encode_file_id` must be applied when the value is first stored
+   (see the note in Step 2). `escape_tag` neutralizes the TAG-syntax characters so a crafted value can't break out of the filter — it
+   treats them as literal text rather than rejecting the query, so a mismatched encoding fails *silently* (no match, no error), not
+   loudly. Real `file_id`s are UUIDs/hashes and need no encoding either way.
 
 ## Step 4: The `vector_weight` Caveat
 
