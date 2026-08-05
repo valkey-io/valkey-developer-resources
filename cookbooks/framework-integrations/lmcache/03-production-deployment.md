@@ -244,4 +244,4 @@ Plan Valkey capacity based on your expected unique prompt-prefix count × chunk 
 
 ---
 
-[← 02 - KV Cache Sharing](02-kv-cache-sharing.md)
+[← 02 - KV Cache Sharing](02-kv-cache-sharing.md) | [README →](./README.md)

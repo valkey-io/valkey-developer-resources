@@ -1,20 +1,18 @@
 # TODO: Remove this temporary copy after PR #45's shared Python workflow is
 # merged and includes framework-integrations/lmcache.
-name: Python Cookbook Validation
+name: LMCache Cookbook Validation
 
 on:
   push:
     branches: [main]
     paths:
-      - "cookbooks/**/*.py"
-      - "cookbooks/**/requirements.txt"
-      - ".github/workflows/cookbook-python.yml"
+      - "cookbooks/framework-integrations/lmcache/sample/**"
+      - ".github/workflows/cookbook-lmcache.yml"
   pull_request:
     branches: [main]
     paths:
-      - "cookbooks/**/*.py"
-      - "cookbooks/**/requirements.txt"
-      - ".github/workflows/cookbook-python.yml"
+      - "cookbooks/framework-integrations/lmcache/sample/**"
+      - ".github/workflows/cookbook-lmcache.yml"
 
 jobs:
   detect-python-changes:
@@ -28,8 +26,7 @@ jobs:
         with:
           filters: |
             python-cookbooks:
-              - 'cookbooks/**/requirements.txt'
-              - 'cookbooks/**/*.py'
+              - 'cookbooks/framework-integrations/lmcache/sample/**'
 
   python-lint:
     needs: detect-python-changes
