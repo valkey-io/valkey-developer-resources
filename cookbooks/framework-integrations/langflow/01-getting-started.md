@@ -59,17 +59,27 @@ by default when you install the full `langflow` package.
 2. From the sidebar, drag these components onto the canvas:
    - **Chat Input** (under Input/Output)
    - **Prompt** (under Prompts)
-   - **OpenAI** model (under Models) — or any LLM of your choice
+   - **Ollama** model (under Models) — or any LLM of your choice
    - **Chat Output** (under Input/Output)
    - **Valkey Chat Memory** (under Bundles → Valkey)
    - **Message History** (under Core)
 
 3. Connect the components:
    - **Chat Input** → **Prompt** (input)
-   - **Prompt** → **OpenAI** (input)
-   - **OpenAI** → **Chat Output** (input)
+   - **Prompt** → **Ollama** (input)
+   - **Ollama** → **Chat Output** (input)
    - **Valkey Chat Memory** → **Message History** (memory input)
    - **Message History** → **Prompt** (memory variable)
+
+<details>
+<summary>Optional: Using OpenAI instead of Ollama</summary>
+
+Replace the **Ollama** component with **OpenAI** (under Models). You'll need to configure
+your `OPENAI_API_KEY` in the component settings. This requires a paid API key.
+
+</details>
+
+<!-- markdownlint-disable MD029 -->
 
 4. Configure the **Prompt** component with a template that includes `{memory}`:
 

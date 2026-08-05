@@ -107,39 +107,44 @@ class TestVectorStorePattern:
         # Drop if exists from a previous failed run
         try:
             valkey_client.execute_command("FT.DROPINDEX", index_name)
-        except valkey.ResponseError:
-            pass
+        except valkey.ResponseError as e:
+            if "Unknown index name" not in str(e) and "not found" not in str(e):
+                raise
 
         # Create index on Hash with a vector field (TAG for metadata, VECTOR for embeddings)
-        valkey_client.execute_command(
-            "FT.CREATE",
-            index_name,
-            "ON",
-            "HASH",
-            "PREFIX",
-            "1",
-            "test:doc:",
-            "SCHEMA",
-            "content",
-            "TAG",
-            "content_vector",
-            "VECTOR",
-            "FLAT",
-            "6",
-            "TYPE",
-            "FLOAT32",
-            "DIM",
-            "4",
-            "DISTANCE_METRIC",
-            "COSINE",
-        )
+        try:
+            valkey_client.execute_command(
+                "FT.CREATE",
+                index_name,
+                "ON",
+                "HASH",
+                "PREFIX",
+                "1",
+                "test:doc:",
+                "SCHEMA",
+                "content",
+                "TAG",
+                "content_vector",
+                "VECTOR",
+                "FLAT",
+                "6",
+                "TYPE",
+                "FLOAT32",
+                "DIM",
+                "4",
+                "DISTANCE_METRIC",
+                "COSINE",
+            )
 
-        # Verify index exists
-        info = valkey_client.execute_command("FT.INFO", index_name)
-        assert info is not None
-
-        # Clean up
-        valkey_client.execute_command("FT.DROPINDEX", index_name)
+            # Verify index exists
+            info = valkey_client.execute_command("FT.INFO", index_name)
+            assert info is not None
+        finally:
+            # Clean up
+            try:
+                valkey_client.execute_command("FT.DROPINDEX", index_name)
+            except valkey.ResponseError:
+                pass
 
     def test_store_and_search_vectors(self, valkey_host: str, valkey_port: int) -> None:
         """Store documents with vectors and perform KNN search."""

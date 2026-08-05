@@ -1,41 +1,23 @@
-name: Cookbook Validation
+name: "Cookbook: Langflow Integration Tests"
 
 on:
   push:
     branches: [main]
     paths:
-      - "cookbooks/**"
-      - ".github/workflows/cookbook-validation.yml"
+      - "cookbooks/framework-integrations/langflow/sample/**"
+      - ".github/workflows/cookbook-langflow.yml"
   pull_request:
     branches: [main]
     paths:
-      - "cookbooks/**"
-      - ".github/workflows/cookbook-validation.yml"
+      - "cookbooks/framework-integrations/langflow/sample/**"
+      - ".github/workflows/cookbook-langflow.yml"
 
 jobs:
-  detect-changes:
-    runs-on: ubuntu-latest
-    outputs:
-      python-cookbooks: ${{ steps.filter.outputs.python-cookbooks }}
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
-        id: filter
-        with:
-          filters: |
-            python-cookbooks:
-              - 'cookbooks/**/pyproject.toml'
-              - 'cookbooks/**/tests/**/*.py'
-              - 'cookbooks/**/scripts/**/*.py'
-
   python-integration-test:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.python-cookbooks == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        cookbook: [langflow]
         valkey-version: ["8.1.1", "9.1.1"]
     services:
       valkey:
@@ -56,12 +38,12 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install dependencies
-        working-directory: cookbooks/framework-integrations/${{ matrix.cookbook }}/sample
+        working-directory: cookbooks/framework-integrations/langflow/sample
         run: |
           uv venv
           uv pip install -e ".[test]"
       - name: Run integration tests (Valkey ${{ matrix.valkey-version }})
-        working-directory: cookbooks/framework-integrations/${{ matrix.cookbook }}/sample
+        working-directory: cookbooks/framework-integrations/langflow/sample
         run: .venv/bin/pytest tests/ -v --timeout=60
 
   link-check:
@@ -85,7 +67,7 @@ jobs:
                 errors=$((errors + 1))
               fi
             done < <(grep -oP '\[.*?\]\(\K[^)]+' "$file")
-          done < <(find cookbooks -name '*.md' -type f)
+          done < <(find cookbooks/framework-integrations/langflow -name '*.md' -type f)
           if [ "$errors" -gt 0 ]; then
             echo "Found $errors broken link(s)"
             exit 1
@@ -97,4 +79,4 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - uses: DavidAnson/markdownlint-cli2-action@6bf21b07787794f89a243495939cd651942aeabe # v24
         with:
-          globs: "cookbooks/**/*.md"
+          globs: "cookbooks/framework-integrations/langflow/**/*.md"

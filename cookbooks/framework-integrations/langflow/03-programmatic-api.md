@@ -346,7 +346,7 @@ Use tweaks to point to a different Valkey instance without modifying the flow:
 ```python
 tweaks = {
     "ValkeyVectorStore-XXXXX": {
-        "valkey_server_url": "valkeyss://user:pass@prod-host:6379",
+        "valkey_server_url": f"valkeyss://{os.environ['VALKEY_USER']}:{os.environ['VALKEY_PASSWORD']}@prod-host:6379",
     }
 }
 ```

@@ -17,7 +17,7 @@ You should have completed the [Getting Started](01-getting-started.md) guide.
 | Docker | 20.10+ | Run Valkey with search module |
 | Python | 3.10–3.13 | Run Langflow |
 | Langflow | 1.11+ | Valkey bundle included |
-| OpenAI API key | — | Embeddings and LLM (or use Ollama) |
+| OpenAI API key | — | Optional — for OpenAI embeddings/LLM (Ollama is the free default) |
 
 > **Security:** Never expose Valkey to the public internet without authentication.
 > Use `requirepass` or ACLs in production. See the
@@ -51,14 +51,14 @@ everything in Valkey.
 2. Drag these components onto the canvas:
    - **File** (under Data)
    - **Split Text** (under Processing)
-   - **OpenAI Embeddings** (under Embeddings) — or **Ollama Embeddings**
+   - **Ollama Embeddings** (under Embeddings)
    - **Valkey** vector store (under Bundles → Valkey)
    - **Chat Output** (under Input/Output) — for status confirmation
 
 3. Connect:
    - **File** → **Split Text** (data)
    - **Split Text** → **Valkey** vector store (ingest_data)
-   - **OpenAI Embeddings** → **Valkey** vector store (embedding)
+   - **Ollama Embeddings** → **Valkey** vector store (embedding)
    - **Valkey** vector store → **Chat Output** (confirmation)
 
 4. Configure **Split Text**:
@@ -98,21 +98,32 @@ Now build a separate flow (or add to the same canvas) for answering questions:
 
 1. Drag these components:
    - **Chat Input** (under Input/Output)
-   - **OpenAI Embeddings** (under Embeddings) — same model as ingestion
+   - **Ollama Embeddings** (under Embeddings) — same model as ingestion
    - **Valkey** vector store (under Bundles → Valkey)
    - **Parser** (under Processing)
    - **Prompt** (under Prompts)
-   - **OpenAI** model (under Models)
+   - **Ollama** model (under Models)
    - **Chat Output** (under Input/Output)
 
 2. Connect:
    - **Chat Input** → **Valkey** vector store (search_query)
-   - **OpenAI Embeddings** → **Valkey** vector store (embedding)
+   - **Ollama Embeddings** → **Valkey** vector store (embedding)
    - **Valkey** vector store → **Parser** (search results)
    - **Parser** → **Prompt** (context)
    - **Chat Input** → **Prompt** (question)
-   - **Prompt** → **OpenAI** model (input)
-   - **OpenAI** model → **Chat Output** (response)
+   - **Prompt** → **Ollama** model (input)
+   - **Ollama** model → **Chat Output** (response)
+
+<details>
+<summary>Optional: Using OpenAI instead of Ollama</summary>
+
+Replace **Ollama Embeddings** with **OpenAI Embeddings** and **Ollama** model with
+**OpenAI** model. Configure your `OPENAI_API_KEY` in each component's settings.
+This requires a paid API key.
+
+</details>
+
+<!-- markdownlint-disable MD029 -->
 
 3. Configure the **Prompt** template:
 
@@ -224,7 +235,7 @@ docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:8.1.1
 If you switch embedding models, drop the old index first:
 
 ```bash
-docker exec valkey valkey-cli FT.DROPINDEX langflow-docs DD
+docker exec valkey valkey-cli FT.DROPINDEX langflow-docs
 ```
 
 The `DD` flag also deletes the underlying documents.
