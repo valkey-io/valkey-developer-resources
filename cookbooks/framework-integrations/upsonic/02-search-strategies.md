@@ -12,7 +12,7 @@ Each mode suits different retrieval scenarios — from pure semantic matching to
 ## Prerequisites
 
 - Completed [01 - Getting Started](01-getting-started.md)
-- Valkey running with Search module (`valkey/valkey-bundle:8.1.7`)
+- Valkey running with Search module (`valkey/valkey-bundle:9.1.0`)
 - `pip install "upsonic[valkey]"` installed
 
 ## Step 1: Set Up the Provider

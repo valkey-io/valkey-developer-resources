@@ -4,7 +4,7 @@
 Corresponds to cookbook: 02-search-strategies.md
 
 Requirements:
-    - Valkey 8.1+ with valkey-search module loaded
+    - Valkey 9.1+ with valkey-search module loaded
     - pip install -r requirements.txt
 
 Usage:

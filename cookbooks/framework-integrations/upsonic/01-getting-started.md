@@ -20,7 +20,7 @@ vector search with native hybrid capabilities (vector + full-text + tag filterin
 The Valkey Search module is required for vector indexing. Use `valkey/valkey-bundle` which includes it:
 
 ```bash
-docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:8.1.7
+docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.0
 ```
 
 > **Note:** All examples use `docker`. Substitute `podman` if that's your container runtime — the commands are identical.
