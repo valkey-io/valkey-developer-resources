@@ -1,0 +1,151 @@
+"""
+03 - Production Deployment: Batch ingest, deduplication, and error handling.
+
+Corresponds to cookbook: 03-production-deployment.md
+
+Requirements:
+    - Valkey 8.1+ with valkey-search module loaded
+    - pip install -r requirements.txt
+
+Usage:
+    docker compose up -d
+    python production_deployment.py
+"""
+
+from __future__ import annotations
+
+import asyncio
+import hashlib
+import logging
+
+from upsonic.vectordb import ValkeyConfig, ValkeyProvider
+from upsonic.vectordb.config import (
+    ConnectionConfig,
+    DistanceMetric,
+    HNSWIndexConfig,
+    Mode,
+)
+from upsonic.utils.package.exception import (
+    CollectionDoesNotExistError,
+    SearchError,
+    VectorDBConnectionError,
+)
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+async def demo_batch_ingest(provider: ValkeyProvider) -> None:
+    """Demonstrate batch upsert with deduplication."""
+    print("\n--- Batch Ingest with Deduplication ---")
+
+    chunks = [
+        "Valkey supports HNSW and FLAT vector indexing algorithms",
+        "HNSW provides approximate nearest neighbor search with tunable recall",
+        "Managed Valkey services include the Search module by default",
+        "TLS encryption is required for production deployments",
+        # Duplicate of first chunk — should be skipped
+        "Valkey supports HNSW and FLAT vector indexing algorithms",
+    ]
+
+    # NOTE: This check-then-insert pattern is not atomic. For concurrent
+    # ingestion pipelines, use a SET NX lock on the content hash or accept
+    # occasional duplicates with periodic dedup passes.
+
+    # MD5 is used as a content fingerprint (not for security) — matches
+    # Upsonic's internal store.py deduplication logic.
+    to_ingest: list[tuple[int, str]] = []
+    seen_hashes: set[str] = set()
+    skipped = 0
+    for i, chunk in enumerate(chunks):
+        content_hash = hashlib.md5(chunk.encode()).hexdigest()
+        if content_hash in seen_hashes or await provider.achunk_content_hash_exists(
+            content_hash
+        ):
+            skipped += 1
+        else:
+            seen_hashes.add(content_hash)
+            to_ingest.append((i, chunk))
+
+    if to_ingest:
+        await provider.aupsert(
+            vectors=[[0.1 * (i + 1)] * 384 for i, _ in to_ingest],
+            ids=[f"batch_{i}" for i, _ in to_ingest],
+            chunks=[chunk for _, chunk in to_ingest],
+            document_ids=["batch_doc"] * len(to_ingest),
+            document_names=["batch_test.md"] * len(to_ingest),
+        )
+
+    print(f"  Ingested: {len(to_ingest)}, Skipped (duplicates): {skipped}")
+
+
+async def demo_error_handling(provider: ValkeyProvider) -> None:
+    """Demonstrate error handling patterns."""
+    print("\n--- Error Handling ---")
+
+    query_vector = [0.15] * 384
+
+    try:
+        results = await provider.adense_search(query_vector=query_vector, top_k=3)
+        print(f"  Search returned {len(results)} results")
+        for r in results:
+            print(f"    [{r.score:.3f}] {r.text[:60]}")
+    except VectorDBConnectionError:
+        logger.error("Valkey unreachable — check connection")
+        raise
+    except CollectionDoesNotExistError:
+        logger.warning("Index missing — recreating and retrying")
+        await provider.acreate_collection()
+        results = await provider.adense_search(query_vector=query_vector, top_k=3)
+        print(f"  Search returned {len(results)} results (after recreation)")
+    except SearchError as e:
+        logger.error("Search failed: %s", e)
+
+
+async def demo_delete_operations(provider: ValkeyProvider) -> None:
+    """Demonstrate delete by ID and by document name."""
+    print("\n--- Delete Operations ---")
+
+    # Delete specific chunks
+    await provider.adelete(ids=["batch_0"])
+    print("  Deleted batch_0")
+
+    # Delete all chunks from a document
+    await provider.adelete_by_document_name(document_name="batch_test.md")
+    print("  Deleted all chunks from batch_test.md")
+
+
+async def main() -> None:
+    """Run production pattern demos."""
+    config = ValkeyConfig(
+        vector_size=384,
+        collection_name="prod_demo",
+        key_prefix="prod:",
+        connection=ConnectionConfig(mode=Mode.LOCAL, host="localhost", port=6379),
+        distance_metric=DistanceMetric.COSINE,
+        index=HNSWIndexConfig(m=32, ef_construction=300),
+        batch_size=200,
+    )
+
+    provider = ValkeyProvider(config)
+    await provider.aconnect()
+    try:
+        # Clean slate
+        if await provider.acollection_exists():
+            await provider.adelete_collection()
+        await provider.acreate_collection()
+
+        await demo_batch_ingest(provider)
+        await asyncio.sleep(0.5)  # Allow index to update
+        await demo_error_handling(provider)
+        await demo_delete_operations(provider)
+
+        # Final cleanup
+        await provider.adelete_collection()
+    finally:
+        await provider.adisconnect()
+    print("\nDone!")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

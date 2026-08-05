@@ -1,0 +1,3 @@
+# Requires Upsonic with Valkey provider (PR #607 must be released first).
+# Update the version pin to the actual release version once published.
+upsonic[valkey]==0.78.0
