@@ -146,7 +146,7 @@ spec:
     model:
       modelFormat:
         name: sklearn
-      storageUri: "gs://my-bucket/my-model"
+      storageUri: "pvc://model-volume/my-model"
   transformer:
     containers:
       - name: feast-transformer
@@ -162,6 +162,19 @@ spec:
         configMap:
           name: feast-config
 ```
+
+> **Optional — cloud storage:** If you prefer to serve the model from a cloud object
+> store instead of a PVC, replace the `storageUri` with your provider's URI scheme:
+>
+> | Provider | Example |
+> | --- | --- |
+> | Google Cloud Storage | `gs://my-bucket/my-model` |
+> | Amazon S3 | `s3://my-bucket/my-model` |
+> | Azure Blob Storage | `https://my-account.blob.core.windows.net/my-container/my-model` |
+>
+> Each requires the corresponding KServe storage credentials secret. See the
+> [KServe storage docs](https://kserve.github.io/website/latest/modelserving/storage/storagecontainers/)
+> for setup instructions.
 
 The transformer reads features from Valkey at inference time, enriches the request,
 and forwards it to the predictor.

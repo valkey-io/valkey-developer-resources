@@ -50,15 +50,13 @@ def main() -> None:
         client.delete(*[f"bulk:{i}" for i in range(10)])
         print("5. Pipeline: OK (batch reads)")
 
-        # 6. KEYS pattern (cache inspection)
+        # 6. SCAN pattern (cache inspection — production-safe)
         client.set("model@0@0@aaa@half", b"chunk1")
         client.set("model@0@1@bbb@half", b"chunk2")
-        # WARNING: KEYS is O(N) and blocks the server — dev/diagnostic use only.
-        # In production use SCAN instead: client.scan_iter("model@*")
-        keys = client.keys("model@*")
+        keys = list(client.scan_iter("model@*"))
         assert len(keys) == 2
         client.delete("model@0@0@aaa@half", "model@0@1@bbb@half")
-        print("6. KEYS pattern: OK (cache inspection — use SCAN in production)")
+        print("6. SCAN pattern: OK (cache inspection)")
 
         print("\n✓ All checks passed — Valkey is ready for KServe workloads")
     finally:
