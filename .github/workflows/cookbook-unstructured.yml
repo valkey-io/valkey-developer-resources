@@ -1,0 +1,50 @@
+name: Cookbook - Unstructured
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cookbooks/framework-integrations/unstructured/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "cookbooks/framework-integrations/unstructured/**"
+
+jobs:
+  markdown-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DavidAnson/markdownlint-cli2-action@v19
+        with:
+          globs: "cookbooks/framework-integrations/unstructured/**/*.md"
+
+  python-integration-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        valkey-version: ["9.1.0"]
+    services:
+      valkey:
+        image: valkey/valkey-bundle:${{ matrix.valkey-version }}
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        working-directory: cookbooks/framework-integrations/unstructured/sample
+        run: pip install -r requirements.txt
+
+      - name: Run integration tests
+        working-directory: cookbooks/framework-integrations/unstructured/sample
+        run: pytest tests/ -v --timeout=30

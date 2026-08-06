@@ -1,0 +1,12 @@
+# Core dependencies for the Unstructured + Valkey cookbook sample.
+# The unstructured-ingest[valkey] extra is not yet released (blocked on
+# https://github.com/Unstructured-IO/unstructured-ingest/pull/747).
+# Until then, the sample scripts use valkey-glide directly to demonstrate
+# the same patterns the connector implements.
+valkey-glide==2.5.0
+numpy==1.26.4
+sentence-transformers==3.3.1
+
+# Test dependencies
+pytest==8.3.5
+pytest-timeout==2.4.0
