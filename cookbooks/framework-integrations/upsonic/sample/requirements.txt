@@ -1,3 +1,6 @@
-# Requires Upsonic with Valkey provider (PR #607 must be released first).
-# Update the version pin to the actual release version once published.
-upsonic[valkey]==0.78.0
+# BLOCKED: Requires Upsonic with Valkey provider.
+# Upsonic PR #607 (https://github.com/Upsonic/Upsonic/pull/607) adds the
+# valkey-glide backend. This extra is NOT available on PyPI yet.
+# Once released, replace this line with the exact published version:
+#   upsonic[valkey]==<released-version>
+upsonic[valkey]>=0.78.0
