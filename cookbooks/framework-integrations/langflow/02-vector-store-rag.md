@@ -29,7 +29,7 @@ The Valkey Vector Store requires the `valkey-search` module for `FT.CREATE` and
 `FT.SEARCH` commands. Use the `valkey-bundle` image:
 
 ```bash
-docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:8.1.1
+docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.0
 ```
 
 Verify the search module is loaded:
@@ -227,7 +227,7 @@ Stop the container and restart with:
 
 ```bash
 docker rm -f valkey
-docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:8.1.1
+docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.0
 ```
 
 **Embeddings dimension mismatch:**
@@ -238,7 +238,7 @@ If you switch embedding models, drop the old index first:
 docker exec valkey valkey-cli FT.DROPINDEX langflow-docs
 ```
 
-The `DD` flag also deletes the underlying documents.
+Then re-run the ingestion flow to recreate the index with the correct dimensions.
 
 **No results returned:**
 

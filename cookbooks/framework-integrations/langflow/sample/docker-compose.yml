@@ -1,6 +1,6 @@
 services:
   valkey:
-    image: valkey/valkey-bundle:9.1.1
+    image: valkey/valkey-bundle:9.1.0
     ports:
       - "127.0.0.1:6379:6379"
     healthcheck:
@@ -14,9 +14,11 @@ services:
     ports:
       - "127.0.0.1:7860:7860"
     environment:
+      # WARNING: Disables authentication — for local development only.
+      # Do NOT use in production or on a publicly accessible host.
       - LANGFLOW_AUTO_LOGIN=true
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7860/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7860/health')"]
       interval: 10s
       timeout: 5s
       retries: 12

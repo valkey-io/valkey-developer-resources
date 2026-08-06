@@ -7,9 +7,50 @@ These tests validate the Valkey operations that Langflow's components use:
 """
 
 import json
+import struct
 
 import pytest
 import valkey
+
+
+def _create_vector_index(
+    client: valkey.Valkey,
+    index_name: str,
+    prefix: str,
+    dim: int = 4,
+) -> None:
+    """Create a vector index on Hash with TAG + VECTOR fields."""
+    client.execute_command(
+        "FT.CREATE",
+        index_name,
+        "ON",
+        "HASH",
+        "PREFIX",
+        "1",
+        prefix,
+        "SCHEMA",
+        "content",
+        "TAG",
+        "content_vector",
+        "VECTOR",
+        "FLAT",
+        "6",
+        "TYPE",
+        "FLOAT32",
+        "DIM",
+        str(dim),
+        "DISTANCE_METRIC",
+        "COSINE",
+    )
+
+
+def _drop_index_if_exists(client: valkey.Valkey, index_name: str) -> None:
+    """Drop a search index, ignoring errors if it doesn't exist."""
+    try:
+        client.execute_command("FT.DROPINDEX", index_name)
+    except valkey.ResponseError as e:
+        if "Unknown index name" not in str(e) and "not found" not in str(e):
+            raise
 
 
 @pytest.mark.integration
@@ -105,51 +146,21 @@ class TestVectorStorePattern:
         index_name = "test-langflow-idx"
 
         # Drop if exists from a previous failed run
-        try:
-            valkey_client.execute_command("FT.DROPINDEX", index_name)
-        except valkey.ResponseError as e:
-            if "Unknown index name" not in str(e) and "not found" not in str(e):
-                raise
+        _drop_index_if_exists(valkey_client, index_name)
 
-        # Create index on Hash with a vector field (TAG for metadata, VECTOR for embeddings)
         try:
-            valkey_client.execute_command(
-                "FT.CREATE",
-                index_name,
-                "ON",
-                "HASH",
-                "PREFIX",
-                "1",
-                "test:doc:",
-                "SCHEMA",
-                "content",
-                "TAG",
-                "content_vector",
-                "VECTOR",
-                "FLAT",
-                "6",
-                "TYPE",
-                "FLOAT32",
-                "DIM",
-                "4",
-                "DISTANCE_METRIC",
-                "COSINE",
-            )
+            _create_vector_index(valkey_client, index_name, "test:doc:")
 
             # Verify index exists
             info = valkey_client.execute_command("FT.INFO", index_name)
             assert info is not None
         finally:
-            # Clean up
-            try:
-                valkey_client.execute_command("FT.DROPINDEX", index_name)
-            except valkey.ResponseError:
-                pass
+            _drop_index_if_exists(valkey_client, index_name)
 
-    def test_store_and_search_vectors(self, valkey_host: str, valkey_port: int) -> None:
+    def test_store_and_search_vectors(
+        self, valkey_host: str, valkey_port: int
+    ) -> None:
         """Store documents with vectors and perform KNN search."""
-        import struct
-
         # Use a non-decoding client for binary vector data
         client = valkey.Valkey(
             host=valkey_host, port=valkey_port, decode_responses=False
@@ -159,37 +170,12 @@ class TestVectorStorePattern:
 
         try:
             # Clean up from previous runs
-            try:
-                client.execute_command("FT.DROPINDEX", index_name)
-            except valkey.ResponseError:
-                pass
-            # Also clean up any leftover keys
+            _drop_index_if_exists(client, index_name)
             for key in client.scan_iter(b"test:vec:*"):
                 client.delete(key)
 
-            # Create index (TAG for metadata fields in valkey-search)
-            client.execute_command(
-                "FT.CREATE",
-                index_name,
-                "ON",
-                "HASH",
-                "PREFIX",
-                "1",
-                "test:vec:",
-                "SCHEMA",
-                "content",
-                "TAG",
-                "content_vector",
-                "VECTOR",
-                "FLAT",
-                "6",
-                "TYPE",
-                "FLOAT32",
-                "DIM",
-                "4",
-                "DISTANCE_METRIC",
-                "COSINE",
-            )
+            # Create index
+            _create_vector_index(client, index_name, "test:vec:")
 
             # Store documents with fake 4-dimensional vectors
             vectors = [
@@ -226,10 +212,7 @@ class TestVectorStorePattern:
             assert b"Valkey" in first_fields[b"content"]
         finally:
             # Clean up index and keys
-            try:
-                client.execute_command("FT.DROPINDEX", index_name)
-            except valkey.ResponseError:
-                pass
+            _drop_index_if_exists(client, index_name)
             for key in client.scan_iter(b"test:vec:*"):
                 client.delete(key)
             client.close()

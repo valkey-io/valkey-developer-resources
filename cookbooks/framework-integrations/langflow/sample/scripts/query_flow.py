@@ -13,12 +13,14 @@ import sys
 import requests
 
 
-def query_flow(question: str) -> str:
+def query_flow(
+    question: str,
+    *,
+    base_url: str,
+    flow_id: str,
+    api_key: str,
+) -> str:
     """Send a query to a Langflow flow and return the response text."""
-    base_url = os.environ["LANGFLOW_BASE_URL"]
-    flow_id = os.environ["LANGFLOW_FLOW_ID"]
-    api_key = os.environ["LANGFLOW_API_KEY"]
-
     response = requests.post(
         f"{base_url}/api/v1/run/{flow_id}",
         headers={
@@ -35,7 +37,12 @@ def query_flow(question: str) -> str:
     response.raise_for_status()
 
     data = response.json()
-    return data["outputs"][0]["outputs"][0]["results"]["message"]["data"]["text"]
+    try:
+        return data["outputs"][0]["outputs"][0]["results"]["message"]["data"]["text"]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise ValueError(
+            f"Unexpected response structure from Langflow: {data}"
+        ) from exc
 
 
 def main() -> None:
@@ -43,8 +50,17 @@ def main() -> None:
         print("Usage: python scripts/query_flow.py <question>", file=sys.stderr)
         sys.exit(1)
 
+    base_url = os.environ["LANGFLOW_BASE_URL"]
+    flow_id = os.environ["LANGFLOW_FLOW_ID"]
+    api_key = os.environ["LANGFLOW_API_KEY"]
+
     question = " ".join(sys.argv[1:])
-    answer = query_flow(question)
+    answer = query_flow(
+        question,
+        base_url=base_url,
+        flow_id=flow_id,
+        api_key=api_key,
+    )
     print(f"Q: {question}")
     print(f"A: {answer}")
 

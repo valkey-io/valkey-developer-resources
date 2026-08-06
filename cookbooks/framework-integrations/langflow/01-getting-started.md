@@ -26,7 +26,7 @@ You should be comfortable running Docker containers and navigating a web UI.
 The Valkey Chat Memory component works with any Valkey server — no search module needed.
 
 ```bash
-docker run -d --name valkey -p 6379:6379 valkey/valkey:8.1.1
+docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey:9.1.0
 ```
 
 Verify the server is running:
@@ -41,7 +41,7 @@ docker exec valkey valkey-cli PING
 Install Langflow with `uv` (recommended):
 
 ```bash
-uv pip install langflow
+uv pip install langflow==1.11.0
 ```
 
 Start the server:

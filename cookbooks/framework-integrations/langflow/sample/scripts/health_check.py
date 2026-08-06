@@ -20,7 +20,7 @@ def check_langflow(base_url: str, api_key: str | None = None) -> bool:
     try:
         resp = requests.get(f"{base_url}/health", headers=headers, timeout=5)
         return resp.status_code == 200
-    except requests.ConnectionError:
+    except (requests.ConnectionError, requests.Timeout):
         return False
 
 

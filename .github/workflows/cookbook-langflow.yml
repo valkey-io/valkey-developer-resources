@@ -5,11 +5,13 @@ on:
     branches: [main]
     paths:
       - "cookbooks/framework-integrations/langflow/sample/**"
+      - "cookbooks/framework-integrations/langflow/*.md"
       - ".github/workflows/cookbook-langflow.yml"
   pull_request:
     branches: [main]
     paths:
       - "cookbooks/framework-integrations/langflow/sample/**"
+      - "cookbooks/framework-integrations/langflow/*.md"
       - ".github/workflows/cookbook-langflow.yml"
 
 jobs:
@@ -18,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        valkey-version: ["8.1.1", "9.1.1"]
+        valkey-version: ["8.1.1", "9.1.0"]
     services:
       valkey:
         image: valkey/valkey-bundle:${{ matrix.valkey-version }}
