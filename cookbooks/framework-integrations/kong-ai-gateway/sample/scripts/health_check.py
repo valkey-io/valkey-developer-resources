@@ -1,12 +1,26 @@
 """Health check: verify Valkey is ready for Kong AI Gateway's semantic plugins."""
 
+import os
 import sys
 
 import valkey
 
 
+def _has_module(modules: list, name: str) -> bool:
+    """Check if a named module is loaded."""
+    for mod in modules:
+        mod_name = mod.get(b"name") or mod.get("name", b"")
+        if isinstance(mod_name, bytes):
+            mod_name = mod_name.decode()
+        if mod_name.lower() == name.lower():
+            return True
+    return False
+
+
 def main() -> None:
-    client = valkey.Valkey(host="localhost", port=6379)
+    host = os.environ.get("VALKEY_HOST", "localhost")
+    port = int(os.environ.get("VALKEY_PORT", "6379"))
+    client = valkey.Valkey(host=host, port=port)
     try:
         # 1. Ping
         pong = client.ping()
@@ -24,27 +38,13 @@ def main() -> None:
 
         # 3. Search module check (needed for FT.CREATE/FT.SEARCH)
         modules = client.module_list()
-        search_found = False
-        for mod in modules:
-            name = mod.get(b"name") or mod.get("name", b"")
-            if isinstance(name, bytes):
-                name = name.decode()
-            if name.lower() == "search":
-                search_found = True
-                break
+        search_found = _has_module(modules, "search")
         print(f"3. Search module: {'loaded ✓' if search_found else 'NOT FOUND'}")
         if not search_found:
             sys.exit(1)
 
         # 4. JSON module check (needed for JSON.SET)
-        json_found = False
-        for mod in modules:
-            name = mod.get(b"name") or mod.get("name", b"")
-            if isinstance(name, bytes):
-                name = name.decode()
-            if name.lower() == "json":
-                json_found = True
-                break
+        json_found = _has_module(modules, "json")
         print(f"4. JSON module: {'loaded ✓' if json_found else 'NOT FOUND'}")
         if not json_found:
             sys.exit(1)

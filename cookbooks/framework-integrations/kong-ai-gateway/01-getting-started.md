@@ -104,6 +104,10 @@ plugins:
 Replace the `kong.yml` above with this configuration if you prefer to use OpenAI
 (requires a paid API key set as `OPENAI_API_KEY`):
 
+> **Security:** Use environment variable substitution (`${OPENAI_API_KEY}`) rather than
+> hardcoding API keys in `kong.yml`. The examples below reference the env var; set it
+> in your shell or `docker-compose.yml` environment block before starting Kong.
+
 ```yaml
 # kong.yml (OpenAI variant)
 _format_version: "3.0"
@@ -225,21 +229,22 @@ strategy or plugin configuration changes needed.
 | Parameter | Description |
 | --- | --- |
 | `vectordb.strategy` | Always `redis` (Valkey is auto-detected) |
-| `vectordb.dimensions` | Must match embedding model output (3072 for `text-embedding-3-large`) |
+| `vectordb.dimensions` | Must match embedding model output (768 for `nomic-embed-text`, 3072 for `text-embedding-3-large`) |
 | `vectordb.distance_metric` | `cosine` (recommended), `l2`, or `ip` |
 | `vectordb.threshold` | Similarity threshold; lower = stricter match for cosine |
 | `vectordb.redis.host` | Valkey hostname |
 | `vectordb.redis.port` | Valkey port (default 6379) |
 | `embeddings.model.provider` | `ollama`, `openai`, `azure`, etc. |
-| `embeddings.model.name` | Model name (e.g., `text-embedding-3-large`, `text-embedding-3-small`) |
+| `embeddings.model.name` | Model name (e.g., `nomic-embed-text`, `text-embedding-3-large`) |
 
 ## Embedding Model Dimensions
 
-| Model | Dimensions | Notes |
-| --- | --- | --- |
-| `text-embedding-3-large` | 3072 | Recommended, highest quality |
-| `text-embedding-3-small` | 1536 | Good balance of quality/cost, supports dynamic dims |
-| `text-embedding-ada-002` | 1536 | Legacy, must set dimensions to exactly 1536 |
+| Model | Dimensions | Provider | Notes |
+| --- | --- | --- | --- |
+| `nomic-embed-text` | 768 | Ollama | **Default** — used in this cookbook |
+| `text-embedding-3-large` | 3072 | OpenAI | Highest quality, requires API key |
+| `text-embedding-3-small` | 1536 | OpenAI | Good balance of quality/cost |
+| `text-embedding-ada-002` | 1536 | OpenAI | Legacy, must set dimensions to exactly 1536 |
 
 ## Troubleshooting
 
@@ -258,7 +263,7 @@ strategy or plugin configuration changes needed.
 ### "Dimensions mismatch" error
 
 - The `vectordb.dimensions` must exactly match what the embedding model produces
-- `text-embedding-3-large` = 3072, `text-embedding-ada-002` = 1536
+- `nomic-embed-text` = 768, `text-embedding-3-large` = 3072, `text-embedding-3-small` = 1536
 
 ---
 

@@ -29,18 +29,18 @@ goes to whichever model's description is most similar.
 
 ```text
 ┌────────────────┐        ┌──────────────────┐        ┌────────────────┐
-│  "Fix my      │        │ Kong AI Proxy    │        │ gpt-3.5-turbo  │
-│   Python code"│───────▶│ Advanced         │──┐     │ (code expert)  │
+│  "Fix my      │        │ Kong AI Proxy    │        │ llama3.2       │
+│   Python code"│───────▶│ Advanced         │──┐     │ (Code Expert)  │
 └────────────────┘        │                  │  │     └────────────────┘
                           │  1. Embed prompt │  │
                           │  2. FT.SEARCH    │  ├────▶┌────────────────┐
-                          │     Valkey       │  │     │ gpt-4o         │
-                          │  3. Best match   │  │     │ (IT support)   │
+                          │     Valkey       │  │     │ llama3.2       │
+                          │  3. Best match   │  │     │ (IT Support)   │
                           │     → route      │  │     └────────────────┘
                           └──────────────────┘  │
                                                 └────▶┌────────────────┐
-                                                      │ gpt-4o-mini    │
-                                                      │ (catch-all)    │
+                                                      │ llama3.2       │
+                                                      │ (Catch-all)    │
                                                       └────────────────┘
 ```
 
@@ -142,27 +142,33 @@ match any other target well enough.
 ## Testing Semantic Routing
 
 ```bash
-# Should route to gpt-3.5-turbo (code specialist)
+# Should route to code specialist target (llama3.2 with temp=0, max_tokens=826)
 curl -s http://localhost:8000/ai/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "messages": [{"role": "user", "content": "Write a Python function to sort a list"}]
   }' | jq .model
+# Returns "llama3.2" — verify routing by checking response parameters
 
-# Should route to gpt-4o (IT support)
+# Should route to IT support target (llama3.2 with temp=0.3, max_tokens=512)
 curl -s http://localhost:8000/ai/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "messages": [{"role": "user", "content": "My VPN connection keeps dropping"}]
   }' | jq .model
 
-# Should route to gpt-4o-mini (catch-all)
+# Should route to catch-all target (llama3.2 with temp=1.0, max_tokens=256)
 curl -s http://localhost:8000/ai/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "messages": [{"role": "user", "content": "What is the meaning of life?"}]
   }' | jq .model
 ```
+
+> **Note:** With the default Ollama configuration, all targets use `llama3.2` so
+> `.model` will always return `"llama3.2"`. Routing is differentiated by parameters
+> (temperature, max_tokens). Use Kong debug logs or the OpenAI variant to observe
+> which target was selected.
 
 ## Tuning Routing Accuracy
 
@@ -186,7 +192,9 @@ More specific descriptions produce better vector separations in Valkey.
 
 ### Embedding Model
 
-Use `text-embedding-3-small` (1024 dims) for routing — it's fast and cheap since
+The default configuration uses `nomic-embed-text` (768 dimensions) via Ollama —
+it's free, fast, and runs locally. For production with OpenAI, use
+`text-embedding-3-small` (1536 dimensions) for routing — it's fast and cheap since
 every request needs an embedding. Reserve `text-embedding-3-large` (3072 dims) for
 RAG and caching where accuracy matters more than latency.
 

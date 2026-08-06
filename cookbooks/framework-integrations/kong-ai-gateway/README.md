@@ -56,7 +56,7 @@ All five AI plugins share the same vectordb configuration block:
 ```yaml
 vectordb:
   strategy: redis       # Kong auto-detects Valkey via server INFO
-  dimensions: 3072      # Must match your embedding model
+  dimensions: 768       # Must match your embedding model (768 for nomic-embed-text default)
   distance_metric: cosine
   threshold: 0.1        # Similarity threshold (lower = more similar for cosine)
   redis:
@@ -65,6 +65,11 @@ vectordb:
 ```
 
 ## Quick Start
+
+> **Security:** This cookbook uses Valkey without authentication for local development.
+> For any network-accessible or production deployment, see the
+> [Valkey security documentation](https://valkey.io/topics/security/) to configure
+> authentication and TLS.
 
 ```yaml
 # docker-compose.yml

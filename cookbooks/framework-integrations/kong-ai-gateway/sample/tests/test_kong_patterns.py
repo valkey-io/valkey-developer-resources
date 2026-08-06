@@ -6,20 +6,12 @@ JSON paths and FT.SEARCH for KNN similarity queries.
 """
 
 import json
-import struct
-import time
 
 import numpy as np
 import pytest
 import valkey
 
-DIMENSION = 128
-INDEX_PREFIX = "kong:test:"
-
-
-def vector_to_bytes(vector: list[float]) -> bytes:
-    """Pack floats as little-endian float32."""
-    return struct.pack(f"<{len(vector)}f", *vector)
+from conftest import DIMENSION, INDEX_PREFIX, create_hnsw_index, vector_to_bytes, wait_for_indexed
 
 
 class TestConnectivity:
@@ -38,23 +30,13 @@ class TestConnectivity:
     def test_search_module_loaded(self, valkey_client):
         """FT commands require the search module."""
         modules = valkey_client.module_list()
-        search_found = any(
-            (mod.get(b"name") or mod.get("name", b"")).decode().lower() == "search"
-            if isinstance(mod.get(b"name") or mod.get("name", b""), bytes)
-            else (mod.get(b"name") or mod.get("name", "")).lower() == "search"
-            for mod in modules
-        )
+        search_found = _has_module(modules, "search")
         assert search_found, "valkey-search module not loaded"
 
     def test_json_module_loaded(self, valkey_client):
         """JSON.SET/GET require the JSON module."""
         modules = valkey_client.module_list()
-        json_found = any(
-            (mod.get(b"name") or mod.get("name", b"")).decode().lower() == "json"
-            if isinstance(mod.get(b"name") or mod.get("name", b""), bytes)
-            else (mod.get(b"name") or mod.get("name", "")).lower() == "json"
-            for mod in modules
-        )
+        json_found = _has_module(modules, "json")
         assert json_found, "json module not loaded"
 
 
@@ -96,16 +78,9 @@ class TestVectorIndexCreation:
         index_name = INDEX_PREFIX + "semantic-cache"
         prefix = INDEX_PREFIX + "cache:"
 
-        valkey_client.execute_command(
-            "FT.CREATE", index_name,
-            "ON", "JSON",
-            "PREFIX", "1", prefix,
-            "SCHEMA",
-            "$.embedding", "AS", "embedding", "VECTOR", "HNSW", "6",
-            "TYPE", "FLOAT32",
-            "DIM", str(DIMENSION),
-            "DISTANCE_METRIC", "COSINE",
-            "$.content", "AS", "content", "TEXT",
+        create_hnsw_index(
+            valkey_client, index_name, prefix,
+            extra_schema=("$.content", "AS", "content", "TEXT"),
         )
 
         indices = valkey_client.execute_command("FT._LIST")
@@ -117,16 +92,7 @@ class TestVectorIndexCreation:
         index_name = INDEX_PREFIX + "info-test"
         prefix = INDEX_PREFIX + "info:"
 
-        valkey_client.execute_command(
-            "FT.CREATE", index_name,
-            "ON", "JSON",
-            "PREFIX", "1", prefix,
-            "SCHEMA",
-            "$.embedding", "AS", "embedding", "VECTOR", "HNSW", "6",
-            "TYPE", "FLOAT32",
-            "DIM", str(DIMENSION),
-            "DISTANCE_METRIC", "COSINE",
-        )
+        create_hnsw_index(valkey_client, index_name, prefix)
 
         info = valkey_client.execute_command("FT.INFO", index_name)
         assert info is not None
@@ -137,16 +103,9 @@ class TestKNNSearch:
 
     def _create_index_and_store(self, client, rng, index_name, prefix, num_docs=5):
         """Helper: create index and store documents."""
-        client.execute_command(
-            "FT.CREATE", index_name,
-            "ON", "JSON",
-            "PREFIX", "1", prefix,
-            "SCHEMA",
-            "$.embedding", "AS", "embedding", "VECTOR", "HNSW", "6",
-            "TYPE", "FLOAT32",
-            "DIM", str(DIMENSION),
-            "DISTANCE_METRIC", "COSINE",
-            "$.content", "AS", "content", "TEXT",
+        create_hnsw_index(
+            client, index_name, prefix,
+            extra_schema=("$.content", "AS", "content", "TEXT"),
         )
 
         vectors = []
@@ -156,7 +115,7 @@ class TestKNNSearch:
             doc = {"content": f"Document {i}", "embedding": vec}
             client.execute_command("JSON.SET", f"{prefix}{i}", "$", json.dumps(doc))
 
-        time.sleep(0.5)  # Allow indexing
+        wait_for_indexed(client, index_name)
         return vectors
 
     def test_knn_basic(self, valkey_client, clean_state, rng):
@@ -202,16 +161,7 @@ class TestKNNSearch:
         index_name = INDEX_PREFIX + "threshold"
         prefix = INDEX_PREFIX + "thresh:"
 
-        valkey_client.execute_command(
-            "FT.CREATE", index_name,
-            "ON", "JSON",
-            "PREFIX", "1", prefix,
-            "SCHEMA",
-            "$.embedding", "AS", "embedding", "VECTOR", "HNSW", "6",
-            "TYPE", "FLOAT32",
-            "DIM", str(DIMENSION),
-            "DISTANCE_METRIC", "COSINE",
-        )
+        create_hnsw_index(valkey_client, index_name, prefix)
 
         # Store a known vector
         base_vec = np.ones(DIMENSION, dtype=np.float32)
@@ -225,7 +175,7 @@ class TestKNNSearch:
         doc2 = {"embedding": diff_vec}
         valkey_client.execute_command("JSON.SET", f"{prefix}diff", "$", json.dumps(doc2))
 
-        time.sleep(0.5)
+        wait_for_indexed(valkey_client, index_name)
 
         # Search with base vector — should find base (distance ~0) and diff (distance ~2)
         result = valkey_client.execute_command(
@@ -258,16 +208,7 @@ class TestMultipleIndices:
 
         # Create an index for each plugin
         for plugin in plugins:
-            valkey_client.execute_command(
-                "FT.CREATE", index_names[plugin],
-                "ON", "JSON",
-                "PREFIX", "1", prefixes[plugin],
-                "SCHEMA",
-                "$.embedding", "AS", "embedding", "VECTOR", "HNSW", "6",
-                "TYPE", "FLOAT32",
-                "DIM", str(DIMENSION),
-                "DISTANCE_METRIC", "COSINE",
-            )
+            create_hnsw_index(valkey_client, index_names[plugin], prefixes[plugin])
 
         # Store a doc in each
         for plugin in plugins:
@@ -277,7 +218,9 @@ class TestMultipleIndices:
                 "JSON.SET", f"{prefixes[plugin]}doc1", "$", json.dumps(doc)
             )
 
-        time.sleep(0.5)
+        # Wait for all indices to finish indexing
+        for plugin in plugins:
+            wait_for_indexed(valkey_client, index_names[plugin])
 
         # Verify each index only sees its own documents
         for plugin in plugins:
@@ -298,16 +241,7 @@ class TestMultipleIndices:
         prefix_b = INDEX_PREFIX + "b:"
 
         for idx, prefix in [(idx_a, prefix_a), (idx_b, prefix_b)]:
-            valkey_client.execute_command(
-                "FT.CREATE", idx,
-                "ON", "JSON",
-                "PREFIX", "1", prefix,
-                "SCHEMA",
-                "$.embedding", "AS", "embedding", "VECTOR", "HNSW", "6",
-                "TYPE", "FLOAT32",
-                "DIM", str(DIMENSION),
-                "DISTANCE_METRIC", "COSINE",
-            )
+            create_hnsw_index(valkey_client, idx, prefix)
             vec = rng.random(DIMENSION, dtype=np.float32).tolist()
             valkey_client.execute_command(
                 "JSON.SET", f"{prefix}doc1", "$", json.dumps({"embedding": vec})
@@ -317,7 +251,7 @@ class TestMultipleIndices:
         valkey_client.execute_command("FT.DROPINDEX", idx_a)
 
         # Index B still works
-        time.sleep(0.3)
+        wait_for_indexed(valkey_client, idx_b)
         query_vec = rng.random(DIMENSION, dtype=np.float32).tolist()
         result = valkey_client.execute_command(
             "FT.SEARCH", idx_b,
@@ -326,3 +260,14 @@ class TestMultipleIndices:
             "DIALECT", "2",
         )
         assert result[0] == 1
+
+
+def _has_module(modules: list, name: str) -> bool:
+    """Check if a named module is loaded."""
+    for mod in modules:
+        mod_name = mod.get(b"name") or mod.get("name", b"")
+        if isinstance(mod_name, bytes):
+            mod_name = mod_name.decode()
+        if mod_name.lower() == name.lower():
+            return True
+    return False
