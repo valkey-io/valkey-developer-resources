@@ -18,6 +18,12 @@
 
 ## How LangChain.js Uses Valkey
 
+> ⚠️ **Upcoming integration:** `@langchain/valkey` is not yet published on npm. The upstream
+> PR [langchain-ai/langchainjs#9915](https://github.com/langchain-ai/langchainjs/pull/9915)
+> is currently closed. This cookbook documents the designed API so teams are ready when the
+> package ships. The sample project validates the underlying Valkey vector operations
+> independently using `@valkey/valkey-glide`.
+
 LangChain.js integrates with Valkey through the `ValkeyVectorStore` class in the `@langchain/valkey` package. Under the hood it uses:
 
 - **@valkey/valkey-glide** — the official Valkey client for Node.js
@@ -60,12 +66,6 @@ await vectorStore.addDocuments([
 const results = await vectorStore.similaritySearch("fast database", 2);
 console.log(results);
 ```
-
-> **Note:** `@langchain/valkey` is not yet published on npm. The implementation is from
-> PR [langchain-ai/langchainjs#9915](https://github.com/langchain-ai/langchainjs/pull/9915)
-> (currently closed). This cookbook documents the designed API so it's ready when the
-> package ships. The sample project tests validate the underlying Valkey vector operations
-> independently via `@valkey/valkey-glide`.
 
 ---
 

@@ -22,5 +22,5 @@ async function main() {
 
 main().catch((err) => {
   console.error("❌ Health check failed:", err.message);
-  process.exit(1);
+  process.exitCode = 1;
 });

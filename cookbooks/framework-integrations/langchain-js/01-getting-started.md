@@ -34,10 +34,10 @@ docker exec valkey valkey-cli PING
 ## Step 2: Install Packages
 
 ```bash
-npm install @langchain/valkey @langchain/core @valkey/valkey-glide @langchain/ollama
+npm install @langchain/core@0.3.46 @valkey/valkey-glide@1.3.0 @langchain/ollama@0.2.0
 ```
 
-- `@langchain/valkey` — ValkeyVectorStore integration
+- `@langchain/valkey` — ValkeyVectorStore integration (version TBD — not yet published on npm)
 - `@langchain/core` — Core LangChain abstractions (documents, embeddings)
 - `@valkey/valkey-glide` — Valkey client (used internally by the vector store)
 - `@langchain/ollama` — Ollama embeddings (local, no API key required)

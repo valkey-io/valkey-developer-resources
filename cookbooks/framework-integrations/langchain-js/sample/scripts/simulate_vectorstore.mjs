@@ -1,12 +1,9 @@
 import { GlideClient, GlideFt } from "@valkey/valkey-glide";
+import { vectorToBuffer, vectorFieldSchema } from "../lib/vector_utils.mjs";
 
 const INDEX_NAME = "idx:simulate_vectorstore";
 const PREFIX = "doc:simulate:";
 const VECTOR_DIM = 4;
-
-function vectorToBuffer(vector) {
-  return Buffer.from(new Float32Array(vector).buffer);
-}
 
 async function main() {
   const client = await GlideClient.createClient({
@@ -17,24 +14,14 @@ async function main() {
     // Clean up any previous run
     try {
       await GlideFt.dropindex(client, INDEX_NAME);
-    } catch {
-      // Index may not exist
+    } catch (err) {
+      if (!String(err?.message ?? err).includes("Unknown index")) throw err;
     }
 
     // 1. Create index (HASH schema with VECTOR + TAG fields)
     console.log("Creating index...");
     await GlideFt.create(client, INDEX_NAME, [
-      {
-        type: "VECTOR",
-        name: "embedding",
-        alias: "embedding",
-        attributes: {
-          algorithm: "HNSW",
-          distanceMetric: "COSINE",
-          type: "FLOAT32",
-          dimensions: VECTOR_DIM,
-        },
-      },
+      vectorFieldSchema({ dimensions: VECTOR_DIM }),
       {
         type: "TAG",
         name: "category",
@@ -66,8 +53,19 @@ async function main() {
     }
     console.log(`Stored ${documents.length} documents.`);
 
-    // Allow time for indexing
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    // Wait for indexing to complete (poll FT.INFO until all docs are indexed)
+    const maxWait = 5000;
+    const start = Date.now();
+    while (Date.now() - start < maxWait) {
+      try {
+        const info = await GlideFt.info(client, INDEX_NAME);
+        const numDocs = Number(info.num_docs ?? info.numDocs ?? 0);
+        if (numDocs >= documents.length) break;
+      } catch {
+        // index may not be queryable yet
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
 
     // 3. KNN search — find nearest to [1.0, 0.0, 0.0, 0.0]
     console.log("\nSearching for nearest neighbors...");
@@ -108,5 +106,5 @@ async function main() {
 
 main().catch((err) => {
   console.error("❌ Simulation failed:", err.message);
-  process.exit(1);
+  process.exitCode = 1;
 });

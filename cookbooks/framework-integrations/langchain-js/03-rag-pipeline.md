@@ -17,8 +17,17 @@ end-to-end RAG pipeline that answers questions from your own documents.
 - Installed packages:
 
 ```bash
-npm install @langchain/valkey @langchain/ollama @langchain/core @valkey/valkey-glide langchain
+npm install @langchain/core@0.3.46 @valkey/valkey-glide@1.3.0 @langchain/ollama@0.2.0 langchain@0.3.22
 ```
+
+> **Package note:** The code examples in this cookbook reference `@langchain/valkey`, which
+> is not yet published on npm (upstream PR
+> [langchain-ai/langchainjs#9915](https://github.com/langchain-ai/langchainjs/pull/9915) is
+> closed). Until it ships, you can use `@langchain/community/vectorstores/valkey` with
+> `ioredis` as the transport layer — it provides a compatible `ValkeyVectorStore` class.
+> The API surface is nearly identical; the main difference is passing an `ioredis` client
+> instead of a `GlideClient`. We use `@valkey/valkey-glide` directly in the sample project
+> to demonstrate the underlying vector operations without depending on an unpublished package.
 
 <details>
 <summary>Optional: Using OpenAI instead of Ollama</summary>
