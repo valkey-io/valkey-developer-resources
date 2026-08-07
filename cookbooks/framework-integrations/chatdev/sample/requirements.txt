@@ -1,0 +1,2 @@
+valkey-glide-sync==2.5.0
+pytest==8.3.5
