@@ -1,0 +1,23 @@
+[project]
+name = "dbgpt-valkey-cookbook"
+version = "1.0.0"
+description = "Sample tests for DB-GPT + Valkey cookbook"
+requires-python = ">=3.10"
+dependencies = [
+    "dbgpt-ext[storage_valkey,cache_valkey]==0.8.1",
+    "valkey-glide==2.3.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest==8.3.5",
+    "pytest-asyncio==0.24.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[build-system]
+requires = ["setuptools==75.0.0"]
+build-backend = "setuptools.build_meta"
