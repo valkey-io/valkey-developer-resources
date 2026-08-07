@@ -1,0 +1,16 @@
+{
+  "name": "anythingllm-valkey-sample",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Integration tests for the AnythingLLM + Valkey cookbook series",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@valkey/valkey-glide": "2.5.0"
+  },
+  "devDependencies": {
+    "vitest": "4.1.10"
+  }
+}

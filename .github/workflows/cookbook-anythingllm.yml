@@ -1,0 +1,51 @@
+name: Cookbook - AnythingLLM
+
+on:
+  push:
+    paths:
+      - "cookbooks/framework-integrations/anythingllm/sample/**"
+  pull_request:
+    paths:
+      - "cookbooks/framework-integrations/anythingllm/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      valkey:
+        image: valkey/valkey-bundle:8.1.0
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        working-directory: cookbooks/framework-integrations/anythingllm/sample
+        run: npm ci
+
+      - name: Run integration tests
+        working-directory: cookbooks/framework-integrations/anythingllm/sample
+        env:
+          VALKEY_VECTOR_DB_HOST: localhost
+          VALKEY_VECTOR_DB_PORT: 6379
+        run: npm test
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4
+        with:
+          node-version: "20"
+
+      - name: Lint markdown
+        run: npx markdownlint-cli2 'cookbooks/framework-integrations/anythingllm/**/*.md'
