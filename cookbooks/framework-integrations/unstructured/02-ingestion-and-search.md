@@ -191,8 +191,7 @@ async def semantic_search(query: str, top_k: int = 3):
         knn_query = f"*=>[KNN {top_k} @embedding $query_vec AS score]"
         options = FtSearchOptions(
             limit=FtSearchLimit(offset=0, count=top_k),
-            params=[{"key": "query_vec", "value": query_bytes}],
-            return_fields=["text", "source_document", "score"],
+            params={"query_vec": query_bytes},
         )
 
         results = await ft.search(client, "documents_index", knn_query, options)

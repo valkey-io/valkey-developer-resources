@@ -128,6 +128,6 @@ async def wait_for_indexed(client, index_name: str, expected_docs: int, timeout:
 
             if num_docs >= expected_docs:
                 return
-        except (RequestError, Exception):
+        except Exception:
             pass
         await __import__("asyncio").sleep(0.1)

@@ -284,7 +284,7 @@ async def test_tag_field_search(client, create_hnsw_index):
 
 @pytest.mark.asyncio
 async def test_index_already_exists(client, create_hnsw_index):
-    """Test that creating an index twice doesn't error (just skip)."""
+    """Test that creating a duplicate index raises RequestError."""
     await create_hnsw_index(client)
 
     # Try creating again — should raise "Index already exists"

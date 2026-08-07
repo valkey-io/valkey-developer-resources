@@ -44,11 +44,19 @@ docker exec valkey valkey-cli MODULE LIST
 
 ## Step 2: Install Dependencies
 
+> ⚠️ **Not yet released:** The `unstructured-ingest[valkey]` extra depends on
+> [Unstructured-IO/unstructured-ingest#747](https://github.com/Unstructured-IO/unstructured-ingest/pull/747)
+> which is not yet merged. Until it ships, use `valkey-glide` directly as
+> shown in the [sample scripts](sample/scripts/). The API patterns are
+> identical — the connector wraps valkey-glide internally.
+
+Once released, install with:
+
 ```bash
 pip install 'unstructured-ingest[valkey]'
 ```
 
-This installs the Valkey connector with
+This will install the Valkey connector with
 [valkey-glide](https://github.com/valkey-io/valkey-glide) (async) and
 `valkey-glide-sync` (sync) clients.
 

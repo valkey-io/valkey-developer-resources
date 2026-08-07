@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        valkey-version: ["9.1.0"]
+        valkey-version: ["8.1.1", "9.1.0"]
     services:
       valkey:
         image: valkey/valkey-bundle:${{ matrix.valkey-version }}
