@@ -56,7 +56,6 @@ async def create_hnsw_index(client: GlideClient) -> None:
             "DISTANCE_METRIC", "COSINE",
             "M", "16",
             "EF_CONSTRUCTION", "200",
-            "content", "TEXT",
             "category", "TAG",
             "year", "NUMERIC",
         ]

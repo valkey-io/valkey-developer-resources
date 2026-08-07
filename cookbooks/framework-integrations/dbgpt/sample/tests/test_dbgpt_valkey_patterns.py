@@ -71,7 +71,6 @@ class TestVectorStorePatterns:
                 "DISTANCE_METRIC", "COSINE",
                 "M", "16",
                 "EF_CONSTRUCTION", "200",
-                "content", "TEXT",
             ]
         )
 
@@ -122,7 +121,6 @@ class TestVectorStorePatterns:
                 "DISTANCE_METRIC", "COSINE",
                 "M", "16",
                 "EF_CONSTRUCTION", "200",
-                "content", "TEXT",
             ]
         )
 
@@ -168,7 +166,6 @@ class TestVectorStorePatterns:
                 "DISTANCE_METRIC", "COSINE",
                 "M", "16",
                 "EF_CONSTRUCTION", "200",
-                "content", "TEXT",
             ]
         )
 
@@ -230,7 +227,6 @@ class TestVectorStorePatterns:
                 "DISTANCE_METRIC", "COSINE",
                 "M", "16",
                 "EF_CONSTRUCTION", "200",
-                "content", "TEXT",
                 "category", "TAG",
                 "year", "NUMERIC",
             ]
@@ -297,7 +293,6 @@ class TestVectorStorePatterns:
                 "DISTANCE_METRIC", "COSINE",
                 "M", "16",
                 "EF_CONSTRUCTION", "200",
-                "content", "TEXT",
                 "year", "NUMERIC",
             ]
         )
