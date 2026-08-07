@@ -19,7 +19,7 @@ jobs:
         valkey-version: ["9.1.0"]
     services:
       valkey:
-        image: valkey/valkey-bundle:${{ matrix.valkey-version }}-rc1
+        image: valkey/valkey-bundle:${{ matrix.valkey-version }}
         ports:
           - 6379:6379
         options: >-

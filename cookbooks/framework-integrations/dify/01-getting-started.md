@@ -123,7 +123,7 @@ After uploading a document to a Dify knowledge base configured with Valkey:
 2. Check stored documents:
 
     ```bash
-    docker exec valkey-vector valkey-cli KEYS "doc:*" | head -5
+    docker exec valkey-vector valkey-cli SCAN 0 MATCH "doc:*" COUNT 5
     ```
 
 3. Inspect a document hash:
