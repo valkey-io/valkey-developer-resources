@@ -1,0 +1,22 @@
+# Synchronous valkey-glide client used by the standalone ValkeyVectorStore
+# reimplementation in valkey_vector_store.py. The package is
+# `valkey-glide-sync` but it imports as `glide_sync`.
+valkey-glide-sync==2.5.0
+
+# llama-index-core provides TextNode / VectorStoreQuery / BaseNode, the same
+# node and query shapes FoundationAgents/MetaGPT#2063's ValkeyVectorStore
+# uses. Requires Python >=3.10 (verified against the 0.14.23 wheel metadata),
+# which is why this sample's minimum Python version is 3.10, not the older
+# MetaGPT-driven "<3.12" ceiling from earlier drafts of this cookbook.
+llama-index-core==0.14.23
+
+# Loads sample/.env (copied from .env.example) so VALKEY_HOST/VALKEY_PORT take effect.
+python-dotenv==1.2.2
+
+# Test runner for test_valkey_vector_store.py.
+pytest==9.1.1
+
+# NOTE: This sample does NOT depend on `metagpt`. The Valkey RAG backend is
+# proposed in FoundationAgents/MetaGPT#2063 (open, unmerged at the time of
+# writing) and is not yet part of a published `metagpt` release. See the
+# "Upstream Status" section in ../README.md and ../01-getting-started.md.
