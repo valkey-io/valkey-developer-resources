@@ -36,6 +36,28 @@ from conftest import (
     make_embedding,
 )
 
+VECTOR_DIM = EMBEDDING_DIM
+
+
+def _create_hnsw_index(
+    client: GlideClient,
+    index_name: str,
+    prefix: str,
+    dim: int = VECTOR_DIM,
+    algorithm: str = "HNSW",
+) -> None:
+    """Create a vector search index for testing."""
+    algo_args = (
+        ["HNSW", "10", "TYPE", "FLOAT32", "DIM", str(dim),
+         "DISTANCE_METRIC", "COSINE", "M", "16", "EF_CONSTRUCTION", "200"]
+        if algorithm == "HNSW"
+        else ["FLAT", "6", "TYPE", "FLOAT32", "DIM", str(dim), "DISTANCE_METRIC", "COSINE"]
+    )
+    client.custom_command(
+        ["FT.CREATE", index_name, "ON", "HASH", "PREFIX", "1", prefix,
+         "SCHEMA", "source_id", "TAG", "embedding", "VECTOR", *algo_args]
+    )
+
 
 class TestConnectivity:
     """Verify basic Valkey connectivity and module availability."""
@@ -52,7 +74,6 @@ class TestConnectivity:
                 "ON", "HASH",
                 "PREFIX", "1", TEST_PREFIX,
                 "SCHEMA",
-                "content", "TEXT",
                 "source_id", "TAG",
                 "embedding", "VECTOR", "FLAT", "6",
                 "TYPE", "FLOAT32", "DIM", "3", "DISTANCE_METRIC", "COSINE",
@@ -66,21 +87,7 @@ class TestIndexCreation:
 
     def test_create_hnsw_index(self, valkey_client: GlideClient) -> None:
         """Create an HNSW index matching DocsGPT's default configuration."""
-        result = valkey_client.custom_command(
-            [
-                "FT.CREATE", TEST_INDEX_NAME,
-                "ON", "HASH",
-                "PREFIX", "1", TEST_PREFIX,
-                "SCHEMA",
-                "content", "TEXT",
-                "source_id", "TAG",
-                "embedding", "VECTOR", "HNSW", "6",
-                "TYPE", "FLOAT32",
-                "DIM", str(EMBEDDING_DIM),
-                "DISTANCE_METRIC", "COSINE",
-            ]
-        )
-        assert result == "OK"
+        _create_hnsw_index(valkey_client, TEST_INDEX_NAME, TEST_PREFIX)
 
         # Verify index exists via FT.INFO
         info = valkey_client.custom_command(["FT.INFO", TEST_INDEX_NAME])
@@ -88,21 +95,9 @@ class TestIndexCreation:
 
     def test_create_flat_index(self, valkey_client: GlideClient) -> None:
         """Create a FLAT index (exact search, alternative to HNSW)."""
-        result = valkey_client.custom_command(
-            [
-                "FT.CREATE", TEST_INDEX_NAME,
-                "ON", "HASH",
-                "PREFIX", "1", TEST_PREFIX,
-                "SCHEMA",
-                "content", "TEXT",
-                "source_id", "TAG",
-                "embedding", "VECTOR", "FLAT", "6",
-                "TYPE", "FLOAT32",
-                "DIM", str(EMBEDDING_DIM),
-                "DISTANCE_METRIC", "COSINE",
-            ]
+        _create_hnsw_index(
+            valkey_client, TEST_INDEX_NAME, TEST_PREFIX, algorithm="FLAT"
         )
-        assert result == "OK"
 
     def test_duplicate_index_raises(self, valkey_client: GlideClient) -> None:
         """Creating an index that already exists raises an error."""
@@ -111,7 +106,7 @@ class TestIndexCreation:
                 "FT.CREATE", TEST_INDEX_NAME,
                 "ON", "HASH",
                 "PREFIX", "1", TEST_PREFIX,
-                "SCHEMA", "content", "TEXT",
+                "SCHEMA", "source_id", "TAG",
             ]
         )
 
@@ -121,7 +116,7 @@ class TestIndexCreation:
                     "FT.CREATE", TEST_INDEX_NAME,
                     "ON", "HASH",
                     "PREFIX", "1", TEST_PREFIX,
-                    "SCHEMA", "content", "TEXT",
+                    "SCHEMA", "source_id", "TAG",
                 ]
             )
 
@@ -198,20 +193,7 @@ class TestKNNSearch:
         import time
 
         # Create HNSW index
-        valkey_client.custom_command(
-            [
-                "FT.CREATE", TEST_INDEX_NAME,
-                "ON", "HASH",
-                "PREFIX", "1", TEST_PREFIX,
-                "SCHEMA",
-                "content", "TEXT",
-                "source_id", "TAG",
-                "embedding", "VECTOR", "HNSW", "6",
-                "TYPE", "FLOAT32",
-                "DIM", str(EMBEDDING_DIM),
-                "DISTANCE_METRIC", "COSINE",
-            ]
-        )
+        _create_hnsw_index(valkey_client, TEST_INDEX_NAME, TEST_PREFIX)
 
         # Insert 3 documents with distinct embeddings
         docs = [
@@ -298,20 +280,7 @@ class TestSourceIsolation:
         """Create index with documents across multiple sources."""
         import time
 
-        valkey_client.custom_command(
-            [
-                "FT.CREATE", TEST_INDEX_NAME,
-                "ON", "HASH",
-                "PREFIX", "1", TEST_PREFIX,
-                "SCHEMA",
-                "content", "TEXT",
-                "source_id", "TAG",
-                "embedding", "VECTOR", "HNSW", "6",
-                "TYPE", "FLOAT32",
-                "DIM", str(EMBEDDING_DIM),
-                "DISTANCE_METRIC", "COSINE",
-            ]
-        )
+        _create_hnsw_index(valkey_client, TEST_INDEX_NAME, TEST_PREFIX)
 
         # Insert docs across 3 sources
         sources = {
@@ -371,20 +340,7 @@ class TestChunkManagement:
     @pytest.fixture(autouse=True)
     def _setup_index(self, valkey_client: GlideClient) -> None:
         """Create a search index for chunk management tests."""
-        valkey_client.custom_command(
-            [
-                "FT.CREATE", TEST_INDEX_NAME,
-                "ON", "HASH",
-                "PREFIX", "1", TEST_PREFIX,
-                "SCHEMA",
-                "content", "TEXT",
-                "source_id", "TAG",
-                "embedding", "VECTOR", "HNSW", "6",
-                "TYPE", "FLOAT32",
-                "DIM", str(EMBEDDING_DIM),
-                "DISTANCE_METRIC", "COSINE",
-            ]
-        )
+        _create_hnsw_index(valkey_client, TEST_INDEX_NAME, TEST_PREFIX)
 
     def test_delete_single_chunk(self, valkey_client: GlideClient) -> None:
         """Delete a specific document by key."""
@@ -531,20 +487,7 @@ class TestTagEscaping:
         """Create index for tag escaping tests."""
         import time
 
-        valkey_client.custom_command(
-            [
-                "FT.CREATE", TEST_INDEX_NAME,
-                "ON", "HASH",
-                "PREFIX", "1", TEST_PREFIX,
-                "SCHEMA",
-                "content", "TEXT",
-                "source_id", "TAG",
-                "embedding", "VECTOR", "HNSW", "6",
-                "TYPE", "FLOAT32",
-                "DIM", str(EMBEDDING_DIM),
-                "DISTANCE_METRIC", "COSINE",
-            ]
-        )
+        _create_hnsw_index(valkey_client, TEST_INDEX_NAME, TEST_PREFIX)
 
         # Pre-insert docs with special chars in source_id
         self._hyphen_key = f"{TEST_PREFIX}{uuid.uuid4()}"

@@ -24,8 +24,8 @@
 | `add_texts(texts, metadatas)` | Bulk ingest documents with embeddings |
 | `add_chunk(text, metadata)` | Add a single document chunk |
 | `get_chunks()` | List all chunks for the current source |
-| `delete_chunk(doc_id)` | Remove a specific chunk |
-| `delete_index()` | Remove all chunks for the current source |
+| `delete_chunk(chunk_id)` | Remove a specific chunk by its ID |
+| `delete_index()` | Drop the vector index |
 
 ### Data Model
 
@@ -198,7 +198,7 @@ store.delete_index()
 # The index itself remains for other sources
 ```
 
-> **Note:** `delete_index` re-raises exceptions so callers can handle failures during re-indexing operations.
+> **Note:** `delete_index` does not catch exceptions internally — any errors from Valkey propagate directly to the caller.
 
 ## Step 5: Understanding the KNN Query
 
@@ -222,13 +222,13 @@ Key details:
 
 ## Performance Characteristics
 
-| Operation | Complexity | Typical Latency |
-| --- | --- | --- |
-| `add_texts` (per doc) | O(log n) HNSW insert | ~1–2ms |
-| `search` (KNN) | O(log n) HNSW search | <1ms |
-| `delete_chunk` | O(1) key delete | <0.1ms |
-| `get_chunks` | O(n) paginated scan | ~1ms per 100 docs |
-| `delete_index` | O(n) scan + batch delete | Depends on doc count |
+| Operation | Complexity |
+| --- | --- |
+| `add_texts` (per doc) | O(log n) HNSW insert |
+| `search` (KNN) | O(log n) HNSW search |
+| `delete_chunk` | O(1) key delete |
+| `get_chunks` | O(n) paginated scan |
+| `delete_index` | O(n) scan + batch delete |
 
 ## What's Next
 

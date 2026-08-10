@@ -12,10 +12,6 @@
 - Docker (for running Valkey)
 - Git
 
-> **Security note:** This guide runs Valkey without authentication for local development.
-> Never expose an unprotected Valkey instance to the internet.
-> See the [Valkey security documentation](https://valkey.io/topics/security/) for production hardening.
-
 ## Step 1: Start Valkey with the Search Module
 
 DocsGPT's vector store requires the `valkey-search` module for `FT.CREATE` and `FT.SEARCH` commands. Use the `valkey-bundle` image which includes it:
@@ -25,6 +21,10 @@ docker run -d --name valkey-docsgpt \
   -p 127.0.0.1:6379:6379 \
   valkey/valkey-bundle:9.1.0
 ```
+
+> **Security note:** This guide runs Valkey without authentication for local development.
+> Never expose an unprotected Valkey instance to the internet.
+> See the [Valkey security documentation](https://valkey.io/topics/security/) for production hardening.
 
 Verify the search module is loaded:
 

@@ -56,9 +56,7 @@ def create_index(client: GlideClient) -> None:
                 "ON", "HASH",
                 "PREFIX", "1", PREFIX,
                 "SCHEMA",
-                "content", "TEXT",
                 "source_id", "TAG",
-                "metadata", "TEXT",
                 "embedding", "VECTOR", "HNSW", "6",
                 "TYPE", "FLOAT32",
                 "DIM", str(EMBEDDING_DIM),
@@ -97,6 +95,15 @@ def ingest_documents(client: GlideClient, source_id: str, documents: List[dict])
     return doc_ids
 
 
+# Escape all TAG-query special characters for FT.SEARCH
+_TAG_SPECIAL = r',.<>{}[]"\':;!@#$%^&*()-+=~/ '
+
+
+def _escape_tag(value: str) -> str:
+    """Escape special characters for FT.SEARCH TAG queries."""
+    return "".join(f"\\{c}" if c in _TAG_SPECIAL else c for c in value)
+
+
 def search(client: GlideClient, source_id: str, query_seed: float, k: int = 3) -> None:
     """Perform KNN vector search filtered by source_id.
 
@@ -108,7 +115,7 @@ def search(client: GlideClient, source_id: str, query_seed: float, k: int = 3) -
     query_embedding = make_embedding(query_seed)
 
     # Escape special characters in source_id for TAG query
-    escaped_source = source_id.replace("-", "\\-").replace("/", "\\/")
+    escaped_source = _escape_tag(source_id)
 
     # GLIDE RESP3 returns: [total, {key: {field: value}, ...}]
     result = client.custom_command(

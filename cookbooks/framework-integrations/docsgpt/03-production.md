@@ -156,7 +156,7 @@ services:
 | --- | --- | --- |
 | Password (`requirepass`) | Simple deployments | `VALKEY_PASSWORD` env var |
 | ACL users | Multi-tenant with least privilege | Configure via `valkey.conf` |
-| TLS/mTLS | Encrypt in transit + mutual auth | Mount certs, set `VALKEY_USE_TLS=true` |
+| TLS | Encrypt in transit (server-authenticated) | Mount certs, set `VALKEY_USE_TLS=true` |
 | AWS IAM | ElastiCache/MemoryDB | Modify `ValkeyStore` to pass IAM credentials |
 
 ## Step 4: Connection Management
@@ -224,16 +224,14 @@ docker exec valkey-docsgpt valkey-cli INFO PERSISTENCE | grep aof_last_bgrewrite
 
 ### Memory Estimation
 
-Each stored document consumes approximately:
+Per document memory usage depends on:
 
-```text
-Per document ≈ key overhead + hash fields + vector bytes
-             ≈ 64 bytes + (content + metadata) + (dimensions × 4 bytes)
-             ≈ 64 + ~500 + (768 × 4)
-             ≈ ~3.6 KB per document (768-dim embeddings)
-```
+- Key overhead (~64 bytes)
+- Content and metadata field sizes
+- Vector dimensions (dimensions × 4 bytes for float32)
+- HNSW graph overhead (varies with `M` parameter)
 
-For 100K documents with 768-dim embeddings: ~350 MB + HNSW graph overhead (~1.5×) ≈ **~525 MB**.
+Monitor `INFO memory` output and `used_memory` to right-size your deployment.
 
 ## Step 6: Scaling Considerations
 
@@ -326,7 +324,7 @@ if __name__ == "__main__":
 | Data durability | AOF persistence (`appendonly yes`) |
 | Security | Password auth + TLS, bind to 127.0.0.1 |
 | Connection lifecycle | Context manager pattern |
-| Memory planning | ~3.6 KB/doc (768-dim) + 1.5× HNSW overhead |
+| Memory planning | Monitor `INFO memory` and `used_memory` |
 | Monitoring | `FT.INFO`, `INFO MEMORY`, `INFO CLIENTS` |
 | Backup | `BGSAVE` + copy RDB file |
 | Scaling | Tune HNSW params, increase memory |
