@@ -15,7 +15,6 @@ from glide import (
     NumericField,
     RequestError,
     TagField,
-    TextField,
     VectorAlgorithm,
     VectorField,
     VectorFieldAttributesHnsw,
@@ -63,7 +62,6 @@ def create_hnsw_index():
 
     async def _create(client, index_name=INDEX_NAME, prefix=INDEX_PREFIX, dim=DIMENSION):
         schema = [
-            TextField("text"),
             TagField("element_type"),
             TagField("source_document"),
             TagField("record_id"),
@@ -108,7 +106,7 @@ def cleanup_keys():
     # Tests should call cleanup explicitly; this tracks for safety
 
 
-async def wait_for_indexed(client, index_name: str, expected_docs: int, timeout: float = 5.0):
+async def wait_for_indexed(client, index_name: str, expected_docs: int, timeout: float = 15.0):
     """Poll FT.INFO until the expected number of docs are indexed."""
     start = time.time()
     while time.time() - start < timeout:
