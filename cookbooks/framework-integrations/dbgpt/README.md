@@ -1,6 +1,8 @@
 # DB-GPT + Valkey Cookbook
 
-> Use Valkey as a vector store and LLM cache backend for [DB-GPT](https://github.com/eosphoros-ai/DB-GPT), an open-source AI-native data application development framework, via the `dbgpt-ext` extensions package.
+> Use Valkey as a vector store and LLM cache backend for
+> [DB-GPT](https://github.com/eosphoros-ai/DB-GPT), an open-source AI-native data app framework,
+> via the `dbgpt-ext` extensions package.
 
 ## Cookbooks
 
@@ -20,9 +22,13 @@
 
 DB-GPT integrates with Valkey through two extension packages in `dbgpt-ext`:
 
-- **Vector Store** (`dbgpt-ext[storage-valkey]`) — `ValkeyStore` implements DB-GPT's `VectorStoreBase`, storing embeddings as Valkey HASH keys with HNSW or FLAT indexes and KNN search with metadata filtering.
+- **Vector Store** (`dbgpt-ext[storage-valkey]`) — `ValkeyStore` implements DB-GPT's
+  `VectorStoreBase`, storing embeddings as Valkey HASH keys with HNSW or FLAT indexes
+  and KNN search with metadata filtering.
 
-- **LLM Cache** (included in base `dbgpt-ext`) — `ValkeyCacheStorage` implements DB-GPT's `CacheStorage` interface for caching LLM responses with TTL support, reducing redundant API calls and latency.
+- **LLM Cache** (included in base `dbgpt-ext`) — `ValkeyCacheStorage` implements DB-GPT's
+  `CacheStorage` interface for caching LLM responses with TTL support, reducing redundant
+  API calls and latency.
 
 Both use `valkey-glide` (the official Valkey Python client) for async connectivity.
 
