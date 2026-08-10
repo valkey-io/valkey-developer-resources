@@ -344,6 +344,8 @@ task_id = response.json()["task_id"]
 Use tweaks to point to a different Valkey instance without modifying the flow:
 
 ```python
+# In production, always load credentials from environment variables — never
+# hardcode passwords or connection strings in source code.
 tweaks = {
     "ValkeyVectorStore-XXXXX": {
         "valkey_server_url": f"valkeyss://{os.environ['VALKEY_USER']}:{os.environ['VALKEY_PASSWORD']}@prod-host:6379",

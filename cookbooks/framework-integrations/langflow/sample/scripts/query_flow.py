@@ -13,6 +13,19 @@ import sys
 import requests
 
 
+def _require_env(name: str) -> str:
+    """Return the value of an environment variable or exit with a helpful message."""
+    value = os.environ.get(name)
+    if not value:
+        print(
+            f"Error: environment variable {name} is not set.\n"
+            f"Set it with: export {name}=<value>",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    return value
+
+
 def query_flow(
     question: str,
     *,
@@ -50,9 +63,9 @@ def main() -> None:
         print("Usage: python scripts/query_flow.py <question>", file=sys.stderr)
         sys.exit(1)
 
-    base_url = os.environ["LANGFLOW_BASE_URL"]
-    flow_id = os.environ["LANGFLOW_FLOW_ID"]
-    api_key = os.environ["LANGFLOW_API_KEY"]
+    base_url = _require_env("LANGFLOW_BASE_URL")
+    flow_id = _require_env("LANGFLOW_FLOW_ID")
+    api_key = _require_env("LANGFLOW_API_KEY")
 
     question = " ".join(sys.argv[1:])
     answer = query_flow(
