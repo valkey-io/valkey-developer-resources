@@ -1,5 +1,6 @@
 """Shared fixtures for Unstructured + Valkey cookbook tests."""
 
+import asyncio
 import os
 import time
 
@@ -128,6 +129,10 @@ async def wait_for_indexed(client, index_name: str, expected_docs: int, timeout:
 
             if num_docs >= expected_docs:
                 return
-        except Exception:
-            pass
-        await __import__("asyncio").sleep(0.1)
+        except Exception as exc:
+            if "Unknown index" not in str(exc):
+                raise
+        await asyncio.sleep(0.1)
+    raise TimeoutError(
+        f"Timed out waiting for {expected_docs} docs in index '{index_name}'"
+    )
