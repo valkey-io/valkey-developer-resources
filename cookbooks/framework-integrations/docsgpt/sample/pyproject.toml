@@ -1,0 +1,20 @@
+[project]
+name = "docsgpt-valkey-cookbook"
+version = "1.0.0"
+description = "Sample tests for DocsGPT + Valkey cookbook"
+requires-python = ">=3.10"
+dependencies = [
+    "valkey-glide-sync==2.3.1",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest==8.3.5",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[build-system]
+requires = ["setuptools==75.0.0"]
+build-backend = "setuptools.build_meta"
