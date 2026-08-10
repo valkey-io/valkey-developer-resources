@@ -16,6 +16,27 @@
 > Never expose an unprotected Valkey instance to the internet.
 > See the [Valkey security documentation](https://valkey.io/topics/security/) for production hardening.
 
+## How It Works
+
+DB-GPT connects to Valkey through two extension components:
+
+| Component | Purpose | Valkey Module Required |
+| --- | --- | --- |
+| `ValkeyStore` | Vector storage for RAG (embeddings, similarity search, metadata filtering) | `valkey-search` |
+| `ValkeyCacheStorage` | LLM response caching (key-value with optional TTL) | None (core Valkey) |
+
+**Architecture:**
+
+```text
+┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  DB-GPT App │────▶│  dbgpt-ext       │────▶│  Valkey Server  │
+│             │     │  (valkey-glide)   │     │  + Search Module│
+└─────────────┘     └──────────────────┘     └─────────────────┘
+```
+
+- **Vector Store path:** DB-GPT → `ValkeyStore` → valkey-glide → `FT.CREATE` / `FT.SEARCH` / `HSET`
+- **Cache path:** DB-GPT → `ValkeyCacheStorage` → valkey-glide → `SET` / `GET` with optional TTL
+
 ## Step 1: Start Valkey with the Search Module
 
 DB-GPT's vector store requires the `valkey-search` module for `FT.CREATE` and `FT.SEARCH` commands. Use the `valkey-bundle` image which includes it:
@@ -42,27 +63,21 @@ docker compose up -d
 
 ## Step 2: Install DB-GPT Extensions
 
-Install the Valkey extensions for both vector store and cache:
+Install the Valkey extensions for vector store and cache:
 
 ```bash
-pip install "dbgpt-ext[storage_valkey,cache_valkey]==0.8.1"
+pip install "dbgpt-ext[storage-valkey]==0.8.1"
 ```
 
 This installs:
 
-- `dbgpt-ext` — the DB-GPT extensions package
-- `valkey-glide` — the official async Valkey client
+- `dbgpt-ext` — the DB-GPT extensions package (includes `ValkeyCacheStorage`)
+- `valkey-glide` — the official async Valkey client (pulled in by the `storage-valkey` extra)
 - Dependencies for vector store (`ValkeyStore`) and cache (`ValkeyCacheStorage`)
 
-To install only one feature:
-
-```bash
-# Vector store only
-pip install "dbgpt-ext[storage_valkey]==0.8.1"
-
-# Cache only
-pip install "dbgpt-ext[cache_valkey]==0.8.1"
-```
+> **Note:** The `storage-valkey` extra installs `valkey-glide`, which is the only
+> additional dependency needed. `ValkeyCacheStorage` is included in the base
+> `dbgpt-ext` package and requires no separate extra.
 
 ## Step 3: Verify Connectivity
 
@@ -152,6 +167,25 @@ print(f"✓ ValkeyVectorConfig: {ValkeyVectorConfig}")
 print(f"✓ ValkeyCacheStorage: {ValkeyCacheStorage}")
 print("\n✅ All DB-GPT Valkey extensions imported successfully!")
 ```
+
+## Authentication Options
+
+| Method | Configuration | Use Case |
+| --- | --- | --- |
+| No auth | Default (local dev) | Development and testing only |
+| Password | `password` parameter or `VALKEY_PASSWORD` env var | Simple single-user deployments |
+| ACL | `user` + `password` parameters | Multi-tenant / production |
+| TLS | `use_ssl=True` | Encrypted connections (cloud, cross-network) |
+
+## Troubleshooting
+
+| Problem | Cause | Fix |
+| --- | --- | --- |
+| `ConnectionError` | Valkey not running | Start Valkey: `docker compose up -d` |
+| `MODULE LIST` shows no `search` | Wrong image | Use `valkey/valkey-bundle:9.1.0` (not plain `valkey/valkey`) |
+| `ImportError: No module named 'glide'` | Missing dependency | `pip install "dbgpt-ext[storage-valkey]==0.8.1"` |
+| `FT.CREATE` returns error | Search module not loaded | Ensure using `valkey-bundle` image with search module |
+| `ValueError: embedding_fn is required` | ValkeyStore needs an embedding function | Pass `embedding_fn=` when constructing `ValkeyStore` |
 
 ## What's Next
 

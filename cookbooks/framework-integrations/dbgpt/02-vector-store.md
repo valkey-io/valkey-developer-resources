@@ -10,7 +10,7 @@
 
 - Completed [Getting Started](./01-getting-started.md)
 - Valkey running with the `valkey-search` module
-- `dbgpt-ext[storage_valkey]==0.8.1` installed
+- `dbgpt-ext[storage-valkey]==0.8.1` installed
 
 ## Concepts
 
@@ -18,10 +18,10 @@
 
 `ValkeyStore` implements DB-GPT's `VectorStoreBase` interface:
 
-1. **Index creation** — On first use, creates an `FT.CREATE` index with a VECTOR field (HNSW or FLAT algorithm) plus optional metadata fields (TAG, NUMERIC).
+1. **Index creation** — On first use, creates an `FT.CREATE` index with a VECTOR field (HNSW or FLAT algorithm) plus optional metadata fields (TAG, NUMERIC) prefixed with `meta_`.
 2. **Document loading** — `load_document(chunks)` stores each chunk as a Valkey HASH with the embedding bytes, text content, and metadata.
 3. **Similarity search** — `similar_search(text, topk)` converts the query text to an embedding, then runs a KNN query via `FT.SEARCH`.
-4. **Metadata filtering** — Combine vector similarity with attribute filters using `FT.SEARCH` filter expressions.
+4. **Metadata filtering** — Combine vector similarity with attribute filters using `MetadataFilters` objects that translate to `FT.SEARCH` filter expressions.
 
 ### ValkeyVectorConfig
 
@@ -29,16 +29,17 @@ The configuration dataclass controls index behavior:
 
 | Parameter | Default | Description |
 | --- | --- | --- |
-| `host` | `"localhost"` | Valkey server hostname |
-| `port` | `6379` | Valkey server port |
-| `password` | `None` | Authentication password |
+| `host` | `"localhost"` (env: `VALKEY_HOST`) | Valkey server hostname |
+| `port` | `6379` (env: `VALKEY_PORT`) | Valkey server port |
+| `password` | `None` (env: `VALKEY_PASSWORD`) | Authentication password |
 | `use_ssl` | `False` | Enable TLS |
-| `index_type` | `"HNSW"` | Index algorithm: `HNSW` or `FLAT` |
-| `distance_metric` | `"COSINE"` | Distance: `COSINE`, `L2`, or `IP` |
-| `key_prefix` | `"dbgpt:"` | Key prefix for stored documents |
+| `index_type` | `"HNSW"` (env: `VALKEY_INDEX_TYPE`) | Index algorithm: `HNSW` or `FLAT` |
+| `distance_metric` | `"COSINE"` (env: `VALKEY_DISTANCE_METRIC`) | Distance: `COSINE`, `L2`, or `IP` |
+| `key_prefix` | `"dbgpt_vec:"` (env: `VALKEY_KEY_PREFIX`) | Key prefix for stored documents |
 | `hnsw_m` | `16` | HNSW max connections per node |
 | `hnsw_ef_construction` | `200` | HNSW construction search width |
 | `hnsw_ef_runtime` | `10` | HNSW query-time search width |
+| `request_timeout` | `5000` (env: `VALKEY_REQUEST_TIMEOUT`) | Request timeout in milliseconds |
 | `metadata_schema` | `None` | Dict defining filterable metadata fields |
 
 ## Step 1: Configure the Vector Store
@@ -47,6 +48,7 @@ The configuration dataclass controls index behavior:
 """Configure ValkeyStore for document storage and retrieval."""
 from __future__ import annotations
 
+from dbgpt.core import Embeddings
 from dbgpt_ext.storage.vector_store.valkey_store import ValkeyStore, ValkeyVectorConfig
 
 config = ValkeyVectorConfig(
@@ -63,7 +65,15 @@ config = ValkeyVectorConfig(
     },
 )
 
-store = ValkeyStore(config)
+# ValkeyStore requires an embedding function that implements dbgpt.core.Embeddings.
+# In a real application, use your configured embedding model, e.g.:
+#   from dbgpt.rag.embedding import DefaultEmbeddingFactory
+#   embedding_fn = DefaultEmbeddingFactory.openai()
+# For local development with Ollama:
+#   embedding_fn = DefaultEmbeddingFactory.create(model_name="nomic-embed-text")
+embedding_fn: Embeddings = ...  # your Embeddings instance
+
+store = ValkeyStore(vector_store_config=config, embedding_fn=embedding_fn)
 ```
 
 The `metadata_schema` declares which metadata fields are indexed for filtering:
@@ -79,7 +89,7 @@ DB-GPT represents documents as `Chunk` objects. Load them into the vector store:
 """Load document chunks into ValkeyStore."""
 from __future__ import annotations
 
-from dbgpt.core import Chunk
+from dbgpt.core import Chunk, Embeddings
 from dbgpt_ext.storage.vector_store.valkey_store import ValkeyStore, ValkeyVectorConfig
 
 config = ValkeyVectorConfig(
@@ -92,7 +102,9 @@ config = ValkeyVectorConfig(
         "year": "numeric",
     },
 )
-store = ValkeyStore(config)
+
+embedding_fn: Embeddings = ...  # your Embeddings instance
+store = ValkeyStore(vector_store_config=config, embedding_fn=embedding_fn)
 
 # Create document chunks with metadata
 chunks = [
@@ -119,7 +131,7 @@ store.load_document(chunks)
 print(f"✓ Loaded {len(chunks)} chunks into ValkeyStore")
 ```
 
-> **Note:** `load_document` uses your configured DB-GPT embedding model to generate vectors.
+> **Note:** `load_document` uses your configured `embedding_fn` to generate vectors.
 > For local development without paid APIs, configure DB-GPT to use an Ollama embedding model
 > (e.g., `nomic-embed-text`) or see the sample scripts which use mock embeddings for testing.
 
@@ -164,42 +176,51 @@ Combine vector similarity with attribute filters to narrow results:
 """Filter search results by metadata attributes."""
 from __future__ import annotations
 
+from dbgpt.storage.vector_store.filters import (
+    FilterOperator,
+    MetadataFilter,
+    MetadataFilters,
+)
+
 # Filter by TAG — exact category match
-# FT.SEARCH syntax: @field:{value}
 database_results = store.similar_search(
     "high performance storage",
     topk=5,
-    filters={"category": "database"},
+    filters=MetadataFilters(filters=[
+        MetadataFilter(key="category", operator=FilterOperator.EQ, value="database"),
+    ]),
 )
 
 # Filter by NUMERIC range — year between 2023 and 2024
-# FT.SEARCH syntax: @field:[min max]
 recent_results = store.similar_search(
     "vector search algorithms",
     topk=5,
-    filters={"year": [2023, 2024]},
+    filters=MetadataFilters(filters=[
+        MetadataFilter(key="year", operator=FilterOperator.GTE, value=2023),
+        MetadataFilter(key="year", operator=FilterOperator.LTE, value=2024),
+    ]),
 )
 
-# Combined filters
+# Combined filters (AND condition by default)
 filtered = store.similar_search(
     "data storage",
     topk=5,
-    filters={
-        "category": "database",
-        "year": [2024, 2024],  # exact year match as range
-    },
+    filters=MetadataFilters(filters=[
+        MetadataFilter(key="category", operator=FilterOperator.EQ, value="database"),
+        MetadataFilter(key="year", operator=FilterOperator.EQ, value=2024),
+    ]),
 )
 ```
 
 ### Filter Syntax Reference
 
-Under the hood, DB-GPT translates filters to `FT.SEARCH` filter expressions:
+Under the hood, `ValkeyStore` translates `MetadataFilters` to `FT.SEARCH` filter expressions. Metadata fields are stored with a `meta_` prefix internally:
 
-| Python Filter | FT.SEARCH Expression | Matches |
+| MetadataFilter | FT.SEARCH Expression | Matches |
 | --- | --- | --- |
-| `{"category": "database"}` | `@category:{database}` | Exact tag match |
-| `{"year": [2023, 2024]}` | `@year:[2023 2024]` | Numeric range (inclusive) |
-| `{"category": "database", "year": [2024, 2024]}` | `@category:{database} @year:[2024 2024]` | Combined AND |
+| `MetadataFilter(key="category", operator=EQ, value="database")` | `@meta_category:{database}` | Exact tag match |
+| `MetadataFilter(key="year", operator=GTE, value=2023)` + `LTE, 2024` | `@meta_year:[2023 2024]` | Numeric range (inclusive) |
+| Combined (AND) | `@meta_category:{database} @meta_year:[2024 2024]` | Combined AND |
 
 > **Security note:** Never interpolate user input directly into filter expressions.
 > The `ValkeyStore` implementation handles escaping, but if you construct raw `FT.SEARCH` queries,

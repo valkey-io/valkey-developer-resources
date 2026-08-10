@@ -31,6 +31,39 @@ def to_bytes(embedding: list[float]) -> bytes:
     return struct.pack(f"<{len(embedding)}f", *embedding)
 
 
+async def create_hnsw_index(
+    client: GlideClient,
+    index_name: str,
+    key_prefix: str,
+    dim: int = VECTOR_DIM,
+    extra_schema: list[str] | None = None,
+) -> None:
+    """Create an HNSW index for testing.
+
+    Args:
+        client: Valkey client.
+        index_name: Name for the FT index.
+        key_prefix: Key prefix to index.
+        dim: Vector dimension.
+        extra_schema: Additional schema fields (e.g., ["category", "TAG", "year", "NUMERIC"]).
+    """
+    schema = [
+        "vector", "VECTOR", "HNSW", "10",
+        "TYPE", "FLOAT32",
+        "DIM", str(dim),
+        "DISTANCE_METRIC", "COSINE",
+        "M", "16",
+        "EF_CONSTRUCTION", "200",
+    ]
+    if extra_schema:
+        schema.extend(extra_schema)
+
+    await client.custom_command(
+        ["FT.CREATE", index_name, "ON", "HASH", "PREFIX", "1", key_prefix, "SCHEMA"]
+        + schema
+    )
+
+
 async def wait_for_indexing(client: GlideClient, index_name: str) -> None:
     """Poll FT.INFO until indexing completes."""
     for _ in range(100):  # max 5 seconds at 50ms intervals
@@ -59,27 +92,14 @@ class TestVectorStorePatterns:
 
     async def test_create_hnsw_index(self, clean_valkey: GlideClient, index_name: str, key_prefix: str) -> None:
         """ValkeyStore creates an HNSW index on first use."""
-        await clean_valkey.custom_command(
-            [
-                "FT.CREATE", index_name,
-                "ON", "HASH",
-                "PREFIX", "1", key_prefix,
-                "SCHEMA",
-                "vector", "VECTOR", "HNSW", "10",
-                "TYPE", "FLOAT32",
-                "DIM", str(VECTOR_DIM),
-                "DISTANCE_METRIC", "COSINE",
-                "M", "16",
-                "EF_CONSTRUCTION", "200",
-            ]
-        )
+        await create_hnsw_index(clean_valkey, index_name, key_prefix)
 
         # Verify index exists via FT.INFO
         info = await clean_valkey.custom_command(["FT.INFO", index_name])
         assert info is not None
-        # FT.INFO returns flat list; check index_name is present
+        # FT.INFO returns a dict; verify the index name is present in its string representation
         info_str = str(info)
-        assert index_name in info_str or index_name.encode() in info
+        assert index_name in info_str
 
     async def test_create_flat_index(self, clean_valkey: GlideClient) -> None:
         """ValkeyStore supports FLAT index type for small datasets."""
@@ -109,20 +129,7 @@ class TestVectorStorePatterns:
             pass
 
         # Create index first
-        await clean_valkey.custom_command(
-            [
-                "FT.CREATE", index_name,
-                "ON", "HASH",
-                "PREFIX", "1", key_prefix,
-                "SCHEMA",
-                "vector", "VECTOR", "HNSW", "10",
-                "TYPE", "FLOAT32",
-                "DIM", str(VECTOR_DIM),
-                "DISTANCE_METRIC", "COSINE",
-                "M", "16",
-                "EF_CONSTRUCTION", "200",
-            ]
-        )
+        await create_hnsw_index(clean_valkey, index_name, key_prefix)
 
         # Store documents
         for i in range(5):
@@ -154,20 +161,7 @@ class TestVectorStorePatterns:
             pass
 
         # Create index and load documents
-        await clean_valkey.custom_command(
-            [
-                "FT.CREATE", index_name,
-                "ON", "HASH",
-                "PREFIX", "1", key_prefix,
-                "SCHEMA",
-                "vector", "VECTOR", "HNSW", "10",
-                "TYPE", "FLOAT32",
-                "DIM", str(VECTOR_DIM),
-                "DISTANCE_METRIC", "COSINE",
-                "M", "16",
-                "EF_CONSTRUCTION", "200",
-            ]
-        )
+        await create_hnsw_index(clean_valkey, index_name, key_prefix)
 
         for i in range(5):
             key = f"{key_prefix}{i:04d}"
@@ -215,21 +209,9 @@ class TestVectorStorePatterns:
         except Exception:
             pass
 
-        await clean_valkey.custom_command(
-            [
-                "FT.CREATE", index_name,
-                "ON", "HASH",
-                "PREFIX", "1", key_prefix,
-                "SCHEMA",
-                "vector", "VECTOR", "HNSW", "10",
-                "TYPE", "FLOAT32",
-                "DIM", str(VECTOR_DIM),
-                "DISTANCE_METRIC", "COSINE",
-                "M", "16",
-                "EF_CONSTRUCTION", "200",
-                "category", "TAG",
-                "year", "NUMERIC",
-            ]
+        await create_hnsw_index(
+            clean_valkey, index_name, key_prefix,
+            extra_schema=["category", "TAG", "year", "NUMERIC"],
         )
 
         # Load documents with metadata
@@ -281,20 +263,9 @@ class TestVectorStorePatterns:
         except Exception:
             pass
 
-        await clean_valkey.custom_command(
-            [
-                "FT.CREATE", index_name,
-                "ON", "HASH",
-                "PREFIX", "1", key_prefix,
-                "SCHEMA",
-                "vector", "VECTOR", "HNSW", "10",
-                "TYPE", "FLOAT32",
-                "DIM", str(VECTOR_DIM),
-                "DISTANCE_METRIC", "COSINE",
-                "M", "16",
-                "EF_CONSTRUCTION", "200",
-                "year", "NUMERIC",
-            ]
+        await create_hnsw_index(
+            clean_valkey, index_name, key_prefix,
+            extra_schema=["year", "NUMERIC"],
         )
 
         for i, year in enumerate([2022, 2023, 2024, 2024]):

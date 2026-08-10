@@ -7,6 +7,22 @@ import pytest_asyncio
 from glide import GlideClient, GlideClientConfiguration, NodeAddress
 
 
+async def scan_and_delete(client: GlideClient, pattern: str) -> None:
+    """Delete all keys matching a pattern using SCAN (never KEYS)."""
+    cursor = "0"
+    while True:
+        result = await client.custom_command(
+            ["SCAN", cursor, "MATCH", pattern, "COUNT", "100"]
+        )
+        cursor = result[0] if isinstance(result[0], str) else result[0].decode()
+        keys = result[1]
+        if keys:
+            key_list = [k if isinstance(k, str) else k.decode() for k in keys]
+            await client.delete(key_list)
+        if cursor == "0":
+            break
+
+
 @pytest_asyncio.fixture
 async def valkey_client() -> AsyncGenerator[GlideClient, None]:
     """Create a Valkey client connected to localhost:6379."""
@@ -35,29 +51,13 @@ async def clean_valkey(valkey_client: GlideClient) -> AsyncGenerator[GlideClient
             pass
 
     # Cleanup: scan and delete test keys
-    cursor = "0"
-    while True:
-        result = await valkey_client.custom_command(
-            ["SCAN", cursor, "MATCH", "__test__:*", "COUNT", "100"]
-        )
-        cursor = result[0] if isinstance(result[0], str) else result[0].decode()
-        keys = result[1]
-        if keys:
-            key_list = [k if isinstance(k, str) else k.decode() for k in keys]
-            await valkey_client.delete(key_list)
-        if cursor == "0":
-            break
+    try:
+        await scan_and_delete(valkey_client, "__test__:*")
+    except Exception:
+        pass
 
     # Cleanup: scan and delete cache test keys
-    cursor = "0"
-    while True:
-        result = await valkey_client.custom_command(
-            ["SCAN", cursor, "MATCH", "__test_cache__:*", "COUNT", "100"]
-        )
-        cursor = result[0] if isinstance(result[0], str) else result[0].decode()
-        keys = result[1]
-        if keys:
-            key_list = [k if isinstance(k, str) else k.decode() for k in keys]
-            await valkey_client.delete(key_list)
-        if cursor == "0":
-            break
+    try:
+        await scan_and_delete(valkey_client, "__test_cache__:*")
+    except Exception:
+        pass

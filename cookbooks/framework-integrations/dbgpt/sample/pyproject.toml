@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "Sample tests for DB-GPT + Valkey cookbook"
 requires-python = ">=3.10"
 dependencies = [
-    "dbgpt-ext[storage_valkey,cache_valkey]==0.8.1",
+    "dbgpt-ext[storage-valkey]==0.8.1",
     "valkey-glide==2.3.0",
 ]
 
