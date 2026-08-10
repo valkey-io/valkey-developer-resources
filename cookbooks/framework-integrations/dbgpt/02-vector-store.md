@@ -283,6 +283,14 @@ high_recall_config = ValkeyVectorConfig(
 )
 ```
 
+## Environment Variables
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `VALKEY_HOST` | localhost | Valkey server host |
+| `VALKEY_PORT` | 6379 | Valkey server port |
+| `VALKEY_PASSWORD` | None | Authentication password |
+
 ## What's Next
 
 - [LLM Caching](./03-llm-caching.md) — Cache LLM responses to reduce latency and API costs

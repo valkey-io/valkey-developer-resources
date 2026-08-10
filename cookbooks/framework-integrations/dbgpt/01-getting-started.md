@@ -20,19 +20,25 @@
 
 DB-GPT connects to Valkey through two extension components:
 
-| Component | Purpose | Valkey Module Required |
-| --- | --- | --- |
-| `ValkeyStore` | Vector storage for RAG (embeddings, similarity search, metadata filtering) | `valkey-search` |
-| `ValkeyCacheStorage` | LLM response caching (key-value with optional TTL) | None (core Valkey) |
-
-**Architecture:**
-
 ```text
-┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  DB-GPT App │────▶│  dbgpt-ext       │────▶│  Valkey Server  │
-│             │     │  (valkey-glide)   │     │  + Search Module│
-└─────────────┘     └──────────────────┘     └─────────────────┘
+┌──────────────────────────────────────────┐
+│              DB-GPT Application           │
+├──────────────┬───────────────────────────┤
+│  RAG Pipeline │    LLM Cache Manager     │
+│              │                           │
+│  ValkeyStore │    ValkeyCacheStorage     │
+│  (vector)    │    (key-value)            │
+├──────────────┴───────────────────────────┤
+│           valkey-glide client            │
+├──────────────────────────────────────────┤
+│         Valkey Server + Search Module    │
+└──────────────────────────────────────────┘
 ```
+
+| Component | Purpose | Valkey Features Used |
+| --- | --- | --- |
+| `ValkeyStore` | RAG embeddings + similarity search | FT.CREATE, FT.SEARCH, HSET |
+| `ValkeyCacheStorage` | LLM response caching | GET, SET, EXPIRE |
 
 - **Vector Store path:** DB-GPT → `ValkeyStore` → valkey-glide → `FT.CREATE` / `FT.SEARCH` / `HSET`
 - **Cache path:** DB-GPT → `ValkeyCacheStorage` → valkey-glide → `SET` / `GET` with optional TTL

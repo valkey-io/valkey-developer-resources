@@ -68,13 +68,28 @@ cache_with_ttl = ValkeyCacheStorage(
 
 ## Step 2: How DB-GPT Uses the Cache Internally
 
-`ValkeyCacheStorage` works with DB-GPT's internal `CacheKey` and `CacheValue` protocol. When DB-GPT's caching layer invokes the cache, it:
+`ValkeyCacheStorage` works with DB-GPT's internal `CacheKey` and `CacheValue` protocol. When DB-GPT's caching layer invokes the cache, it uses `LLMCacheKey` and `LLMCacheValue` objects:
 
-1. Serializes the prompt + model + parameters into a `CacheKey` (which produces deterministic hash bytes)
-2. Serializes the LLM response into a `CacheValue`
-3. Calls `cache.set(cache_key, cache_value)` to store, or `cache.get(cache_key)` to retrieve
+```python
+"""How DB-GPT's cache manager interacts with ValkeyCacheStorage."""
+from __future__ import annotations
+
+from dbgpt.core.interface.llm import ModelOutput
+from dbgpt.storage.cache.llm_cache import LLMCacheKey, LLMCacheValue
+
+# DB-GPT constructs a cache key from the prompt + model + parameters
+key = LLMCacheKey(prompt="What is Valkey?", model_name="gpt-4")
+
+# The LLM response is wrapped in a CacheValue with a ModelOutput
+value = LLMCacheValue(output=ModelOutput(error_code=0, text="Valkey is..."))
+
+# ValkeyCacheStorage serializes these and stores them:
+#   cache.set(key, value)   → serializes key to hash, value to bytes, SET in Valkey
+#   cache.get(key)          → deserializes bytes back to LLMCacheValue
+```
 
 You typically don't call `get`/`set` directly — DB-GPT's `CacheManager` handles this transparently when configured.
+The key hashing ensures that identical prompts with the same model and parameters always hit the same cache entry.
 
 ## Step 3: Understanding the Underlying Pattern
 
