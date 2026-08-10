@@ -45,13 +45,15 @@ async def main() -> None:
         await provider.acreate_collection()
 
         # Index sample data across two knowledge bases
+        # Vectors point in distinct directions for meaningful cosine ranking
+        dim = 384
         await provider.aupsert(
             vectors=[
-                [0.1] * 384,
-                [0.2] * 384,
-                [0.3] * 384,
-                [0.4] * 384,
-                [0.5] * 384,
+                [1.0] + [0.0] * (dim - 1),
+                [0.0, 1.0] + [0.0] * (dim - 2),
+                [0.7, 0.7] + [0.0] * (dim - 2),
+                [0.0, 0.0, 1.0] + [0.0] * (dim - 3),
+                [0.5, 0.5, 0.5] + [0.0] * (dim - 3),
             ],
             ids=["c1", "c2", "c3", "c4", "c5"],
             chunks=[
@@ -74,7 +76,7 @@ async def main() -> None:
         print("Indexed 5 chunks")
         await asyncio.sleep(0.5)
 
-        query_vector = [0.15] * 384
+        query_vector = [0.8, 0.6] + [0.0] * (dim - 2)  # Close to vec[2] (0.7, 0.7)
 
         # --- Dense search ---
         print("\n--- Dense Search (KNN) ---")
