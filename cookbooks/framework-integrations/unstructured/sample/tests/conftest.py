@@ -113,24 +113,23 @@ async def wait_for_indexed(client, index_name: str, expected_docs: int, timeout:
         try:
             info = await ft.info(client, index_name)
             # FT.INFO returns various formats; look for num_docs
+            num_docs = 0
             if isinstance(info, dict):
-                num_docs = int(info.get("num_docs", 0))
-            else:
-                # Fallback: search the response for num_docs
-                num_docs = 0
-                if isinstance(info, (list, tuple)):
-                    for i, item in enumerate(info):
-                        item_str = item.decode() if isinstance(item, bytes) else str(item)
-                        if item_str == "num_docs" and i + 1 < len(info):
-                            num_docs = int(info[i + 1])
-                            break
+                num_docs = int(info.get("num_docs", info.get(b"num_docs", 0)))
+            elif isinstance(info, (list, tuple)):
+                for i, item in enumerate(info):
+                    item_str = item.decode() if isinstance(item, bytes) else str(item)
+                    if item_str == "num_docs" and i + 1 < len(info):
+                        val = info[i + 1]
+                        num_docs = int(val.decode() if isinstance(val, bytes) else val)
+                        break
 
             if num_docs >= expected_docs:
                 return
         except Exception as exc:
-            if "Unknown index" not in str(exc):
+            if "Unknown index" not in str(exc) and "not found" not in str(exc):
                 raise
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.2)
     raise TimeoutError(
         f"Timed out waiting for {expected_docs} docs in index '{index_name}'"
     )
