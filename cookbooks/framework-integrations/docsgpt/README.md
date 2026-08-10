@@ -1,6 +1,8 @@
 # DocsGPT + Valkey Cookbook
 
-> Use Valkey as the vector store backend for [DocsGPT](https://github.com/arc53/DocsGPT), an open-source AI assistant platform for document retrieval (RAG), via `valkey-glide-sync` and the valkey-search module.
+> Use Valkey as the vector store backend for [DocsGPT](https://github.com/arc53/DocsGPT),
+> an open-source AI assistant platform for document retrieval (RAG),
+> via `valkey-glide-sync` and the valkey-search module.
 
 ## Cookbooks
 
