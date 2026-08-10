@@ -34,9 +34,13 @@ from conftest import (
     TEST_INDEX_NAME,
     TEST_PREFIX,
     make_embedding,
+    skip_if_no_filtered_knn,
 )
 
 VECTOR_DIM = EMBEDDING_DIM
+
+
+
 
 
 def _create_hnsw_index(
@@ -107,6 +111,9 @@ class TestIndexCreation:
                 "ON", "HASH",
                 "PREFIX", "1", TEST_PREFIX,
                 "SCHEMA", "source_id", "TAG",
+                "embedding", "VECTOR", "FLAT", "6",
+                "TYPE", "FLOAT32", "DIM", str(VECTOR_DIM),
+                "DISTANCE_METRIC", "COSINE",
             ]
         )
 
@@ -117,6 +124,9 @@ class TestIndexCreation:
                     "ON", "HASH",
                     "PREFIX", "1", TEST_PREFIX,
                     "SCHEMA", "source_id", "TAG",
+                    "embedding", "VECTOR", "FLAT", "6",
+                    "TYPE", "FLOAT32", "DIM", str(VECTOR_DIM),
+                    "DISTANCE_METRIC", "COSINE",
                 ]
             )
 
@@ -245,8 +255,9 @@ class TestKNNSearch:
         first_key = keys[0] if isinstance(keys[0], str) else keys[0].decode()
         assert "doc1" in first_key
 
-    def test_knn_search_with_source_filter(self, valkey_client: GlideClient) -> None:
+    def test_knn_search_with_source_filter(self, valkey_client: GlideClient, search_version: int) -> None:
         """KNN search filtered by source_id returns only matching source."""
+        skip_if_no_filtered_knn(search_version)
         query_embedding = make_embedding(0.9)  # Closest to doc3
 
         # Search only source-a (should NOT return doc3 even though it's closest)
@@ -276,8 +287,9 @@ class TestSourceIsolation:
     """Verify source isolation via TAG field filtering."""
 
     @pytest.fixture(autouse=True)
-    def _setup_multi_source(self, valkey_client: GlideClient) -> None:
+    def _setup_multi_source(self, valkey_client: GlideClient, search_version: int) -> None:
         """Create index with documents across multiple sources."""
+        skip_if_no_filtered_knn(search_version)
         import time
 
         _create_hnsw_index(valkey_client, TEST_INDEX_NAME, TEST_PREFIX)
@@ -365,8 +377,9 @@ class TestChunkManagement:
         # Verify it's gone
         assert valkey_client.hget(key, "content") is None
 
-    def test_delete_all_chunks_for_source(self, valkey_client: GlideClient) -> None:
+    def test_delete_all_chunks_for_source(self, valkey_client: GlideClient, search_version: int) -> None:
         """Delete all documents for a specific source via FT.SEARCH + DELETE."""
+        skip_if_no_filtered_knn(search_version)
         import time
 
         source_id = "deletesource"
@@ -423,8 +436,9 @@ class TestChunkManagement:
         total = result[0]
         assert total == 0
 
-    def test_get_chunks_pagination(self, valkey_client: GlideClient) -> None:
+    def test_get_chunks_pagination(self, valkey_client: GlideClient, search_version: int) -> None:
         """Retrieve chunks via paginated FT.SEARCH."""
+        skip_if_no_filtered_knn(search_version)
         import time
 
         source_id = "paginatesource"
@@ -483,8 +497,9 @@ class TestTagEscaping:
     """
 
     @pytest.fixture(autouse=True)
-    def _setup_index(self, valkey_client: GlideClient) -> None:
+    def _setup_index(self, valkey_client: GlideClient, search_version: int) -> None:
         """Create index for tag escaping tests."""
+        skip_if_no_filtered_knn(search_version)
         import time
 
         _create_hnsw_index(valkey_client, TEST_INDEX_NAME, TEST_PREFIX)

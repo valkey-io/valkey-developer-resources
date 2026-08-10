@@ -100,3 +100,35 @@ def make_embedding(seed: float = 0.1) -> bytes:
     """
     floats = [seed + (i * 0.001) for i in range(EMBEDDING_DIM)]
     return struct.pack(f"<{EMBEDDING_DIM}f", *floats)
+
+
+def _get_search_version(client: GlideClient) -> int:
+    """Get valkey-search module version (10000 = v1.0.0, 66048 = v1.2.0)."""
+    result = client.custom_command(["MODULE", "LIST"])
+    # GLIDE returns list of dicts: [{b'name': b'search', b'ver': 66048, ...}, ...]
+    for module in result:
+        if isinstance(module, dict):
+            name = module.get(b"name", module.get("name", b""))
+            if isinstance(name, bytes):
+                name = name.decode()
+            if name == "search":
+                ver = module.get(b"ver", module.get("ver", 0))
+                return int(ver)
+    return 0
+
+
+@pytest.fixture(scope="session")
+def search_version(valkey_client: GlideClient) -> int:
+    """Return the valkey-search module version number."""
+    return _get_search_version(valkey_client)
+
+
+def skip_if_no_filtered_knn(search_version: int) -> None:
+    """Skip a test if valkey-search doesn't support pre-filtered KNN queries.
+
+    valkey-search 1.0.0 (ver=10000, bundle 8.1.1) does not support the
+    '@field:{value}=>[KNN ...]' hybrid query syntax.
+    valkey-search 1.2.0 (ver=66048, bundle 9.1.0) supports it.
+    """
+    if search_version < 60000:
+        pytest.skip("Pre-filtered KNN requires valkey-search >= 1.2.0 (bundle 9.1.0)")
