@@ -44,7 +44,6 @@ The search index schema:
 ```text
 FT.CREATE docsgpt ON HASH PREFIX 1 doc:
   SCHEMA
-    content   TEXT
     source_id TAG
     embedding VECTOR HNSW 6
       TYPE FLOAT32 DIM 768 DISTANCE_METRIC COSINE
