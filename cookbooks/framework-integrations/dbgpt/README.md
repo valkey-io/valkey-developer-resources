@@ -1,6 +1,6 @@
 # DB-GPT + Valkey Cookbook
 
-> Use Valkey as a vector store and LLM cache backend for [DB-GPT](https://docs.dbgpt.site/), an open-source AI-native data application development framework, via the `dbgpt-ext` extensions package.
+> Use Valkey as a vector store and LLM cache backend for [DB-GPT](https://github.com/eosphoros-ai/DB-GPT), an open-source AI-native data application development framework, via the `dbgpt-ext` extensions package.
 
 ## Cookbooks
 
@@ -20,9 +20,9 @@
 
 DB-GPT integrates with Valkey through two extension packages in `dbgpt-ext`:
 
-- **Vector Store** (`dbgpt-ext[storage_valkey]`) — `ValkeyStore` implements DB-GPT's `VectorStoreBase`, storing embeddings as Valkey HASH keys with HNSW or FLAT indexes and KNN search with metadata filtering.
+- **Vector Store** (`dbgpt-ext[storage-valkey]`) — `ValkeyStore` implements DB-GPT's `VectorStoreBase`, storing embeddings as Valkey HASH keys with HNSW or FLAT indexes and KNN search with metadata filtering.
 
-- **LLM Cache** (`dbgpt-ext[cache_valkey]`) — `ValkeyCacheStorage` implements DB-GPT's `CacheStorage` interface for caching LLM responses with TTL support, reducing redundant API calls and latency.
+- **LLM Cache** (included in base `dbgpt-ext`) — `ValkeyCacheStorage` implements DB-GPT's `CacheStorage` interface for caching LLM responses with TTL support, reducing redundant API calls and latency.
 
 Both use `valkey-glide` (the official Valkey Python client) for async connectivity.
 
@@ -35,7 +35,7 @@ docker run -d --name valkey-dbgpt \
   valkey/valkey-bundle:9.1.0
 
 # Install DB-GPT extensions
-pip install "dbgpt-ext[storage_valkey,cache_valkey]==0.8.1"
+pip install "dbgpt-ext[storage-valkey]==0.8.1"
 ```
 
 ```python
@@ -47,7 +47,7 @@ config = ValkeyVectorConfig(
     index_type="HNSW",
     distance_metric="COSINE",
 )
-store = ValkeyStore(config)
+store = ValkeyStore(vector_store_config=config, embedding_fn=embedding_fn)
 ```
 
 ---
