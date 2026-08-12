@@ -1,24 +1,17 @@
 {
-  // Reasonable defaults for a samples/cookbook repository
   "MD013": {
-    // Allow long lines — tables, URLs, and bullet points frequently exceed 80 chars
-    "line_length": 300,
+    "line_length": 200,
     "tables": false
   },
-  // Allow HTML — needed for <nobr> in cookbook README tables
   "MD033": {
     "allowed_elements": ["nobr", "br"]
   },
-  // Allow duplicate headings in different sections (e.g., multiple "## Prerequisites")
   "MD024": {
     "siblings_only": true
   },
-  // Allow trailing punctuation in headings (e.g., "## Questions?")
   "MD026": {
     "punctuation": ".,;:!"
   },
-  // Allow fenced code blocks without language (used for generic examples)
   "MD040": false,
-  // Don't require first line to be h1 (PR templates start with ##)
   "MD041": false
 }
