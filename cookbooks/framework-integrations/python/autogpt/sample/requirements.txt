@@ -1,0 +1,4 @@
+# Valkey client. AutoGPT's backend uses redis-py's cluster client; this sample
+# uses valkey-glide because it is the Valkey project's own client and speaks the
+# same cluster protocol against the same topology.
+valkey-glide==2.5.1

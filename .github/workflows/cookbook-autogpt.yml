@@ -1,0 +1,81 @@
+name: Cookbook - AutoGPT + Valkey
+
+on:
+  pull_request:
+    paths:
+      - "cookbooks/framework-integrations/python/autogpt/**"
+      - ".github/workflows/cookbook-autogpt.yml"
+  push:
+    branches: [main]
+    paths:
+      - "cookbooks/framework-integrations/python/autogpt/**"
+      - ".github/workflows/cookbook-autogpt.yml"
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: cookbooks/framework-integrations/python/autogpt/sample
+
+jobs:
+  lint:
+    name: Lint sample
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      # Pinned so a new ruff release cannot fail an unchanged cookbook.
+      - run: pip install ruff==0.11.13
+      - run: ruff check main.py
+      - run: ruff format --check main.py
+
+  integration:
+    name: Run sample (Valkey ${{ matrix.valkey-version }}, Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Both ends of the supported range, on both ends of the Python range
+        # the cookbook claims. 3.9 is valkey-glide's own floor.
+        valkey-version: ["8.1.9", "9.1.2"]
+        python-version: ["3.9", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install the pinned client
+        run: pip install -r requirements.txt
+
+      - name: Start the three-shard Valkey cluster
+        env:
+          VALKEY_VERSION: ${{ matrix.valkey-version }}
+        run: docker compose up -d
+
+      - name: Wait for the cluster to form
+        # The Compose healthcheck gates on cluster_state:ok, so "healthy" means
+        # every slot is assigned — not merely that the process started.
+        run: |
+          for _ in $(seq 1 60); do
+            if docker compose ps --format json \
+              | grep -q '"Health":"healthy"'; then
+              echo "cluster healthy"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "cluster did not become healthy in 120s" >&2
+          docker compose logs
+          exit 1
+
+      - name: Run the sample
+        run: python main.py
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

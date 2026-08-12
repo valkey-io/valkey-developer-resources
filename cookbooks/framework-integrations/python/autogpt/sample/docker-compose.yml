@@ -1,0 +1,69 @@
+# Three-shard, no-replica Valkey cluster on 127.0.0.1:17000-17002.
+#
+# This mirrors the topology AutoGPT's single-container distribution forms at
+# startup: three valkey-server processes inside one container, all announcing
+# 127.0.0.1, formed by `valkey-cli --cluster create`. Running them in a single
+# container is what lets a client on your host follow the announced addresses —
+# each shard announces 127.0.0.1:<its port>, which the published ports below
+# map straight back into the container.
+#
+# Override the version with VALKEY_VERSION to match your target deployment:
+#   VALKEY_VERSION=9.1.2 docker compose up -d
+services:
+  valkey-cluster:
+    image: valkey/valkey-bundle:${VALKEY_VERSION:-8.1.9}
+    # Shards 1 and 2 are daemonized; shard 0 runs in the foreground so the
+    # container's lifetime tracks it. The backgrounded subshell forms the
+    # cluster once shard 0 answers, and is a no-op if the cluster is already
+    # formed — so `docker compose up` on an existing project never destroys a
+    # working cluster.
+    #
+    # --protected-mode no is required because the shards bind 0.0.0.0 (the
+    # only way a published port can reach them) while accepting connections
+    # that arrive from Docker's bridge gateway rather than loopback. The
+    # exposure is bounded by publishing to 127.0.0.1 only, below. AutoGPT's
+    # own distribution keeps protected mode on and sets --requirepass
+    # instead; see 03-production.md.
+    #
+    # No volumes and no appendonly: this is a cache-only cluster, so every
+    # `docker compose up` starts from empty state.
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        for port in 17001 17002; do
+          valkey-server --port "$$port" --daemonize yes \
+            --cluster-enabled yes --cluster-config-file "nodes-$$port.conf" \
+            --cluster-node-timeout 5000 --cluster-announce-ip 127.0.0.1 \
+            --bind 0.0.0.0 --protected-mode no --appendonly no
+        done
+        (
+          until valkey-cli -p 17000 ping > /dev/null 2>&1; do sleep 0.2; done
+          valkey-cli -p 17000 cluster info | grep -q cluster_state:ok ||
+            valkey-cli --cluster create \
+              127.0.0.1:17000 127.0.0.1:17001 127.0.0.1:17002 \
+              --cluster-replicas 0 --cluster-yes
+        ) &
+        exec valkey-server --port 17000 \
+          --cluster-enabled yes --cluster-config-file nodes-17000.conf \
+          --cluster-node-timeout 5000 --cluster-announce-ip 127.0.0.1 \
+          --bind 0.0.0.0 --protected-mode no --appendonly no
+    # Published to the loopback interface only, so the cluster is never
+    # reachable from outside this machine.
+    ports:
+      - "127.0.0.1:17000:17000"
+      - "127.0.0.1:17001:17001"
+      - "127.0.0.1:17002:17002"
+    # Healthy means "cluster formed", not just "process up" — a cluster client
+    # cannot do useful work before every slot is assigned. 30 retries at 2 s
+    # leaves a full minute for formation on a cold image pull.
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "valkey-cli -p 17000 cluster info | grep -q cluster_state:ok",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 30
