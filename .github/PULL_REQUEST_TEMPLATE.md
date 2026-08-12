@@ -17,6 +17,24 @@ Fixes #
 - [ ] Sample App
 - [ ] Repository infrastructure (CI, docs, templates)
 
+## Upstream Dependency
+
+<!-- REQUIRED for integration cookbooks/demos/samples.
+     This enables dependency analysis before merge to ensure we don't release content
+     before the upstream integration is available.
+
+     Provide ONE of the following:
+     - A URL to a released version of the upstream package that includes Valkey compatibility
+       (e.g., https://github.com/mem0ai/mem0/releases/tag/v0.1.29)
+     - A URL to an open PR in the upstream project that adds Valkey support
+       (e.g., https://github.com/helicone/helicone/pull/1234)
+
+     If the upstream support is already in a stable release, this PR can merge immediately.
+     If the upstream PR is not yet merged/released, this PR will be blocked until it is.
+-->
+
+Upstream compatibility URL:
+
 ## Pre-Submit Checklist
 
 <!-- Check all that apply before requesting review -->
