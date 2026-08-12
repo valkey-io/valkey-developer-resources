@@ -60,6 +60,14 @@ jobs:
       - name: Install dependencies
         working-directory: ${{ matrix.cookbook }}
         run: npm ci
+      - name: Lint
+        working-directory: ${{ matrix.cookbook }}
+        run: |
+          if npx eslint --version >/dev/null 2>&1; then
+            npx eslint . --max-warnings 0
+          else
+            echo "No eslint configured — skipping lint"
+          fi
       - name: Type check
         working-directory: ${{ matrix.cookbook }}
         run: npx tsc --noEmit
