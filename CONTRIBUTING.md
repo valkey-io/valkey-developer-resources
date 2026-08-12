@@ -6,13 +6,23 @@ Thank you for contributing! This repository collects cookbooks, sample applicati
 
 See the [README](README.md) for this repository's audience and purpose. Contributions that fall outside that scope will be redirected during review.
 
+### Out of Scope
+
+The following content types do not belong in this repository:
+
+- **Curated link lists** — collections of external URLs belong on the [Valkey website](https://valkey.io/) or documentation wiki, not in a samples repository.
+- **Unreproducible builds** — if it depends on unreleased software, private artifacts, early-access tooling, or internal infrastructure, it is not ready for this repository.
+- **Marketing content** — uncited performance claims, cost comparisons, and promotional language are rejected in review. State facts and link to benchmarks.
+- **Single-vendor tutorials** — a tutorial that can only be completed with credentials from one specific cloud provider does not belong as the primary path.
+- **Internal tooling experiments** — prototypes, spike work, or internal tools that aren't intended for community use.
+
 ## Code of Conduct
 
 This project follows the [Contributor Covenant v2.0](https://www.contributor-covenant.org/version/2/0/code_of_conduct/). By participating you agree to abide by its terms.
 
 ## License
 
-All contributions are made under the [MIT License](LICENSE). By submitting a pull request, you agree that your contributions will be licensed under the same terms.
+All contributions are made under the [BSD-3-Clause License](LICENSE). By submitting a pull request, you agree that your contributions will be licensed under the same terms.
 
 ## Developer Certificate of Origin (DCO)
 
@@ -26,13 +36,15 @@ Use `git commit -s` (or `--signoff`) to add this automatically. PRs that fail th
 
 ## Getting Started
 
-1. Fork the repository
-2. Create a feature branch from `main`
-3. Make your changes
-4. Ensure all commits are signed off
-5. Open a pull request against `main`
+**All new content** (cookbooks, demos, and sample apps) **requires a proposal issue before implementation.** Open an issue using the [new-sample template](.github/ISSUE_TEMPLATE/new-sample.md) describing the Valkey concept, target language, and expected scope. A maintainer will approve or request changes before you begin coding. This prevents wasted effort on content that doesn't fit the repository's goals.
 
-For significant additions (new cookbooks, new sample apps, major restructuring), **open an issue first** to discuss the approach.
+1. Open a proposal issue using the [new-sample template](.github/ISSUE_TEMPLATE/new-sample.md)
+2. Wait for maintainer approval
+3. Fork the repository
+4. Create a feature branch from `main`
+5. Make your changes
+6. Ensure all commits are signed off
+7. Open a pull request against `main`
 
 ## Acceptance Criteria
 
@@ -51,7 +63,7 @@ Every contribution must meet these requirements to be merged:
 Valkey is a community project under the Linux Foundation. Content in this repository must be vendor-neutral by default:
 
 - **LLM/AI examples** use a widely accessible provider (e.g., OpenAI, Ollama for local) as the default path. Vendor-specific alternatives (AWS Bedrock, GCP Vertex AI, Azure OpenAI) are welcome as clearly labeled optional sections, not the primary walkthrough.
-- **Production deployment** guidance must be generic (connection strings, TLS config) or cover multiple providers equally. No single cloud provider should be the default deployment target.
+- **Production deployment** guidance must either cover at least two cloud providers equally (e.g., ElastiCache AND Memorystore AND self-hosted), OR remain generic and link to provider-specific documentation externally. A section that only covers one provider's deployment path will not be accepted.
 - **Client libraries** use official Valkey clients. If a cloud-specific client wrapper is demonstrated, the generic equivalent must be shown first.
 - **Integrations** are listed based on their relevance to Valkey, not their organizational origin. Disclose provenance where it's not obvious (e.g., "Strands Agents (Amazon)" alongside "CrewAI").
 
@@ -66,10 +78,18 @@ Contributions that route readers exclusively through one vendor's ecosystem will
 
 ## Review Process
 
-- Every PR requires **at least one maintainer approval** before merge
-- Samples are **tested in CI** — if CI can't build and run your sample, it won't merge
-- Reviewers will flag: internal references, vendor bias, marketing language, missing dependency files, and broken builds
-- For new cookbooks or sample categories, open an issue or discussion **before** writing code to align on scope
+Every PR requires **at least one maintainer approval** before merge. Reviewers evaluate each submission against this checklist:
+
+- [ ] Builds and runs from a clean clone
+- [ ] Runs against current stable Valkey Bundle (Valkey-JSON, Valkey-Search, and Valkey-Bloom content friendly)
+- [ ] No private links, internal references, or local paths
+- [ ] No marketing language or uncited claims
+- [ ] Vendor-neutral by default (see [Vendor Neutrality](#vendor-neutrality))
+- [ ] README explains concept, prerequisites, and how to run
+- [ ] Dependencies pinned to specific versions
+- [ ] CI validates the sample
+
+PRs that do not pass CI will not be merged. Use this checklist as a pre-submit self-check before requesting review.
 
 ---
 
@@ -80,22 +100,24 @@ Cookbooks live under `cookbooks/` organized by category:
 ```
 cookbooks/
 ├── framework-integrations/
-│   └── <framework-name>/
-│       ├── README.md
-│       ├── meta.json
-│       ├── 01-getting-started.md
-│       ├── 02-<topic>.md
-│       ├── ...
-│       └── sample/          (optional — runnable code)
+│   └── <language>/
+│       └── <framework-name>/
+│           ├── README.md
+│           ├── 01-getting-started.md
+│           ├── 02-<topic>.md
+│           ├── ...
+│           └── sample/          (optional — runnable code)
 └── use-cases/
-    └── <use-case-name>/
-        └── ...
+    └── <language>/
+        └── <use-case-name>/
+            └── ...
 ```
 
 ### Directory Naming
 
-- Lowercase, hyphenated: `betterdb-agent-cache`, `node-rate-limiter-flexible`
-- Match the canonical package/project name where possible
+- Language directory: lowercase (e.g., `python`, `go`, `typescript`, `java`)
+- Sample directory: lowercase, hyphenated — match the canonical package/project name where possible
+- Example paths: `cookbooks/framework-integrations/python/langchain/`, `cookbooks/use-cases/go/rate-limiting/`
 
 ### Required Files
 
@@ -104,39 +126,7 @@ Every cookbook **must** have:
 | File | Purpose |
 |------|---------|
 | `README.md` | Overview with linked table of all cookbooks in the track |
-| `meta.json` | Machine-readable metadata for rendering and navigation |
 | `01-getting-started.md` | First cookbook — always Beginner difficulty |
-
-### meta.json Schema
-
-```json
-{
-  "trackName": "Human-Readable Name",
-  "language": "Python",
-  "cookbooks": [
-    {
-      "num": "01",
-      "source": "01-getting-started.md",
-      "output": "01-getting-started.html",
-      "title": "Getting Started with X + Valkey",
-      "h1": "Getting Started with X + Valkey",
-      "breadcrumb": "Getting Started",
-      "lead": "One sentence describing what the reader will accomplish.",
-      "difficulty": "Beginner",
-      "time": "15 min",
-      "next": { "file": "02-topic.html", "title": "02 - Topic" }
-    }
-  ]
-}
-```
-
-**Required fields per entry:** `num`, `source`, `output`, `title`, `h1`, `breadcrumb`, `lead`, `difficulty`, `time`
-
-**Navigation:** Include `prev`/`next` links on all entries except the first/last respectively.
-
-**`language`:** Top-level field. One of: `Python`, `Go`, `Java`, `TypeScript`, `Rust`.
-
-**`difficulty`:** One of: `Beginner`, `Intermediate`, `Advanced`.
 
 ### Cookbook File Structure
 
@@ -273,7 +263,7 @@ If the sample has dependencies beyond Valkey (an API key, a GPU, a proprietary m
 The ideal experience:
 
 ```bash
-cd cookbooks/framework-integrations/<name>/sample
+cd cookbooks/framework-integrations/python/<name>/sample
 docker compose up        # starts Valkey + runs the sample
 ```
 
@@ -312,6 +302,8 @@ All samples must pass CI before merge:
 - **Run check** — the sample executes successfully against a Valkey container (no external services required for the default path)
 - **Lint check** — markdown files pass linting, links resolve
 
+CI runs on every pull request **and** on a weekly schedule to catch external dependency breakage (e.g., upstream library releases that introduce incompatibilities). If a weekly run fails, a maintainer will open an issue to track the fix.
+
 If your sample requires paid external services (API keys, cloud accounts), provide a mock/stub mode that CI can exercise without credentials.
 
 ---
@@ -327,6 +319,111 @@ A cookbook track should follow this progression:
 | 03+ | Advanced / Production | Intermediate–Advanced | Scaling, security, deployment patterns |
 
 The first cookbook should be achievable in ≤15 minutes with no paid dependencies.
+
+---
+
+## Demo Structure
+
+Demos are focused, lightweight applications that demonstrate a single Valkey use case. They are not complete applications — include only the code necessary to illustrate the use case. A developer should be able to clone, run, and see the Valkey feature in action.
+
+Demos live under `demos/` organized by language:
+
+```
+demos/
+├── python/
+│   ├── vector-search/
+│   └── rate-limiting/
+├── go/
+│   └── pub-sub/
+├── typescript/
+│   └── session-cache/
+└── java/
+    └── cache-aside/
+```
+
+### Directory Naming
+
+- Language directory: lowercase (e.g., `python`, `go`, `typescript`, `java`)
+- Sample directory: lowercase, hyphenated use-case name (e.g., `vector-search`, `pub-sub`)
+- Example path: `demos/python/vector-search/`
+
+### Required Files
+
+Every demo **must** include:
+
+| File | Purpose |
+|------|---------|
+| `README.md` | Overview, prerequisites, how to run, expected output |
+| `docker-compose.yml` | One-command run experience (starts Valkey + demo) |
+| Dependency file | `requirements.txt`, `go.mod`, `package.json`, etc. |
+| Source code | Minimal implementation demonstrating the use case |
+| `.gitignore` | Exclude binaries, venvs, node_modules, etc. |
+
+### Guidelines
+
+- **Single use case** — each demo illustrates exactly one Valkey feature or pattern
+- **Minimal code** — only what's necessary to demonstrate the concept
+- **Runs in under 5 minutes** — quick to clone and execute
+- **No UI scaffolding** — focus on the Valkey interaction, not application chrome
+- **Self-contained** — no dependencies on other demos or shared libraries
+
+---
+
+## Sample App Structure
+
+Sample apps are more complete applications showing how multiple Valkey use cases work together. They may include data loading utilities, admin functionality, and richer application logic. Sample apps **must** include documentation highlighting where Valkey-relevant code lives so readers can find the important parts quickly.
+
+Sample apps live under `samples/` organized by language:
+
+```
+samples/
+├── python/
+│   └── ecommerce-recommendations/
+├── typescript/
+│   └── realtime-leaderboard/
+└── go/
+    └── chat-app/
+```
+
+### Directory Naming
+
+- Language directory: lowercase (e.g., `python`, `go`, `typescript`, `java`)
+- App directory: lowercase, hyphenated app name (e.g., `ecommerce-recommendations`)
+- Example path: `samples/python/ecommerce-recommendations/`
+
+### Required Files
+
+Every sample app **must** include:
+
+| File | Purpose |
+|------|---------|
+| `README.md` | Overview, architecture, prerequisites, how to run, **Valkey code locations** |
+| `docker-compose.yml` | One-command run experience |
+| Dependency file | `requirements.txt`, `go.mod`, `package.json`, etc. |
+| `src/` | Source directory with application code |
+| `.gitignore` | Exclude binaries, venvs, node_modules, etc. |
+
+### Valkey Code Documentation
+
+The README **must** include a section highlighting where Valkey-relevant code lives:
+
+```markdown
+## Where to Find the Valkey Code
+
+| File | Valkey Feature |
+|------|---------------|
+| `src/cache.py` | Semantic caching with vector search |
+| `src/session.py` | Session management with TTL |
+| `src/pubsub.py` | Real-time notifications via Pub/Sub |
+```
+
+### Guidelines
+
+- **Multiple use cases** — demonstrate how Valkey features compose in a real application
+- **Production-like patterns** — connection pooling, error handling, retry logic
+- **Clear architecture documentation** — readers should understand the overall design
+- **Valkey code is findable** — don't bury it under layers of application framework code
+- **Data loading utilities welcome** — include scripts to seed demo data
 
 ---
 

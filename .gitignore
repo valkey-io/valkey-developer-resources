@@ -2,19 +2,71 @@
 .vscode/
 .idea/
 *.iml
-.metals
+.metals/
+*.swp
+*.swo
+*~
 
-# Gradle
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+env/
+.env
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.ipynb_checkpoints/
+
+# Node.js / TypeScript
+node_modules/
+dist/
+.npm
+*.tsbuildinfo
+.env.local
+.env.*.local
+
+# Go
+bin/
+*.exe
+*.exe~
+*.dll
+*.dylib
+
+# Java / Gradle / Maven
 .gradle/
 build/
-bin/
-
-# Local dev build artifacts
+target/
 **/.m2/
-**/target/
+*.class
+*.jar
+*.war
 
-# OS
-.DS_Store
-Thumbs.db
+# Rust
+target/
+Cargo.lock
 
+# Docker
+.docker/
 
+# General
+*.log
+*.tmp
+.env
+.env.*
+!.env.example

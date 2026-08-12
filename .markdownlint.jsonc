@@ -1,0 +1,15 @@
+{
+  "MD013": {
+    "line_length": 200,
+    "tables": false
+  },
+  "MD033": {
+    "allowed_elements": ["nobr", "br"]
+  },
+  "MD024": {
+    "siblings_only": true
+  },
+  "MD026": {
+    "punctuation": ".,;:!"
+  }
+}
