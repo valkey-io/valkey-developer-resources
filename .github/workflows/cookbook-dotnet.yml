@@ -1,0 +1,120 @@
+name: .NET Cookbook Validation
+
+on:
+  workflow_call:
+  push:
+    branches: [main]
+    paths:
+      - "cookbooks/framework-integrations/**"
+      - ".github/workflows/cookbook-dotnet.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "cookbooks/framework-integrations/**"
+      - ".github/workflows/cookbook-dotnet.yml"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  documentation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Lint framework-integration cookbook Markdown
+        uses: DavidAnson/markdownlint-cli2-action@05f32210e84442804257b2a6f20b273450ec8265 # v19
+        with:
+          globs: "cookbooks/framework-integrations/**/*.md"
+      - name: Check framework-integration cookbook links
+        uses: lycheeverse/lychee-action@8646ba30535128ac92d33dfc9133794bfdd9b411 # v2
+        with:
+          args: "--no-progress cookbooks/framework-integrations/**/*.md"
+          fail: true
+          failIfEmpty: false
+
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      has-projects: ${{ steps.projects.outputs.has-projects }}
+      projects: ${{ steps.projects.outputs.projects }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+      - name: Detect changed .NET cookbook projects
+        id: filter
+        # dorny/paths-filter v3.0.2 (immutable commit SHA)
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36
+        with:
+          list-files: json
+          filters: |
+            dotnet:
+              - 'cookbooks/framework-integrations/**'
+              - '.github/workflows/cookbook-dotnet.yml'
+      - name: Build project matrix
+        id: projects
+        env:
+          CHANGED_FILES: ${{ steps.filter.outputs.dotnet_files }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [[ "${{ steps.filter.outputs.dotnet }}" == "true" || "$EVENT_NAME" == "workflow_call" ]]; then
+            projects=$(find cookbooks/framework-integrations -type f -path '*/sample/*.csproj' -print | sort | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          else
+            projects=$(jq -c '[.[] | select(endswith(".csproj"))]' <<< "$CHANGED_FILES")
+          fi
+          matrix=$(jq -c '[.[] | {project: ., working_directory: (sub("/[^/]+$"; ""))}]' <<< "$projects")
+          if [[ "$matrix" == "[]" ]]; then
+            echo 'has-projects=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'has-projects=true' >> "$GITHUB_OUTPUT"
+          fi
+          echo "projects=$matrix" >> "$GITHUB_OUTPUT"
+
+  validate:
+    needs: detect
+    if: needs.detect.outputs.has-projects == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJSON(needs.detect.outputs.projects) }}
+        valkey:
+          - version: 8.1.x
+            image-tag: 8.1.1
+          - version: 9.1.0
+            image-tag: 9.1.0
+    name: ${{ matrix.project.project }} / Valkey ${{ matrix.valkey.version }}
+    services:
+      valkey:
+        image: valkey/valkey-bundle:${{ matrix.valkey.image-tag }}
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Set up .NET 8 SDK
+        uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v5.0.0
+        with:
+          dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: ${{ matrix.project.working_directory }}/packages.lock.json
+      - name: Restore locked dependencies
+        working-directory: ${{ matrix.project.working_directory }}
+        run: dotnet restore --locked-mode --force-evaluate
+      - name: Build without restoring
+        working-directory: ${{ matrix.project.working_directory }}
+        run: dotnet build --no-restore --configuration Release
+      - name: Run contract tests
+        working-directory: ${{ matrix.project.working_directory }}
+        run: dotnet run --no-build --configuration Release -- --contract-tests
+      - name: Run sample against Valkey
+        working-directory: ${{ matrix.project.working_directory }}
+        run: dotnet run --no-build --configuration Release

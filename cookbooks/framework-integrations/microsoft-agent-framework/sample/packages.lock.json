@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net8.0": {
+      "Valkey.Glide": {
+        "type": "Direct",
+        "requested": "[1.1.0, )",
+        "resolved": "1.1.0",
+        "contentHash": "2FGXxmgqDUQTfl/gegh+tVe2jvaXIHKShRDKK+WF11mJTlJmCSL4MdEpyt4Ujx0fjknqfATrfJnjAevFtAYwxA=="
+      }
+    }
+  }
+}
