@@ -1,0 +1,15 @@
+{
+  "name": "helicone-valkey-sample",
+  "version": "1.0.0",
+  "description": "Sample code demonstrating how Helicone uses Valkey for caching, rate limiting, and encrypted key storage",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.mjs"
+  },
+  "dependencies": {
+    "ioredis": "5.7.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

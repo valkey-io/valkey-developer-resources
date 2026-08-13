@@ -1,0 +1,36 @@
+name: Cookbook - Helicone
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cookbooks/framework-integrations/helicone/**"
+      - ".github/workflows/cookbook-helicone.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "cookbooks/framework-integrations/helicone/**"
+      - ".github/workflows/cookbook-helicone.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      valkey:
+        image: valkey/valkey:8.1-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+      - run: npm ci
+        working-directory: cookbooks/framework-integrations/helicone/sample
+      - run: npm test
+        working-directory: cookbooks/framework-integrations/helicone/sample
