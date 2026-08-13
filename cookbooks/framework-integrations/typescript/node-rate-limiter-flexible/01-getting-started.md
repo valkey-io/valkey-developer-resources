@@ -6,7 +6,8 @@
 
 ## What is node-rate-limiter-flexible?
 
-[rate-limiter-flexible](https://github.com/animir/node-rate-limiter-flexible) is the most popular Node.js rate-limiting library (3.5k+ stars). It provides atomic, race-condition-free rate limiting with multiple backend stores.
+[rate-limiter-flexible](https://github.com/animir/node-rate-limiter-flexible) is the most popular Node.js rate-limiting library (3.5k+ stars).
+It provides atomic, race-condition-free rate limiting with multiple backend stores.
 The `RateLimiterValkeyGlide` class uses Valkey server-side functions for atomic increment-and-check in a single round trip:
 
   * **Atomic operations** — Lua functions on the server prevent race conditions

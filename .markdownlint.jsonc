@@ -1,5 +1,8 @@
 {
-  "MD013": false,
+  "MD013": {
+    "line_length": 200,
+    "tables": false
+  },
   "MD033": {
     "allowed_elements": ["nobr", "br"]
   },
@@ -10,7 +13,5 @@
     "punctuation": ".,;:!"
   },
   "MD040": false,
-  "MD041": false,
-  "MD007": false,
-  "MD060": false
+  "MD041": false
 }
