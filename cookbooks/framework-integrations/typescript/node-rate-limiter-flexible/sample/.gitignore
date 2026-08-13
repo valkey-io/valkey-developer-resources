@@ -1,4 +1,33 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
 *.js
-!docker-compose.yml
+*.js.map
+*.d.ts
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Valkey
+dump.rdb
+
+# npm
+.npm
+npm-debug.log*
+
+# Test / coverage
+coverage/
+.nyc_output/
