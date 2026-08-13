@@ -33,21 +33,21 @@ The default path runs entirely locally. An optional section shows how to swap in
     <dependency>
         <groupId>dev.langchain4j</groupId>
         <artifactId>langchain4j</artifactId>
-        <version>1.0.0</version>
+        <version>1.17.2</version>
     </dependency>
 
     <!-- Valkey embedding store -->
     <dependency>
         <groupId>dev.langchain4j</groupId>
         <artifactId>langchain4j-community-valkey</artifactId>
-        <version>1.0.0-beta3</version>
+        <version>1.17.2-beta27</version>
     </dependency>
 
     <!-- Local embedding model (no API key needed) -->
     <dependency>
         <groupId>dev.langchain4j</groupId>
         <artifactId>langchain4j-embeddings-all-minilm-l6-v2</artifactId>
-        <version>1.0.0-beta3</version>
+        <version>1.17.2-beta27</version>
     </dependency>
 </dependencies>
 ```
@@ -281,7 +281,7 @@ For production workloads with larger embedding dimensions and higher-quality ans
 <dependency>
     <groupId>dev.langchain4j</groupId>
     <artifactId>langchain4j-bedrock</artifactId>
-    <version>1.0.0</version>
+    <version>1.17.2</version>
 </dependency>
 ```
 

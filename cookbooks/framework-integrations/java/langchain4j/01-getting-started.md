@@ -19,7 +19,7 @@ HNSW indexing, native JSON storage, and automatic index management via the offic
 ## Step 1: Start Valkey
 
 ```bash
-docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:8.1.1
+docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:9.1.1
 ```
 
 > **Note:** All examples use `docker`. Substitute `podman` if that's your container runtime — the commands are identical.
@@ -45,14 +45,14 @@ docker exec valkey valkey-cli PING
 <dependency>
     <groupId>dev.langchain4j</groupId>
     <artifactId>langchain4j-community-valkey</artifactId>
-    <version>1.0.0-beta3</version>
+    <version>1.17.2-beta27</version>
 </dependency>
 ```
 
 **Gradle:**
 
 ```groovy
-implementation 'dev.langchain4j:langchain4j-community-valkey:1.0.0-beta3'
+implementation 'dev.langchain4j:langchain4j-community-valkey:1.17.2-beta27'
 ```
 
 > **Note:** The sample [`pom.xml`](sample/pom.xml) is the source of truth for tested version combinations.

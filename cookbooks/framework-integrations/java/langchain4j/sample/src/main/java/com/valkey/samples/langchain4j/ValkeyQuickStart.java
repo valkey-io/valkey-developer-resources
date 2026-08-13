@@ -20,7 +20,7 @@ import java.util.List;
  * Demonstrates: connecting to Valkey, storing embeddings, and running similarity search.
  *
  * Prerequisites:
- *   docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:8.1.1
+ *   docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:9.1.1
  */
 public class ValkeyQuickStart {
 

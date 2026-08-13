@@ -22,8 +22,8 @@ jobs:
         with:
           filters: |
             java-cookbooks:
-              - 'cookbooks/**/pom.xml'
-              - 'cookbooks/**/src/**/*.java'
+              - 'cookbooks/framework-integrations/java/**/pom.xml'
+              - 'cookbooks/framework-integrations/java/**/src/**/*.java'
 
   java-compile:
     needs: detect-changes
@@ -40,10 +40,10 @@ jobs:
           java-version: "17"
           cache: "maven"
       - name: Compile
-        working-directory: cookbooks/framework-integrations/${{ matrix.cookbook }}/sample
+        working-directory: cookbooks/framework-integrations/java/${{ matrix.cookbook }}/sample
         run: mvn compile -B -q
       - name: Verify dependency convergence
-        working-directory: cookbooks/framework-integrations/${{ matrix.cookbook }}/sample
+        working-directory: cookbooks/framework-integrations/java/${{ matrix.cookbook }}/sample
         continue-on-error: true
         run: mvn dependency:analyze -B -q
 
@@ -74,5 +74,5 @@ jobs:
           java-version: "17"
           cache: "maven"
       - name: Run integration tests (Valkey ${{ matrix.valkey-version }})
-        working-directory: cookbooks/framework-integrations/${{ matrix.cookbook }}/sample
+        working-directory: cookbooks/framework-integrations/java/${{ matrix.cookbook }}/sample
         run: mvn verify -B
