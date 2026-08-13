@@ -1,5 +1,7 @@
 # Advanced Patterns
 
+> Implement insurance failover, in-memory blocking, token-aware AI workload limiting, and escalating penalties for repeat offenders.
+
 **Advanced** · TypeScript · ~20 min
 
 ## Insurance Strategy (Failover to In-Memory)

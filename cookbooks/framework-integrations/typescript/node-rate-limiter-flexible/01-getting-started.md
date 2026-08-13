@@ -1,5 +1,7 @@
 # Getting Started with node-rate-limiter-flexible + Valkey
 
+> Set up distributed rate limiting in under 10 minutes using rate-limiter-flexible with Valkey as the atomic backing store.
+
 **Beginner** · TypeScript · ~10 min
 
 ## What is node-rate-limiter-flexible?
@@ -19,6 +21,10 @@ Docker and Node.js 20+ required.
 ```bash
 docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:8.1.7
 ```
+
+> ⚠️ **Security:** These examples use no authentication or TLS for simplicity.
+> For any non-localhost deployment, enable authentication and TLS.
+> See the [Valkey security documentation](https://valkey.io/topics/security/).
 
 Verify:
 
@@ -140,5 +146,7 @@ The library registers a Lua function on the Valkey server (via `FUNCTION LOAD`) 
 ```bash
 docker stop valkey && docker rm valkey
 ```
+
+---
 
 [Next: 02 Middleware Patterns →](02-middleware-patterns.md)

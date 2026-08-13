@@ -1,5 +1,7 @@
 # Middleware Patterns
 
+> Build reusable Express and Fastify middleware for per-route, per-user, and variable-cost rate limiting with proper 429 responses.
+
 **Intermediate** · TypeScript · ~15 min
 
 ## Express Middleware
