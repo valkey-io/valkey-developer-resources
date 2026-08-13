@@ -10,10 +10,10 @@
 It provides atomic, race-condition-free rate limiting with multiple backend stores.
 The `RateLimiterValkeyGlide` class uses Valkey server-side functions for atomic increment-and-check in a single round trip:
 
-  * **Atomic operations** — Lua functions on the server prevent race conditions
-  * **Sub-millisecond** — ~0.7ms average in cluster mode
-  * **Flexible algorithms** — Fixed window, sliding window, token bucket
-  * **Insurance strategy** — Automatic failover to in-memory if Valkey is down
+* **Atomic operations** — Lua functions on the server prevent race conditions
+* **Sub-millisecond** — ~0.7ms average in cluster mode
+* **Flexible algorithms** — Fixed window, sliding window, token bucket
+* **Insurance strategy** — Automatic failover to in-memory if Valkey is down
 
 ## Step 1: Start Valkey
 
