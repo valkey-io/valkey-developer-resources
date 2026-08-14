@@ -30,7 +30,7 @@ increasing hit rates significantly.
 Start Valkey Bundle, which includes the Search module needed for vector indexing:
 
 ```bash
-docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:9.1.0
+docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.0
 ```
 
 > **Note:** All examples use `docker`. Substitute `podman` if that's your container runtime — the commands are identical.

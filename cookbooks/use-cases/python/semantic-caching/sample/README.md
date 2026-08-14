@@ -13,7 +13,7 @@
 
 ```bash
 # 1. Start Valkey
-docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:9.1.0
+docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.0
 
 # 2. Pull the embedding model
 ollama pull nomic-embed-text
