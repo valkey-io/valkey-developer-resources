@@ -10,4 +10,4 @@ Cookbooks provide focused examples for using Valkey with AI frameworks and appli
 
 | Framework | Description |
 | --- | --- |
-| <nobr>[Mem0](cookbooks/framework-integrations/mem0/)</nobr> | Use Mem0's memory API with Valkey for scoped, searchable agent memory and vector retrieval. |
+| <nobr>[Mem0](cookbooks/framework-integrations/python/mem0/)</nobr> | Use Mem0's memory API with Valkey for scoped, searchable agent memory and vector retrieval. |

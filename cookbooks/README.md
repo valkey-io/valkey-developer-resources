@@ -6,4 +6,4 @@
 
 | Framework | Description |
 | --- | --- |
-| <nobr>[Mem0](framework-integrations/mem0/)</nobr> | Use Mem0's memory API with Valkey for scoped, searchable agent memory and vector retrieval. |
+| <nobr>[Mem0](framework-integrations/python/mem0/)</nobr> | Use Mem0's memory API with Valkey for scoped, searchable agent memory and vector retrieval. |

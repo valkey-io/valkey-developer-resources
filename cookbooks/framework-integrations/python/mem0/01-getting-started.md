@@ -48,6 +48,9 @@ The bundle includes the Search module required by Mem0's Valkey provider.
 > **Security:** This local example uses no authentication or TLS. For any
 > non-localhost deployment, enable authentication and TLS. See the
 > [Valkey security documentation](https://valkey.io/topics/security/).
+
+<!-- markdownlint-disable-next-line MD028 -->
+
 > **Note:** Substitute `podman` for `docker` if Podman is your container
 > runtime.
 
