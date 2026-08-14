@@ -304,29 +304,29 @@ class TestValkeyRoundTrip:
 
     def test_store_and_hit(self):
         async def _run():
-            client = await create_client()
+            valkeyClient = await create_client()
             try:
                 key = cache_key(MODEL_NAME, "round trip test prompt")
                 payload = b"\x00\x01\x02" * 100
-                await client.set(key, payload)
-                assert await client.exists([key])
-                retrieved = await client.get(key)
+                await valkeyClient.set(key, payload)
+                assert await valkeyClient.exists([key])
+                retrieved = await valkeyClient.get(key)
                 assert retrieved == payload
-                await client.delete([key])
+                await valkeyClient.delete([key])
             finally:
-                await client.close()
+                await valkeyClient.close()
 
         asyncio.run(_run())
 
     def test_miss_for_unstored_key(self):
         async def _run():
-            client = await create_client()
+            valkeyClient = await create_client()
             try:
                 key = cache_key(MODEL_NAME, "never stored prompt")
-                assert not await client.exists([key])
-                assert await client.get(key) is None
+                assert not await valkeyClient.exists([key])
+                assert await valkeyClient.get(key) is None
             finally:
-                await client.close()
+                await valkeyClient.close()
 
         asyncio.run(_run())
 

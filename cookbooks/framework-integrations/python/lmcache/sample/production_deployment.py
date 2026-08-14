@@ -149,12 +149,12 @@ def validate_mp_config(adapter: dict) -> None:
 async def monitor_cache_stats(host: str, port: int) -> None:
     """Query Valkey for cache-related metrics via a real GLIDE client."""
     print("\n--- Valkey Cache Metrics ---")
-    client = await create_client(host, port)
+    valkeyClient = await create_client(host, port)
     try:
-        dbsize = await client.dbsize()
+        dbsize = await valkeyClient.dbsize()
         print(f"Total keys (KV cache chunks stored): {dbsize}")
 
-        stats = await client.custom_command(["INFO", "stats"])
+        stats = await valkeyClient.custom_command(["INFO", "stats"])
         stats_text = stats.decode() if isinstance(stats, bytes) else str(stats)
         hits = misses = 0
         for line in stats_text.splitlines():
@@ -168,13 +168,13 @@ async def monitor_cache_stats(host: str, port: int) -> None:
         else:
             print("No keyspace activity yet.")
 
-        memory = await client.custom_command(["INFO", "memory"])
+        memory = await valkeyClient.custom_command(["INFO", "memory"])
         memory_text = memory.decode() if isinstance(memory, bytes) else str(memory)
         for line in memory_text.splitlines():
             if line.startswith("used_memory_human:"):
                 print(f"Memory usage: {line.split(':', 1)[1]}")
     finally:
-        await client.close()
+        await valkeyClient.close()
 
 
 def main() -> None:
