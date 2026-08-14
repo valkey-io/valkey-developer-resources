@@ -65,7 +65,7 @@ public class RagPipelineExample {
         // ---------------------------------------------------------
 
         // 3. Create embedding store
-        ValkeyEmbeddingStore store = ValkeyEmbeddingStore.builder()
+        ValkeyEmbeddingStore valkeyStore = ValkeyEmbeddingStore.builder()
                 .client(client)
                 .dimension(384)
                 .indexName("rag-demo")
@@ -103,7 +103,7 @@ public class RagPipelineExample {
         );
 
         List<Embedding> embeddings = embeddingModel.embedAll(docs).content();
-        List<String> ids = store.addAll(embeddings, docs);
+        List<String> ids = valkeyStore.addAll(embeddings, docs);
         System.out.println("Ingested " + ids.size() + " documents into Valkey\n");
 
         // 5. Demonstrate retrieval (the "R" in RAG)
@@ -119,7 +119,7 @@ public class RagPipelineExample {
             System.out.println("Q: " + question);
 
             Embedding queryEmb = embeddingModel.embed(question).content();
-            EmbeddingSearchResult<TextSegment> results = store.search(
+            EmbeddingSearchResult<TextSegment> results = valkeyStore.search(
                     EmbeddingSearchRequest.builder()
                             .queryEmbedding(queryEmb)
                             .maxResults(2)
@@ -149,7 +149,7 @@ public class RagPipelineExample {
         // Assistant assistant = AiServices.builder(Assistant.class)
         //         .chatModel(chatModel)
         //         .contentRetriever(EmbeddingStoreContentRetriever.builder()
-        //                 .embeddingStore(store)
+        //                 .embeddingStore(valkeyStore)
         //                 .embeddingModel(embeddingModel)
         //                 .maxResults(3)
         //                 .minScore(0.5)
@@ -160,8 +160,8 @@ public class RagPipelineExample {
         // ---------------------------------------------------------
 
         // 6. Cleanup
-        store.removeAll(ids);
-        store.close();
+        valkeyStore.removeAll(ids);
+        valkeyStore.close();
         System.out.println("Done! Cleaned up and closed connection.");
     }
 }

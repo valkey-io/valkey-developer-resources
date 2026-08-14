@@ -53,14 +53,14 @@ public class MetadataFilteringExample {
                 "year", new FieldInfo("$.year", "year", new NumericField())
         );
 
-        ValkeyEmbeddingStore store = ValkeyEmbeddingStore.builder()
+        ValkeyEmbeddingStore valkeyStore = ValkeyEmbeddingStore.builder()
                 .client(client)
                 .dimension(384)
                 .indexName("filtered-docs")
                 .prefix("filtered:")
                 .metadataConfig(metadataConfig)
                 .build();
-        System.out.println("Created store with metadata schema (category=TAG, year=NUMERIC)\n");
+        System.out.println("Created valkeyStore with metadata schema (category=TAG, year=NUMERIC)\n");
 
         // 4. Ingest documents with metadata
         List<TextSegment> docs = List.of(
@@ -82,7 +82,7 @@ public class MetadataFilteringExample {
         );
 
         List<Embedding> embeddings = embeddingModel.embedAll(docs).content();
-        List<String> ids = store.addAll(embeddings, docs);
+        List<String> ids = valkeyStore.addAll(embeddings, docs);
         System.out.println("Stored " + ids.size() + " documents with metadata\n");
 
         // 5. Search with TAG filter: only "security" category
@@ -90,7 +90,7 @@ public class MetadataFilteringExample {
         Filter securityFilter = metadataKey("category").isEqualTo("security");
         Embedding query1 = embeddingModel.embed("encryption best practices").content();
 
-        EmbeddingSearchResult<TextSegment> results1 = store.search(
+        EmbeddingSearchResult<TextSegment> results1 = valkeyStore.search(
                 EmbeddingSearchRequest.builder()
                         .queryEmbedding(query1)
                         .maxResults(5)
@@ -104,7 +104,7 @@ public class MetadataFilteringExample {
         Filter recentFilter = metadataKey("year").isGreaterThanOrEqualTo(2025);
         Embedding query2 = embeddingModel.embed("performance optimization").content();
 
-        EmbeddingSearchResult<TextSegment> results2 = store.search(
+        EmbeddingSearchResult<TextSegment> results2 = valkeyStore.search(
                 EmbeddingSearchRequest.builder()
                         .queryEmbedding(query2)
                         .maxResults(5)
@@ -119,7 +119,7 @@ public class MetadataFilteringExample {
                 .and(metadataKey("year").isGreaterThanOrEqualTo(2025));
         Embedding query3 = embeddingModel.embed("secure connections").content();
 
-        EmbeddingSearchResult<TextSegment> results3 = store.search(
+        EmbeddingSearchResult<TextSegment> results3 = valkeyStore.search(
                 EmbeddingSearchRequest.builder()
                         .queryEmbedding(query3)
                         .maxResults(5)
@@ -134,7 +134,7 @@ public class MetadataFilteringExample {
                 .or(metadataKey("category").isEqualTo("performance"));
         Embedding query4 = embeddingModel.embed("Valkey best practices").content();
 
-        EmbeddingSearchResult<TextSegment> results4 = store.search(
+        EmbeddingSearchResult<TextSegment> results4 = valkeyStore.search(
                 EmbeddingSearchRequest.builder()
                         .queryEmbedding(query4)
                         .maxResults(5)
@@ -146,13 +146,13 @@ public class MetadataFilteringExample {
         // 9. Remove by filter: delete all 2024 docs
         System.out.println("--- Removing documents where year < 2025 ---");
         Filter oldDocs = metadataKey("year").isLessThan(2025);
-        store.removeAll(oldDocs);
+        valkeyStore.removeAll(oldDocs);
         System.out.println("Removed old documents\n");
 
         // Verify removal
         System.out.println("--- Searching all remaining docs ---");
         Embedding query5 = embeddingModel.embed("Valkey").content();
-        EmbeddingSearchResult<TextSegment> remaining = store.search(
+        EmbeddingSearchResult<TextSegment> remaining = valkeyStore.search(
                 EmbeddingSearchRequest.builder()
                         .queryEmbedding(query5)
                         .maxResults(10)
@@ -161,8 +161,10 @@ public class MetadataFilteringExample {
         printResults(remaining);
 
         // 10. Cleanup
-        store.removeAll(ids);
-        store.close();
+        valkeyStore.removeAll(ids);
+        // Note: close() on ValkeyEmbeddingStore also closes the underlying GlideClient.
+        // Do not reuse the client after this call.
+        valkeyStore.close();
         System.out.println("Done! Cleaned up and closed connection.");
     }
 

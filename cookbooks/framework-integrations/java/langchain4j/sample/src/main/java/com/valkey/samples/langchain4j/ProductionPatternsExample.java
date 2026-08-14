@@ -54,7 +54,7 @@ public class ProductionPatternsExample {
         // The store creates an HNSW index with COSINE distance on first use.
         // For custom HNSW tuning (M, EF_CONSTRUCTION), pre-create the index
         // with FT.CREATE before building the store (see cookbook 04 docs).
-        ValkeyEmbeddingStore store = ValkeyEmbeddingStore.builder()
+        ValkeyEmbeddingStore valkeyStore = ValkeyEmbeddingStore.builder()
                 .client(client)
                 .indexName("production-index")
                 .prefix("prod:")
@@ -81,7 +81,7 @@ public class ProductionPatternsExample {
             List<TextSegment> batch = allSegments.subList(i, end);
             List<Embedding> batchEmbeddings = allEmbeddings.subList(i, end);
 
-            store.addAll(batchEmbeddings, batch);
+            valkeyStore.addAll(batchEmbeddings, batch);
             System.out.printf("  Ingested %d/%d documents%n", end, allSegments.size());
         }
 
@@ -109,7 +109,7 @@ public class ProductionPatternsExample {
                 futures.add(CompletableFuture.runAsync(() -> {
                     List<TextSegment> batch = moreSegments.subList(start, end);
                     List<Embedding> embs = moreEmbeddings.subList(start, end);
-                    store.addAll(embs, batch);
+                    valkeyStore.addAll(embs, batch);
                 }, executor));
             }
 
@@ -130,7 +130,7 @@ public class ProductionPatternsExample {
         Embedding queryEmbedding = embeddingModel.embed("vector search performance").content();
 
         // Warm up
-        store.search(EmbeddingSearchRequest.builder()
+        valkeyStore.search(EmbeddingSearchRequest.builder()
                 .queryEmbedding(queryEmbedding).maxResults(5).build());
 
         // Measure search latency
@@ -139,7 +139,7 @@ public class ProductionPatternsExample {
         EmbeddingSearchResult<TextSegment> lastResult = null;
 
         for (int i = 0; i < searchIterations; i++) {
-            lastResult = store.search(EmbeddingSearchRequest.builder()
+            lastResult = valkeyStore.search(EmbeddingSearchRequest.builder()
                     .queryEmbedding(queryEmbedding)
                     .maxResults(5)
                     .minScore(0.3)
@@ -175,7 +175,7 @@ public class ProductionPatternsExample {
 
         // Demonstrate graceful degradation on search
         try {
-            EmbeddingSearchResult<TextSegment> results = store.search(
+            EmbeddingSearchResult<TextSegment> results = valkeyStore.search(
                     EmbeddingSearchRequest.builder()
                             .queryEmbedding(queryEmbedding)
                             .maxResults(3)
@@ -215,9 +215,13 @@ public class ProductionPatternsExample {
         // ============================================================
         System.out.println("\n--- Cleanup ---");
 
-        // Remove data first, then drop indexes, then close
+        // Remove data first, then drop indexes, then close.
+        // Note: The simpler examples (01, 02) only call removeAll() + close(),
+        // leaving the index intact for re-runs. This production example drops
+        // indexes explicitly because it creates multiple temporary indexes to
+        // demonstrate index lifecycle management.
         try {
-            store.removeAll();
+            valkeyStore.removeAll();
         } catch (Exception e) { /* best-effort */ }
         try {
             ragStore.close();
@@ -232,8 +236,9 @@ public class ProductionPatternsExample {
             client.customCommand(new String[]{"FT.DROPINDEX", "cache-store"}).get();
         } catch (Exception e) { /* best-effort */ }
 
-        // close() on the store closes the shared client — call last
-        store.close();
+        // close() on the store closes the shared GlideClient — call last.
+        // Do not reuse the client after this point.
+        valkeyStore.close();
 
         System.out.println("\nDone! All production patterns demonstrated.");
     }
