@@ -1,0 +1,75 @@
+version: v0.3
+
+listeners:
+  - name: http-8888
+    address: 0.0.0.0
+    port: 8888
+    timeout: 300s
+
+providers:
+  defaults:
+    default_model: demo-model
+  models:
+    - name: demo-model
+      provider_model_id: demo-model
+      backend_refs:
+        - name: upstream-model
+          endpoint: host.docker.internal:8000
+          protocol: http
+          weight: 1
+
+routing:
+  modelCards:
+    - name: demo-model
+      modality: text
+  decisions:
+    - name: default-route
+      description: Default route with the Valkey semantic cache enabled.
+      priority: 1
+      rules:
+        operator: AND
+        conditions: []
+      modelRefs:
+        - model: demo-model
+          use_reasoning: false
+      plugins:
+        - type: semantic-cache
+          configuration:
+            enabled: true
+            similarity_threshold: 0.85
+            ttl_seconds: 3600
+
+global:
+  stores:
+    semantic_cache:
+      enabled: true
+      backend_type: valkey
+      similarity_threshold: 0.85
+      ttl_seconds: 3600
+      embedding_model: bert
+      valkey:
+        connection:
+          host: host.docker.internal
+          port: 6379
+          database: 0
+          password: ""
+          timeout: 5
+          tls:
+            enabled: false
+        index:
+          name: semantic_cache_idx
+          prefix: "doc:"
+          vector_field:
+            name: embedding
+            dimension: 384
+            metric_type: COSINE
+          index_type: HNSW
+          params:
+            M: 16
+            efConstruction: 64
+        search:
+          topk: 1
+        development:
+          drop_index_on_startup: false
+          auto_create_index: true
+          verbose_errors: true
