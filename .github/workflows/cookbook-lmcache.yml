@@ -1,17 +1,17 @@
 # TODO: Remove this temporary copy after PR #45's shared Python workflow is
-# merged and includes framework-integrations/lmcache.
+# merged and includes framework-integrations/python/lmcache.
 name: LMCache Cookbook Validation
 
 on:
   push:
     branches: [main]
     paths:
-      - "cookbooks/framework-integrations/lmcache/sample/**"
+      - "cookbooks/framework-integrations/python/lmcache/sample/**"
       - ".github/workflows/cookbook-lmcache.yml"
   pull_request:
     branches: [main]
     paths:
-      - "cookbooks/framework-integrations/lmcache/sample/**"
+      - "cookbooks/framework-integrations/python/lmcache/sample/**"
       - ".github/workflows/cookbook-lmcache.yml"
 
 jobs:
@@ -26,7 +26,7 @@ jobs:
         with:
           filters: |
             python-cookbooks:
-              - 'cookbooks/framework-integrations/lmcache/sample/**'
+              - 'cookbooks/framework-integrations/python/lmcache/sample/**'
 
   python-lint:
     needs: detect-python-changes
@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        cookbook: [framework-integrations/lmcache]
+        cookbook: [framework-integrations/python/lmcache]
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
@@ -59,7 +59,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        cookbook: [framework-integrations/lmcache]
+        cookbook: [framework-integrations/python/lmcache]
         valkey-version: ["8.1.1", "9.1.0"]
     services:
       valkey:
