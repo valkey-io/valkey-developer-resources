@@ -23,30 +23,30 @@ from main import (
 
 def test_retriever_returns_closest_document():
     """Write documents and verify KNN retrieval returns the best match."""
-    store = build_store()
+    valkeyStore = build_store()
     try:
-        store.delete_all_documents()
-        written = store.write_documents(build_documents())
+        valkeyStore.delete_all_documents()
+        written = valkeyStore.write_documents(build_documents())
         assert written == 3
 
-        result = build_retriever(store).run(query_embedding("valkey search"))
+        result = build_retriever(valkeyStore).run(query_embedding("valkey search"))
         documents = result["documents"]
 
         assert documents
         assert documents[0].id == "valkey-search"
         assert len(documents[0].embedding) == EMBEDDING_DIM
     finally:
-        cleanup_store(store)
+        cleanup_store(valkeyStore)
 
 
 def test_retriever_applies_metadata_filters():
     """Metadata filters narrow results to matching documents only."""
-    store = build_store()
+    valkeyStore = build_store()
     try:
-        store.delete_all_documents()
-        store.write_documents(build_documents())
+        valkeyStore.delete_all_documents()
+        valkeyStore.write_documents(build_documents())
 
-        result = build_retriever(store).run(
+        result = build_retriever(valkeyStore).run(
             query_embedding("retrieval"),
             filters={
                 "field": "meta.category",
@@ -57,7 +57,7 @@ def test_retriever_applies_metadata_filters():
 
         assert [doc.id for doc in result["documents"]] == ["valkey-search"]
     finally:
-        cleanup_store(store)
+        cleanup_store(valkeyStore)
 
 
 def test_build_store_uses_environment_overrides(monkeypatch):
@@ -94,5 +94,5 @@ def test_cleanup_closes_store_when_deletion_fails():
 
     store = FailingStore()
     with pytest.raises(RuntimeError, match="delete failed"):
-        cleanup_store(store)
+        cleanup_store(valkeyStore)
     assert store.closed

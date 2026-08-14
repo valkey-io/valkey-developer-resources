@@ -25,13 +25,13 @@ CACHE_TTL = 3600  # 1 hour
 LLM_MODEL = "llama3.2:1b"
 
 # --- Clients ---
-client = valkey.Valkey(host=VALKEY_HOST, port=VALKEY_PORT, socket_timeout=5.0)
+valkeyClient = valkey.Valkey(host=VALKEY_HOST, port=VALKEY_PORT, socket_timeout=5.0)
 
 
 def create_cache_index():
     """Create a vector index for the semantic cache."""
     try:
-        client.execute_command(
+        valkeyClient.execute_command(
             "FT.CREATE",
             "cache_idx",
             "ON",
@@ -72,7 +72,7 @@ def get_embedding(text: str) -> bytes:
 
 def semantic_cache_lookup(prompt: str, query_vec: bytes) -> dict:
     """Check if a semantically similar prompt is cached."""
-    results = client.execute_command(
+    results = valkeyClient.execute_command(
         "FT.SEARCH",
         "cache_idx",
         "*=>[KNN 1 @embedding $query_vec AS score]",
@@ -110,7 +110,7 @@ def semantic_cache_lookup(prompt: str, query_vec: bytes) -> dict:
 def cache_response(prompt: str, response: str, embedding_bytes: bytes):
     """Store a prompt+response in the cache."""
     cache_key = f"cache:{hashlib.md5(prompt.encode()).hexdigest()}"
-    pipe = client.pipeline()
+    pipe = valkeyClient.pipeline()
     pipe.hset(
         cache_key,
         mapping={
@@ -196,7 +196,8 @@ def main():
     hit_rate = hits / total * 100 if total > 0 else 0
     print(f"Cache Stats: {misses} misses, {hits} hits ({hit_rate:.0f}% hit rate)")
 
-    client.close()
+    # Release the Valkey connection (socket is closed; do not reuse after this)
+    valkeyClient.close()
 
 
 if __name__ == "__main__":

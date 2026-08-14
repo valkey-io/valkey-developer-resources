@@ -79,45 +79,45 @@ def query_embedding(query: str) -> list[float]:
     return [0.0, 0.0, 1.0, 0.0]
 
 
-def build_retriever(store: ValkeyDocumentStore) -> ValkeyEmbeddingRetriever:
+def build_retriever(valkeyStore: ValkeyDocumentStore) -> ValkeyEmbeddingRetriever:
     """Create a retriever configured for top-3 results."""
-    return ValkeyEmbeddingRetriever(document_store=store, top_k=3)
+    return ValkeyEmbeddingRetriever(document_store=valkeyStore, top_k=3)
 
 
-def cleanup_store(store: ValkeyDocumentStore) -> None:
+def cleanup_store(valkeyStore: ValkeyDocumentStore) -> None:
     """Remove all documents and close the connection."""
     try:
-        store.delete_all_documents()
+        valkeyStore.delete_all_documents()
     finally:
-        store.close()
+        valkeyStore.close()
 
 
 def main() -> None:
     print("=== Haystack + Valkey Demo ===\n")
 
-    store = build_store()
+    valkeyStore = build_store()
     try:
         # Clean slate
-        store.delete_all_documents()
+        valkeyStore.delete_all_documents()
 
         # Index documents
-        written = store.write_documents(build_documents())
+        written = valkeyStore.write_documents(build_documents())
         print(f"Indexed {written} documents")
 
         # Similarity search
-        results = build_retriever(store).run(query_embedding("valkey search"))
+        results = build_retriever(valkeyStore).run(query_embedding("valkey search"))
         top = results["documents"]
         print(f"Top result: {top[0].id} (score: {top[0].score:.3f})")
 
         # Metadata filtering
-        filtered = build_retriever(store).run(
+        filtered = build_retriever(valkeyStore).run(
             query_embedding("retrieval"),
             filters={"field": "meta.category", "operator": "==", "value": "search"},
         )
         print(f"Filtered result: {filtered['documents'][0].id}")
 
     finally:
-        cleanup_store(store)
+        cleanup_store(valkeyStore)
 
     print("\n=== Demo Complete ===")
 

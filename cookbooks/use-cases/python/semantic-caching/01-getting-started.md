@@ -34,7 +34,9 @@ docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.0
 ```
 
 > **Note:** All examples use `docker`. Substitute `podman` if that's your container runtime — the commands are identical.
->
+
+<!-- markdownlint-disable-next-line MD028 -->
+
 > ⚠️ **Security:** These examples use no authentication or TLS for simplicity.
 > For any non-localhost deployment, enable authentication and TLS.
 > See the [Valkey security documentation](https://valkey.io/topics/security/).
