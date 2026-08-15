@@ -26,7 +26,7 @@ instance stores first, every other instance reads instead of recomputing.
 
 ## Prerequisites
 
-- Docker or Podman installed
+- Docker installed
 - Completed [01 - Getting Started](01-getting-started.md)
 - No second GPU needed for this cookbook — see the [sample code](sample/) for what's simulated versus what a real deployment requires
 

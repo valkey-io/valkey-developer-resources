@@ -12,7 +12,7 @@ Runnable code for the [LMCache + Valkey cookbook series](../README.md).
 
 ## Prerequisites
 
-- Docker or Podman
+- Docker
 - Python 3.10 or newer (LMCache requires `>=3.10,<3.14`)
 - No API keys or external services needed
 
@@ -99,5 +99,3 @@ against a real Valkey server.
 ```bash
 docker compose down
 ```
-
-Replace `docker compose` with `podman compose` when using Podman.

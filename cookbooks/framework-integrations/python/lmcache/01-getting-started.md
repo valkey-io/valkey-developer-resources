@@ -18,7 +18,7 @@ again. Valkey serves as the remote (L2) storage backend for these cached tensors
 
 ## Prerequisites
 
-- Docker or Podman installed
+- Docker installed
 - Python 3.10 or newer (LMCache requires `>=3.10,<3.14`)
 - No API keys, GPU, or paid services needed
 
@@ -28,8 +28,6 @@ again. Valkey serves as the remote (L2) storage backend for these cached tensors
 docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey:8.1.1
 ```
 
-> **Note:** All examples use `docker`. Substitute `podman` if that's your container runtime — the commands are identical.
->
 > ⚠️ **Security:** These examples use no authentication or TLS for simplicity.
 > For any non-localhost deployment, enable authentication and TLS.
 > See the [Valkey security documentation](https://valkey.io/topics/security/).

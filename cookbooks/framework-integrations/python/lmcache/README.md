@@ -8,7 +8,7 @@ it on GPU hardware.
 
 ## Prerequisites
 
-- Docker or Podman
+- Docker
 - Python 3.10 or newer
 - No API keys, GPU, or paid services needed for the default path in this repo
 
