@@ -10,7 +10,7 @@ Haystack is a framework for building RAG pipelines and search applications. Valk
 
 ## Prerequisites
 
-- Docker or Podman installed
+- Docker installed
 - Python 3.10+
 - [Ollama](https://ollama.com/) installed and running (free, no API key needed)
 
@@ -22,8 +22,6 @@ Vector search requires the `valkey-bundle` image, which includes the Search and 
 docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.0
 ```
 
-> **Note:** All examples use `docker`. Substitute `podman` if that's your container runtime — the commands are identical.
->
 > ⚠️ **Security:** These examples use no authentication or TLS for simplicity.
 > For any non-localhost deployment, enable authentication and TLS.
 > See the [Valkey security documentation](https://valkey.io/topics/security/).
