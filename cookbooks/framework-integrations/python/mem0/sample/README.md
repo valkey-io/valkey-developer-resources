@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-- Docker or Podman
+- Docker
 - Python 3.10 or newer
 
 ## Run

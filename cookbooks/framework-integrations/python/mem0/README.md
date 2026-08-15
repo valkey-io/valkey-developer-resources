@@ -8,7 +8,7 @@ Mem0 is an open-source memory layer with a [Valkey vector-store integration](htt
 
 ## Prerequisites
 
-- Docker or Podman
+- Docker
 - Python 3.10 or newer
 - No external model credentials for the default sample path
 

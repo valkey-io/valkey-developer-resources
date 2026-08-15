@@ -8,7 +8,7 @@
 
 ## Prerequisites
 
-- Docker or Podman
+- Docker
 - Python 3.10 or newer
 - The dependencies and local Valkey instance from
   [Getting Started](01-getting-started.md)

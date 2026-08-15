@@ -8,7 +8,7 @@
 
 ## Prerequisites
 
-- Docker or Podman for local verification
+- Docker for local verification
 - Python 3.10 or newer
 - A Valkey deployment with the Search module
 - A certificate and authentication policy for non-local connections
