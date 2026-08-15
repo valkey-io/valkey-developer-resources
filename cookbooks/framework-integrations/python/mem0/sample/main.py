@@ -33,7 +33,12 @@ def build_memory(collection_name: str = COLLECTION_NAME) -> Memory:
                     "hnsw_ef_runtime": 10,
                 },
             },
-            # infer=False means this sample never calls the configured LLM.
+            # This sample is credential-free: infer=False skips LLM fact
+            # extraction and the embedder is replaced with MockEmbeddings below,
+            # so neither provider below is ever contacted. The nominal "openai"
+            # provider is used only because it constructs lazily (no connection
+            # at init). Real usage configures Ollama or OpenRouter per the
+            # cookbook (see 01-getting-started.md).
             "llm": {
                 "provider": "openai",
                 "config": {
@@ -41,7 +46,7 @@ def build_memory(collection_name: str = COLLECTION_NAME) -> Memory:
                     "model": "gpt-4o-mini",
                 },
             },
-            # Replace the provider instance below with Mem0's built-in local mock.
+            # Replaced with Mem0's built-in local mock after construction.
             "embedder": {
                 "provider": "openai",
                 "config": {
@@ -65,11 +70,11 @@ def reset_memory(memory: Memory) -> None:
     Uses Mem0 internal ``vector_store.client`` and ``collection_name``
     attributes; this sample is pinned to mem0ai==2.0.12.
     """
-    client = memory.vector_store.client
-    for key in client.scan_iter(
+    valkeyClient = memory.vector_store.client
+    for key in valkeyClient.scan_iter(
         match=f"mem0:{memory.collection_name}:*"
     ):
-        client.delete(key)
+        valkeyClient.delete(key)
     memory.reset()
 
 

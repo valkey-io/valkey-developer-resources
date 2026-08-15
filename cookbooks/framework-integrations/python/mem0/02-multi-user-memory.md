@@ -13,9 +13,8 @@
 - The dependencies and local Valkey instance from
   [Getting Started](01-getting-started.md)
 
-The API examples use OpenAI for embeddings and fact extraction and require an
-`OPENAI_API_KEY`. The runnable sample uses deterministic local embeddings
-instead.
+The API examples use Ollama for embeddings and fact extraction (no API key
+required). The runnable sample uses deterministic local embeddings instead.
 
 ## Memory Isolation
 
@@ -31,8 +30,6 @@ Valkey:
 ## Step 1: Setup
 
 ```python
-import os
-
 from mem0 import Memory
 
 config = {
@@ -41,22 +38,23 @@ config = {
         "config": {
             "valkey_url": "valkey://localhost:6379?socket_timeout=5",
             "collection_name": "multi_user_app",
-            "embedding_model_dims": 1536,
+            "embedding_model_dims": 768,
             "index_type": "hnsw",
         },
     },
     "llm": {
-        "provider": "openai",
+        "provider": "ollama",
         "config": {
-            "api_key": os.environ["OPENAI_API_KEY"],
-            "model": "gpt-4o-mini",
+            "model": "llama3.2",
+            "ollama_base_url": "http://localhost:11434",
         },
     },
     "embedder": {
-        "provider": "openai",
+        "provider": "ollama",
         "config": {
-            "api_key": os.environ["OPENAI_API_KEY"],
-            "model": "text-embedding-3-small",
+            "model": "nomic-embed-text",
+            "embedding_dims": 768,
+            "ollama_base_url": "http://localhost:11434",
         },
     },
 }

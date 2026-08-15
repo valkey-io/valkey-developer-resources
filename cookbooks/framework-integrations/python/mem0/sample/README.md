@@ -78,10 +78,11 @@ workflow after PR #45's shared workflow includes this cookbook.
 ## Optional LLM and Embeddings
 
 For an application that extracts facts with an LLM, remove `infer=False` and
-configure a supported Mem0 LLM provider. For production embeddings, configure
-a supported embedder such as OpenAI, Ollama, or a self-hosted provider. These
-paths require their own service or credentials and are not part of the default
-test path.
+configure a supported Mem0 LLM provider — Ollama (local, no key) or a cloud
+model via OpenRouter, as shown in [`../01-getting-started.md`](../01-getting-started.md).
+For embeddings, use Ollama's `nomic-embed-text` (local) or another supported
+embedder. These paths require their own service or credentials and are not part
+of the default test path.
 
 ## Teardown
 
