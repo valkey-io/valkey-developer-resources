@@ -23,7 +23,7 @@ increasing hit rates significantly.
 - Python 3.9+
 - An embedding provider — either:
   - [Ollama](https://ollama.com/) installed locally (free, no API key needed) — **default path**
-  - OpenAI API key (optional, shown as alternative)
+  - A hosted embeddings endpoint (optional, shown as alternative)
 
 ## Step 1: Start Valkey
 
@@ -131,7 +131,12 @@ def get_embedding(text: str) -> bytes:
 ```
 
 <details>
-<summary>Alternative: Using OpenAI embeddings</summary>
+<summary>Alternative: Using a hosted embedding model</summary>
+
+The local Ollama embedder above keeps the default path free and vendor-neutral.
+If you need a hosted embedder, call a provider's embeddings endpoint directly —
+note this is provider-specific. (OpenRouter is not an option here: it proxies
+chat/completions only and has no embeddings endpoint.)
 
 ```bash
 pip install openai

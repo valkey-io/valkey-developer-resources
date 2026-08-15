@@ -92,7 +92,7 @@ def test_cleanup_closes_store_when_deletion_fails():
         def close(self):
             self.closed = True
 
-    store = FailingStore()
+    valkeyStore = FailingStore()
     with pytest.raises(RuntimeError, match="delete failed"):
         cleanup_store(valkeyStore)
-    assert store.closed
+    assert valkeyStore.closed

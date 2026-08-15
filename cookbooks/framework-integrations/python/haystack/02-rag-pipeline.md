@@ -149,9 +149,12 @@ Valkey's in-memory KNN means retrieval adds ~1ms to your total latency, negligib
 | Query | `OllamaChatGenerator` | Generates the final grounded answer locally |
 
 <details>
-<summary>Alternative: Using OpenAI for generation</summary>
+<summary>Alternative: using a cloud LLM via OpenRouter</summary>
 
-If you prefer a cloud LLM, swap the generator component:
+If you prefer a hosted model, swap the generator. `OpenAIChatGenerator` is
+OpenAI-compatible, so pointing `api_base_url` at OpenRouter gives you access to
+OpenAI, Anthropic, Google, and others through one endpoint — vendor-neutral,
+no provider-specific SDK:
 
 ```bash
 pip install openai
@@ -165,13 +168,14 @@ from haystack.utils import Secret
 query_pipeline.add_component(
     "generator",
     OpenAIChatGenerator(
-        api_key=Secret.from_env_var("OPENAI_API_KEY"),
-        model="gpt-4o",
+        api_key=Secret.from_env_var("OPENROUTER_API_KEY"),
+        api_base_url="https://openrouter.ai/api/v1",
+        model="openai/gpt-4o-mini",
     ),
 )
 ```
 
-Requires `OPENAI_API_KEY` environment variable.
+Requires the `OPENROUTER_API_KEY` environment variable.
 
 </details>
 
