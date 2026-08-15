@@ -13,6 +13,7 @@ import glide.api.GlideClient;
 import glide.api.models.configuration.GlideClientConfiguration;
 import glide.api.models.configuration.NodeAddress;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -164,9 +165,20 @@ public class ProductionPatternsExample {
         Object indexInfo = valkeyClient.customCommand(new String[]{"FT.INFO", "production-index"}).get();
         System.out.println("FT.INFO returned successfully (index is healthy)");
 
-        // List all indexes
-        Object indexes = valkeyClient.customCommand(new String[]{"FT._LIST"}).get();
-        System.out.println("Active indexes: " + indexes);
+        // List all indexes. FT._LIST returns an array reply; GLIDE surfaces it as
+        // Object[] whose elements may be String, GlideString, or byte[] depending
+        // on the reply encoding. Decode each element so we print names, not a
+        // "[Ljava.lang.Object;@..." array reference.
+        Object listReply = valkeyClient.customCommand(new String[]{"FT._LIST"}).get();
+        List<String> indexNames = new ArrayList<>();
+        if (listReply instanceof Object[] entries) {
+            for (Object entry : entries) {
+                indexNames.add(entry instanceof byte[] bytes
+                        ? new String(bytes, StandardCharsets.UTF_8)
+                        : String.valueOf(entry));
+            }
+        }
+        System.out.println("Active indexes: " + indexNames);
 
         // ============================================================
         // SECTION 6: Error handling pattern
