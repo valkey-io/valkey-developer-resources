@@ -24,7 +24,7 @@
         -->
         <langchain4j.version>1.17.2</langchain4j.version>
         <langchain4j-community.version>1.17.2-beta27</langchain4j-community.version>
-        <valkey-glide.version>2.3.1</valkey-glide.version>
+        <valkey-glide.version>2.5.1</valkey-glide.version>
         <junit.version>5.11.4</junit.version>
     </properties>
 
@@ -65,15 +65,20 @@
             <version>${langchain4j-community.version}</version>
         </dependency>
 
-        <!-- Amazon Bedrock (optional — for RAG pipeline with cloud models) -->
+        <!-- OpenAI-compatible client (optional — for RAG with a cloud chat/embedding model).
+             Vendor-neutral: point baseUrl at OpenAI, OpenRouter, or any OpenAI-compatible
+             endpoint. OpenRouter fronts Anthropic, Google, Bedrock, Azure, and others. -->
         <dependency>
             <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-bedrock</artifactId>
+            <artifactId>langchain4j-open-ai</artifactId>
             <version>${langchain4j.version}</version>
             <optional>true</optional>
         </dependency>
 
-        <!-- Logging -->
+        <!-- Runtime SLF4J binding. Not referenced in source by design — it is the
+             logging provider that langchain4j and valkey-glide bind to at runtime.
+             Without it, SLF4J prints "No providers were found" on startup and framework
+             logs are silently dropped. Keeps demo output clean and diagnosable. -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>

@@ -20,7 +20,7 @@ import java.util.List;
  * Demonstrates: connecting to Valkey, storing embeddings, and running similarity search.
  *
  * Prerequisites:
- *   docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:9.1.1
+ *   docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.1
  */
 public class ValkeyQuickStart {
 
@@ -31,7 +31,7 @@ public class ValkeyQuickStart {
         GlideClientConfiguration config = GlideClientConfiguration.builder()
                 .address(NodeAddress.builder().host("localhost").port(6379).build())
                 .build();
-        GlideClient client = GlideClient.createClient(config).get();
+        GlideClient valkeyClient = GlideClient.createClient(config).get();
         System.out.println("Connected to Valkey");
 
         // 2. Use a local embedding model (384 dimensions, no API key needed)
@@ -40,7 +40,7 @@ public class ValkeyQuickStart {
 
         // 3. Create the embedding store
         ValkeyEmbeddingStore valkeyStore = ValkeyEmbeddingStore.builder()
-                .client(client)
+                .client(valkeyClient)
                 .dimension(384)
                 .indexName("quickstart-index")
                 .prefix("quickstart:")

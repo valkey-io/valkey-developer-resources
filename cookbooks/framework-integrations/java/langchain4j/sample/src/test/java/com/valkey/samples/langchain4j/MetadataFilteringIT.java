@@ -41,15 +41,15 @@ class MetadataFilteringIT {
 
     @Test
     void shouldFilterByTag() throws Exception {
-        GlideClient client = createClient();
+        GlideClient valkeyClient = createClient();
 
         Map<String, FieldInfo> metadataConfig = Map.of(
                 "category", new FieldInfo("$.category", "category", new TagField(',', true)),
                 "year", new FieldInfo("$.year", "year", new NumericField())
         );
 
-        ValkeyEmbeddingStore store = ValkeyEmbeddingStore.builder()
-                .client(client)
+        ValkeyEmbeddingStore valkeyStore = ValkeyEmbeddingStore.builder()
+                .client(valkeyClient)
                 .dimension(384)
                 .indexName("test-filter-tag")
                 .prefix("test-ft:")
@@ -66,13 +66,13 @@ class MetadataFilteringIT {
         );
 
         List<Embedding> embeddings = embeddingModel.embedAll(docs).content();
-        List<String> ids = store.addAll(embeddings, docs);
+        List<String> ids = valkeyStore.addAll(embeddings, docs);
 
         // When — filter by category=security
         Filter filter = metadataKey("category").isEqualTo("security");
         Embedding query = embeddingModel.embed("security best practices").content();
 
-        EmbeddingSearchResult<TextSegment> results = store.search(
+        EmbeddingSearchResult<TextSegment> results = valkeyStore.search(
                 EmbeddingSearchRequest.builder()
                         .queryEmbedding(query)
                         .maxResults(5)
@@ -87,21 +87,21 @@ class MetadataFilteringIT {
         assertThat(results.matches()).hasSizeGreaterThanOrEqualTo(1);
 
         // Cleanup
-        store.removeAll(ids);
-        store.close();
+        valkeyStore.removeAll(ids);
+        valkeyStore.close();
     }
 
     @Test
     void shouldFilterByNumericRange() throws Exception {
-        GlideClient client = createClient();
+        GlideClient valkeyClient = createClient();
 
         Map<String, FieldInfo> metadataConfig = Map.of(
                 "category", new FieldInfo("$.category", "category", new TagField(',', true)),
                 "year", new FieldInfo("$.year", "year", new NumericField())
         );
 
-        ValkeyEmbeddingStore store = ValkeyEmbeddingStore.builder()
-                .client(client)
+        ValkeyEmbeddingStore valkeyStore = ValkeyEmbeddingStore.builder()
+                .client(valkeyClient)
                 .dimension(384)
                 .indexName("test-filter-numeric")
                 .prefix("test-fn:")
@@ -118,13 +118,13 @@ class MetadataFilteringIT {
         );
 
         List<Embedding> embeddings = embeddingModel.embedAll(docs).content();
-        List<String> ids = store.addAll(embeddings, docs);
+        List<String> ids = valkeyStore.addAll(embeddings, docs);
 
         // When — filter by year >= 2025
         Filter filter = metadataKey("year").isGreaterThanOrEqualTo(2025);
         Embedding query = embeddingModel.embed("recent changes").content();
 
-        EmbeddingSearchResult<TextSegment> results = store.search(
+        EmbeddingSearchResult<TextSegment> results = valkeyStore.search(
                 EmbeddingSearchRequest.builder()
                         .queryEmbedding(query)
                         .maxResults(5)
@@ -139,21 +139,21 @@ class MetadataFilteringIT {
         );
 
         // Cleanup
-        store.removeAll(ids);
-        store.close();
+        valkeyStore.removeAll(ids);
+        valkeyStore.close();
     }
 
     @Test
     void shouldCombineFiltersWithAnd() throws Exception {
-        GlideClient client = createClient();
+        GlideClient valkeyClient = createClient();
 
         Map<String, FieldInfo> metadataConfig = Map.of(
                 "category", new FieldInfo("$.category", "category", new TagField(',', true)),
                 "year", new FieldInfo("$.year", "year", new NumericField())
         );
 
-        ValkeyEmbeddingStore store = ValkeyEmbeddingStore.builder()
-                .client(client)
+        ValkeyEmbeddingStore valkeyStore = ValkeyEmbeddingStore.builder()
+                .client(valkeyClient)
                 .dimension(384)
                 .indexName("test-filter-combined")
                 .prefix("test-fc:")
@@ -170,14 +170,14 @@ class MetadataFilteringIT {
         );
 
         List<Embedding> embeddings = embeddingModel.embedAll(docs).content();
-        List<String> ids = store.addAll(embeddings, docs);
+        List<String> ids = valkeyStore.addAll(embeddings, docs);
 
         // When — security AND 2025
         Filter filter = metadataKey("category").isEqualTo("security")
                 .and(metadataKey("year").isGreaterThanOrEqualTo(2025));
         Embedding query = embeddingModel.embed("security").content();
 
-        EmbeddingSearchResult<TextSegment> results = store.search(
+        EmbeddingSearchResult<TextSegment> results = valkeyStore.search(
                 EmbeddingSearchRequest.builder()
                         .queryEmbedding(query)
                         .maxResults(5)
@@ -190,7 +190,7 @@ class MetadataFilteringIT {
         assertThat(results.matches().get(0).embedded().text()).contains("TLS");
 
         // Cleanup
-        store.removeAll(ids);
-        store.close();
+        valkeyStore.removeAll(ids);
+        valkeyStore.close();
     }
 }

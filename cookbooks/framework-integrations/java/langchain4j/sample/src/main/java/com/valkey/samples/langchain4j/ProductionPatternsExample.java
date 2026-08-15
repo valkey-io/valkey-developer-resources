@@ -27,7 +27,7 @@ import java.util.concurrent.Executors;
  * error handling, index management, and shared client patterns.
  *
  * Prerequisites:
- *   docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:9.1.1
+ *   docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.1
  */
 public class ProductionPatternsExample {
 
@@ -41,7 +41,7 @@ public class ProductionPatternsExample {
                 .address(NodeAddress.builder().host("localhost").port(6379).build())
                 .requestTimeout(10000) // 10 seconds
                 .build();
-        GlideClient client = GlideClient.createClient(config).get();
+        GlideClient valkeyClient = GlideClient.createClient(config).get();
         System.out.println("Connected to Valkey");
 
         EmbeddingModel embeddingModel = new AllMiniLmL6V2EmbeddingModel();
@@ -55,7 +55,7 @@ public class ProductionPatternsExample {
         // For custom HNSW tuning (M, EF_CONSTRUCTION), pre-create the index
         // with FT.CREATE before building the store (see cookbook 04 docs).
         ValkeyEmbeddingStore valkeyStore = ValkeyEmbeddingStore.builder()
-                .client(client)
+                .client(valkeyClient)
                 .indexName("production-index")
                 .prefix("prod:")
                 .dimension(384)
@@ -161,11 +161,11 @@ public class ProductionPatternsExample {
         System.out.println("\n--- Section 5: Index Management ---");
 
         // Check index info
-        Object indexInfo = client.customCommand(new String[]{"FT.INFO", "production-index"}).get();
+        Object indexInfo = valkeyClient.customCommand(new String[]{"FT.INFO", "production-index"}).get();
         System.out.println("FT.INFO returned successfully (index is healthy)");
 
         // List all indexes
-        Object indexes = client.customCommand(new String[]{"FT._LIST"}).get();
+        Object indexes = valkeyClient.customCommand(new String[]{"FT._LIST"}).get();
         System.out.println("Active indexes: " + indexes);
 
         // ============================================================
@@ -193,14 +193,14 @@ public class ProductionPatternsExample {
         System.out.println("\n--- Section 7: Shared Client ---");
 
         ValkeyEmbeddingStore ragStore = ValkeyEmbeddingStore.builder()
-                .client(client)
+                .client(valkeyClient)
                 .indexName("rag-store")
                 .prefix("rag:")
                 .dimension(384)
                 .build();
 
         ValkeyEmbeddingStore cacheStore = ValkeyEmbeddingStore.builder()
-                .client(client)
+                .client(valkeyClient)
                 .indexName("cache-store")
                 .prefix("cache:")
                 .dimension(384)
@@ -231,13 +231,13 @@ public class ProductionPatternsExample {
         } catch (Exception e) { /* best-effort */ }
 
         try {
-            client.customCommand(new String[]{"FT.DROPINDEX", "production-index"}).get();
-            client.customCommand(new String[]{"FT.DROPINDEX", "rag-store"}).get();
-            client.customCommand(new String[]{"FT.DROPINDEX", "cache-store"}).get();
+            valkeyClient.customCommand(new String[]{"FT.DROPINDEX", "production-index"}).get();
+            valkeyClient.customCommand(new String[]{"FT.DROPINDEX", "rag-store"}).get();
+            valkeyClient.customCommand(new String[]{"FT.DROPINDEX", "cache-store"}).get();
         } catch (Exception e) { /* best-effort */ }
 
         // close() on the store closes the shared GlideClient — call last.
-        // Do not reuse the client after this point.
+        // Do not reuse the valkeyClient after this point.
         valkeyStore.close();
 
         System.out.println("\nDone! All production patterns demonstrated.");

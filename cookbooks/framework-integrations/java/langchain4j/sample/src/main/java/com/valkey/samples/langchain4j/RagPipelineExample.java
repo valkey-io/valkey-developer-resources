@@ -28,7 +28,7 @@ import java.util.Map;
  * "Optional: Using Cloud Models" section in 03-rag-pipeline.md).
  *
  * Prerequisites:
- *   docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:9.1.1
+ *   docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.1
  */
 public class RagPipelineExample {
 
@@ -36,11 +36,10 @@ public class RagPipelineExample {
         System.out.println("=== LangChain4j + Valkey: RAG Pipeline (Retrieval) ===\n");
 
         // 1. Connect to Valkey
-        GlideClient client = GlideClient.createClient(
-                GlideClientConfiguration.builder()
-                        .address(NodeAddress.builder().host("localhost").port(6379).build())
-                        .build()
-        ).get();
+        GlideClientConfiguration config = GlideClientConfiguration.builder()
+                .address(NodeAddress.builder().host("localhost").port(6379).build())
+                .build();
+        GlideClient valkeyClient = GlideClient.createClient(config).get();
         System.out.println("Connected to Valkey");
 
         // 2. Local embedding model (384 dimensions, no API key needed)
@@ -48,25 +47,23 @@ public class RagPipelineExample {
         System.out.println("Loaded local embedding model (384 dimensions)\n");
 
         // ---------------------------------------------------------
-        // Optional: For cloud models (Bedrock), uncomment below:
+        // Optional: swap the local model for a cloud embedding model.
+        // Vendor-neutral — OpenRouter fronts OpenAI, Anthropic, Google, Bedrock, Azure,
+        // and more through one OpenAI-compatible endpoint. Set OPENROUTER_API_KEY.
         //
-        // BedrockTitanEmbeddingModel embeddingModel = BedrockTitanEmbeddingModel.builder()
-        //         .model("amazon.titan-embed-text-v2:0")
-        //         .region(Region.US_WEST_2)
-        //         .dimensions(1024)
+        // EmbeddingModel embeddingModel = OpenAiEmbeddingModel.builder()
+        //         .baseUrl("https://openrouter.ai/api/v1")
+        //         .apiKey(System.getenv("OPENROUTER_API_KEY"))
+        //         .modelName("openai/text-embedding-3-small")
         //         .build();
         //
-        // BedrockChatModel chatModel = BedrockChatModel.builder()
-        //         .modelId("us.anthropic.claude-sonnet-4-20250514-v1:0")
-        //         .region(Region.US_WEST_2)
-        //         .build();
-        //
-        // Note: Update dimension to 1024 in the store builder below
+        // Note: update the store dimension below to match the model
+        // (text-embedding-3-small = 1536).
         // ---------------------------------------------------------
 
         // 3. Create embedding store
         ValkeyEmbeddingStore valkeyStore = ValkeyEmbeddingStore.builder()
-                .client(client)
+                .client(valkeyClient)
                 .dimension(384)
                 .indexName("rag-demo")
                 .prefix("rag:")
@@ -140,7 +137,14 @@ public class RagPipelineExample {
 
         // ---------------------------------------------------------
         // Optional: Wire retrieval into an AI Service for answer generation.
-        // Requires a ChatLanguageModel (e.g., Bedrock Claude, OpenAI, Ollama).
+        // Define the chat model here, at the point of use. Vendor-neutral via
+        // OpenRouter (OpenAI-compatible) — swap baseUrl/modelName for any provider.
+        //
+        // ChatModel chatModel = OpenAiChatModel.builder()
+        //         .baseUrl("https://openrouter.ai/api/v1")
+        //         .apiKey(System.getenv("OPENROUTER_API_KEY"))
+        //         .modelName("openai/gpt-4o-mini")
+        //         .build();
         //
         // interface Assistant {
         //     String answer(String question);
@@ -161,6 +165,8 @@ public class RagPipelineExample {
 
         // 6. Cleanup
         valkeyStore.removeAll(ids);
+        // close() also closes the underlying GlideClient passed to the builder —
+        // do not use `valkeyClient` after this point.
         valkeyStore.close();
         System.out.println("Done! Cleaned up and closed connection.");
     }

@@ -37,10 +37,10 @@ class ValkeyEmbeddingStoreIT {
 
     @Test
     void shouldStoreAndSearchEmbeddings() throws Exception {
-        GlideClient client = createClient();
+        GlideClient valkeyClient = createClient();
 
-        ValkeyEmbeddingStore store = ValkeyEmbeddingStore.builder()
-                .client(client)
+        ValkeyEmbeddingStore valkeyStore = ValkeyEmbeddingStore.builder()
+                .client(valkeyClient)
                 .dimension(384)
                 .indexName("test-quickstart")
                 .prefix("test-qs:")
@@ -55,14 +55,14 @@ class ValkeyEmbeddingStoreIT {
         List<Embedding> embeddings = embeddingModel.embedAll(docs).content();
 
         // When
-        List<String> ids = store.addAll(embeddings, docs);
+        List<String> ids = valkeyStore.addAll(embeddings, docs);
 
         // Then
         assertThat(ids).hasSize(3);
 
         // Search
         Embedding query = embeddingModel.embed("How does similarity search work?").content();
-        EmbeddingSearchResult<TextSegment> results = store.search(
+        EmbeddingSearchResult<TextSegment> results = valkeyStore.search(
                 EmbeddingSearchRequest.builder()
                         .queryEmbedding(query)
                         .maxResults(2)
@@ -75,16 +75,16 @@ class ValkeyEmbeddingStoreIT {
         assertThat(results.matches().get(0).embedded().text()).isNotBlank();
 
         // Cleanup
-        store.removeAll(ids);
-        store.close();
+        valkeyStore.removeAll(ids);
+        valkeyStore.close();
     }
 
     @Test
     void shouldAddAndRemoveSingleEmbedding() throws Exception {
-        GlideClient client = createClient();
+        GlideClient valkeyClient = createClient();
 
-        ValkeyEmbeddingStore store = ValkeyEmbeddingStore.builder()
-                .client(client)
+        ValkeyEmbeddingStore valkeyStore = ValkeyEmbeddingStore.builder()
+                .client(valkeyClient)
                 .dimension(384)
                 .indexName("test-single")
                 .prefix("test-single:")
@@ -94,13 +94,13 @@ class ValkeyEmbeddingStoreIT {
         Embedding embedding = embeddingModel.embed(segment).content();
 
         // When
-        String id = store.add(embedding, segment);
+        String id = valkeyStore.add(embedding, segment);
 
         // Then
         assertThat(id).isNotBlank();
 
         // Search should find it
-        EmbeddingSearchResult<TextSegment> results = store.search(
+        EmbeddingSearchResult<TextSegment> results = valkeyStore.search(
                 EmbeddingSearchRequest.builder()
                         .queryEmbedding(embedding)
                         .maxResults(1)
@@ -111,7 +111,7 @@ class ValkeyEmbeddingStoreIT {
                 .isEqualTo("Valkey supports JSON and Search modules.");
 
         // Remove and verify
-        store.removeAll(List.of(id));
-        store.close();
+        valkeyStore.removeAll(List.of(id));
+        valkeyStore.close();
     }
 }

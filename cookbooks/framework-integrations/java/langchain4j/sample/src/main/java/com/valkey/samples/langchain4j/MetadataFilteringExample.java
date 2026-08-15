@@ -29,7 +29,7 @@ import static dev.langchain4j.store.embedding.filter.MetadataFilterBuilder.metad
  * vector similarity with metadata filters (TAG, NUMERIC) for precise retrieval.
  *
  * Prerequisites:
- *   docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:9.1.1
+ *   docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.1
  */
 public class MetadataFilteringExample {
 
@@ -37,11 +37,10 @@ public class MetadataFilteringExample {
         System.out.println("=== LangChain4j + Valkey: Metadata Filtering ===\n");
 
         // 1. Connect to Valkey
-        GlideClient client = GlideClient.createClient(
-                GlideClientConfiguration.builder()
-                        .address(NodeAddress.builder().host("localhost").port(6379).build())
-                        .build()
-        ).get();
+        GlideClientConfiguration config = GlideClientConfiguration.builder()
+                .address(NodeAddress.builder().host("localhost").port(6379).build())
+                .build();
+        GlideClient valkeyClient = GlideClient.createClient(config).get();
         System.out.println("Connected to Valkey");
 
         // 2. Embedding model
@@ -54,7 +53,7 @@ public class MetadataFilteringExample {
         );
 
         ValkeyEmbeddingStore valkeyStore = ValkeyEmbeddingStore.builder()
-                .client(client)
+                .client(valkeyClient)
                 .dimension(384)
                 .indexName("filtered-docs")
                 .prefix("filtered:")
@@ -163,7 +162,7 @@ public class MetadataFilteringExample {
         // 10. Cleanup
         valkeyStore.removeAll(ids);
         // Note: close() on ValkeyEmbeddingStore also closes the underlying GlideClient.
-        // Do not reuse the client after this call.
+        // Do not reuse the valkeyClient after this call.
         valkeyStore.close();
         System.out.println("Done! Cleaned up and closed connection.");
     }
