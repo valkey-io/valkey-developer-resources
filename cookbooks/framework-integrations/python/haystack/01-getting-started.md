@@ -16,7 +16,7 @@ Haystack is a framework for building RAG pipelines and search applications. Valk
 
 ## Step 1: Start Valkey
 
-Vector search requires the `valkey-bundle` image, which includes the Search and JSON modules:
+Vector search requires the `valkey-bundle` image, which includes the Valkey-Search and Valkey JSON modules:
 
 ```bash
 docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.0
