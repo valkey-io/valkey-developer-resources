@@ -16,7 +16,7 @@ Valkey cache implementation; this Go program never creates an index or sends sto
 Start local Valkey with the Search module, bound only to localhost:
 
 ```bash
-docker run -d --name valkey-search -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.0
+docker run -d --name valkey-search -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.2
 ```
 
 Install and validate the released Router version:

@@ -17,7 +17,7 @@
 ## Step 1: Start Valkey
 
 ```bash
-docker run -d --name valkey-search -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.0
+docker run -d --name valkey-search -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.2
 ```
 
 > ⚠️ **Security:** These examples use no authentication or TLS for simplicity.

@@ -7,6 +7,7 @@ on:
       - "cookbooks/**/*.go"
       - "cookbooks/**/go.mod"
       - "cookbooks/**/go.sum"
+      - "cookbooks/framework-integrations/go/vllm-semantic-router/sample/config.yaml"
       - ".github/workflows/cookbook-go.yml"
   pull_request:
     branches: [main]
@@ -14,6 +15,7 @@ on:
       - "cookbooks/**/*.go"
       - "cookbooks/**/go.mod"
       - "cookbooks/**/go.sum"
+      - "cookbooks/framework-integrations/go/vllm-semantic-router/sample/config.yaml"
       - ".github/workflows/cookbook-go.yml"
 
 jobs:
@@ -31,6 +33,7 @@ jobs:
               - 'cookbooks/**/*.go'
               - 'cookbooks/**/go.mod'
               - 'cookbooks/**/go.sum'
+              - 'cookbooks/framework-integrations/go/vllm-semantic-router/sample/config.yaml'
               - '.github/workflows/cookbook-go.yml'
 
   go-build-vet:
@@ -79,7 +82,7 @@ jobs:
       fail-fast: false
       matrix:
         cookbook: [framework-integrations/go/vllm-semantic-router]
-        valkey-version: ["9.1.0"]
+        valkey-version: ["9.1.2"]
     services:
       valkey:
         image: valkey/valkey-bundle:${{ matrix.valkey-version }}
