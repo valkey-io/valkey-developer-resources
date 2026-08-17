@@ -25,7 +25,7 @@ again. Valkey serves as the remote (L2) storage backend for these cached tensors
 ## Step 1: Start Valkey
 
 ```bash
-docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey:8.1.1
+docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.2
 ```
 
 > ⚠️ **Security:** These examples use no authentication or TLS for simplicity.

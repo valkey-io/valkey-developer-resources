@@ -18,7 +18,7 @@ inference pipeline (vLLM + LMCache + Valkey, with actual TTFT reduction)
 additionally requires an NVIDIA GPU; see https://docs.lmcache.ai.
 
 Usage:
-    docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey:8.1.1
+    docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.2
     python getting_started.py
 """
 

@@ -10,7 +10,7 @@ Also includes a ``--monitor`` mode that queries Valkey for cache-related
 metrics via a real GLIDE client (no ``valkey-cli`` binary required).
 
 Usage:
-    docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey:8.1.1
+    docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.2
     python production_deployment.py --mode standalone --monitor
     python production_deployment.py --mode cluster --host my-cluster.endpoint:6379
     python production_deployment.py --mode serverless --host my-cache.serverless.region.cache.amazonaws.com:6379

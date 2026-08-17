@@ -12,7 +12,7 @@ vLLM or touch a GPU — see ``getting_started.py`` and the cookbook docs for
 the scope of what this demonstrates versus a real inference pipeline.
 
 Usage:
-    docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey:8.1.1
+    docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.2
     python kv_cache_sharing.py
 """
 
