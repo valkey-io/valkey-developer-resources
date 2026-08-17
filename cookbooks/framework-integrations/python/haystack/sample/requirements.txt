@@ -4,3 +4,4 @@ valkey-glide==2.5.0
 valkey-glide-sync==2.5.0
 ollama-haystack==6.5.0
 pytest==8.3.5
+sentence-transformers==5.1.2

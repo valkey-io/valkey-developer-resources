@@ -1,10 +1,7 @@
-"""Tests for Haystack + Valkey integration.
+"""Integration tests for the Haystack + Valkey local semantic-search sample.
 
-Requires:
-    - Valkey Bundle running (with search + json modules)
-
-Tests use fixed 4-dimensional vectors for deterministic results.
-No Ollama, no model downloads, no API keys needed.
+The public all-MiniLM-L6-v2 model is downloaded on a cold cache. Tests require
+Valkey Bundle with the Valkey-Search and Valkey JSON modules running locally.
 """
 
 from unittest.mock import patch
@@ -17,51 +14,58 @@ from main import (
     build_retriever,
     build_store,
     cleanup_store,
-    query_embedding,
+    embed_documents,
+    embed_query,
 )
 
 
-def test_retriever_returns_closest_document():
-    """Write documents and verify KNN retrieval returns the best match."""
-    valkeyStore = build_store()
+@pytest.fixture(scope="session")
+def embedded_documents():
+    """Create reusable real FLOAT32 embeddings for the integration tests."""
+    documents = embed_documents(build_documents())
+    assert all(len(document.embedding) == EMBEDDING_DIM for document in documents)
+    return documents
+
+
+@pytest.fixture
+def document_store():
+    """Provide a clean store and close its connection after each test."""
+    store = build_store()
     try:
-        valkeyStore.delete_all_documents()
-        written = valkeyStore.write_documents(build_documents())
-        assert written == 3
-
-        result = build_retriever(valkeyStore).run(query_embedding("valkey search"))
-        documents = result["documents"]
-
-        assert documents
-        assert documents[0].id == "valkey-search"
-        assert len(documents[0].embedding) == EMBEDDING_DIM
+        store.delete_all_documents()
+        yield store
     finally:
-        cleanup_store(valkeyStore)
+        cleanup_store(store)
 
 
-def test_retriever_applies_metadata_filters():
-    """Metadata filters narrow results to matching documents only."""
-    valkeyStore = build_store()
-    try:
-        valkeyStore.delete_all_documents()
-        valkeyStore.write_documents(build_documents())
+def test_semantic_retrieval_embeds_documents_and_query(document_store, embedded_documents):
+    """A natural-language query retrieves the relevant Valkey-Search document."""
+    assert document_store.write_documents(embedded_documents) == 3
 
-        result = build_retriever(valkeyStore).run(
-            query_embedding("retrieval"),
-            filters={
-                "field": "meta.category",
-                "operator": "==",
-                "value": "search",
-            },
-        )
+    result = build_retriever(document_store).run(
+        query_embedding=embed_query("Which Valkey feature supports semantic document search?")
+    )
 
-        assert [doc.id for doc in result["documents"]] == ["valkey-search"]
-    finally:
-        cleanup_store(valkeyStore)
+    assert result["documents"]
+    assert result["documents"][0].id == "valkey-search"
+
+
+def test_semantic_retrieval_applies_metadata_filters(document_store, embedded_documents):
+    """Metadata filtering limits results after the same real embedding path."""
+    document_store.write_documents(embedded_documents)
+
+    result = build_retriever(document_store).run(
+        query_embedding=embed_query("Which Valkey feature supports semantic document search?"),
+        filters={"field": "meta.category", "operator": "==", "value": "search"},
+    )
+
+    assert result["documents"]
+    assert {document.meta["category"] for document in result["documents"]} == {"search"}
+    assert result["documents"][0].id == "valkey-search"
 
 
 def test_build_store_uses_environment_overrides(monkeypatch):
-    """Environment variables override connection parameters."""
+    """Environment variables override the Valkey connection configuration."""
     monkeypatch.setenv("VALKEY_HOST", "valkey.example")
     monkeypatch.setenv("VALKEY_PORT", "6380")
     monkeypatch.setenv("VALKEY_REQUEST_TIMEOUT_MS", "2500")
@@ -72,7 +76,7 @@ def test_build_store_uses_environment_overrides(monkeypatch):
     mock_store.assert_called_once_with(
         nodes_list=[("valkey.example", 6380)],
         index_name="haystack_demo",
-        embedding_dim=4,
+        embedding_dim=EMBEDDING_DIM,
         distance_metric="cosine",
         metadata_fields={"category": str},
         request_timeout=2500,
@@ -80,7 +84,7 @@ def test_build_store_uses_environment_overrides(monkeypatch):
 
 
 def test_cleanup_closes_store_when_deletion_fails():
-    """Store.close() is called even if delete_all_documents() raises."""
+    """Store cleanup closes the connection even when deletion raises."""
 
     class FailingStore:
         def __init__(self):
@@ -92,7 +96,7 @@ def test_cleanup_closes_store_when_deletion_fails():
         def close(self):
             self.closed = True
 
-    valkeyStore = FailingStore()
+    store = FailingStore()
     with pytest.raises(RuntimeError, match="delete failed"):
-        cleanup_store(valkeyStore)
-    assert valkeyStore.closed
+        cleanup_store(store)
+    assert store.closed

@@ -5,7 +5,10 @@
 Haystack is an open-source framework maintained by [deepset](https://www.deepset.ai/) for building search and RAG applications.
 The `valkey-haystack` integration exposes Valkey-backed document storage and retrieval as Haystack components.
 
-The default sample path uses fixed vectors and needs no API key, model download, or external service. The cookbook pages show how to add Ollama embedders and generators for a complete local RAG experience.
+The default sample uses the local `sentence-transformers/all-MiniLM-L6-v2` model
+for real semantic retrieval. Its first run downloads the public model without an
+API key; the cookbook pages also show an Ollama generator for a complete local
+RAG experience.
 
 ## Cookbooks
 

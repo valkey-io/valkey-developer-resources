@@ -1,20 +1,23 @@
 # Haystack + Valkey Sample
 
-> Runnable Python sample demonstrating Haystack's ValkeyDocumentStore and ValkeyEmbeddingRetriever with deterministic vectors.
+> Runnable Python sample demonstrating Haystack's ValkeyDocumentStore and ValkeyEmbeddingRetriever with local semantic embeddings.
 
 ## Prerequisites
 
 - Docker
 - Python 3.10+
-- No API key or model download needed for the default path
+- Internet access for the first model download (no API key required)
 
-The sample uses fixed four-dimensional vectors so the default path is deterministic and runs in CI without any external embedding or LLM service.
+The sample uses the local `sentence-transformers/all-MiniLM-L6-v2` model for both
+document and query embeddings. The public 384-dimensional model downloads on its
+first run and then uses the local cache. It does not require an API key or a paid
+embedding service.
 
 ## Quick Start
 
 ```bash
-# 1. Start Valkey Bundle (includes search + json modules)
-docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.1
+# 1. Start Valkey Bundle (includes Valkey-Search and Valkey JSON modules)
+docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.2
 
 # 2. Install Python dependencies
 pip install -r requirements.txt
@@ -32,7 +35,7 @@ python -m pytest test_haystack.py -v
 === Haystack + Valkey Demo ===
 
 Indexed 3 documents
-Top result: valkey-search (score: 1.000)
+Top result: valkey-search
 Filtered result: valkey-search
 
 === Demo Complete ===
@@ -46,12 +49,14 @@ python -m pytest test_haystack.py -v
 
 Tests verify:
 
-- ValkeyEmbeddingRetriever returns the closest document by cosine similarity
-- Metadata filters narrow results to matching documents only
+- Documents and queries are embedded with the same local model before retrieval
+- ValkeyEmbeddingRetriever ranks the semantically relevant document first
+- Metadata filters narrow semantic results to matching documents only
 - Environment variable overrides work for host/port/timeout
 - Store cleanup closes the connection even on failure
 
-No external APIs or paid services needed — tests use deterministic fixed vectors only.
+The tests download the same public local model on a cold cache. They do not use
+an external embedding API or fabricated vectors.
 
 ## Configuration
 
