@@ -94,10 +94,10 @@ func TestWaitForCacheHitRetriesAsynchronousCacheWrites(t *testing.T) {
 }
 
 func TestLiveSemanticRouterCache(t *testing.T) {
-	url := os.Getenv("VLLM_SR_URL")
+	url := os.Getenv("SEMANTIC_ROUTER_URL")
 	model := os.Getenv("SEMANTIC_ROUTER_MODEL")
 	if url == "" || model == "" {
-		t.Skip("set VLLM_SR_URL and SEMANTIC_ROUTER_MODEL to run against a real Semantic Router")
+		t.Skip("set SEMANTIC_ROUTER_URL and SEMANTIC_ROUTER_MODEL to run against a real Semantic Router")
 	}
 	client, err := NewRouterClient(url, model)
 	if err != nil {

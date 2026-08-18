@@ -64,7 +64,7 @@ The deterministic tests validate client input, HTTP response handling, and the r
 the real Router cache assertion after starting the service, provide both variables:
 
 ```bash
-VLLM_SR_URL=http://localhost:8888 SEMANTIC_ROUTER_MODEL=demo-model go test -v ./...
+SEMANTIC_ROUTER_URL=http://localhost:8888 SEMANTIC_ROUTER_MODEL=demo-model go test -v ./...
 ```
 
 The CI job validates this configuration with `vllm-sr==0.3.0` and runs the Go test suite. It does not start the full
