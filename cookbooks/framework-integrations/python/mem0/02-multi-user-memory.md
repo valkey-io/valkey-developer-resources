@@ -13,6 +13,12 @@
 - The dependencies and local Valkey instance from
   [Getting Started](01-getting-started.md)
 
+Start Valkey with the sample's Compose configuration:
+
+```bash
+docker compose -f sample/docker-compose.yml up -d --wait
+```
+
 The API examples use Ollama for embeddings and fact extraction (no API key
 required). The runnable sample uses deterministic local embeddings instead.
 

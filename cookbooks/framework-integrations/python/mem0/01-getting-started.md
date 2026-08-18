@@ -45,8 +45,7 @@ For the credential-free runnable sample, use the pinned dependencies in
 Start Valkey with the Search module using the pinned bundle image:
 
 ```bash
-docker run -d --name valkey-mem0 -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.2
-until [ "$(docker exec valkey-mem0 valkey-cli ping 2>/dev/null)" = "PONG" ]; do sleep 1; done
+docker compose -f sample/docker-compose.yml up -d --wait
 ```
 
 The bundle includes the Search module required by Mem0's Valkey provider.
@@ -213,7 +212,7 @@ The official connector implementation is in
 ## Teardown
 
 ```bash
-docker rm -f valkey-mem0
+docker compose -f sample/docker-compose.yml down
 ```
 
 ---

@@ -13,6 +13,12 @@
 - A Valkey deployment with the Search module
 - A certificate and authentication policy for non-local connections
 
+For local verification, start Valkey with the sample's Compose configuration:
+
+```bash
+docker compose -f sample/docker-compose.yml up -d --wait
+```
+
 ## Step 1: Provider-Neutral Valkey Configuration
 
 Keep the application configuration independent of a specific cloud provider:
