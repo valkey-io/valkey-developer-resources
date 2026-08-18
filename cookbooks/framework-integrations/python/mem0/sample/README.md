@@ -28,8 +28,11 @@ service. It demonstrates the same Mem0 API used in the cookbook: configure the
 Valkey provider, add memories, search with a user filter, and list a user's
 memories.
 
-`numpy==2.2.6` is pinned because it provides wheels for both the Python 3.11
-CI runtime and the local Python 3.13 runtime.
+The dependency is the official `valkey` Python client because Mem0's released
+Valkey connector constructs its `ValkeyDB` store with `valkey.from_url()`.
+GLIDE is not a drop-in replacement for that framework-owned connector.
+
+`numpy==2.0.2` is pinned for compatibility with the supported Python runtimes.
 
 ## Expected Output
 
@@ -55,14 +58,7 @@ Bob memories:
 
 ## Tests
 
-```bash
-.venv/bin/python -m pytest test_mem0.py -v
-```
-
-TODO: remove workflow session after #45 gets merged.
-
-These commands reproduce the relevant steps from the shared Python cookbook
-workflow in PR #45:
+Run the integration tests after starting the Compose service:
 
 ```bash
 .venv/bin/python -m pip install -r requirements.txt
@@ -71,15 +67,11 @@ workflow in PR #45:
 .venv/bin/python -m pytest test_mem0.py -v
 ```
 
-The temporary workflow in this branch adds `framework-integrations/mem0` to
-the matrix and runs `test_mem0.py` for this directory. Remove that temporary
-workflow after PR #45's shared workflow includes this cookbook.
-
 ## Optional LLM and Embeddings
 
 For an application that extracts facts with an LLM, remove `infer=False` and
-configure a supported Mem0 LLM provider — Ollama (local, no key) or a cloud
-model via OpenRouter, as shown in [`../01-getting-started.md`](../01-getting-started.md).
+configure a supported Mem0 LLM provider such as Ollama, as shown in
+[`../01-getting-started.md`](../01-getting-started.md).
 For embeddings, use Ollama's `nomic-embed-text` (local) or another supported
 embedder. These paths require their own service or credentials and are not part
 of the default test path.

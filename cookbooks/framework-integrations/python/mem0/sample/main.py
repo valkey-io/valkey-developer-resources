@@ -37,8 +37,7 @@ def build_memory(collection_name: str = COLLECTION_NAME) -> Memory:
             # extraction and the embedder is replaced with MockEmbeddings below,
             # so neither provider below is ever contacted. The nominal "openai"
             # provider is used only because it constructs lazily (no connection
-            # at init). Real usage configures Ollama or OpenRouter per the
-            # cookbook (see 01-getting-started.md).
+            # at init). Real usage configures Ollama per the cookbook.
             "llm": {
                 "provider": "openai",
                 "config": {
@@ -59,7 +58,7 @@ def build_memory(collection_name: str = COLLECTION_NAME) -> Memory:
             ),
         }
     )
-    # Internal Mem0 attribute; this sample is pinned to mem0ai==2.0.12.
+    # Internal Mem0 attribute; this sample is pinned to mem0ai==2.0.0.
     memory.embedding_model = MockEmbeddings()
     return memory
 
@@ -68,13 +67,13 @@ def reset_memory(memory: Memory) -> None:
     """Remove sample keys and recreate the Mem0 index for an idempotent run.
 
     Uses Mem0 internal ``vector_store.client`` and ``collection_name``
-    attributes; this sample is pinned to mem0ai==2.0.12.
+    attributes; this sample is pinned to mem0ai==2.0.0.
     """
-    valkeyClient = memory.vector_store.client
-    for key in valkeyClient.scan_iter(
+    valkey_client = memory.vector_store.client
+    for key in valkey_client.scan_iter(
         match=f"mem0:{memory.collection_name}:*"
     ):
-        valkeyClient.delete(key)
+        valkey_client.delete(key)
     memory.reset()
 
 
@@ -96,7 +95,10 @@ def run_demo() -> None:
         alice_results = memory.search(
             "What programming language does Alice prefer?",
             filters={"user_id": "alice"},
-            threshold=1.0,
+            # Mem0 2.0.0 exposes Valkey cosine distance; the deterministic
+            # mock returns distance 0.0 for every vector, so include exact
+            # matches in this credential-free demonstration.
+            threshold=0.0,
         )
         bob_memories = memory.get_all(filters={"user_id": "bob"})
         assert alice_results["results"][0]["memory"] == (

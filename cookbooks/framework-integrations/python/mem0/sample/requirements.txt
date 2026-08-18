@@ -1,4 +1,4 @@
-mem0ai==2.0.12
+mem0ai==2.0.0
 valkey==6.1.1
-numpy==2.2.6
+numpy==2.0.2
 pytest==8.3.5

@@ -28,7 +28,7 @@ config = {
         "config": {
             "valkey_url": os.environ["VALKEY_URL"],
             "collection_name": os.environ.get("MEM0_COLLECTION", "prod_memories"),
-            "embedding_model_dims": int(os.environ["EMBEDDING_DIMENSIONS"]),
+            "embedding_model_dims": int(os.environ.get("EMBEDDING_DIMENSIONS", "768")),
             "index_type": os.environ.get("MEM0_INDEX_TYPE", "hnsw"),
             "hnsw_m": int(os.environ.get("MEM0_HNSW_M", "16")),
             "hnsw_ef_construction": int(
@@ -40,18 +40,21 @@ config = {
         },
     },
     "llm": {
-        "provider": "openai",
+        "provider": "ollama",
         "config": {
-            "api_key": os.environ["OPENAI_API_KEY"],
-            "model": os.environ.get("MEM0_LLM_MODEL", "gpt-4o-mini"),
+            "model": os.environ.get("MEM0_LLM_MODEL", "llama3.2"),
+            "ollama_base_url": os.environ.get(
+                "OLLAMA_BASE_URL", "http://localhost:11434"
+            ),
         },
     },
     "embedder": {
-        "provider": "openai",
+        "provider": "ollama",
         "config": {
-            "api_key": os.environ["OPENAI_API_KEY"],
-            "model": os.environ.get(
-                "MEM0_EMBEDDER_MODEL", "text-embedding-3-small"
+            "model": os.environ.get("MEM0_EMBEDDER_MODEL", "nomic-embed-text"),
+            "embedding_dims": int(os.environ.get("EMBEDDING_DIMENSIONS", "768")),
+            "ollama_base_url": os.environ.get(
+                "OLLAMA_BASE_URL", "http://localhost:11434"
             ),
         },
     },
@@ -61,33 +64,22 @@ memory = Memory.from_config(config)
 ```
 
 The selected embedder's output dimension must match `EMBEDDING_DIMENSIONS`.
-OpenAI is shown here as one application-level provider; Ollama and other
-providers can be substituted with their documented Mem0 configuration without
-changing the Valkey configuration. The default sample remains local and uses
-`infer=False`.
+Ollama is the default local provider; other providers can be substituted with
+their documented Mem0 configuration without changing the Valkey configuration.
+The credential-free sample remains local and uses `infer=False`.
+
+This same configuration works with a self-hosted Valkey deployment or a
+managed Valkey service. Set `VALKEY_URL` to the endpoint supplied by the
+deployment, use an authenticated `valkeys://` URL for remote connections, and
+follow that provider's documentation for networking, certificates, and access
+control.
 
 > **Security:** Do not put passwords, tokens, or private keys in cookbook files,
 > shell history, or committed environment files. Enable TLS and authentication
 > for every connection that leaves localhost. See the
 > [Valkey security documentation](https://valkey.io/topics/security/).
 
-## Step 2: ElastiCache for Valkey 8.2+ (Optional)
-
-[ElastiCache for Valkey 8.2 includes built-in vector search at no additional
-cost](https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/vector-search.html).
-Create a cluster via the AWS Console or CLI, then use the cluster endpoint as
-your Valkey URL. The application configuration remains the same as the
-provider-neutral example above, and the `valkeys://` URL scheme enables TLS
-with the Valkey Python client.
-
-```python
-config["vector_store"]["config"]["valkey_url"] = (
-    "valkeys://your-cluster.xxxxx.use1.cache.amazonaws.com:6379"
-)
-memory = Memory.from_config(config)
-```
-
-## Step 3: HNSW Parameter Tuning
+## Step 2: HNSW Parameter Tuning
 
 | Parameter | Default | Effect | Recommendation |
 | --- | --- | --- | --- |
@@ -98,7 +90,7 @@ memory = Memory.from_config(config)
 
 Benchmark representative data and queries before changing defaults.
 
-## Step 4: Monitoring
+## Step 3: Monitoring
 
 ```python
 import valkey
@@ -143,7 +135,6 @@ results = memory.search(
 | Area | Recommendation |
 | --- | --- |
 | Deployment | Use a Search-capable Valkey service and keep the application provider-neutral |
-| ElastiCache | Use the managed service only as an optional deployment choice |
 | TLS | Use the `valkeys://` URL scheme for encrypted connections |
 | Multi-AZ | Enable it for high availability |
 | HNSW M | 16 default, increase after benchmarking |
@@ -161,10 +152,10 @@ and
 | Environment variable | Required | Default | Description |
 | --- | --- | --- | --- |
 | `VALKEY_URL` | Yes | - | Authenticated Valkey URL, such as `valkeys://host:6379`. |
-| `OPENAI_API_KEY` | Yes for the shown providers | - | Credential for the configured LLM and embedder. |
-| `EMBEDDING_DIMENSIONS` | Yes | - | Output dimension of the selected embedder. |
-| `MEM0_LLM_MODEL` | No | `gpt-4o-mini` | LLM model name for Mem0 fact extraction. |
-| `MEM0_EMBEDDER_MODEL` | No | `text-embedding-3-small` | Embedding model name. Must match `EMBEDDING_DIMENSIONS`. |
+| `EMBEDDING_DIMENSIONS` | No | `768` | Output dimension of the selected embedder. |
+| `MEM0_LLM_MODEL` | No | `llama3.2` | Ollama model used for Mem0 fact extraction. |
+| `MEM0_EMBEDDER_MODEL` | No | `nomic-embed-text` | Ollama embedding model. Must match `EMBEDDING_DIMENSIONS`. |
+| `OLLAMA_BASE_URL` | No | `http://localhost:11434` | Ollama service endpoint. |
 | `MEM0_COLLECTION` | No | `prod_memories` | Mem0 collection and Valkey index name. |
 | `MEM0_INDEX_TYPE` | No | `hnsw` | `hnsw` or `flat`. |
 | `MEM0_HNSW_M` | No | `16` | HNSW graph connectivity. |

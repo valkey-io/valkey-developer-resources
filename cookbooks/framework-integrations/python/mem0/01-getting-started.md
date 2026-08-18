@@ -17,9 +17,9 @@
   ollama pull llama3.2           # fact extraction / chat
   ```
 
-The default documented path runs entirely locally through Ollama — no paid API
-key required. A cloud LLM via OpenRouter is shown as an optional alternative.
-The runnable sample is credential-free and needs neither Ollama nor a key.
+The documented integration path runs locally through Ollama with no paid API
+key required. The runnable sample is credential-free and needs neither Ollama
+nor a key.
 
 ## What is Mem0?
 
@@ -33,7 +33,7 @@ Install the pinned Mem0 and Valkey client versions:
 
 ```bash
 python -m venv .venv
-.venv/bin/python -m pip install "mem0ai==2.0.12" "valkey==6.1.1" "ollama==0.6.2"
+.venv/bin/python -m pip install "mem0ai==2.0.0" "valkey==6.1.1" "ollama==0.6.2"
 ```
 
 For the credential-free runnable sample, use the pinned dependencies in
@@ -45,7 +45,7 @@ For the credential-free runnable sample, use the pinned dependencies in
 Start Valkey with the Search module using the pinned bundle image:
 
 ```bash
-docker run -d --name valkey-mem0 -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.0
+docker run -d --name valkey-mem0 -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.2
 until [ "$(docker exec valkey-mem0 valkey-cli ping 2>/dev/null)" = "PONG" ]; do sleep 1; done
 ```
 
@@ -99,32 +99,6 @@ The `embedding_model_dims` value must match the configured embedder
 (`nomic-embed-text` produces 768-dimensional vectors). The credential-free
 sample replaces the configured embedder with Mem0's deterministic
 `MockEmbeddings` implementation and uses `infer=False`.
-
-<details>
-<summary>Optional: use a cloud LLM via OpenRouter</summary>
-
-To use a hosted chat model instead of local Ollama for fact extraction, set
-`OPENROUTER_API_KEY` and keep the `openai` provider — Mem0 automatically routes
-OpenAI-compatible calls to OpenRouter, which fronts OpenAI, Anthropic, Google,
-and others through one endpoint:
-
-```bash
-export OPENROUTER_API_KEY="sk-or-..."
-```
-
-```python
-"llm": {
-    "provider": "openai",
-    "config": {
-        "model": "openai/gpt-4o-mini",
-    },
-},
-```
-
-Keep the **embedder on Ollama** — OpenRouter proxies chat/completions, not
-embeddings. For hosted embeddings, use a provider's embeddings endpoint directly.
-
-</details>
 
 ## Step 4: Add Memories
 
@@ -213,28 +187,6 @@ def chat_with_memory(message: str, user_id: str) -> str:
 response = chat_with_memory("Recommend me a restaurant", "user_001")
 print(response)
 ```
-
-<details>
-<summary>Optional: generate the reply with a cloud LLM via OpenRouter</summary>
-
-The `openai` client is OpenAI-compatible; point it at OpenRouter to use any
-hosted model. Set `OPENROUTER_API_KEY` first.
-
-```python
-from openai import OpenAI
-
-cloud_client = OpenAI(
-    base_url="https://openrouter.ai/api/v1",
-    api_key=os.environ["OPENROUTER_API_KEY"],
-)
-
-response = cloud_client.chat.completions.create(
-    model="openai/gpt-4o-mini", messages=messages,
-)
-answer = response.choices[0].message.content
-```
-
-</details>
 
 ## How It Works Under the Hood
 

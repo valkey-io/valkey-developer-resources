@@ -36,7 +36,7 @@ def test_add_search_and_get_all_use_mem0_api(memory):
     search_result = memory.search(
         "What language does Alice prefer?",
         filters={"user_id": "alice"},
-        threshold=1.0,
+        threshold=0.0,
     )
     assert search_result["results"][0]["memory"] == "Alice prefers Python for data work."
 
@@ -61,12 +61,12 @@ def test_filters_isolate_users(memory):
     alice_results = memory.search(
         "preferred programming language",
         filters={"user_id": "alice"},
-        threshold=1.0,
+        threshold=0.0,
     )
     bob_results = memory.search(
         "preferred programming language",
         filters={"user_id": "bob"},
-        threshold=1.0,
+        threshold=0.0,
     )
 
     assert [item["memory"] for item in alice_results["results"]] == [
