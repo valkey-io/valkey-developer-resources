@@ -19,7 +19,7 @@ HNSW indexing, native JSON storage, and automatic index management via the offic
 ## Step 1: Start Valkey
 
 ```bash
-docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.1
+docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.2
 ```
 
 > ⚠️ **Security:** These examples use no authentication or TLS for simplicity.
@@ -54,6 +54,10 @@ implementation 'dev.langchain4j:langchain4j-community-valkey:1.17.2-beta27'
 > **Note:** The sample [`pom.xml`](sample/pom.xml) is the source of truth for tested version combinations.
 > The core `langchain4j` artifact uses a separate release track from the community modules.
 > See the pom.xml `<properties>` block for details.
+>
+> `langchain4j-community` modules are always published with a `-beta` suffix — that is their
+> standard release label for community-supported modules, not a pre-release or unstable marker.
+> `1.17.2-beta27` is a stable, released artifact available on Maven Central.
 
 This pulls in `valkey-glide` (the official Valkey Java client) transitively.
 
@@ -70,11 +74,11 @@ GlideClientConfiguration config = GlideClientConfiguration.builder()
         .address(NodeAddress.builder().host("localhost").port(6379).build())
         .build();
 
-GlideClient client = GlideClient.createClient(config).get();
+GlideClient valkeyClient = GlideClient.createClient(config).get();
 
 // 2. Build the embedding store
 ValkeyEmbeddingStore embeddingStore = ValkeyEmbeddingStore.builder()
-        .client(client)
+        .client(valkeyClient)
         .dimension(384)          // Must match your embedding model's output dimension
         .indexName("my-index")   // Optional, defaults to "embedding-index"
         .prefix("docs:")         // Optional, defaults to "embedding:"

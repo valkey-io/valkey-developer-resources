@@ -66,7 +66,7 @@ import glide.api.models.configuration.GlideClientConfiguration;
 import glide.api.models.configuration.NodeAddress;
 
 // Valkey connection
-GlideClient client = GlideClient.createClient(
+GlideClient valkeyClient = GlideClient.createClient(
         GlideClientConfiguration.builder()
                 .address(NodeAddress.builder().host("localhost").port(6379).build())
                 .build()
@@ -89,7 +89,7 @@ Map<String, FieldInfo> metadataConfig = Map.of(
 );
 
 ValkeyEmbeddingStore embeddingStore = ValkeyEmbeddingStore.builder()
-        .client(client)
+        .client(valkeyClient)
         .dimension(384)
         .indexName("rag-docs")
         .prefix("rag:")

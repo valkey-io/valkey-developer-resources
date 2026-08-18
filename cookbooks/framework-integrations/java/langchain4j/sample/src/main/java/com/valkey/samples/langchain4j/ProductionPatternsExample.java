@@ -243,6 +243,11 @@ public class ProductionPatternsExample {
         } catch (Exception e) { /* best-effort */ }
 
         try {
+            // Unlike MetadataFilteringExample (which leaves its index in place for
+            // inspection after the demo), this production-patterns example drops the
+            // indexes it created so repeated runs start from a clean slate — mirroring
+            // a teardown/redeploy cycle. Dropping an index does not delete the
+            // underlying JSON documents; it only removes the search index definition.
             valkeyClient.customCommand(new String[]{"FT.DROPINDEX", "production-index"}).get();
             valkeyClient.customCommand(new String[]{"FT.DROPINDEX", "rag-store"}).get();
             valkeyClient.customCommand(new String[]{"FT.DROPINDEX", "cache-store"}).get();
