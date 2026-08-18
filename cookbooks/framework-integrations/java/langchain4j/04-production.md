@@ -8,7 +8,7 @@
 
 ## Prerequisites
 
-- Valkey running locally (see [01 Getting Started](01-getting-started.md))
+- Valkey running locally — start it with `docker compose -f sample/docker-compose.yml up -d --wait` (see [01 Getting Started](01-getting-started.md) for what the bundle image provides)
 - Java 17+, Maven 3.8+
 - Familiarity with cookbooks 01–03
 
@@ -30,7 +30,7 @@ The builder uses defaults suitable for most workloads. For custom tuning, pre-cr
 
 ```java
 // Pre-create the index with custom HNSW parameters
-client.customCommand(new String[]{"FT.CREATE", "my-index", "ON", "JSON",
+valkeyClient.customCommand(new String[]{"FT.CREATE", "my-index", "ON", "JSON",
         "PREFIX", "1", "embedding:",
         "SCHEMA",
         "$.vector", "AS", "vector", "VECTOR", "HNSW", "10",
@@ -40,7 +40,7 @@ client.customCommand(new String[]{"FT.CREATE", "my-index", "ON", "JSON",
 
 // Build the store — it detects the existing index
 ValkeyEmbeddingStore store = ValkeyEmbeddingStore.builder()
-        .client(client)
+        .client(valkeyClient)
         .indexName("my-index")
         .prefix("embedding:")
         .build();
@@ -126,23 +126,23 @@ The `GlideClient` is thread-safe and should be shared across your application:
 
 ```java
 // Create once at application startup
-GlideClient client = GlideClient.createClient(config).get();
+GlideClient valkeyClient = GlideClient.createClient(config).get();
 
 // Share across multiple stores
 ValkeyEmbeddingStore ragStore = ValkeyEmbeddingStore.builder()
-        .client(client)
+        .client(valkeyClient)
         .indexName("rag-index")
         .dimension(384)
         .build();
 
 ValkeyEmbeddingStore cacheStore = ValkeyEmbeddingStore.builder()
-        .client(client)
+        .client(valkeyClient)
         .indexName("cache-index")
         .dimension(384)
         .build();
 
 // Close at application shutdown
-Runtime.getRuntime().addShutdownHook(new Thread(client::close));
+Runtime.getRuntime().addShutdownHook(new Thread(valkeyClient::close));
 ```
 
 > **Warning:** Calling `close()` on any `ValkeyEmbeddingStore` closes the underlying `GlideClient`.
@@ -190,7 +190,7 @@ GlideClusterClient clusterClient = GlideClusterClient.createClient(clusterConfig
 
 ```java
 ValkeyEmbeddingStore store = ValkeyEmbeddingStore.builder()
-        .client(client)
+        .client(valkeyClient)
         .dimension(384)
         .operationTimeoutSeconds(30L)  // Default is 60s
         .build();
@@ -232,10 +232,10 @@ try {
 
 ```java
 // List all indexes
-Object indexes = client.customCommand(new String[]{"FT._LIST"}).get();
+Object indexes = valkeyClient.customCommand(new String[]{"FT._LIST"}).get();
 
 // Get detailed info about an index
-Object info = client.customCommand(new String[]{"FT.INFO", "my-index"}).get();
+Object info = valkeyClient.customCommand(new String[]{"FT.INFO", "my-index"}).get();
 ```
 
 ### Rebuilding an Index
@@ -244,11 +244,11 @@ If you need to change the schema (add metadata fields, change dimensions, switch
 
 ```java
 // 1. Drop the old index (does NOT delete the data)
-client.customCommand(new String[]{"FT.DROPINDEX", "my-index"}).get();
+valkeyClient.customCommand(new String[]{"FT.DROPINDEX", "my-index"}).get();
 
 // 2. Recreate with new schema
 ValkeyEmbeddingStore newStore = ValkeyEmbeddingStore.builder()
-        .client(client)
+        .client(valkeyClient)
         .dimension(1024)
         .indexName("my-index")
         .metadataConfig(newMetadataConfig)
