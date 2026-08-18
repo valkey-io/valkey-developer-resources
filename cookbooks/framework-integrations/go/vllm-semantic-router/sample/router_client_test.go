@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -129,16 +131,27 @@ func TestReleasedConfigSelectsValkeySemanticCache(t *testing.T) {
 	}
 }
 
-func TestConfiguredValkeyEndpointIsReachable(t *testing.T) {
+func TestConfiguredValkeyEndpointRespondsToPing(t *testing.T) {
 	host := os.Getenv("VALKEY_HOST")
 	if host == "" {
-		t.Skip("set VALKEY_HOST to check the Valkey service used by Semantic Router")
+		t.Skip("set VALKEY_HOST to PING the Valkey service used by Semantic Router")
 	}
 	connection, err := net.DialTimeout("tcp", net.JoinHostPort(host, "6379"), 2*time.Second)
 	if err != nil {
 		t.Fatalf("connect to Valkey at %s:6379: %v", host, err)
 	}
-	if err := connection.Close(); err != nil {
-		t.Fatalf("close Valkey connection: %v", err)
+	defer connection.Close()
+	if _, err := fmt.Fprint(connection, "*1\r\n$4\r\nPING\r\n"); err != nil {
+		t.Fatalf("execute PING against Valkey at %s:6379: %v", host, err)
+	}
+	response, err := bufio.NewReader(connection).ReadString('\n')
+	if err != nil {
+		t.Fatalf("read PING response from Valkey at %s:6379: %v", host, err)
+	}
+	if strings.HasPrefix(response, "-") {
+		t.Fatalf("PING failed at Valkey endpoint %s:6379: %s", host, strings.TrimSpace(response))
+	}
+	if response != "+PONG\r\n" {
+		t.Fatalf("unexpected PING response from Valkey at %s:6379: %q; want %q", host, response, "+PONG\\r\\n")
 	}
 }
