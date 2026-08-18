@@ -1,22 +1,15 @@
 {
-  // Reasonable defaults for a samples/cookbook repository
-  "MD013": {
-    // Allow long lines — tables and URLs frequently exceed 80 chars
-    "line_length": 200,
-    "tables": false
-  },
-  // Allow HTML — needed for <nobr> in cookbook README tables and <details> for collapsible sections
+  "MD013": false,
   "MD033": {
     "allowed_elements": ["nobr", "br", "details", "summary"]
   },
-  // Allow duplicate headings in different sections (e.g., multiple "## Prerequisites")
   "MD024": {
     "siblings_only": true
   },
-  // Allow trailing punctuation in headings (e.g., "## Questions?")
   "MD026": {
     "punctuation": ".,;:!"
   },
-  // Disable table column style — our tables use compact separators
+  "MD040": false,
+  "MD041": false,
   "MD060": false
 }
