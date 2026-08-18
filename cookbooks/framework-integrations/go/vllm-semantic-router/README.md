@@ -11,8 +11,8 @@ Go client -> vLLM Semantic Router -> Valkey
 
 This cookbook targets [vLLM Semantic Router v0.3.0](https://github.com/vllm-project/semantic-router/tree/v0.3.0),
 the released version that contains Valkey semantic-cache, vector-store, and memory backends. It does not import
-Semantic Router internals or recreate search indexes in application code. v0.3.0 does not publish a supported Go
-SDK; its supported public interface is the `vllm-sr` service and OpenAI-compatible HTTP API used by this sample.
+Semantic Router internals or recreate search indexes in application code. v0.3.0 publishes no Go client library.
+This sample therefore uses the Router's supported HTTP interface — the OpenAI-compatible API on the Envoy listener.
 
 ## Cookbooks
 
