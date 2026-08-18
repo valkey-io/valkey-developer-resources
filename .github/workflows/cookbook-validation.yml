@@ -18,8 +18,10 @@ jobs:
     outputs:
       node-cookbooks: ${{ steps.discover.outputs.node-cookbooks }}
       python-cookbooks: ${{ steps.discover.outputs.python-cookbooks }}
+      go-cookbooks: ${{ steps.discover.outputs.go-cookbooks }}
       has-node: ${{ steps.discover.outputs.has-node }}
       has-python: ${{ steps.discover.outputs.has-python }}
+      has-go: ${{ steps.discover.outputs.has-go }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - id: discover
@@ -42,6 +44,16 @@ jobs:
             echo "has-python=true" >> $GITHUB_OUTPUT
           else
             echo "has-python=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Discover Go cookbooks (directories containing go.mod under cookbooks/**/sample/).
+          go_cookbooks=$(find cookbooks -path "*/sample/go.mod" -exec dirname {} \; | \
+            jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "go-cookbooks=$go_cookbooks" >> $GITHUB_OUTPUT
+          if [ "$go_cookbooks" != "[]" ]; then
+            echo "has-go=true" >> $GITHUB_OUTPUT
+          else
+            echo "has-go=false" >> $GITHUB_OUTPUT
           fi
 
   node-typecheck:
@@ -176,3 +188,82 @@ jobs:
             # Fall back to running main.py if no test framework detected
             python main.py
           fi
+
+  go-build-vet:
+    needs: discover-cookbooks
+    if: needs.discover-cookbooks.outputs.has-go == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cookbook: ${{ fromJson(needs.discover-cookbooks.outputs.go-cookbooks) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          go-version: "1.24"
+          cache-dependency-path: ${{ matrix.cookbook }}/go.mod
+      - name: Build
+        working-directory: ${{ matrix.cookbook }}
+        run: go build ./...
+      - name: Vet
+        working-directory: ${{ matrix.cookbook }}
+        run: go vet ./...
+      - name: Format check
+        working-directory: ${{ matrix.cookbook }}
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "The following files are not gofmt-formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+  vllm-semantic-router-config-validation:
+    needs: discover-cookbooks
+    if: needs.discover-cookbooks.outputs.has-go == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The router's configuration validator is distributed as the Python vllm-sr CLI;
+      # it validates the config.yaml consumed by this Go HTTP client sample.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Validate Semantic Router configuration
+        working-directory: cookbooks/framework-integrations/go/vllm-semantic-router/sample
+        run: |
+          python -m pip install "vllm-sr==0.3.0"
+          vllm-sr validate
+
+  go-integration-test:
+    needs: discover-cookbooks
+    if: needs.discover-cookbooks.outputs.has-go == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        cookbook: ${{ fromJson(needs.discover-cookbooks.outputs.go-cookbooks) }}
+        valkey-version: ["9.1.2"]
+    services:
+      valkey:
+        image: valkey/valkey-bundle:${{ matrix.valkey-version }}
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          go-version: "1.24"
+          cache-dependency-path: ${{ matrix.cookbook }}/go.mod
+      - name: Run Go tests (Valkey ${{ matrix.valkey-version }})
+        working-directory: ${{ matrix.cookbook }}
+        env:
+          VALKEY_HOST: 127.0.0.1
+        run: go test -v ./...
