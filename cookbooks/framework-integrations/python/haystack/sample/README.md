@@ -17,7 +17,7 @@ embedding service.
 
 ```bash
 # 1. Start Valkey Bundle (includes Valkey-Search and Valkey JSON modules)
-docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.2
+docker compose -f docker-compose.yml up -d --wait
 
 # 2. Install Python dependencies
 pip install -r requirements.txt
@@ -69,7 +69,7 @@ an external embedding API or fabricated vectors.
 ## Teardown
 
 ```bash
-docker stop valkey && docker rm valkey
+docker compose -f docker-compose.yml down
 ```
 
 The application also removes its documents via `delete_all_documents()` and closes the store connection after each run.

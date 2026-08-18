@@ -19,7 +19,7 @@ Haystack is a framework for building RAG pipelines and search applications. Valk
 Vector search requires the `valkey-bundle` image, which includes the Valkey-Search and Valkey JSON modules:
 
 ```bash
-docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.2
+docker compose -f sample/docker-compose.yml up -d --wait
 ```
 
 > ⚠️ **Security:** These examples use no authentication or TLS for simplicity.
@@ -166,7 +166,7 @@ Metadata filters are applied server-side in Valkey Search — they don't downloa
 ## Teardown
 
 ```bash
-docker stop valkey && docker rm valkey
+docker compose -f sample/docker-compose.yml down
 ```
 
 ---

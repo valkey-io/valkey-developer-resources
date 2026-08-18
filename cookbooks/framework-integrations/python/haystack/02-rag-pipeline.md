@@ -22,6 +22,13 @@ Valkey handles the retrieval step — sub-millisecond KNN over your document emb
 
 - Completed [01 - Getting Started](01-getting-started.md)
 - Valkey Bundle running with search module
+
+Start Valkey with the sample's Compose configuration:
+
+```bash
+docker compose -f sample/docker-compose.yml up -d --wait
+```
+
 - Ollama running with models pulled:
 
   ```bash
@@ -208,7 +215,7 @@ embedder = OllamaDocumentEmbedder(model="all-minilm")
 ## Teardown
 
 ```bash
-docker stop valkey && docker rm valkey
+docker compose -f sample/docker-compose.yml down
 ```
 
 ---
