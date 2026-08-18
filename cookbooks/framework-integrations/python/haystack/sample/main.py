@@ -91,41 +91,41 @@ def embed_query(query: str) -> list[float]:
     return embedder.run(text=query)["embedding"]
 
 
-def build_retriever(store: ValkeyDocumentStore) -> ValkeyEmbeddingRetriever:
+def build_retriever(valkey_store: ValkeyDocumentStore) -> ValkeyEmbeddingRetriever:
     """Create a retriever configured for the demo result count."""
-    return ValkeyEmbeddingRetriever(document_store=store, top_k=3)
+    return ValkeyEmbeddingRetriever(document_store=valkey_store, top_k=3)
 
 
-def cleanup_store(store: ValkeyDocumentStore) -> None:
+def cleanup_store(valkey_store: ValkeyDocumentStore) -> None:
     """Remove demo documents and always close the GLIDE connection."""
     try:
-        store.delete_all_documents()
+        valkey_store.delete_all_documents()
     finally:
-        store.close()
+        valkey_store.close()
 
 
 def main() -> None:
     """Embed, store, retrieve, and clean up the sample documents."""
     print("=== Haystack + Valkey Demo ===\n")
-    store = build_store()
+    valkey_store = build_store()
     try:
-        store.delete_all_documents()
-        written = store.write_documents(embed_documents(build_documents()))
+        valkey_store.delete_all_documents()
+        written = valkey_store.write_documents(embed_documents(build_documents()))
         print(f"Indexed {written} documents")
 
-        results = build_retriever(store).run(
+        results = build_retriever(valkey_store).run(
             query_embedding=embed_query("How can I search documents by meaning in Valkey?")
         )
         top = results["documents"]
         print(f"Top result: {top[0].id}")
 
-        filtered = build_retriever(store).run(
+        filtered = build_retriever(valkey_store).run(
             query_embedding=embed_query("How can I search documents by meaning in Valkey?"),
             filters={"field": "meta.category", "operator": "==", "value": "search"},
         )
         print(f"Filtered result: {filtered['documents'][0].id}")
     finally:
-        cleanup_store(store)
+        cleanup_store(valkey_store)
 
     print("\n=== Demo Complete ===")
 
