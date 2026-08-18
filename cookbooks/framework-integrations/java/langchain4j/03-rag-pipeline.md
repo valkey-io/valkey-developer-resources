@@ -1,6 +1,6 @@
 # RAG Pipeline with LangChain4j + Valkey
 
-> Build a complete Retrieval-Augmented Generation pipeline: chunk documents, embed locally, store in Valkey, and answer questions with context-grounded responses.
+> Use Valkey as the vector store in a RAG pipeline: chunk documents, embed locally, store them in Valkey, and retrieve the most relevant context by vector similarity. Generation — turning that context into an answer with an LLM — is a short hand-off shown at the end; Valkey's role is the retrieval half.
 
 **Intermediate** · Java · ~25 min
 
@@ -11,19 +11,22 @@
 - Valkey running locally — start it with `docker compose -f sample/docker-compose.yml up -d --wait` (see [01 Getting Started](01-getting-started.md) for what the bundle image provides)
 - Java 17+, Maven 3.8+
 - Completed cookbook 01 or equivalent familiarity with `ValkeyEmbeddingStore`
-- (Optional) For the cloud model path: an `OPENROUTER_API_KEY` (OpenRouter is OpenAI-compatible and vendor-neutral), or Ollama installed locally
+- (Optional) To use a hosted embedder instead of the local model: an `OPENROUTER_API_KEY` (OpenRouter is OpenAI-compatible and vendor-neutral)
 
 ## What You'll Build
 
-A complete Retrieval-Augmented Generation pipeline:
+A retrieval pipeline backed by Valkey:
 
 1. **Chunk** documents into segments
 2. **Embed** with a local model (AllMiniLmL6V2, 384 dimensions)
 3. **Store** in Valkey with metadata
 4. **Retrieve** relevant chunks via vector similarity
-5. **Answer** questions using retrieved context
 
-The default path runs entirely locally. An optional section shows how to swap in cloud models via OpenRouter (vendor-neutral, OpenAI-compatible) for production use.
+Everything runs locally with no API keys. Valkey's role in RAG is exactly this
+retrieval half — turning retrieved context into a natural-language answer is a
+short hand-off to any LLM (shown at the end, [Generating Answers](#generating-answers-beyond-valkey)),
+and doesn't involve Valkey. An optional section also covers swapping the local
+embedder for a hosted one.
 
 ## Step 1: Dependencies
 
@@ -199,37 +202,11 @@ for (EmbeddingMatch<TextSegment> match : results.matches()) {
 }
 ```
 
-This is the core of RAG — retrieving relevant context from Valkey. The next step wires this into an LLM for answer generation.
+This is the core of RAG — and the whole of Valkey's role in it: retrieving the
+most relevant context by vector similarity. Turning that context into an answer
+is a hand-off to an LLM (see [Generating Answers](#generating-answers-beyond-valkey) below).
 
-## Step 8: Wire into an AI Service (with a Chat Model)
-
-To generate natural-language answers, you need a chat model. LangChain4j supports many providers. Here's the pattern:
-
-```java
-import dev.langchain4j.service.AiServices;
-
-interface Assistant {
-    String answer(String question);
-}
-
-// chatModel can be any LangChain4j ChatLanguageModel implementation
-Assistant assistant = AiServices.builder(Assistant.class)
-        .chatModel(chatModel)
-        .contentRetriever(contentRetriever)
-        .build();
-
-String answer = assistant.answer("How do I configure TLS for Valkey?");
-System.out.println(answer);
-```
-
-**What happens under the hood:**
-
-1. The question is embedded using your embedding model
-2. `FT.SEARCH rag-docs "*=>[KNN 3 @vector $BLOB]"` finds the top 3 relevant chunks
-3. Retrieved chunks are injected into the prompt as context
-4. The chat model generates an answer grounded in the retrieved documents
-
-## Step 9: Query with Metadata Filters
+## Step 8: Query with Metadata Filters
 
 Combine RAG with metadata filtering for scoped retrieval:
 
@@ -249,32 +226,40 @@ ContentRetriever scopedRetriever = EmbeddingStoreContentRetriever.builder()
         .build();
 ```
 
+## Generating Answers (beyond Valkey)
+
+Valkey's job ends once you've retrieved the relevant context. To turn that
+context into a natural-language answer, pass this store's retriever to a
+LangChain4j [`AiServices`](https://docs.langchain4j.dev/tutorials/ai-services)
+with any chat model — for example a local Ollama model, or a hosted one via
+OpenRouter. That step is pure LLM/framework territory and doesn't involve Valkey,
+so it's out of scope for this cookbook; see the
+[LangChain4j RAG documentation](https://docs.langchain4j.dev/tutorials/rag) for
+the `contentRetriever(...)` wiring.
+
 ## Architecture
 
 ```text
 User Question
      │
      ▼
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────┐
+┌─────────────────┐     ┌──────────────────┐      ┌─────────────┐
 │  Embed Query    │────▶│  Valkey Search    │────▶│  Top-K Docs │
-│  (local model)  │     │  FT.SEARCH + KNN │     │  Retrieved  │
-└─────────────────┘     └──────────────────┘     └──────┬──────┘
+│  (local model)  │     │  FT.SEARCH + KNN │      │  Retrieved  │
+└─────────────────┘     └──────────────────┘      └──────┬──────┘
                                                          │
                                                          ▼
-                                                 ┌──────────────┐
-                                                 │  Chat Model  │
-                                                 │  + Context   │
-                                                 └──────┬───────┘
-                                                        │
-                                                        ▼
-                                                  Final Answer
+                                                 hand off to your LLM
+                                              (generation — outside Valkey)
 ```
 
-## Optional: Using Cloud Models (via OpenRouter)
+## Optional: Using a Hosted Embedding Model (via OpenRouter)
 
 > **Note:** This section requires an `OPENROUTER_API_KEY`. [OpenRouter](https://openrouter.ai/) exposes an OpenAI-compatible endpoint that fronts OpenAI, Anthropic, Google, Bedrock, Azure, and more — so one dependency and one code path stay vendor-neutral. The default path above runs entirely locally.
 
-For production workloads with larger embedding dimensions and higher-quality answers, swap in hosted models through OpenRouter:
+If you'd rather not run embeddings locally, swap the local embedder for a hosted
+one through OpenRouter. This is the one model choice that affects Valkey: the
+embedder's output dimension determines the store's index dimension.
 
 ```xml
 <!-- Add to pom.xml -->
@@ -287,20 +272,12 @@ For production workloads with larger embedding dimensions and higher-quality ans
 
 ```java
 import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
-import dev.langchain4j.model.openai.OpenAiChatModel;
 
 // Hosted embeddings (dimensions vary by model — rebuild the store to match)
 EmbeddingModel embeddingModel = OpenAiEmbeddingModel.builder()
         .baseUrl("https://openrouter.ai/api/v1")
         .apiKey(System.getenv("OPENROUTER_API_KEY"))
         .modelName("openai/text-embedding-3-small")
-        .build();
-
-// Hosted chat model for answer generation
-ChatModel chatModel = OpenAiChatModel.builder()
-        .baseUrl("https://openrouter.ai/api/v1")
-        .apiKey(System.getenv("OPENROUTER_API_KEY"))
-        .modelName("openai/gpt-4o-mini")
         .build();
 ```
 

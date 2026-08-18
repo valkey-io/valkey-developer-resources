@@ -6,7 +6,6 @@ import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.embedding.onnx.allminilml6v2.AllMiniLmL6V2EmbeddingModel;
-import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
 import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingSearchResult;
@@ -24,11 +23,12 @@ import java.util.Map;
  * a local embedding model, Valkey for vector storage, and context retrieval.
  *
  * This example runs entirely locally — no API keys or paid services required.
- * For a full RAG pipeline with answer generation, add a chat model (see the
- * "Optional: Using Cloud Models" section in 03-rag-pipeline.md).
+ * Valkey's role in RAG is the retrieval half shown here; turning retrieved
+ * context into an answer is a hand-off to any LLM via LangChain4j AiServices
+ * (out of scope — see the LangChain4j RAG docs).
  *
  * Prerequisites:
- *   docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.1
+ *   docker compose -f sample/docker-compose.yml up -d --wait
  */
 public class RagPipelineExample {
 
@@ -134,34 +134,6 @@ public class RagPipelineExample {
             }
             System.out.println();
         }
-
-        // ---------------------------------------------------------
-        // Optional: Wire retrieval into an AI Service for answer generation.
-        // Define the chat model here, at the point of use. Vendor-neutral via
-        // OpenRouter (OpenAI-compatible) — swap baseUrl/modelName for any provider.
-        //
-        // ChatModel chatModel = OpenAiChatModel.builder()
-        //         .baseUrl("https://openrouter.ai/api/v1")
-        //         .apiKey(System.getenv("OPENROUTER_API_KEY"))
-        //         .modelName("openai/gpt-4o-mini")
-        //         .build();
-        //
-        // interface Assistant {
-        //     String answer(String question);
-        // }
-        //
-        // Assistant assistant = AiServices.builder(Assistant.class)
-        //         .chatModel(chatModel)
-        //         .contentRetriever(EmbeddingStoreContentRetriever.builder()
-        //                 .embeddingStore(valkeyStore)
-        //                 .embeddingModel(embeddingModel)
-        //                 .maxResults(3)
-        //                 .minScore(0.5)
-        //                 .build())
-        //         .build();
-        //
-        // System.out.println(assistant.answer("How do I enable TLS?"));
-        // ---------------------------------------------------------
 
         // 6. Cleanup
         valkeyStore.removeAll(ids);
