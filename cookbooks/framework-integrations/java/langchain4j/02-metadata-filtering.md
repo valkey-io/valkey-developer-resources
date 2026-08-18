@@ -8,7 +8,7 @@
 
 ## Prerequisites
 
-- Valkey running locally (see [01 Getting Started](01-getting-started.md))
+- Valkey running locally — start it with `docker compose -f sample/docker-compose.yml up -d --wait` (see [01 Getting Started](01-getting-started.md) for what the bundle image provides)
 - Java 17+, Maven 3.8+
 - Completed cookbook 01 or equivalent familiarity with `ValkeyEmbeddingStore`
 

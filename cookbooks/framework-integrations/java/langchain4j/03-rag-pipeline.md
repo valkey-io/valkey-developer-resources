@@ -8,10 +8,10 @@
 
 ## Prerequisites
 
-- Valkey running locally (see [01 Getting Started](01-getting-started.md))
+- Valkey running locally — start it with `docker compose -f sample/docker-compose.yml up -d --wait` (see [01 Getting Started](01-getting-started.md) for what the bundle image provides)
 - Java 17+, Maven 3.8+
 - Completed cookbook 01 or equivalent familiarity with `ValkeyEmbeddingStore`
-- (Optional) For cloud LLM path: AWS credentials with Bedrock access, or Ollama installed locally
+- (Optional) For the cloud model path: an `OPENROUTER_API_KEY` (OpenRouter is OpenAI-compatible and vendor-neutral), or Ollama installed locally
 
 ## What You'll Build
 
@@ -23,7 +23,7 @@ A complete Retrieval-Augmented Generation pipeline:
 4. **Retrieve** relevant chunks via vector similarity
 5. **Answer** questions using retrieved context
 
-The default path runs entirely locally. An optional section shows how to swap in cloud models (Bedrock Titan + Claude) for production use.
+The default path runs entirely locally. An optional section shows how to swap in cloud models via OpenRouter (vendor-neutral, OpenAI-compatible) for production use.
 
 ## Step 1: Dependencies
 
@@ -270,43 +270,43 @@ User Question
                                                   Final Answer
 ```
 
-## Optional: Using Cloud Models (AWS Bedrock)
+## Optional: Using Cloud Models (via OpenRouter)
 
-> **Note:** This section requires AWS credentials with Amazon Bedrock access. [Amazon Bedrock](https://aws.amazon.com/bedrock/) is an AWS service. The default path above runs entirely locally.
+> **Note:** This section requires an `OPENROUTER_API_KEY`. [OpenRouter](https://openrouter.ai/) exposes an OpenAI-compatible endpoint that fronts OpenAI, Anthropic, Google, Bedrock, Azure, and more — so one dependency and one code path stay vendor-neutral. The default path above runs entirely locally.
 
-For production workloads with larger embedding dimensions and higher-quality answers, swap in Bedrock Titan (embeddings) and Claude (chat):
+For production workloads with larger embedding dimensions and higher-quality answers, swap in hosted models through OpenRouter:
 
 ```xml
 <!-- Add to pom.xml -->
 <dependency>
     <groupId>dev.langchain4j</groupId>
-    <artifactId>langchain4j-bedrock</artifactId>
+    <artifactId>langchain4j-open-ai</artifactId>
     <version>1.17.2</version>
 </dependency>
 ```
 
 ```java
-import dev.langchain4j.model.bedrock.BedrockTitanEmbeddingModel;
-import dev.langchain4j.model.bedrock.BedrockChatModel;
-import software.amazon.awssdk.regions.Region;
+import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
+import dev.langchain4j.model.openai.OpenAiChatModel;
 
-// Titan Embeddings (1024 dimensions — rebuild store with dimension=1024)
-BedrockTitanEmbeddingModel embeddingModel = BedrockTitanEmbeddingModel.builder()
-        .model("amazon.titan-embed-text-v2:0")
-        .region(Region.US_WEST_2)
-        .dimensions(1024)
+// Hosted embeddings (dimensions vary by model — rebuild the store to match)
+EmbeddingModel embeddingModel = OpenAiEmbeddingModel.builder()
+        .baseUrl("https://openrouter.ai/api/v1")
+        .apiKey(System.getenv("OPENROUTER_API_KEY"))
+        .modelName("openai/text-embedding-3-small")
         .build();
 
-// Claude for answer generation
-BedrockChatModel chatModel = BedrockChatModel.builder()
-        .modelId("us.anthropic.claude-sonnet-4-20250514-v1:0")
-        .region(Region.US_WEST_2)
+// Hosted chat model for answer generation
+ChatModel chatModel = OpenAiChatModel.builder()
+        .baseUrl("https://openrouter.ai/api/v1")
+        .apiKey(System.getenv("OPENROUTER_API_KEY"))
+        .modelName("openai/gpt-4o-mini")
         .build();
 ```
 
 When switching embedding models, remember to update:
 
-- `dimension` in `ValkeyEmbeddingStore.builder()` (384 → 1024)
+- `dimension` in `ValkeyEmbeddingStore.builder()` to match the hosted model's output
 - Re-ingest all documents (embeddings from different models are not compatible)
 
 ## Complete Example

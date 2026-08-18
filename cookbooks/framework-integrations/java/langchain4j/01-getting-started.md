@@ -19,17 +19,17 @@ HNSW indexing, native JSON storage, and automatic index management via the offic
 ## Step 1: Start Valkey
 
 ```bash
-docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.2
+docker compose -f sample/docker-compose.yml up -d --wait
 ```
 
 > ⚠️ **Security:** These examples use no authentication or TLS for simplicity.
 > For any non-localhost deployment, enable authentication and TLS.
 > See the [Valkey security documentation](https://valkey.io/topics/security/).
 
-The `valkey-bundle` image includes JSON and Search modules needed for vector indexing. Verify:
+The `valkey-bundle` image (pinned in [`sample/docker-compose.yml`](sample/docker-compose.yml), the single source of the tested version) includes the JSON and Search modules needed for vector indexing. `--wait` blocks until the container's healthcheck passes. Verify:
 
 ```bash
-docker exec valkey valkey-cli PING
+docker compose -f sample/docker-compose.yml exec valkey valkey-cli PING
 # PONG
 ```
 
