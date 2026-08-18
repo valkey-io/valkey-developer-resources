@@ -135,16 +135,8 @@ with the actual model and hashing per-chunk (see `lmcache/v1/token_database.py` 
 source) — out of scope for a GPU-free cookbook, but the underlying principle (same hash → same key
 → shared cache) is identical to what's shown here.
 
-## Serialization Options
-
-| Format | Speed | Size | Best For |
-| ------ | ----- | ---- | -------- |
-| `naive` | Fastest | Largest | Single-instance, local network |
-| `cachegen` | Moderate | Meaningfully smaller | Cross-instance, bandwidth-constrained |
-
-For multi-instance sharing over a network, `cachegen` typically wins because the reduced transfer
-size more than compensates for compression overhead. (This is LMCache's own documented guidance —
-this cookbook's demo uses `naive` since it doesn't transfer real KV tensors across a network.)
+For serialization format selection in multi-instance deployments, see
+[03 - Production Deployment](03-production-deployment.md).
 
 ---
 

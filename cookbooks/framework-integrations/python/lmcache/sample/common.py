@@ -72,7 +72,11 @@ def resolve_connection(host: str | None = None, port: int | None = None) -> tupl
     )
 
 
-async def create_client(host: str | None = None, port: int | None = None) -> GlideClient:
+async def create_client(
+    host: str | None = None,
+    port: int | None = None,
+    use_tls: bool = False,
+) -> GlideClient:
     """Create a GLIDE client with bounded timeouts.
 
     Defaults to VALKEY_HOST/VALKEY_PORT env vars when host/port aren't given
@@ -81,6 +85,7 @@ async def create_client(host: str | None = None, port: int | None = None) -> Gli
     host, port = resolve_connection(host, port)
     config = GlideClientConfiguration(
         addresses=[NodeAddress(host, port)],
+        use_tls=use_tls,
         request_timeout=REQUEST_TIMEOUT_MS,
         advanced_config=AdvancedGlideClientConfiguration(
             connection_timeout=REQUEST_TIMEOUT_MS,

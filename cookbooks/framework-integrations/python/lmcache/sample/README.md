@@ -41,7 +41,7 @@ python -m venv .venv
 
 Tests verify (all CPU-only, no GPU):
 
-- LMCache's real config loader accepts standalone, cluster, and TLS/serverless configs
+- LMCache's real config loader accepts standalone, cluster, and TLS-enabled cluster configs
 - LMCache's real config loader rejects invalid configs
 - The MP-mode `--l2-adapter` JSON generator produces expected fields, and the generated dict
   round-trips through LMCache's real `ValkeyL2AdapterConfig.from_dict` parser
@@ -60,10 +60,10 @@ python kv_cache_sharing.py
 
 # 03 - Production config generator + validator + monitor
 python production_deployment.py --mode standalone --monitor
-python production_deployment.py --mode cluster --host my-cluster.endpoint:6379
-python production_deployment.py --mode serverless --host my-cache.serverless.region.cache.amazonaws.com:6379
+python production_deployment.py --mode cluster --host localhost:6379
+python production_deployment.py --mode cluster --host localhost:6379 --tls
 python production_deployment.py --mode mp --host 127.0.0.1:6379
-python production_deployment.py --mode mp --host my-cluster.endpoint:6379 --cluster-mode
+python production_deployment.py --mode mp --host localhost:6379 --cluster-mode
 ```
 
 ## Sample Scripts
@@ -73,7 +73,7 @@ python production_deployment.py --mode mp --host my-cluster.endpoint:6379 --clus
 | `common.py` | — | Shared LMCache config loading, key generation, and GLIDE client helpers |
 | `getting_started.py` | [01 - Getting Started](../01-getting-started.md) | Load a real LMCache config, store/inspect a simulated KV cache chunk |
 | `kv_cache_sharing.py` | [02 - KV Cache Sharing](../02-kv-cache-sharing.md) | Two simulated instances sharing a chunk via a real Valkey backend |
-| `production_deployment.py` | [03 - Production Deployment](../03-production-deployment.md) | Generate + validate configs (standalone/cluster/serverless/MP mode), monitor cache stats |
+| `production_deployment.py` | [03 - Production Deployment](../03-production-deployment.md) | Generate + validate standalone, cluster, TLS-enabled cluster, and MP-mode configs; monitor cache stats |
 
 ## Environment Variables
 

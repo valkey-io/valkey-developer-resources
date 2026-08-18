@@ -3,7 +3,7 @@
 Covers three layers, all CPU-only (no GPU, no vLLM):
 
 1. Real LMCache config loading (``load_engine_config_with_overrides``)
-   for standalone, cluster, TLS/serverless, and invalid configs.
+   for standalone, cluster, TLS-enabled cluster, and invalid configs.
 2. Real LMCache key generation (``CacheEngineKey.to_string()`` via
    ``common.cache_key``) — determinism, format, cross-instance sharing.
 3. Real Valkey round trips (store/hit/miss) using the same keys, against
@@ -33,8 +33,8 @@ from common import (
 from production_deployment import (
     generate_cluster_config,
     generate_mp_l2_adapter,
-    generate_serverless_config,
     generate_standalone_config,
+    monitor_cache_stats,
     validate_mp_config,
 )
 
@@ -70,10 +70,8 @@ class TestConfigLoading:
         finally:
             Path(path).unlink(missing_ok=True)
 
-    def test_serverless_config_loads_with_tls(self):
-        path = _write_temp_yaml(
-            generate_serverless_config("my-cache.serverless.us-east-1.cache.amazonaws.com:6379")
-        )
+    def test_cluster_config_loads_with_tls(self):
+        path = _write_temp_yaml(generate_cluster_config("localhost:6379", tls_enable=True))
         try:
             config = load_lmcache_config(path)
             assert config.extra_config["tls_enable"] is True
@@ -248,6 +246,57 @@ class TestProductionDeploymentCli:
         assert result.returncode == 0, result.stderr
         assert '"cluster_mode": true' in result.stdout
 
+    def test_tls_flag_reaches_cluster_config(self):
+        result = subprocess.run(
+            [
+                sys.executable,
+                "production_deployment.py",
+                "--mode",
+                "cluster",
+                "--host",
+                "localhost:6379",
+                "--tls",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "tls_enable: true" in result.stdout
+
+    def test_tls_flag_rejects_mp_mode(self):
+        result = subprocess.run(
+            [sys.executable, "production_deployment.py", "--mode", "mp", "--tls"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert result.returncode != 0
+        assert "--tls is supported with --mode cluster only" in result.stderr
+
+
+class TestMonitoring:
+    def test_monitor_passes_tls_to_glide_client(self, monkeypatch):
+        observed: dict[str, bool] = {}
+
+        class FakeClient:
+            async def dbsize(self):
+                return 0
+
+            async def custom_command(self, command):
+                return b""
+
+            async def close(self):
+                return None
+
+        async def fake_create_client(host, port, use_tls=False):
+            observed["use_tls"] = use_tls
+            return FakeClient()
+
+        monkeypatch.setattr("production_deployment.create_client", fake_create_client)
+        asyncio.run(monitor_cache_stats("localhost", 6379, use_tls=True))
+        assert observed["use_tls"] is True
+
     def test_host_defaults_to_env_vars_when_not_passed(self):
         env = {**os.environ, "VALKEY_HOST": "env-configured-host", "VALKEY_PORT": "9999"}
         result = subprocess.run(
@@ -304,29 +353,29 @@ class TestValkeyRoundTrip:
 
     def test_store_and_hit(self):
         async def _run():
-            valkeyClient = await create_client()
+            valkey_client = await create_client()
             try:
                 key = cache_key(MODEL_NAME, "round trip test prompt")
                 payload = b"\x00\x01\x02" * 100
-                await valkeyClient.set(key, payload)
-                assert await valkeyClient.exists([key])
-                retrieved = await valkeyClient.get(key)
+                await valkey_client.set(key, payload)
+                assert await valkey_client.exists([key])
+                retrieved = await valkey_client.get(key)
                 assert retrieved == payload
-                await valkeyClient.delete([key])
+                await valkey_client.delete([key])
             finally:
-                await valkeyClient.close()
+                await valkey_client.close()
 
         asyncio.run(_run())
 
     def test_miss_for_unstored_key(self):
         async def _run():
-            valkeyClient = await create_client()
+            valkey_client = await create_client()
             try:
                 key = cache_key(MODEL_NAME, "never stored prompt")
-                assert not await valkeyClient.exists([key])
-                assert await valkeyClient.get(key) is None
+                assert not await valkey_client.exists([key])
+                assert await valkey_client.get(key) is None
             finally:
-                await valkeyClient.close()
+                await valkey_client.close()
 
         asyncio.run(_run())
 

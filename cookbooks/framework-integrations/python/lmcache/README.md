@@ -28,4 +28,4 @@ GPU-based inference walkthrough with actual TTFT measurements, see
 | --- | --- | --- | --- |
 | 01 | <nobr>[Getting Started](01-getting-started.md)</nobr> | Load a real LMCache config, connect to Valkey, and store/inspect a simulated KV cache chunk under LMCache's real key format. | Beginner, ~15 min, Python |
 | 02 | <nobr>[KV Cache Sharing](02-kv-cache-sharing.md)</nobr> | Two simulated instances sharing a KV cache chunk through a centralized Valkey store. | Intermediate, ~15 min, Python |
-| 03 | <nobr>[Production Deployment](03-production-deployment.md)</nobr> | Cluster mode, TLS/ElastiCache Serverless, the current recommended MP-mode adapter, worker tuning, and cache-hit monitoring. | Advanced, ~20 min, Python |
+| 03 | <nobr>[Production Deployment](03-production-deployment.md)</nobr> | Cluster mode, generic TLS configuration, the current recommended MP-mode adapter, and Valkey cache monitoring. | Advanced, ~20 min, Python |

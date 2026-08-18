@@ -1,7 +1,7 @@
 """03 - Production Deployment: generate and validate LMCache Valkey configs.
 
-Generates configs for the legacy in-process connector (standalone,
-cluster, TLS/ElastiCache Serverless) and the current recommended MP-mode
+Generates configs for the legacy in-process connector (standalone and
+cluster, with optional TLS) and the current recommended MP-mode
 ``--l2-adapter`` JSON, then round-trips each legacy config through
 LMCache's real ``load_engine_config_with_overrides`` to prove it actually
 parses — not just that it looks right.
@@ -12,8 +12,8 @@ metrics via a real GLIDE client (no ``valkey-cli`` binary required).
 Usage:
     docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.2
     python production_deployment.py --mode standalone --monitor
-    python production_deployment.py --mode cluster --host my-cluster.endpoint:6379
-    python production_deployment.py --mode serverless --host my-cache.serverless.region.cache.amazonaws.com:6379
+    python production_deployment.py --mode cluster --host localhost:6379
+    python production_deployment.py --mode cluster --host localhost:6379 --tls
     python production_deployment.py --mode mp --host 127.0.0.1:6379
 """
 
@@ -45,9 +45,10 @@ def generate_standalone_config(host: str = "localhost:6379") -> str:
     """)
 
 
-def generate_cluster_config(host: str) -> str:
+def generate_cluster_config(host: str, tls_enable: bool = False) -> str:
     """Generate a legacy in-process config for Valkey cluster mode."""
     addr, port = parse_host(host)
+    tls_config = "          tls_enable: true\n" if tls_enable else ""
     return textwrap.dedent(f"""\
         chunk_size: 256
         local_cpu: true
@@ -57,26 +58,7 @@ def generate_cluster_config(host: str) -> str:
         pre_caching_hash_algorithm: sha256_cbor_64bit
         extra_config:
           valkey_mode: "cluster"
-          valkey_num_workers: 32
-          request_timeout: 5.0
-          connection_timeout: 10.0
-    """)
-
-
-def generate_serverless_config(host: str) -> str:
-    """Generate a legacy in-process config for ElastiCache Serverless (TLS required)."""
-    addr, port = parse_host(host)
-    return textwrap.dedent(f"""\
-        chunk_size: 256
-        local_cpu: true
-        max_local_cpu_size: 10.0
-        remote_url: "valkey://{addr}:{port}"
-        remote_serde: "cachegen"
-        pre_caching_hash_algorithm: sha256_cbor_64bit
-        extra_config:
-          valkey_mode: "cluster"
-          tls_enable: true
-          valkey_num_workers: 32
+{tls_config}          valkey_num_workers: 32
           request_timeout: 5.0
           connection_timeout: 10.0
     """)
@@ -146,15 +128,15 @@ def validate_mp_config(adapter: dict) -> None:
           f"cluster_mode={config.cluster_mode!r}, num_workers={config.num_workers!r}")
 
 
-async def monitor_cache_stats(host: str, port: int) -> None:
+async def monitor_cache_stats(host: str, port: int, use_tls: bool = False) -> None:
     """Query Valkey for cache-related metrics via a real GLIDE client."""
     print("\n--- Valkey Cache Metrics ---")
-    valkeyClient = await create_client(host, port)
+    valkey_client = await create_client(host, port, use_tls=use_tls)
     try:
-        dbsize = await valkeyClient.dbsize()
+        dbsize = await valkey_client.dbsize()
         print(f"Total keys (KV cache chunks stored): {dbsize}")
 
-        stats = await valkeyClient.custom_command(["INFO", "stats"])
+        stats = await valkey_client.custom_command(["INFO", "stats"])
         stats_text = stats.decode() if isinstance(stats, bytes) else str(stats)
         hits = misses = 0
         for line in stats_text.splitlines():
@@ -168,13 +150,13 @@ async def monitor_cache_stats(host: str, port: int) -> None:
         else:
             print("No keyspace activity yet.")
 
-        memory = await valkeyClient.custom_command(["INFO", "memory"])
+        memory = await valkey_client.custom_command(["INFO", "memory"])
         memory_text = memory.decode() if isinstance(memory, bytes) else str(memory)
         for line in memory_text.splitlines():
             if line.startswith("used_memory_human:"):
                 print(f"Memory usage: {line.split(':', 1)[1]}")
     finally:
-        await valkeyClient.close()
+        await valkey_client.close()
 
 
 def main() -> None:
@@ -184,7 +166,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--mode",
-        choices=["standalone", "cluster", "serverless", "mp"],
+        choices=["standalone", "cluster", "mp"],
         default="standalone",
         help="Deployment mode (default: standalone)",
     )
@@ -200,6 +182,11 @@ def main() -> None:
         help="Set cluster_mode: true in the generated MP-mode --l2-adapter config (--mode mp only)",
     )
     parser.add_argument(
+        "--tls",
+        action="store_true",
+        help="Enable TLS in a generated legacy cluster config (--mode cluster only)",
+    )
+    parser.add_argument(
         "--monitor",
         action="store_true",
         help="Query Valkey for cache metrics after generating the config",
@@ -209,6 +196,9 @@ def main() -> None:
     if args.host is None:
         env_host, env_port = connection_settings()
         args.host = f"{env_host}:{env_port}"
+
+    if args.tls and args.mode != "cluster":
+        parser.error("--tls is supported with --mode cluster only")
 
     if args.mode == "mp":
         adapter = generate_mp_l2_adapter(args.host, cluster_mode=args.cluster_mode)
@@ -220,12 +210,10 @@ def main() -> None:
         print(f"  lmcache server --l1-size-gb 4 --eviction-policy LRU --chunk-size 256 "
               f"--port 6555 --l2-adapter '{json.dumps(adapter)}'")
     else:
-        generators = {
-            "standalone": generate_standalone_config,
-            "cluster": generate_cluster_config,
-            "serverless": generate_serverless_config,
-        }
-        config_text = generators[args.mode](args.host)
+        if args.mode == "cluster":
+            config_text = generate_cluster_config(args.host, tls_enable=args.tls)
+        else:
+            config_text = generate_standalone_config(args.host)
         print(f"Generated {args.mode} config (legacy in-process connector):\n")
         print(config_text)
         print("Validating against LMCache's real config loader...")
@@ -233,7 +221,7 @@ def main() -> None:
 
     if args.monitor:
         addr, port = parse_host(args.host)
-        asyncio.run(monitor_cache_stats(addr, int(port)))
+        asyncio.run(monitor_cache_stats(addr, int(port), use_tls=args.tls))
 
 
 if __name__ == "__main__":

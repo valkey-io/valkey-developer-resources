@@ -51,35 +51,35 @@ async def main() -> None:
     print(f"  remote_serde:  {config.remote_serde}")
     print(f"  extra_config:  {config.extra_config}")
 
-    valkeyClient = await create_client()
+    valkey_client = await create_client()
     try:
         cold_key = cache_key(MODEL_NAME, COLD_PROMPT)
         print(f"\nValkey key for the cold prompt:\n  {cold_key}")
 
-        exists_before = await valkeyClient.exists([cold_key])
+        exists_before = await valkey_client.exists([cold_key])
         print(f"EXISTS before store: {bool(exists_before)}")
 
-        await valkeyClient.set(cold_key, FAKE_CHUNK_BYTES)
+        await valkey_client.set(cold_key, FAKE_CHUNK_BYTES)
         print(f"Stored {len(FAKE_CHUNK_BYTES)} bytes under this key (simulated KV cache chunk).")
 
         # Warm — same prompt, same key, cache hit.
         warm_key = cache_key(MODEL_NAME, COLD_PROMPT)
         assert warm_key == cold_key, "identical prompts must hash to identical keys"
-        hit_bytes = await valkeyClient.get(warm_key)
-        print(f"\nWarm lookup (same prompt): EXISTS={bool(await valkeyClient.exists([warm_key]))}")
+        hit_bytes = await valkey_client.get(warm_key)
+        print(f"\nWarm lookup (same prompt): EXISTS={bool(await valkey_client.exists([warm_key]))}")
         print(f"  Retrieved {len(hit_bytes)} bytes, matches stored chunk: {hit_bytes == FAKE_CHUNK_BYTES}")
 
         # Miss — different prompt, different key.
         miss_key = cache_key(MODEL_NAME, MISS_PROMPT)
         print(f"\nDifferent prompt's key:\n  {miss_key}")
-        print(f"EXISTS for the different prompt: {bool(await valkeyClient.exists([miss_key]))}")
+        print(f"EXISTS for the different prompt: {bool(await valkey_client.exists([miss_key]))}")
 
-        dbsize = await valkeyClient.dbsize()
+        dbsize = await valkey_client.dbsize()
         print(f"\nValkey DBSIZE: {dbsize}")
 
-        await valkeyClient.delete([cold_key])
+        await valkey_client.delete([cold_key])
     finally:
-        await valkeyClient.close()
+        await valkey_client.close()
 
 
 if __name__ == "__main__":
