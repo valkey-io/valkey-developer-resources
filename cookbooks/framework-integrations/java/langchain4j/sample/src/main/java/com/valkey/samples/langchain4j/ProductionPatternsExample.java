@@ -28,7 +28,7 @@ import java.util.concurrent.Executors;
  * error handling, index management, and shared client patterns.
  *
  * Prerequisites:
- *   docker run -d --name valkey -p 127.0.0.1:6379:6379 valkey/valkey-bundle:9.1.1
+ *   docker compose -f sample/docker-compose.yml up -d --wait
  */
 public class ProductionPatternsExample {
 
@@ -227,35 +227,32 @@ public class ProductionPatternsExample {
         // ============================================================
         System.out.println("\n--- Cleanup ---");
 
-        // Remove data first, then drop indexes, then close.
-        // Note: The simpler examples (01, 02) only call removeAll() + close(),
-        // leaving the index intact for re-runs. This production example drops
-        // indexes explicitly because it creates multiple temporary indexes to
-        // demonstrate index lifecycle management.
+        // All three stores (valkeyStore, ragStore, cacheStore) share the ONE
+        // GlideClient created above, so they must not be closed individually:
+        // closing any store closes the shared client, and every subsequent
+        // operation would then fail silently (swallowed by the best-effort
+        // catches below). So do all work while the client is open — remove data,
+        // then drop the indexes — and close the shared client exactly once, last.
+        //
+        // Note: the simpler examples (01, 02) only removeAll() + close() a single
+        // store, leaving the index intact for re-runs. This production example
+        // drops its indexes explicitly to demonstrate index lifecycle management —
+        // mirroring a teardown/redeploy cycle. Dropping an index removes only the
+        // search index definition, not the underlying JSON documents.
         try {
             valkeyStore.removeAll();
         } catch (Exception e) { /* best-effort */ }
-        try {
-            ragStore.close();
-        } catch (Exception e) { /* best-effort */ }
-        try {
-            cacheStore.close();
-        } catch (Exception e) { /* best-effort */ }
 
         try {
-            // Unlike MetadataFilteringExample (which leaves its index in place for
-            // inspection after the demo), this production-patterns example drops the
-            // indexes it created so repeated runs start from a clean slate — mirroring
-            // a teardown/redeploy cycle. Dropping an index does not delete the
-            // underlying JSON documents; it only removes the search index definition.
             valkeyClient.customCommand(new String[]{"FT.DROPINDEX", "production-index"}).get();
             valkeyClient.customCommand(new String[]{"FT.DROPINDEX", "rag-store"}).get();
             valkeyClient.customCommand(new String[]{"FT.DROPINDEX", "cache-store"}).get();
         } catch (Exception e) { /* best-effort */ }
 
-        // close() on the store closes the shared GlideClient — call last.
-        // Do not reuse the valkeyClient after this point.
-        valkeyStore.close();
+        // Close the shared GlideClient exactly once, at the very end. All three
+        // stores wrap this same client, so this tears down the connection for all
+        // of them. Do not reuse valkeyClient after this point.
+        valkeyClient.close();
 
         System.out.println("\nDone! All production patterns demonstrated.");
     }
