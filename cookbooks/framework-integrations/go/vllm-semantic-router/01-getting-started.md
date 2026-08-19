@@ -9,7 +9,7 @@
 ## Prerequisites
 
 - Go 1.24+
-- Docker or Podman
+- Docker
 - Python 3.10–3.12 and `pip`
 - A Hugging Face access token if the embedding model download is gated
 - A reachable OpenAI-compatible upstream model for `demo-model`

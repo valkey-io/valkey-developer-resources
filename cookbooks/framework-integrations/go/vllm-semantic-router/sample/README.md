@@ -6,7 +6,7 @@ Valkey cache implementation; this Go program never creates an index or sends sto
 ## Prerequisites
 
 - Go 1.24+
-- Docker or Podman
+- Docker
 - Python 3.10–3.12
 - A Hugging Face access token if the embedding model download is gated
 - A running OpenAI-compatible upstream model configured as `demo-model`
