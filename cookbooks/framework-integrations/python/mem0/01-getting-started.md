@@ -10,16 +10,18 @@
 
 - Docker
 - Python 3.10 or newer
-- [Ollama](https://ollama.com/) running locally (free, no API key) with the models pulled:
+- **For the hands-on walkthrough only:** [Ollama](https://ollama.com/) running
+  locally (free, no API key) with the models pulled:
 
   ```bash
   ollama pull nomic-embed-text   # embeddings (768 dims)
   ollama pull llama3.2           # fact extraction / chat
   ```
 
-The documented integration path runs locally through Ollama with no paid API
-key required. The runnable sample is credential-free and needs neither Ollama
-nor a key.
+The walkthrough below runs a local LLM and embedder through Ollama — no paid API
+key required. The runnable [`sample/`](sample/) is even more self-contained: it
+uses Mem0's built-in deterministic `MockEmbeddings` with `infer=False`, so it
+needs neither Ollama nor any key. That is what lets CI run it unattended.
 
 ## What is Mem0?
 
