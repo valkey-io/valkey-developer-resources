@@ -1,5 +1,5 @@
 __pycache__/
-*.pyc
+*.py[cod]
 .venv/
 venv/
 .env
@@ -7,3 +7,4 @@ venv/
 dist/
 build/
 .pytest_cache/
+.ruff_cache/
