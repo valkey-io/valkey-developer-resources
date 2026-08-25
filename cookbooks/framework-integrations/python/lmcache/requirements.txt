@@ -1,4 +1,6 @@
 lmcache==0.5.2
 torch==2.13.0
 valkey-glide==2.5.0
+valkey-glide-sync==2.5.1
 pytest==8.3.5
+pytest-asyncio==0.24.0

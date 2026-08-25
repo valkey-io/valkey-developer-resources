@@ -1,31 +1,58 @@
 # LMCache + Valkey
 
-> Offload LLM KV caches to Valkey with LMCache, verified against LMCache's real config-loading and key-generation code — no GPU required to follow along.
+> Offload LLM KV caches to Valkey with LMCache — store, share, and reload real KV-cache tensors on CPU, no GPU required to follow along.
 
-**Who is this for:** Python developers evaluating [LMCache](https://github.com/LMCache/LMCache) as
-a KV cache layer for vLLM who want to understand exactly what it writes to Valkey before deploying
-it on GPU hardware.
+**Who is this for:** Developers who want to self-deploy LLMs and optimize inference throughput and latency. This series explains what KV caching is and shows how to set up KV caching with Valkey and [LMCache](https://github.com/LMCache/LMCache), so you can watch a real cache hit end-to-end on your own machine.
+
+## Format
+
+These cookbooks are **Jupyter notebooks** — run the cells as you read. Each notebook drives LMCache's real Valkey connector against a real Valkey server on CPU; the full vLLM inference path (which needs a Linux/GPU host) is documented as an optional extension in chapter 03.
 
 ## Prerequisites
 
-- Docker
-- Python 3.10 or newer
-- No API keys, GPU, or paid services needed for the default path in this repo
+- Docker (to run Valkey locally)
+- Python 3.10 or newer (LMCache requires `>=3.10,<3.14`)
+- No API keys, GPU, or paid services needed for the notebooks
 
-## Scope
+Set up once, from this directory:
 
-LMCache's Valkey connector is normally driven by vLLM during live inference,
-which requires a Linux machine with an NVIDIA GPU. This cookbook series does
-not run that pipeline — instead it exercises the real LMCache config-loading
-and Valkey key-generation code (`lmcache==0.5.2`) against a real local
-Valkey server, so every command here runs on CPU and in CI. For the full
-GPU-based inference walkthrough with actual TTFT measurements, see
-[LMCache's own example](https://github.com/LMCache/LMCache/tree/v0.5.2/examples/kv_cache_reuse/remote_backends/valkey).
+```bash
+docker compose up -d --wait
+python -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m ipykernel install --user --name lmcache
+```
+
+Then open the notebooks with the `lmcache` kernel (`jupyter lab` / `jupyter notebook`, or VS Code).
 
 ## Cookbooks
 
 | # | Cookbook | Description | Tags |
 | --- | --- | --- | --- |
-| 01 | <nobr>[Getting Started](01-getting-started.md)</nobr> | Load a real LMCache config, connect to Valkey, and store/inspect a simulated KV cache chunk under LMCache's real key format. | Beginner, ~15 min, Python |
-| 02 | <nobr>[KV Cache Sharing](02-kv-cache-sharing.md)</nobr> | Two simulated instances sharing a KV cache chunk through a centralized Valkey store. | Intermediate, ~15 min, Python |
-| 03 | <nobr>[Production Deployment](03-production-deployment.md)</nobr> | Cluster mode, generic TLS configuration, the current recommended MP-mode adapter, and Valkey cache monitoring. | Advanced, ~20 min, Python |
+| 01 | <nobr>[Intro to KV Caching with Valkey](01-intro-to-kv-caching-with-valkey.ipynb)</nobr> | What KV caching is, and a real store-and-load of a KV tensor through LMCache's Valkey connector. | Beginner, ~15 min, Python |
+| 02 | <nobr>[Sharing KV Caches Across Instances](02-sharing-kv-caches-across-instances.ipynb)</nobr> | Two workers sharing one Valkey-backed cache — the second reads what the first wrote. | Intermediate, ~15 min, Python |
+| 03 | <nobr>[Scaling to Production](03-scaling-to-production.ipynb)</nobr> | Cluster mode, TLS, monitoring, and wiring the connector under a real vLLM server. | Advanced, ~20 min, Python |
+
+## What's in this directory
+
+| File | Purpose |
+| --- | --- |
+| `01`–`03` `.ipynb` | The cookbook notebooks |
+| `common.py` | Shared helpers imported by the notebooks and tests |
+| `lmcache_config.yaml` | Example LMCache config loaded in chapter 01 |
+| `requirements.txt` | Pinned Python dependencies |
+| `docker-compose.yml` | Starts Valkey on `127.0.0.1:6379` |
+| `test_lmcache_valkey.py` | CI tests (config loading, key generation, real Valkey round trips) |
+
+## Running the tests
+
+```bash
+docker compose up -d --wait
+.venv/bin/python -m pytest test_lmcache_valkey.py -v
+```
+
+## Teardown
+
+```bash
+docker compose down
+```
