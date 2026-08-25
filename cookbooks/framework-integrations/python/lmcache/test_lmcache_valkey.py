@@ -43,7 +43,7 @@ class TestConfigLoading:
             'chunk_size: 256\n'
             'local_cpu: true\n'
             'remote_url: "valkey://localhost:6379"\n'
-            'remote_serde: "cachegen"\n'
+            'remote_serde: "naive"\n'
             'extra_config:\n'
             '  valkey_mode: "cluster"\n'
             '  valkey_num_workers: 32\n'
