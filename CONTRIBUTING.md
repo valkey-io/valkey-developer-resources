@@ -100,28 +100,22 @@ Reviewers evaluate every PR against this checklist. Use it as a self-check befor
 
 ## Cookbook Format
 
-Cookbooks come in two forms depending on language:
+Cookbooks are **Jupyter notebooks (`.ipynb`)**, whatever the language. Prose and runnable code live
+in one artifact, so the reader executes cells as they read and CI executes the exact code the reader
+runs. Jupyter has kernels for the languages this repo uses (Python, and via community kernels Go,
+TypeScript/JavaScript, Java), so a cookbook in any of them is a notebook series.
 
-- **Python cookbooks use Jupyter notebooks (`.ipynb`).** Prose and runnable code live in one
-  artifact, so CI executes the exact code the reader runs.
-- **Other languages (Go, Java, TypeScript, …) use markdown chapters + a `sample/` directory**, as
-  documented under [Markdown Cookbook Structure](#markdown-cookbook-structure) below, until
-  equivalent executable-document tooling is standard for those ecosystems.
-
-A notebook holds the chapter *content*, but a cookbook still needs a few real files on disk that
-a notebook cannot carry (the runtime environment and any shared helpers). See
-[Notebook Cookbook Structure](#notebook-cookbook-structure).
-
-Regardless of format, every cookbook chapter must include the same content elements — lead, audience
-line, prerequisites, step headings, security callout, and navigation. Those shared requirements are
-described once under [Cookbook Content Requirements](#cookbook-content-requirements); the two
-structure sections below cover only the file layout differences.
+A notebook holds the chapter *content*, but a cookbook still needs a few real files on disk that a
+notebook cannot carry — the runtime environment (dependency manifest, `docker-compose.yml`) and any
+shared helper module. See [Cookbook Structure](#cookbook-structure) for the layout and
+[Cookbook Content Requirements](#cookbook-content-requirements) for the content every chapter must
+include.
 
 ## Cookbook Content Requirements
 
-These content rules apply to **every** cookbook chapter, whether it is an `.ipynb` notebook (Python)
-or a `.md` file (other languages). The [Notebook](#notebook-cookbook-structure) and
-[Markdown](#markdown-cookbook-structure) sections below cover only how these map onto files or cells.
+These content rules apply to **every** cookbook chapter. A chapter is an `.ipynb` notebook; the
+rules describe the content it must carry, and [Cookbook Structure](#cookbook-structure) covers the
+file layout.
 
 ### Required Files
 
@@ -129,17 +123,16 @@ Every cookbook **must** have:
 
 | File | Purpose |
 |------|---------|
-| `README.md` | Overview with linked table of all cookbooks in the track (always markdown) |
-| First chapter | `01-getting-started.ipynb` (Python) or `01-getting-started.md` (other languages) — always Beginner difficulty |
+| `README.md` | Overview with linked table of all cookbooks in the track (markdown) |
+| `01-getting-started.ipynb` | First chapter — always Beginner difficulty |
 
-Python cookbooks additionally include a `requirements.txt` and `docker-compose.yml` in the cookbook
-directory (see [Notebook Cookbook Structure](#notebook-cookbook-structure)); markdown cookbooks keep
-those under `sample/` (see [Sample Code](#sample-code-required-when-feasible)).
+A cookbook also includes, in the same directory, a dependency manifest and a `docker-compose.yml`
+that starts Valkey (see [Cookbook Structure](#cookbook-structure)).
 
 ### Chapter Structure
 
-Every numbered chapter follows this structure (in a `.md` file, or across the cells of an `.ipynb`
-notebook):
+Every numbered chapter follows this structure, expressed across the cells of an `.ipynb` notebook
+(see [Notebook Content Structure](#notebook-content-structure) for how the pieces map to cells):
 
 ```markdown
 # Title with Framework + Valkey
@@ -176,11 +169,8 @@ notebook):
 
 ---
 
-[← 01 - Previous](01-previous.md) | [03 - Next →](03-next.md)
+[← 01 - Previous](01-previous.ipynb) | [03 - Next →](03-next.ipynb)
 ```
-
-> **Nav links follow the chapter format:** link `.md` chapters with `.md` and `.ipynb` chapters with
-> `.ipynb`.
 
 ### Mandatory Elements
 
@@ -196,8 +186,7 @@ notebook):
 
 ### Security Callout (Required)
 
-The first chapter (`01-getting-started.ipynb` or `01-getting-started.md`) must include this after
-the Valkey startup command:
+The first chapter (`01-getting-started.ipynb`) must include this after the Valkey startup command:
 
 ```markdown
 > ⚠️ **Security:** These examples use no authentication or TLS for simplicity.
@@ -244,45 +233,62 @@ When a component has configurable options, include a reference table:
 
 ---
 
-## Notebook Cookbook Structure
+## Cookbook Structure
 
-Python cookbooks live under `cookbooks/` organized by category, with the chapters as notebooks and
-the support files alongside them in the same directory (no separate `sample/` subtree):
+Cookbooks live under `cookbooks/` organized by category and language, with the chapters as notebooks
+and the support files alongside them in the same directory (no separate `sample/` subtree):
 
 ```
 cookbooks/
 ├── framework-integrations/
-│   └── python/
+│   └── <language>/
 │       └── <framework-name>/
-│           ├── README.md              (index — stays markdown)
+│           ├── README.md              (index — markdown)
 │           ├── 01-getting-started.ipynb
 │           ├── 02-<topic>.ipynb
 │           ├── ...
-│           ├── common.py              (optional — shared helpers imported by notebooks)
-│           ├── requirements.txt       (pinned deps CI installs before executing notebooks)
+│           ├── <shared-helper>        (optional — e.g. common.py / common.ts)
+│           ├── <dependency-manifest>  (requirements.txt / package.json / go.mod / pom.xml)
 │           ├── docker-compose.yml     (starts Valkey for the notebooks)
 │           └── .gitignore
 └── use-cases/
-    └── python/
+    └── <language>/
         └── <use-case-name>/
             └── ...
 ```
 
-### Why a few files remain alongside the notebooks
+### Directory Naming
+
+- Language directory: lowercase (e.g., `python`, `go`, `typescript`, `java`)
+- Cookbook directory: lowercase, hyphenated — match the canonical package/project name where possible
+- Example paths: `cookbooks/framework-integrations/python/langchain/`, `cookbooks/use-cases/go/rate-limiting/`
+
+### Why a few files sit alongside the notebooks
 
 A notebook holds the prose and the runnable cells, but not the *environment*:
 
 | File | Why it can't live inside the notebook |
 |------|---------------------------------------|
-| `requirements.txt` | CI (and readers) build the Python environment *before* launching the notebook. |
+| Dependency manifest | CI (and readers) build the language environment *before* launching the notebook (`requirements.txt`, `package.json`, `go.mod`, `pom.xml`, …). |
 | `docker-compose.yml` | Valkey runs as a container started outside the kernel; cells connect to it. |
-| `common.py` (optional) | Shared helpers imported by multiple notebooks — keep them in one module rather than duplicating cells across notebooks (duplicated utility code is a review failure). |
-| `.gitignore` | Excludes `.venv/`, `.ipynb_checkpoints/`, etc. |
+| Shared helper (optional) | Helpers imported by multiple notebooks — keep them in one module rather than duplicating cells across notebooks (duplicated utility code is a review failure). |
+| `.gitignore` | Excludes the language's build/venv dirs and `.ipynb_checkpoints/`. |
+
+### Kernel per language
+
+Each cookbook runs on the Jupyter kernel for its language; the cookbook's `README.md` documents how
+to install it:
+
+| Language | Kernel |
+|----------|--------|
+| Python | `ipykernel` (built in) |
+| Go | [`gophernotes`](https://github.com/gopherdata/gophernotes) |
+| TypeScript / JavaScript | [`tslab`](https://github.com/yunabe/tslab) |
+| Java | [`IJava`](https://github.com/SpencerPark/IJava) |
 
 ### Notebook Content Structure
 
-A notebook carries the same content a markdown chapter would (see
-[Cookbook Content Requirements](#cookbook-content-requirements)), expressed as cells:
+Each notebook expresses the [Cookbook Content Requirements](#cookbook-content-requirements) as cells:
 
 - The **opening markdown cell** holds the title, lead blockquote, difficulty badge, and audience
   line.
@@ -297,43 +303,15 @@ A notebook carries the same content a markdown chapter would (see
 - The **navigation footer** is the final markdown cell; link sibling chapters by their `.ipynb`
   filenames (e.g. `[← 01 - Getting Started](01-getting-started.ipynb)`).
 
-### `.gitignore` for notebooks
+### `.gitignore`
 
-Include at least:
+Include at least the notebook checkpoint dir plus your language's build/venv dirs, e.g. for Python:
 
 ```gitignore
 .venv/
 __pycache__/
 .ipynb_checkpoints/
 ```
-
----
-
-## Markdown Cookbook Structure
-
-Non-Python cookbooks live under `cookbooks/` organized by category:
-
-```
-cookbooks/
-├── framework-integrations/
-│   └── <language>/
-│       └── <framework-name>/
-│           ├── README.md
-│           ├── 01-getting-started.md
-│           ├── 02-<topic>.md
-│           ├── ...
-│           └── sample/          (optional — runnable code)
-└── use-cases/
-    └── <language>/
-        └── <use-case-name>/
-            └── ...
-```
-
-### Directory Naming
-
-- Language directory: lowercase (e.g., `python`, `go`, `typescript`, `java`)
-- Sample directory: lowercase, hyphenated — match the canonical package/project name where possible
-- Example paths: `cookbooks/framework-integrations/python/langchain/`, `cookbooks/use-cases/go/rate-limiting/`
 
 ---
 
@@ -350,80 +328,69 @@ Each cookbook directory's README.md:
 
 | # | Cookbook | Description | Tags |
 | --- | --- | --- | --- |
-| 01 | <nobr>[Getting Started](01-getting-started.md)</nobr> | What this cookbook covers. | Beginner, ~15 min, Python |
-| 02 | <nobr>[Topic](02-topic.md)</nobr> | What this cookbook covers. | Intermediate, ~20 min, Python |
+| 01 | <nobr>[Getting Started](01-getting-started.ipynb)</nobr> | What this cookbook covers. | Beginner, ~15 min, Python |
+| 02 | <nobr>[Topic](02-topic.ipynb)</nobr> | What this cookbook covers. | Intermediate, ~20 min, Python |
 ```
 
 ---
 
-## Sample Code (Required When Feasible)
+## Runnable Code & CI
 
-Every cookbook **should** include runnable code. For **Python notebook cookbooks**, the code *is*
-the notebook cells and the support files (`requirements.txt`, `docker-compose.yml`) live in the
-cookbook directory itself — there is no separate `sample/` directory (see
-[Notebook Cookbook Structure](#notebook-cookbook-structure)). For **markdown cookbooks** (other
-languages), include a `sample/` directory as described below. Either way the goal is the same: a
-reviewer or reader can clone the repo, run one or two commands, and see it work.
+Every cookbook's code lives in its notebook cells; the runtime files
+(`docker-compose.yml`, dependency manifest, optional shared helper) sit alongside the notebooks in
+the cookbook directory (see [Cookbook Structure](#cookbook-structure)). The goal: a reader clones
+the repo, runs one or two setup commands, opens the notebooks, and every cell runs.
 
-### Runnable Container
+### Runnable Setup
 
-If the sample has dependencies beyond Valkey (an API key, a GPU, a proprietary model), provide a `docker-compose.yml` or `Dockerfile` that runs the parts that *can* run locally.
-Keep a free, runnable default path (mock or stub the paid/specialized parts where possible), and document what any optional paid part needs.
-
-The ideal experience:
+`docker-compose.yml` starts Valkey; the reader then installs the language deps and launches the
+notebooks. A typical flow:
 
 ```bash
-cd cookbooks/framework-integrations/python/<name>/sample
-docker compose up        # starts Valkey + runs the sample
+cd cookbooks/framework-integrations/<language>/<name>
+docker compose up -d --wait            # starts Valkey
+# install language deps (e.g. pip install -r requirements.txt), then:
+jupyter lab                            # open and run the notebooks
 ```
 
-Or at minimum:
-
-```bash
-docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:8.1.7
-<language-specific run command>   # e.g. go run ., python main.py, npm start
-```
-
-### Required Files
-
-| File | Purpose |
-|------|---------|
-| `README.md` | How to run, prerequisites, expected output |
-| `Dockerfile` or `docker-compose.yml` | Preferred — one-command run experience |
-| Build file | `go.mod`, `package.json`, `requirements.txt`, `pom.xml`, etc. |
-| Source code | Minimal, self-contained implementation |
-| `.gitignore` | Exclude binaries, venvs, node_modules |
+If a cookbook needs anything beyond Valkey (an API key, a GPU, a proprietary model), keep a free,
+runnable default path — mock or stub the paid/specialized parts — and document what any optional
+part needs.
 
 ### Guidelines
 
-- **Must build and run locally** — a contributor should verify their sample works before submitting
+- **Every cell must run** — verify the notebooks execute top-to-bottom before submitting
 - **Pin dependency versions** — no open-ended version ranges
-- **Include expected output** — so readers can verify success
+- **Show expected output** — the executed cells (or the surrounding prose) make success verifiable
 - **Clean up resources** — document how to tear down (e.g., `docker compose down`)
-- **Mock expensive dependencies when possible** — use local embedders, stub API responses, or deterministic test data for the getting-started sample
+- **Mock expensive dependencies when possible** — use local embedders, stub responses, or deterministic test data in the getting-started chapter
 - **The default path must run for free** — no paid account, cloud credentials, or specialized
-  hardware required to complete the core sample (this is the [Vendor Neutrality](#vendor-neutrality)
-  rule applied to samples). If a paid LLM (OpenAI, Anthropic, Bedrock, etc.) is shown, also include
+  hardware required to complete the core cookbook (this is the [Vendor Neutrality](#vendor-neutrality)
+  rule applied to cookbooks). If a paid LLM (OpenAI, Anthropic, Bedrock, etc.) is shown, also include
   a working self-hosted equivalent (e.g., Ollama) so any reader can run it.
 - **Paid or specialized capabilities are optional extensions, never the only path.** If some
-  advanced part of the integration genuinely can't run for free (e.g., it needs a GPU or a paid
-  API), scope that part as a clearly-labeled optional section, keep the default path free and
-  runnable, and state prominently in the sample README what the optional part requires and where to
-  find it.
+  advanced part genuinely can't run for free (e.g., it needs a GPU or a paid API), scope it as a
+  clearly-labeled optional section, keep the default path free and runnable, and state prominently
+  what the optional part requires and where to find it.
 
 ### CI Validation
 
-All samples must pass CI before merge:
+All cookbooks must pass CI before merge:
 
-- **Build check** — dependency install and compilation succeed in a clean environment
-- **Run check** — the sample executes successfully against `valkey/valkey-bundle` (no external services required for the default path)
-- **Notebook execution (Python cookbooks)** — CI installs `requirements.txt`, starts Valkey via the cookbook's `docker-compose.yml`, and executes every `.ipynb` end-to-end (e.g. `pytest --nbmake` or `jupyter nbconvert --execute`). A cell that raises fails the build, so the code a reader runs is the code CI runs.
-- **Version matrix** — CI runs tests against multiple Valkey versions (currently 8.1.x and 9.x) to ensure compatibility across supported releases
-- **Lint check** — markdown files pass linting, links resolve
+- **Notebook execution** — CI installs the cookbook's dependencies, starts Valkey via its
+  `docker-compose.yml`, and executes every `.ipynb` end-to-end (e.g. `pytest --nbmake` or
+  `jupyter nbconvert --execute` for Python; the equivalent kernel run for other languages). A cell
+  that raises fails the build, so the code a reader runs is the code CI runs.
+- **Version matrix** — CI runs against multiple Valkey versions (currently 8.1.x and 9.x) to ensure
+  compatibility across supported releases
+- **Lint check** — markdown (READMEs and notebook markdown cells) passes linting, links resolve
 
-If your sample requires paid external services (API keys, cloud accounts), provide a mock/stub mode that CI can exercise without credentials. For notebooks, guard paid-service cells so the default CI path executes without credentials (e.g. skip or use a local model when the key is absent).
+If a cookbook requires paid external services, guard those cells so the default CI path executes
+without credentials (e.g. skip or use a local model when the key is absent).
 
-CI runs on every pull request **and** on a weekly schedule to catch external dependency breakage (e.g., upstream library releases that introduce incompatibilities). If a weekly run fails, a maintainer will open an issue to track the fix.
+CI runs on every pull request **and** on a weekly schedule to catch external dependency breakage
+(e.g., upstream library releases that introduce incompatibilities). If a weekly run fails, a
+maintainer will open an issue to track the fix.
 
 ---
 
