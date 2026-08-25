@@ -1,5 +1,11 @@
 name: Cookbook Validation
 
+# Cookbooks are Jupyter notebooks (.ipynb) whatever the language. This workflow
+# discovers each cookbook by the language manifest that sits alongside its
+# notebooks, then executes every notebook end-to-end against a Valkey service
+# container on the matching Jupyter kernel. A cell that raises fails the build,
+# so the code a reader runs is the code CI runs.
+
 on:
   push:
     branches: [main]
@@ -12,240 +18,250 @@ on:
   schedule:
     - cron: "0 9 * * 1" # Weekly on Monday at 9am UTC — catches dependency breakage
 
+# Restrict the workflow token to the minimum: it only checks out code and runs
+# builds. Limits blast radius if a dependency or action is compromised.
+permissions:
+  contents: read
+
 jobs:
   discover-cookbooks:
     runs-on: ubuntu-latest
     outputs:
-      node-cookbooks: ${{ steps.discover.outputs.node-cookbooks }}
       python-cookbooks: ${{ steps.discover.outputs.python-cookbooks }}
+      node-cookbooks: ${{ steps.discover.outputs.node-cookbooks }}
       go-cookbooks: ${{ steps.discover.outputs.go-cookbooks }}
-      has-node: ${{ steps.discover.outputs.has-node }}
+      java-cookbooks: ${{ steps.discover.outputs.java-cookbooks }}
       has-python: ${{ steps.discover.outputs.has-python }}
+      has-node: ${{ steps.discover.outputs.has-node }}
       has-go: ${{ steps.discover.outputs.has-go }}
+      has-java: ${{ steps.discover.outputs.has-java }}
+      has-vllm-router: ${{ steps.discover.outputs.has-vllm-router }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - id: discover
         run: |
-          # Discover Node cookbooks (directories containing package.json under cookbooks/**/sample/)
-          node_cookbooks=$(find cookbooks -path "*/sample/package.json" -exec dirname {} \; | \
-            jq -R -s -c 'split("\n") | map(select(length > 0))')
-          echo "node-cookbooks=$node_cookbooks" >> $GITHUB_OUTPUT
-          if [ "$node_cookbooks" != "[]" ]; then
-            echo "has-node=true" >> $GITHUB_OUTPUT
+          # A cookbook is a directory that contains at least one .ipynb notebook.
+          # Its language is determined by the dependency manifest sitting alongside
+          # the notebooks (see CONTRIBUTING.md "Cookbook Structure"):
+          #   requirements.txt -> Python    package.json -> Node/TS
+          #   go.mod           -> Go        pom.xml      -> Java
+          #
+          # discover_lang <output-name> <manifest-filename>
+          # emits "<name>-cookbooks=<json-array>" and "has-<name>=true|false"
+          discover_lang() {
+            name="$1"; manifest="$2"
+            dirs=$(find cookbooks -name "$manifest" -not -path "*/node_modules/*" \
+              -exec dirname {} \; \
+              | while read -r d; do
+                  # only count it as a cookbook if a notebook lives alongside the manifest
+                  if ls "$d"/*.ipynb >/dev/null 2>&1; then echo "$d"; fi
+                done \
+              | sort -u \
+              | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            echo "${name}-cookbooks=$dirs" >> "$GITHUB_OUTPUT"
+            if [ "$dirs" != "[]" ]; then
+              echo "has-${name}=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "has-${name}=false" >> "$GITHUB_OUTPUT"
+            fi
+          }
+
+          discover_lang python requirements.txt
+          discover_lang node   package.json
+          discover_lang go     go.mod
+          discover_lang java   pom.xml
+
+          # Optional per-cookbook extra: the vLLM Semantic Router config validator
+          # only applies when that specific cookbook's config.yaml is present.
+          if [ -f cookbooks/framework-integrations/go/vllm-semantic-router/config.yaml ]; then
+            echo "has-vllm-router=true" >> "$GITHUB_OUTPUT"
           else
-            echo "has-node=false" >> $GITHUB_OUTPUT
+            echo "has-vllm-router=false" >> "$GITHUB_OUTPUT"
           fi
 
-          # Discover Python cookbooks (directories containing requirements.txt under cookbooks/**/sample/)
-          python_cookbooks=$(find cookbooks -path "*/sample/requirements.txt" -exec dirname {} \; | \
-            jq -R -s -c 'split("\n") | map(select(length > 0))')
-          echo "python-cookbooks=$python_cookbooks" >> $GITHUB_OUTPUT
-          if [ "$python_cookbooks" != "[]" ]; then
-            echo "has-python=true" >> $GITHUB_OUTPUT
-          else
-            echo "has-python=false" >> $GITHUB_OUTPUT
-          fi
+  # ---------------------------------------------------------------------------
+  # Python notebooks
+  # ---------------------------------------------------------------------------
+  python-notebooks:
+    needs: discover-cookbooks
+    if: needs.discover-cookbooks.outputs.has-python == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        cookbook: ${{ fromJson(needs.discover-cookbooks.outputs.python-cookbooks) }}
+        valkey-version: ["8.1.7", "9.1.2"]
+    services:
+      valkey:
+        image: valkey/valkey-bundle:${{ matrix.valkey-version }}
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install cookbook dependencies
+        working-directory: ${{ matrix.cookbook }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          # ipykernel ships with Python; pytest + nbmake execute the notebooks
+          pip install pytest nbmake ruff==0.11.13
+      - name: Lint notebooks with ruff
+        working-directory: ${{ matrix.cookbook }}
+        run: ruff check .
+      - name: Execute notebooks (Valkey ${{ matrix.valkey-version }})
+        working-directory: ${{ matrix.cookbook }}
+        env:
+          VALKEY_HOST: 127.0.0.1
+          VALKEY_PORT: "6379"
+        run: pytest --nbmake --nbmake-timeout=600 ./*.ipynb
 
-          # Discover Go cookbooks (directories containing go.mod under cookbooks/**/sample/).
-          go_cookbooks=$(find cookbooks -path "*/sample/go.mod" -exec dirname {} \; | \
-            jq -R -s -c 'split("\n") | map(select(length > 0))')
-          echo "go-cookbooks=$go_cookbooks" >> $GITHUB_OUTPUT
-          if [ "$go_cookbooks" != "[]" ]; then
-            echo "has-go=true" >> $GITHUB_OUTPUT
-          else
-            echo "has-go=false" >> $GITHUB_OUTPUT
-          fi
-
-  node-typecheck:
+  # ---------------------------------------------------------------------------
+  # Node / TypeScript notebooks (tslab kernel)
+  # ---------------------------------------------------------------------------
+  node-notebooks:
     needs: discover-cookbooks
     if: needs.discover-cookbooks.outputs.has-node == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         cookbook: ${{ fromJson(needs.discover-cookbooks.outputs.node-cookbooks) }}
+        valkey-version: ["8.1.7", "9.1.2"]
+    services:
+      valkey:
+        image: valkey/valkey-bundle:${{ matrix.valkey-version }}
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
-      - name: Install dependencies
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install cookbook dependencies
         working-directory: ${{ matrix.cookbook }}
         run: npm ci
-      - name: Lint
+      - name: Lint (if eslint is configured)
         working-directory: ${{ matrix.cookbook }}
         run: |
-          if npx eslint --version >/dev/null 2>&1; then
+          if npx --no-install eslint --version >/dev/null 2>&1; then
             npx eslint . --max-warnings 0
           else
             echo "No eslint configured — skipping lint"
           fi
-      - name: Type check
-        working-directory: ${{ matrix.cookbook }}
-        run: npx tsc --noEmit
-      - name: Audit dependencies (informational)
-        working-directory: ${{ matrix.cookbook }}
-        continue-on-error: true
-        run: npm audit --audit-level=high
-
-  node-integration-test:
-    needs: discover-cookbooks
-    if: needs.discover-cookbooks.outputs.has-node == 'true'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        cookbook: ${{ fromJson(needs.discover-cookbooks.outputs.node-cookbooks) }}
-        valkey-version: ["8.1.7", "9.1.2"]
-    services:
-      valkey:
-        image: valkey/valkey-bundle:${{ matrix.valkey-version }}
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "valkey-cli ping"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "24"
-      - name: Install dependencies
-        working-directory: ${{ matrix.cookbook }}
-        run: npm ci
-      - name: Run integration tests (Valkey ${{ matrix.valkey-version }})
-        working-directory: ${{ matrix.cookbook }}
-        run: npm test
-
-  python-lint:
-    needs: discover-cookbooks
-    if: needs.discover-cookbooks.outputs.has-python == 'true'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        cookbook: ${{ fromJson(needs.discover-cookbooks.outputs.python-cookbooks) }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
-      - name: Install dependencies
+      - name: Install Jupyter and the tslab (TypeScript/JavaScript) kernel
         working-directory: ${{ matrix.cookbook }}
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install ruff==0.11.13
-      - name: Lint with ruff
+          pip install jupyter nbconvert
+          npm install -g tslab
+          tslab install --version
+          tslab install
+      - name: Execute notebooks (Valkey ${{ matrix.valkey-version }})
         working-directory: ${{ matrix.cookbook }}
-        run: ruff check .
-      - name: Type check with ruff (basic)
-        working-directory: ${{ matrix.cookbook }}
-        continue-on-error: true
-        run: ruff check --select=F,E .
-
-  python-integration-test:
-    needs: discover-cookbooks
-    if: needs.discover-cookbooks.outputs.has-python == 'true'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        cookbook: ${{ fromJson(needs.discover-cookbooks.outputs.python-cookbooks) }}
-        valkey-version: ["8.1.7", "9.1.2"]
-    services:
-      valkey:
-        image: valkey/valkey-bundle:${{ matrix.valkey-version }}
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "valkey-cli ping"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
-      - name: Install dependencies
-        working-directory: ${{ matrix.cookbook }}
+        env:
+          VALKEY_HOST: 127.0.0.1
+          VALKEY_PORT: "6379"
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      - name: Run integration tests (Valkey ${{ matrix.valkey-version }})
-        working-directory: ${{ matrix.cookbook }}
-        run: |
-          if [ -f pytest.ini ] || [ -f setup.cfg ] || [ -f pyproject.toml ]; then
-            pip install pytest pytest-asyncio
-            pytest
-          elif ls test_*.py 1>/dev/null 2>&1 || ls *_test.py 1>/dev/null 2>&1; then
-            pip install pytest pytest-asyncio
-            pytest
-          else
-            # Fall back to running main.py if no test framework detected
-            python main.py
-          fi
+          for nb in ./*.ipynb; do
+            echo "Executing $nb"
+            jupyter nbconvert --to notebook --execute --ExecutePreprocessor.timeout=600 \
+              --output /tmp/executed.ipynb "$nb"
+          done
 
-  go-build-vet:
+  # ---------------------------------------------------------------------------
+  # Go notebooks (gophernotes kernel)
+  # ---------------------------------------------------------------------------
+  go-notebooks:
     needs: discover-cookbooks
     if: needs.discover-cookbooks.outputs.has-go == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         cookbook: ${{ fromJson(needs.discover-cookbooks.outputs.go-cookbooks) }}
+        valkey-version: ["8.1.7", "9.1.2"]
+    services:
+      valkey:
+        image: valkey/valkey-bundle:${{ matrix.valkey-version }}
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           go-version: "1.24"
           cache-dependency-path: ${{ matrix.cookbook }}/go.mod
-      - name: Build
-        working-directory: ${{ matrix.cookbook }}
-        run: go build ./...
-      - name: Vet
-        working-directory: ${{ matrix.cookbook }}
-        run: go vet ./...
-      - name: Format check
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Format check any Go helper files
         working-directory: ${{ matrix.cookbook }}
         run: |
-          unformatted=$(gofmt -l .)
+          unformatted=$(gofmt -l . || true)
           if [ -n "$unformatted" ]; then
             echo "The following files are not gofmt-formatted:"
             echo "$unformatted"
             exit 1
           fi
-
-  vllm-semantic-router-config-validation:
-    needs: discover-cookbooks
-    if: needs.discover-cookbooks.outputs.has-go == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # The router's configuration validator is distributed as the Python vllm-sr CLI;
-      # it validates the config.yaml consumed by this Go HTTP client sample.
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
-      - name: Validate Semantic Router configuration
-        working-directory: cookbooks/framework-integrations/go/vllm-semantic-router/sample
+      - name: Install Jupyter and the gophernotes (Go) kernel
+        working-directory: ${{ matrix.cookbook }}
         run: |
-          python -m pip install "vllm-sr==0.3.0"
-          vllm-sr validate
+          python -m pip install --upgrade pip
+          pip install jupyter nbconvert
+          go install github.com/gopherdata/gophernotes@v0.7.5
+          mkdir -p "$HOME/.local/share/jupyter/kernels/gophernotes"
+          cd "$HOME/.local/share/jupyter/kernels/gophernotes"
+          cp "$(go env GOPATH)/pkg/mod/github.com/gopherdata/gophernotes@v0.7.5/kernel/"* .
+          sed "s|gophernotes|$(go env GOPATH)/bin/gophernotes|" < kernel.json.in > kernel.json
+      - name: Execute notebooks (Valkey ${{ matrix.valkey-version }})
+        working-directory: ${{ matrix.cookbook }}
+        env:
+          VALKEY_HOST: 127.0.0.1
+          VALKEY_PORT: "6379"
+        run: |
+          for nb in ./*.ipynb; do
+            echo "Executing $nb"
+            jupyter nbconvert --to notebook --execute --ExecutePreprocessor.timeout=600 \
+              --output /tmp/executed.ipynb "$nb"
+          done
 
-  go-integration-test:
+  # ---------------------------------------------------------------------------
+  # Java notebooks (IJava kernel)
+  # ---------------------------------------------------------------------------
+  java-notebooks:
     needs: discover-cookbooks
-    if: needs.discover-cookbooks.outputs.has-go == 'true'
+    if: needs.discover-cookbooks.outputs.has-java == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        cookbook: ${{ fromJson(needs.discover-cookbooks.outputs.go-cookbooks) }}
-        valkey-version: ["9.1.2"]
+        cookbook: ${{ fromJson(needs.discover-cookbooks.outputs.java-cookbooks) }}
+        valkey-version: ["8.1.7", "9.1.2"]
     services:
       valkey:
         image: valkey/valkey-bundle:${{ matrix.valkey-version }}
@@ -258,12 +274,53 @@ jobs:
           --health-retries 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-go@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
-          go-version: "1.24"
-          cache-dependency-path: ${{ matrix.cookbook }}/go.mod
-      - name: Run Go tests (Valkey ${{ matrix.valkey-version }})
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install Jupyter and the IJava kernel
+        run: |
+          python -m pip install --upgrade pip
+          pip install jupyter nbconvert
+          IJAVA_VERSION=1.3.0
+          curl -fsSL -o /tmp/ijava.zip \
+            "https://github.com/SpencerPark/IJava/releases/download/v${IJAVA_VERSION}/ijava-${IJAVA_VERSION}.zip"
+          unzip -q /tmp/ijava.zip -d /tmp/ijava
+          python /tmp/ijava/install.py --user
+      - name: Execute notebooks (Valkey ${{ matrix.valkey-version }})
         working-directory: ${{ matrix.cookbook }}
         env:
           VALKEY_HOST: 127.0.0.1
-        run: go test -v ./...
+          VALKEY_PORT: "6379"
+        run: |
+          for nb in ./*.ipynb; do
+            echo "Executing $nb"
+            jupyter nbconvert --to notebook --execute --ExecutePreprocessor.timeout=600 \
+              --output /tmp/executed.ipynb "$nb"
+          done
+
+  # ---------------------------------------------------------------------------
+  # Optional per-cookbook extras
+  # ---------------------------------------------------------------------------
+  # The vLLM Semantic Router cookbook ships a config.yaml consumed by its
+  # notebooks; the router's validator is the Python vllm-sr CLI. This job only
+  # runs when that specific config file exists (discovered above), so it never
+  # blocks unrelated cookbooks (guarded per Jonathan's review).
+  vllm-semantic-router-config-validation:
+    needs: discover-cookbooks
+    if: needs.discover-cookbooks.outputs.has-vllm-router == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Validate Semantic Router configuration
+        working-directory: cookbooks/framework-integrations/go/vllm-semantic-router
+        run: |
+          python -m pip install "vllm-sr==0.3.0"
+          vllm-sr validate
