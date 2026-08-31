@@ -125,9 +125,10 @@ Every cookbook **must** have:
 |------|---------|
 | `README.md` | Overview with linked table of all cookbooks in the track (markdown) |
 | `01-getting-started.ipynb` | First chapter — always Beginner difficulty |
+| Dependency manifest | `requirements.txt` / `package.json` / `go.mod` / `pom.xml` — the language environment CI builds before running the notebooks |
+| `docker-compose.yml` | Starts Valkey for the notebooks (include a healthcheck so `--wait` blocks until it's ready) |
 
-A cookbook also includes, in the same directory, a dependency manifest and a `docker-compose.yml`
-that starts Valkey (see [Cookbook Structure](#cookbook-structure)).
+All four sit in the same cookbook directory (see [Cookbook Structure](#cookbook-structure)).
 
 ### Chapter Structure
 
@@ -153,7 +154,7 @@ Every numbered chapter follows this structure, expressed across the cells of an 
 
 ## Step 1: Start Valkey
 
-[Startup command, security callout]
+[Start Valkey with `docker compose up -d --wait`, then the security callout]
 
 ## Step 2: ...
 
@@ -196,13 +197,15 @@ The first chapter (`01-getting-started.ipynb`) must include this after the Valke
 
 ### Valkey Startup
 
-Prefer `valkey/valkey-bundle` — it includes the Search and JSON modules that most cookbooks need. Always pin a specific version tag; never use `:latest`.
+Cookbooks start Valkey through their `docker-compose.yml` (a required file — see [Required Files](#required-files)), so Step 1 of every cookbook uses Compose rather than a bare `docker run`:
 
 ````markdown
 ```bash
-docker run -d --name valkey -p 6379:6379 valkey/valkey-bundle:8.1.7
+docker compose up -d --wait
 ```
 ````
+
+Prefer the `valkey/valkey-bundle` image in that compose file — it includes the Search and JSON modules most cookbooks need. Always pin a specific version tag; never use `:latest`. Give the Valkey service a healthcheck so `docker compose up --wait` blocks until Valkey is actually ready (without one, `--wait` can return before the container accepts connections).
 
 ### How It Works Section
 
@@ -272,7 +275,7 @@ A notebook holds the prose and the runnable cells, but not the *environment*:
 | Dependency manifest | CI (and readers) build the language environment *before* launching the notebook (`requirements.txt`, `package.json`, `go.mod`, `pom.xml`, …). |
 | `docker-compose.yml` | Valkey runs as a container started outside the kernel; cells connect to it. |
 | Shared helper (optional) | Helpers imported by multiple notebooks — keep them in one module rather than duplicating cells across notebooks (duplicated utility code is a review failure). |
-| `.gitignore` | Excludes the language's build/venv dirs and `.ipynb_checkpoints/`. |
+| `.gitignore` | Ignores build/venv dirs and notebook checkpoints (see [`.gitignore`](#gitignore) below). |
 
 ### Kernel per language
 
