@@ -1,0 +1,8 @@
+# Pinned toolchain for executing cookbook notebooks in CI.
+# Shared by every language job in cookbook-validation.yml so a floating
+# jupyter/nbconvert/pytest/nbmake release can't turn CI red independent of any
+# cookbook change (and the weekly cron stays deterministic).
+jupyter==1.1.1
+nbconvert==7.17.1
+pytest==8.3.5
+nbmake==1.5.5
