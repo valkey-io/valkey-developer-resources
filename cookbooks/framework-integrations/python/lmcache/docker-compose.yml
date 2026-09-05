@@ -1,5 +1,69 @@
+# KV Caching with Valkey — the full stack the notebook drives.
+#
+#   valkey   one shared KV-cache store
+#   vllm-a   vLLM replica A, LMCache connector pointed at Valkey
+#   vllm-b   vLLM replica B, same config, same Valkey
+#
+# Both replicas run the official vLLM CPU image, unmodified, and load the same
+# lmcache_config.yaml — so the KV cache one replica computes is visible to the
+# other through Valkey. That shared cache is the whole point.
+#
+# Resource note: each vLLM replica needs roughly 3–4 GiB of RAM. Give your
+# container runtime at least 10 GiB so both replicas plus Valkey fit. On a
+# smaller machine, start one replica and skip the two-replica step.
+
+x-vllm-common: &vllm-common
+  image: vllm/vllm-openai-cpu:v0.28.0
+  # The vLLM CPU image does not bundle LMCache, so install the pinned version on
+  # startup, then exec the vLLM server. LMCache is cached in the hf-cache-backed
+  # pip cache path below, so this only downloads on the first run.
+  # The KV connector wires vLLM's KV cache to LMCache; LMCache in turn writes to
+  # Valkey using lmcache_config.yaml below.
+  #
+  # facebook/opt-125m is a base model with no chat template, and vLLM refuses to
+  # serve /v1/chat/completions without one. We mount a minimal template so the
+  # notebook's multi-turn `messages` conversation renders to a deterministic
+  # token prefix (exactly what LMCache keys its KV chunks on).
+  entrypoint: ["/bin/bash", "-c"]
+  command:
+    - |
+      pip install --quiet lmcache==0.5.2
+      exec python3 -m vllm.entrypoints.openai.api_server \
+        --model facebook/opt-125m \
+        --max-model-len 2048 \
+        --enforce-eager \
+        --chat-template /etc/vllm/chat_template.jinja \
+        --kv-transfer-config '{"kv_connector":"LMCacheConnectorV1","kv_role":"kv_both"}'
+  environment:
+    # Point LMCache at its config file (which points it at Valkey).
+    LMCACHE_CONFIG_FILE: /etc/lmcache/lmcache_config.yaml
+    # Required by LMCache to enable the v1 remote-backend code path.
+    LMCACHE_USE_EXPERIMENTAL: "True"
+    # CPU KV-cache pool size in GiB (kept small for a laptop-friendly demo).
+    VLLM_CPU_KVCACHE_SPACE: "1"
+    # opt-125m is ungated; no HF token needed. Silence the rate-limit warning.
+    HF_HUB_DISABLE_PROGRESS_BARS: "1"
+  volumes:
+    - ./lmcache_config.yaml:/etc/lmcache/lmcache_config.yaml:ro
+    - ./chat_template.jinja:/etc/vllm/chat_template.jinja:ro
+    - hf-cache:/root/.cache/huggingface
+  # vLLM's multiprocess executor needs more than Docker's default 64 MiB of
+  # shared memory, or the engine core aborts on startup.
+  shm_size: "2gb"
+  depends_on:
+    valkey:
+      condition: service_healthy
+  healthcheck:
+    # Ready when the OpenAI-compatible server answers /health.
+    test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+    interval: 10s
+    timeout: 5s
+    retries: 60
+    start_period: 300s
+
 services:
   valkey:
+    container_name: valkey
     image: valkey/valkey-bundle:9.1.2
     ports:
       - "127.0.0.1:6379:6379"
@@ -8,3 +72,19 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+
+  vllm-a:
+    <<: *vllm-common
+    container_name: vllm-a
+    ports:
+      - "127.0.0.1:8001:8000"
+
+  vllm-b:
+    <<: *vllm-common
+    container_name: vllm-b
+    ports:
+      - "127.0.0.1:8002:8000"
+
+volumes:
+  # Cache model weights across restarts so replicas don't each re-download.
+  hf-cache:

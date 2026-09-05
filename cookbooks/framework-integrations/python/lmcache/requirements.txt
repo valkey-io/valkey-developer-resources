@@ -1,6 +1,16 @@
-lmcache==0.5.2
-torch==2.13.0
-valkey-glide==2.5.0
-valkey-glide-sync==2.5.1
+# The notebook talks to vLLM over its OpenAI-compatible HTTP API and reads
+# cache signals from Valkey via `docker exec`. It does not import vLLM, torch,
+# or LMCache directly — those run inside the containers from docker-compose.yml.
+openai==1.109.1
+
+# Notebook tooling.
+jupyterlab==4.4.5
+ipykernel==6.30.0
+
+# Test suite. PyYAML backs the compose-wiring tests.
 pytest==8.3.5
-pytest-asyncio==0.24.0
+pyyaml==6.0.2
+
+# Used only by the CI test that loads lmcache_config.yaml through LMCache's own
+# parser, so a bad config fails fast without booting a GPU or a vLLM server.
+lmcache==0.5.2

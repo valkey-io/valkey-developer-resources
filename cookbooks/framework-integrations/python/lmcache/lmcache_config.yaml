@@ -1,12 +1,14 @@
-# LMCache config for the 01-getting-started sample.
-# Loaded via lmcache.v1.config.load_engine_config_with_overrides (real
-# LMCache code) in getting_started.py. Format verified against the
-# in-process ValkeyConnector docs (deprecated in favor of MP mode — see
-# 03-production-deployment.md for the current recommended MP-mode config).
+# LMCache engine config, mounted into both vLLM replicas.
+#
+# This is the one line that points LMCache at Valkey as its KV-cache store.
+# Everything else here is a sensible default. Both vLLM replicas load this
+# same file (via LMCACHE_CONFIG_FILE) and therefore share one Valkey cache.
+remote_url: "valkey://valkey:6379"
+
+# 256 tokens per KV chunk (LMCache's default). Chunking is what lets a later
+# request reuse the KV of a shared prefix without recomputing it.
 chunk_size: 256
-local_cpu: true
-max_local_cpu_size: 5.0
-remote_url: "valkey://localhost:6379"
+
+# "naive" runs anywhere. LMCache also offers "cachegen" (compressed), but its
+# encoder needs a GPU at runtime, so keep "naive" for this CPU walkthrough.
 remote_serde: "naive"
-extra_config:
-  valkey_num_workers: 4
