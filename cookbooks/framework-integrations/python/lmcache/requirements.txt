@@ -7,10 +7,6 @@ openai==1.109.1
 jupyterlab==4.4.5
 ipykernel==6.30.0
 
-# Test suite. PyYAML backs the compose-wiring tests.
+# Test suite. PyYAML backs the config + compose-wiring tests.
 pytest==8.3.5
 pyyaml==6.0.2
-
-# Used only by the CI test that loads lmcache_config.yaml through LMCache's own
-# parser, so a bad config fails fast without booting a GPU or a vLLM server.
-lmcache==0.5.2

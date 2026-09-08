@@ -1,57 +1,65 @@
 # KV Caching with Valkey — the full stack the notebook drives.
 #
-#   valkey   one shared KV-cache store
-#   vllm-a   vLLM replica A, LMCache connector pointed at Valkey
-#   vllm-b   vLLM replica B, same config, same Valkey
+#   valkey          one shared KV-cache store (LMCache's L2 backend)
+#   lmcache-server  standalone LMCache server: L1 in its own memory, L2 -> Valkey
+#   vllm-a          vLLM replica A, KV connector pointed at the LMCache server
+#   vllm-b          vLLM replica B, same connector, same LMCache server
 #
-# Both replicas run the official vLLM CPU image, unmodified, and load the same
-# lmcache_config.yaml — so the KV cache one replica computes is visible to the
-# other through Valkey. That shared cache is the whole point.
+# How a KV chunk flows on CPU:
+#
+#   vLLM (prefill)  ->  LMCacheMPConnector  ->  lmcache-server (L1)  ->  Valkey (L2)
+#
+# vLLM does not offload KV inside its own worker process here: the CPU build has
+# no in-worker KV connector. Instead both replicas use the multi-process
+# connector (LMCacheMPConnector) and hand their KV to a standalone `lmcache
+# server`. That server keeps a small L1 tier in its own memory and writes
+# through to Valkey as its L2 backend via the built-in "valkey" L2 adapter — so
+# the KV one replica computes is visible to the other through Valkey. That
+# shared cache is the whole point.
 #
 # Resource note: each vLLM replica needs roughly 3–4 GiB of RAM. Give your
-# container runtime at least 10 GiB so both replicas plus Valkey fit. On a
-# smaller machine, start one replica and skip the two-replica step.
+# container runtime at least 10 GiB so both replicas, the LMCache server, and
+# Valkey fit. On a smaller machine, start one replica and skip the two-replica
+# step.
 
+# LMCache is not bundled in the vLLM CPU image, so every service that needs it
+# installs the same pinned version on startup. The `lmcache server` also needs
+# the *sync* glide client for its Valkey L2 adapter (the plain async
+# `valkey-glide` is not sufficient).
 x-vllm-common: &vllm-common
   image: vllm/vllm-openai-cpu:v0.28.0
-  # The vLLM CPU image does not bundle LMCache, so install the pinned version on
-  # startup, then exec the vLLM server. LMCache is cached in the hf-cache-backed
-  # pip cache path below, so this only downloads on the first run.
-  # The KV connector wires vLLM's KV cache to LMCache; LMCache in turn writes to
-  # Valkey using lmcache_config.yaml below.
-  #
-  # facebook/opt-125m is a base model with no chat template, and vLLM refuses to
-  # serve /v1/chat/completions without one. We mount a minimal template so the
-  # notebook's multi-turn `messages` conversation renders to a deterministic
-  # token prefix (exactly what LMCache keys its KV chunks on).
   entrypoint: ["/bin/bash", "-c"]
   command:
     - |
       pip install --quiet lmcache==0.5.2
+      # facebook/opt-125m is a base model with no chat template, and vLLM refuses
+      # to serve /v1/chat/completions without one. Mount a minimal template so the
+      # notebook's multi-turn `messages` conversation renders to a deterministic
+      # token prefix (exactly what LMCache keys its KV chunks on).
+      #
+      # LMCacheMPConnector hands this replica's KV to the standalone lmcache
+      # server (below), which owns storage and writes through to Valkey.
       exec python3 -m vllm.entrypoints.openai.api_server \
         --model facebook/opt-125m \
         --max-model-len 2048 \
         --enforce-eager \
         --chat-template /etc/vllm/chat_template.jinja \
-        --kv-transfer-config '{"kv_connector":"LMCacheConnectorV1","kv_role":"kv_both"}'
+        --kv-transfer-config '{"kv_connector":"LMCacheMPConnector","kv_role":"kv_both","kv_connector_extra_config":{"lmcache.mp.host":"tcp://lmcache-server","lmcache.mp.port":5555}}'
   environment:
-    # Point LMCache at its config file (which points it at Valkey).
-    LMCACHE_CONFIG_FILE: /etc/lmcache/lmcache_config.yaml
-    # Required by LMCache to enable the v1 remote-backend code path.
+    # Required by LMCache to enable the v1 code paths.
     LMCACHE_USE_EXPERIMENTAL: "True"
     # CPU KV-cache pool size in GiB (kept small for a laptop-friendly demo).
     VLLM_CPU_KVCACHE_SPACE: "1"
     # opt-125m is ungated; no HF token needed. Silence the rate-limit warning.
     HF_HUB_DISABLE_PROGRESS_BARS: "1"
   volumes:
-    - ./lmcache_config.yaml:/etc/lmcache/lmcache_config.yaml:ro
     - ./chat_template.jinja:/etc/vllm/chat_template.jinja:ro
     - hf-cache:/root/.cache/huggingface
   # vLLM's multiprocess executor needs more than Docker's default 64 MiB of
   # shared memory, or the engine core aborts on startup.
   shm_size: "2gb"
   depends_on:
-    valkey:
+    lmcache-server:
       condition: service_healthy
   healthcheck:
     # Ready when the OpenAI-compatible server answers /health.
@@ -72,6 +80,35 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+
+  # The standalone LMCache server owns KV storage. Its L1 tier lives in this
+  # container's memory; its L2 tier is Valkey, wired via the built-in "valkey"
+  # L2 adapter. Both vLLM replicas connect to it over ZMQ on port 5555.
+  lmcache-server:
+    container_name: lmcache-server
+    image: vllm/vllm-openai-cpu:v0.28.0
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        # The Valkey L2 adapter needs the *sync* glide client specifically.
+        pip install --quiet lmcache==0.5.2 'valkey-glide-sync>=2.3.0'
+        exec lmcache server \
+          --host 0.0.0.0 --port 5555 \
+          --l1-size-gb 2 \
+          --eviction-policy noop \
+          --l2-adapter '{"type":"valkey","startup_nodes":"valkey:6379"}'
+    environment:
+      LMCACHE_USE_EXPERIMENTAL: "True"
+    depends_on:
+      valkey:
+        condition: service_healthy
+    healthcheck:
+      # Ready when the ZMQ cache server is accepting connections on 5555.
+      test: ["CMD-SHELL", "python3 -c \"import socket; s=socket.socket(); s.settimeout(2); s.connect(('localhost',5555))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
 
   vllm-a:
     <<: *vllm-common
