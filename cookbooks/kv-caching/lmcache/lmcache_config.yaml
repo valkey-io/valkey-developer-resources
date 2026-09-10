@@ -1,4 +1,5 @@
-# The LMCache <-> Valkey integration point.
+# Valkey L2 adapter spec: the configuration you are most likely to change,
+# plus the commonly adjusted options.
 #
 # In this cookbook KV storage is owned by the standalone `lmcache server` (see
 # docker-compose.yml), and the line that makes Valkey its backing store is the
@@ -6,14 +7,13 @@
 #
 #   --l2-adapter '{"type":"valkey","startup_nodes":"valkey:6379"}'
 #
-# The integration does NOT live in an in-process LMCache config file.
+# This file documents that adapter spec. The config/wiring test
+# (test_lmcache_valkey.py) loads it as the single source of truth for the
+# adapter shape, and it mirrors the JSON passed to the server on the command
+# line. (The adapter is configured on the server, as above, not in an
+# in-process LMCache config file.)
 #
-# This file documents that adapter spec and the commonly changed configurations or options.
-# It is loaded by the config/wiring test (test_lmcache_valkey.py) as the
-# single source of truth for the adapter shape, and mirrors the JSON passed to
-# the server on the command line.
-#
-# Adapter type: "valkey" — backed by the official valkey-glide sync client.
+# Adapter type: "valkey", backed by the official valkey-glide sync client.
 type: valkey
 
 # Comma-separated "host:port[,host:port...]". In standalone mode only the first
@@ -41,12 +41,12 @@ tls_enable: false
 # server-side expiry drifts LMCache's byte accounting.
 # ttl_seconds: 3600
 
-# Note: chunk_size is NOT an adapter field — it is a server-level setting
-# (`lmcache server --chunk-size`, default 256 tokens) that controls how many
-# tokens each stored KV chunk covers. It affects cache granularity and
-# performance: larger chunks mean fewer, bigger Valkey objects and coarser
-# prefix matching; smaller chunks match shorter shared prefixes but store more
-# keys. The default (256) is a reasonable starting point.
+# chunk_size is a server-level setting (`lmcache server --chunk-size`, default
+# 256 tokens) that sets how many tokens each stored KV chunk covers. It drives
+# cache hit rates and performance: larger chunks mean fewer, bigger Valkey
+# objects and coarser prefix matching; smaller chunks match shorter shared
+# prefixes but store more keys. The default (256) is a reasonable starting
+# point. It is configured on the server, not in this adapter file.
 
 # See the LMCache MP server configuration reference for the full option set
 # (auth, timeouts, capacity/eviction, TTL):
