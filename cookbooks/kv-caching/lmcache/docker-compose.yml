@@ -43,10 +43,10 @@ x-vllm-common: &vllm-common
   command:
     - |
       pip install --quiet lmcache==0.5.4
-      # facebook/opt-125m is a base model with no chat template, and vLLM refuses
-      # to serve /v1/chat/completions without one. Mount a minimal template so the
-      # notebook's multi-turn `messages` conversation renders to a deterministic
-      # token prefix (exactly what LMCache keys its KV chunks on).
+      # Qwen2.5-0.5B-Instruct is a small, ungated, instruction-tuned model that
+      # ships its own chat template, so vLLM can serve /v1/chat/completions
+      # directly. The notebook's multi-turn `messages` conversation renders to a
+      # deterministic token prefix, which is what LMCache keys its KV chunks on.
       #
       # LMCacheMPConnector hands this replica's KV to the standalone lmcache
       # server (below), which owns storage and writes through to Valkey.
@@ -58,20 +58,18 @@ x-vllm-common: &vllm-common
       # the step is normally long. If it ever trips, suspect the server's
       # transfer-mode/handler wiring, not a too-short timeout.
       exec python3 -m vllm.entrypoints.openai.api_server \
-        --model facebook/opt-125m \
+        --model Qwen/Qwen2.5-0.5B-Instruct \
         --max-model-len 2048 \
         --enforce-eager \
-        --chat-template /etc/vllm/chat_template.jinja \
         --kv-transfer-config '{"kv_connector":"LMCacheMPConnector","kv_role":"kv_both","kv_connector_extra_config":{"lmcache.mp.host":"tcp://lmcache-server","lmcache.mp.port":5555,"lmcache.mp.mq_timeout":120.0}}'
   environment:
     # Shared with lmcache-server via the *lmcache-env anchor.
     <<: *lmcache-env
     # CPU KV-cache pool size in GiB (kept small for a laptop-friendly demo).
     VLLM_CPU_KVCACHE_SPACE: "1"
-    # opt-125m is ungated; no HF token needed. Silence the rate-limit warning.
+    # Qwen2.5-0.5B-Instruct is ungated; no HF token needed. Silence the rate-limit warning.
     HF_HUB_DISABLE_PROGRESS_BARS: "1"
   volumes:
-    - ./chat_template.jinja:/etc/vllm/chat_template.jinja:ro
     - hf-cache:/root/.cache/huggingface
   # vLLM's multiprocess executor needs more than Docker's default 64 MiB of
   # shared memory, or the engine core aborts on startup.

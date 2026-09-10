@@ -30,7 +30,7 @@ HERE = Path(__file__).parent
 CONFIG_PATH = HERE / "lmcache_config.yaml"
 COMPOSE_PATH = HERE / "docker-compose.yml"
 
-MODEL = "facebook/opt-125m"
+MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
 # The L2 adapter type + the Valkey the lmcache server writes through to.
 L2_ADAPTER_TYPE = "valkey"
 VALKEY_STARTUP_NODES = "valkey:6379"
