@@ -1,7 +1,12 @@
 # The notebook talks to vLLM over its OpenAI-compatible HTTP API and reads
-# cache signals from Valkey via `docker exec`. It does not import vLLM, torch,
-# or LMCache directly — those run inside the containers from docker-compose.yml.
+# cache signals from Valkey over the network with the valkey client. It does not
+# import vLLM, torch, or LMCache directly — those run inside the containers from
+# docker-compose.yml.
 openai==1.109.1
+
+# The notebook reads cache signals (DBSIZE / KEYS / INFO commandstats) directly
+# from Valkey over the network, instead of shelling out to `docker exec`.
+valkey==6.1.1
 
 # Notebook tooling.
 jupyterlab==4.4.5
