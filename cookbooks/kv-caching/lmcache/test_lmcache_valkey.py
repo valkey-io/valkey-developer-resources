@@ -92,6 +92,11 @@ class TestComposeWiring:
         # The L2 adapter JSON names the valkey type and the Valkey service.
         assert '"type":"valkey"' in command_text.replace(" ", "")
         assert VALKEY_STARTUP_NODES in command_text
+        # skip_l1 makes L1 a write buffer only, so reads come from Valkey (L2) —
+        # otherwise the demo would serve every reuse from L1 and never read Valkey.
+        assert "--l2-store-policy skip_l1" in command_text
+        # CPU workers use the engine-driven transfer path; "auto" loads it.
+        assert "--supported-transfer-mode auto" in command_text
         # Wait for a healthy Valkey before starting.
         assert server["depends_on"]["valkey"]["condition"] == "service_healthy"
 
@@ -177,6 +182,21 @@ def _dbsize() -> int:
     return int(_valkey_cli("DBSIZE"))
 
 
+def _valkey_get_calls() -> int:
+    """Cumulative Valkey GET/MGET calls, from INFO commandstats.
+
+    With the server's ``--l2-store-policy skip_l1`` (L1 is a write buffer only),
+    a cache *read* has to come from Valkey, so reuse shows up as GET calls here.
+    """
+    total = 0
+    for line in _valkey_cli("INFO", "commandstats").splitlines():
+        if line.startswith(("cmdstat_get:", "cmdstat_mget:")):
+            for field in line.split(":", 1)[1].split(","):
+                if field.startswith("calls="):
+                    total += int(field.split("=", 1)[1])
+    return total
+
+
 @pytest.fixture(scope="module")
 def clients():
     openai = pytest.importorskip("openai")
@@ -214,17 +234,15 @@ def test_both_replicas_serve_the_model(clients):
 def test_cold_stores_kv_in_valkey_then_warm_and_cross_replica_reuse(clients):
     """The signals the notebook shows, in one flow.
 
-    KV storage is owned by the shared LMCache server: an L1 tier in its own
-    memory, writing through to Valkey as L2. So the reliable, Valkey-observable
-    signals are:
+    KV storage is owned by the shared LMCache server. It runs with
+    ``--l2-store-policy skip_l1``, so L1 is only a write buffer and reads come
+    from Valkey (L2). That gives two Valkey-observable signals:
 
       * a cold turn *stores* KV in Valkey (``dbsize`` grows), and
-      * a later request that shares the prefix is a *hit*, not a re-store —
-        ``dbsize`` does not grow again, and the KV still lives in Valkey.
-
-    (The warm read is served from the server's shared L1, so it doesn't move
-    Valkey's ``keyspace_hits``; the durable copy in Valkey is what makes the
-    cache shared and restart-survivable.)
+      * a request on a second replica that shares the prefix *reads* that KV
+        back from Valkey (GET calls increment) instead of recomputing it —
+        proving the cache is genuinely shared through Valkey, not held in one
+        engine's memory.
     """
     a, b = clients
     system = _fresh_system_message()
@@ -258,13 +276,17 @@ def test_cold_stores_kv_in_valkey_then_warm_and_cross_replica_reuse(clients):
     assert _dbsize() >= after_cold, "warm turn must not lose the cached KV"
 
     # Cross-replica: replica B has served no traffic, but the KV for this exact
-    # prefix lives in the shared store. B reuses it rather than storing it again,
-    # so replaying the cold prefix on B does not grow the key count.
+    # prefix lives in Valkey. B reads it back from Valkey rather than recomputing
+    # or re-storing it: GET calls increment and the key count does not grow.
+    gets_before = _valkey_get_calls()
     before_b = _dbsize()
     r3 = b.chat.completions.create(
         model=MODEL, messages=prefix, max_tokens=32, temperature=0.0,
     )
     assert r3.choices[0].message.content is not None
+    assert _valkey_get_calls() > gets_before, (
+        "replica B should read the shared prefix's KV from Valkey (L2)"
+    )
     assert _dbsize() == before_b, (
         "replica B should reuse the shared cache, not re-store the same prefix"
     )

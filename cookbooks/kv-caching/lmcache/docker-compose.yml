@@ -121,6 +121,7 @@ services:
           --host 0.0.0.0 --port 5555 \
           --l1-size-gb 2 \
           --eviction-policy noop \
+          --l2-store-policy skip_l1 \
           --supported-transfer-mode auto \
           --l2-adapter '{"type":"valkey","startup_nodes":"valkey:6379"}'
     environment:
