@@ -2,6 +2,8 @@
 
 > The Cookbook below shows how to configure and use Valkey as the shared KV-cache store for vLLM inference through LMCache so that it survives restarts and is shared across replicas.
 
+**Difficulty:** Intermediate · Python · ~20 min
+
 **Who is this for:** Developers and platform/ML engineers self-deploying LLMs with vLLM who want to cut redundant prefill work, lower inference cost, and improve latency.
 
 When an LLM answers a prompt it first computes attention key/value tensors for every input token (the *prefill* step), then throws that work away. Any later request that shares a prompt prefix — the next turn of a chat, a shared system prompt, RAG over the same documents — would recompute exactly the same KV. [LMCache](https://github.com/LMCache/LMCache) caches that KV and reloads it on a prefix match, so prefill happens once: lower cost per request and a shorter time-to-first-token. Unlike vLLM's built-in prefix cache, which sits inside one engine process and dies with it, a Valkey-backed cache is scalable beyond one machine, shared across replicas, and survives restarts.
@@ -38,7 +40,7 @@ Start the stack (Valkey, the LMCache server, and both vLLM replicas) from this d
 docker compose up -d --wait
 ```
 
-`--wait` blocks until every container is healthy. The first run is slow — the vLLM image is large, each replica compiles the model on startup, and the LMCache server installs its dependencies — so allow several minutes.
+`--wait` blocks until every container is healthy. The first run is slow — the vLLM image is large, each replica loads the model on startup, and the LMCache server installs its dependencies — so allow several minutes.
 
 Then create the notebook environment and kernel:
 
@@ -70,7 +72,7 @@ lmcache server --l1-size-gb 2 --eviction-policy noop \
 
 [`lmcache_config.yaml`](lmcache_config.yaml) documents the same spec and the options you are most likely to change (cluster mode, key prefix, TLS, auth). The server needs the `valkey-glide-sync` client for this adapter and installs it on startup; the plain async `valkey-glide` is not sufficient.
 
-See the [LMCache Valkey backend docs](https://docs.lmcache.ai/kv_cache/valkey.html) for the full option set.
+See the [LMCache MP server configuration reference](https://docs.lmcache.ai/mp/configuration.html) for the full option set (L2 adapters, store policy, transfer modes).
 
 > ⚠️ **Security:** These examples use no authentication or TLS for simplicity.
 > For any non-localhost deployment, enable authentication and TLS.
