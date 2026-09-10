@@ -33,12 +33,20 @@
 # version. 0.5.4 publishes both x86_64 and aarch64 wheels, so `pip install`
 # gets a prebuilt wheel on Intel and Apple-Silicon/ARM hosts alike (0.5.2 was
 # x86_64-only and fell back to a slow, fragile from-source build on ARM).
+#
+# The vLLM image is pinned by digest, not just the v0.28.0 tag. Tags are
+# mutable, and this exact image ships torch as a CPU build (torch==*+cpu).
+# LMCache depends on torch without a version pin, so on a different image that
+# didn't already have torch, `pip install lmcache` would resolve torch to the
+# latest CUDA build and pull ~2 GiB of nvidia wheels — pointless on CPU and
+# prone to timing out. Pinning the digest guarantees the CPU-torch image, so
+# the lmcache install stays small and offline-friendly.
 x-lmcache-env: &lmcache-env
   # Required by LMCache to enable the v1 code paths.
   LMCACHE_USE_EXPERIMENTAL: "True"
 
 x-vllm-common: &vllm-common
-  image: vllm/vllm-openai-cpu:v0.28.0
+  image: vllm/vllm-openai-cpu:v0.28.0@sha256:197354e6475e638eb5ccca09beb078488046a82de0e204e7429bf1a804df9647
   entrypoint: ["/bin/bash", "-c"]
   command:
     - |
@@ -104,7 +112,7 @@ services:
   # L2 adapter. Both vLLM replicas connect to it over ZMQ on port 5555.
   lmcache-server:
     container_name: lmcache-server
-    image: vllm/vllm-openai-cpu:v0.28.0
+    image: vllm/vllm-openai-cpu:v0.28.0@sha256:197354e6475e638eb5ccca09beb078488046a82de0e204e7429bf1a804df9647
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |

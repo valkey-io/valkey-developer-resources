@@ -103,8 +103,10 @@ class TestComposeWiring:
     @pytest.mark.parametrize("svc", ["vllm-a", "vllm-b"])
     def test_replica_wired_to_lmcache_server_via_mp_connector(self, compose, svc):
         service = compose["services"][svc]
-        # Official vLLM CPU image, pinned.
-        assert service["image"] == "vllm/vllm-openai-cpu:v0.28.0"
+        # Official vLLM CPU image, pinned to the v0.28.0 tag (optionally by
+        # digest as well, e.g. ...:v0.28.0@sha256:...).
+        assert service["image"].startswith("vllm/vllm-openai-cpu:v0.28.0")
+        assert ":latest" not in service["image"]
         command = service["command"]
         command_text = " ".join(command) if isinstance(command, list) else command
         # LMCache is not bundled in the CPU image, so it is installed on startup.
