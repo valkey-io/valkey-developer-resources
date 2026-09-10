@@ -1,12 +1,13 @@
 # The notebook talks to vLLM over its OpenAI-compatible HTTP API and reads
-# cache signals from Valkey over the network with the valkey client. It does not
+# cache signals from Valkey over the network with the Valkey GLIDE client. It does not
 # import vLLM, torch, or LMCache directly — those run inside the containers from
 # docker-compose.yml.
 openai==1.109.1
 
-# The notebook reads cache signals (DBSIZE / KEYS / INFO commandstats) directly
-# from Valkey over the network, instead of shelling out to `docker exec`.
-valkey==6.1.1
+# The notebook reads cache signals (DBSIZE / KEYS / INFO commandstats) from
+# Valkey with the Valkey GLIDE client (the sync build), the same client family
+# the LMCache server uses for its Valkey L2 backend.
+valkey-glide-sync==2.5.2
 
 # Notebook tooling.
 jupyterlab==4.4.5
