@@ -14,8 +14,8 @@
 # connector (LMCacheMPConnector) and hand their KV to a standalone `lmcache
 # server`. That server keeps a small L1 tier in its own memory and writes
 # through to Valkey as its L2 backend via the built-in "valkey" L2 adapter — so
-# the KV one replica computes is visible to the other through Valkey. That
-# shared cache is the whole point.
+# the KV one replica computes is visible to the other through Valkey. The
+# shared cache permits multiple instances to share KV's.
 #
 # Resource note: each vLLM replica needs roughly 3–4 GiB of RAM. Give your
 # container runtime at least 10 GiB so both replicas, the LMCache server, and
@@ -26,12 +26,23 @@
 # installs the same pinned version on startup. The `lmcache server` also needs
 # the *sync* glide client for its Valkey L2 adapter (the plain async
 # `valkey-glide` is not sufficient).
+#
+# The LMCache version is pinned in both places it appears (the x-vllm-common
+# anchor below and the lmcache-server service). Keep the two identical: the
+# client and server halves talk over the MP connector and must run the same
+# version. 0.5.4 publishes both x86_64 and aarch64 wheels, so `pip install`
+# gets a prebuilt wheel on Intel and Apple-Silicon/ARM hosts alike (0.5.2 was
+# x86_64-only and fell back to a slow, fragile from-source build on ARM).
+x-lmcache-env: &lmcache-env
+  # Required by LMCache to enable the v1 code paths.
+  LMCACHE_USE_EXPERIMENTAL: "True"
+
 x-vllm-common: &vllm-common
   image: vllm/vllm-openai-cpu:v0.28.0
   entrypoint: ["/bin/bash", "-c"]
   command:
     - |
-      pip install --quiet lmcache==0.5.2
+      pip install --quiet lmcache==0.5.4
       # facebook/opt-125m is a base model with no chat template, and vLLM refuses
       # to serve /v1/chat/completions without one. Mount a minimal template so the
       # notebook's multi-turn `messages` conversation renders to a deterministic
@@ -39,15 +50,22 @@ x-vllm-common: &vllm-common
       #
       # LMCacheMPConnector hands this replica's KV to the standalone lmcache
       # server (below), which owns storage and writes through to Valkey.
+      #
+      # lmcache.mp.mq_timeout bounds the worker<->server registration/transfer
+      # calls. With the server's transfer mode set correctly (see its
+      # --supported-transfer-mode below) registration takes about a second here;
+      # 120s is generous headroom for a slow or emulated host without implying
+      # the step is normally long. If it ever trips, suspect the server's
+      # transfer-mode/handler wiring, not a too-short timeout.
       exec python3 -m vllm.entrypoints.openai.api_server \
         --model facebook/opt-125m \
         --max-model-len 2048 \
         --enforce-eager \
         --chat-template /etc/vllm/chat_template.jinja \
-        --kv-transfer-config '{"kv_connector":"LMCacheMPConnector","kv_role":"kv_both","kv_connector_extra_config":{"lmcache.mp.host":"tcp://lmcache-server","lmcache.mp.port":5555}}'
+        --kv-transfer-config '{"kv_connector":"LMCacheMPConnector","kv_role":"kv_both","kv_connector_extra_config":{"lmcache.mp.host":"tcp://lmcache-server","lmcache.mp.port":5555,"lmcache.mp.mq_timeout":120.0}}'
   environment:
-    # Required by LMCache to enable the v1 code paths.
-    LMCACHE_USE_EXPERIMENTAL: "True"
+    # Shared with lmcache-server via the *lmcache-env anchor.
+    <<: *lmcache-env
     # CPU KV-cache pool size in GiB (kept small for a laptop-friendly demo).
     VLLM_CPU_KVCACHE_SPACE: "1"
     # opt-125m is ungated; no HF token needed. Silence the rate-limit warning.
@@ -67,7 +85,9 @@ x-vllm-common: &vllm-common
     interval: 10s
     timeout: 5s
     retries: 60
-    start_period: 300s
+    # Grace for first startup: pip install + model load + KV registration is
+    # about 40s here; 180s leaves margin for a slower or emulated host.
+    start_period: 180s
 
 services:
   valkey:
@@ -91,14 +111,21 @@ services:
     command:
       - |
         # The Valkey L2 adapter needs the *sync* glide client specifically.
-        pip install --quiet lmcache==0.5.2 'valkey-glide-sync>=2.3.0'
+        pip install --quiet lmcache==0.5.4 valkey-glide-sync==2.5.2
+        # --supported-transfer-mode auto loads BOTH worker->server transfer
+        # paths. CPU vLLM workers use the "engine_driven" (PREPARE/COMMIT) path;
+        # the server default (lmcache_driven) loads only the GPU/server-driven
+        # handlers, so a CPU worker's register request finds no handler and the
+        # connector hangs. "auto" lets either device type connect.
         exec lmcache server \
           --host 0.0.0.0 --port 5555 \
           --l1-size-gb 2 \
           --eviction-policy noop \
+          --supported-transfer-mode auto \
           --l2-adapter '{"type":"valkey","startup_nodes":"valkey:6379"}'
     environment:
-      LMCACHE_USE_EXPERIMENTAL: "True"
+      # Shared with the vLLM replicas via the *lmcache-env anchor.
+      <<: *lmcache-env
     depends_on:
       valkey:
         condition: service_healthy
