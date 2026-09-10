@@ -15,7 +15,7 @@
 # server`. That server keeps a small L1 tier in its own memory and writes
 # through to Valkey as its L2 backend via the built-in "valkey" L2 adapter — so
 # the KV one replica computes is visible to the other through Valkey. The
-# shared cache permits multiple instances to share KV's.
+# shared cache lets multiple instances share KVs.
 #
 # Resource note: each vLLM replica needs roughly 3–4 GiB of RAM. Give your
 # container runtime at least 10 GiB so both replicas, the LMCache server, and
