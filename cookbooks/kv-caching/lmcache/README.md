@@ -28,7 +28,7 @@ vLLM (prefill)  ->  LMCacheMPConnector  ->  lmcache server (L1)  ->  Valkey (L2)
 - A container runtime with Compose support (e.g. Docker Engine / Docker CLI) to run the stack locally.
 - **Memory for the stack.** Give the Docker VM **at least 10 GiB** of RAM (Docker Desktop: Settings → Resources → Memory). Each vLLM replica needs roughly 3–4 GiB; the LMCache server and Valkey add a little more. On a smaller machine, run one replica and skip the two-replica step.
 - **Disk space.** The stack pulls about **5 GiB** of images (the vLLM CPU image alone is ~3.7 GiB) plus the model weights on first run. Make sure the container runtime's disk has room.
-- Python 3.10–3.13 for the notebook client (LMCache requires `>=3.10,<3.14`).
+- Python 3.12 for the notebook client, matching the notebook's kernel. (LMCache currently supports 3.10–3.13; 3.12 is what this cookbook is pinned and tested against.)
 
 The stack runs on CPU with `facebook/opt-125m`, which is small and ungated — no GPU and no Hugging Face token required. Exact versions are pinned in [`requirements.txt`](requirements.txt) and [`docker-compose.yml`](docker-compose.yml).
 
