@@ -151,7 +151,7 @@ services:
         # connector hangs. "auto" lets either device type connect.
         exec lmcache server \
           --host 0.0.0.0 --port 5555 \
-          --l1-size-gb 2 \
+          --l1-size-gb 0.5 \
           --eviction-policy noop \
           --l2-store-policy skip_l1 \
           --supported-transfer-mode auto \
