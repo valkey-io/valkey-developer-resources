@@ -65,6 +65,17 @@ x-vllm-common: &vllm-common
       # 120s is generous headroom for a slow or emulated host without implying
       # the step is normally long. If it ever trips, suspect the server's
       # transfer-mode/handler wiring, not a too-short timeout.
+      #
+      # --dtype float16 avoids vLLM's default bf16-on-CPU. On an
+      # emulated/virtualized aarch64 host (e.g. this image running under a
+      # Podman VM on Apple Silicon), the virtual CPU may not advertise bf16
+      # hardware support; PyTorch's oneDNN backend then falls back from
+      # mkldnn_matmul to a plain BLAS gemm, and that fallback crashes with an
+      # illegal instruction the first time a real prefill runs (SIGILL,
+      # worker exit code -4). float16 sidesteps the bf16 kernel path entirely
+      # while keeping the same 2-byte-per-element footprint as bf16 (float32
+      # roughly doubles per-replica memory, which no longer fits two replicas
+      # in a 10 GiB budget).
       exec python3 -m vllm.entrypoints.openai.api_server \
         --model Qwen/Qwen2.5-0.5B-Instruct \
         --max-model-len 2048 \
