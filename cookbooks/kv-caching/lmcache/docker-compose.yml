@@ -18,7 +18,7 @@
 # shared cache lets multiple instances share KVs.
 #
 # Resource note: each vLLM replica needs roughly 3–4 GiB of RAM. Give your
-# container runtime at least 10 GiB so both replicas, the LMCache server, and
+# container runtime at least 12 GiB so both replicas, the LMCache server, and
 # Valkey fit. On a smaller machine, start one replica and skip the two-replica
 # step.
 
