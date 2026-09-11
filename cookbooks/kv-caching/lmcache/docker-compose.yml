@@ -78,6 +78,7 @@ x-vllm-common: &vllm-common
       # in a 10 GiB budget).
       exec python3 -m vllm.entrypoints.openai.api_server \
         --model Qwen/Qwen2.5-0.5B-Instruct \
+        --dtype float16 \
         --max-model-len 2048 \
         --enforce-eager \
         --kv-transfer-config '{"kv_connector":"LMCacheMPConnector","kv_role":"kv_both","kv_connector_extra_config":{"lmcache.mp.host":"tcp://lmcache-server","lmcache.mp.port":5555,"lmcache.mp.mq_timeout":120.0}}'
