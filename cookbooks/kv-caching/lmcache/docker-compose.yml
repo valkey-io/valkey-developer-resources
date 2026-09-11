@@ -96,7 +96,10 @@ x-vllm-common: &vllm-common
   environment:
     # Shared with lmcache-server via the *lmcache-env anchor.
     <<: *lmcache-env
-    # CPU KV-cache pool size in GiB (kept small for a laptop-friendly demo).
+    # CPU KV-cache pool size in GiB. Must be an integer — vLLM's config
+    # validation rejects fractional values (e.g. "0.5") outright. 1 is the
+    # practical floor; kept small so two replicas, lmcache-server, and Valkey
+    # fit a 12 GiB container runtime.
     VLLM_CPU_KVCACHE_SPACE: "1"
     # Qwen2.5-0.5B-Instruct is ungated; no HF token needed. Silence the rate-limit warning.
     HF_HUB_DISABLE_PROGRESS_BARS: "1"
