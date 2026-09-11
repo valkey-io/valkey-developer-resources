@@ -181,6 +181,11 @@ services:
     container_name: vllm-b
     ports:
       - "127.0.0.1:8002:8000"
+    depends_on:
+      lmcache-server:
+        condition: service_healthy
+      vllm-a:
+        condition: service_healthy
 
 volumes:
   # Cache model weights across restarts so replicas don't each re-download.
