@@ -21,7 +21,16 @@
 # container runtime at least 12 GiB so both replicas, the LMCache server, and
 # Valkey fit. On a smaller machine, start one replica and skip the two-replica
 # step.
-
+#
+# Memory tuning for both replicas to run comfortably in ~12 GiB total:
+#   --max-num-seqs / --max-num-batched-tokens are capped low (4 / 2048).
+#   These size vLLM's scheduler and batching buffers for concurrent
+#   sequences; the defaults assume many simultaneous requests, but this
+#   notebook only ever sends one request at a time. Capping them shrinks
+#   that pre-allocation with no effect on the demo's behavior.
+#   lmcache-server's --l1-size-gb is similarly capped at 0.5 GiB below —
+#   still large enough to hold this demo's small KV chunks, just not
+#   over-provisioned.
 # LMCache is not bundled in the vLLM CPU image, so every service that needs it
 # installs the same pinned version on startup. The `lmcache server` also needs
 # the *sync* glide client for its Valkey L2 adapter (the plain async
