@@ -176,6 +176,12 @@ services:
     ports:
       - "127.0.0.1:8001:8000"
 
+  # vllm-b depends on vllm-a being healthy (not just lmcache-server) so the two
+  # replicas load their model weights and allocate buffers sequentially rather
+  # than simultaneously. Model load briefly spikes above each replica's
+  # steady-state memory; staggering the two loads keeps that spike from
+  # stacking and exceeding a memory-constrained container runtime, even when
+  # both replicas comfortably fit once running.
   vllm-b:
     <<: *vllm-common
     container_name: vllm-b
