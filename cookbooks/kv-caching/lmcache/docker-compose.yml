@@ -90,6 +90,8 @@ x-vllm-common: &vllm-common
         --dtype float16 \
         --max-model-len 2048 \
         --enforce-eager \
+        --max-num-seqs 4 \
+        --max-num-batched-tokens 2048 \
         --kv-transfer-config '{"kv_connector":"LMCacheMPConnector","kv_role":"kv_both","kv_connector_extra_config":{"lmcache.mp.host":"tcp://lmcache-server","lmcache.mp.port":5555,"lmcache.mp.mq_timeout":120.0}}'
   environment:
     # Shared with lmcache-server via the *lmcache-env anchor.
