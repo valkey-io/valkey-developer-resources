@@ -9,47 +9,29 @@
 #
 #   vLLM (prefill)  ->  LMCacheMPConnector  ->  lmcache-server (L1)  ->  Valkey (L2)
 #
-# vLLM does not offload KV inside its own worker process here: the CPU build has
-# no in-worker KV connector. Instead both replicas use the multi-process
-# connector (LMCacheMPConnector) and hand their KV to a standalone `lmcache
-# server`. That server keeps a small L1 tier in its own memory and writes
-# through to Valkey as its L2 backend via the built-in "valkey" L2 adapter — so
-# the KV one replica computes is visible to the other through Valkey. The
-# shared cache lets multiple instances share KVs.
+# The CPU build has no in-worker KV connector, so both replicas hand their KV
+# to the standalone `lmcache server` via the multi-process connector. The
+# server writes through to Valkey (its L2 backend), which is what makes one
+# replica's KV visible to the other.
 #
-# Resource note: each vLLM replica needs roughly 3–4 GiB of RAM. Give your
-# container runtime at least 12 GiB so both replicas, the LMCache server, and
+# Resource note: each vLLM replica needs roughly 4–5 GiB of RAM. Give your
+# container runtime at least 16 GiB so both replicas, the LMCache server, and
 # Valkey fit. On a smaller machine, start one replica and skip the two-replica
-# step.
+# step. The batching and cache-size flags below are capped low because the
+# notebook only sends one request at a time; the defaults over-provision for
+# concurrency this demo never uses.
 #
-# Memory tuning for both replicas to run comfortably in ~12 GiB total:
-#   --max-num-seqs / --max-num-batched-tokens are capped low (4 / 2048).
-#   These size vLLM's scheduler and batching buffers for concurrent
-#   sequences; the defaults assume many simultaneous requests, but this
-#   notebook only ever sends one request at a time. Capping them shrinks
-#   that pre-allocation with no effect on the demo's behavior.
-#   lmcache-server's --l1-size-gb is similarly capped at 0.5 GiB below —
-#   still large enough to hold this demo's small KV chunks, just not
-#   over-provisioned.
 # LMCache is not bundled in the vLLM CPU image, so every service that needs it
-# installs the same pinned version on startup. The `lmcache server` also needs
-# the *sync* glide client for its Valkey L2 adapter (the plain async
-# `valkey-glide` is not sufficient).
+# pip-installs it on startup, pinned to one version in both places it appears
+# (the x-vllm-common anchor and the lmcache-server service). The client and
+# server halves talk over the MP connector and must run the same version, so
+# keep the two pins identical. The server also needs the *sync* glide client
+# for its Valkey L2 adapter; the async valkey-glide is not sufficient.
 #
-# The LMCache version is pinned in both places it appears (the x-vllm-common
-# anchor below and the lmcache-server service). Keep the two identical: the
-# client and server halves talk over the MP connector and must run the same
-# version. 0.5.4 publishes both x86_64 and aarch64 wheels, so `pip install`
-# gets a prebuilt wheel on Intel and Apple-Silicon/ARM hosts alike (0.5.2 was
-# x86_64-only and fell back to a slow, fragile from-source build on ARM).
-#
-# The vLLM image is pinned by digest, not just the v0.28.0 tag. Tags are
-# mutable, and this exact image ships torch as a CPU build (torch==*+cpu).
-# LMCache depends on torch without a version pin, so on a different image that
-# didn't already have torch, `pip install lmcache` would resolve torch to the
-# latest CUDA build and pull ~2 GiB of nvidia wheels — pointless on CPU and
-# prone to timing out. Pinning the digest guarantees the CPU-torch image, so
-# the lmcache install stays small and offline-friendly.
+# The vLLM image is pinned by digest, not just the mutable v0.28.0 tag, because
+# this exact image ships torch as a CPU build. LMCache depends on torch without
+# a version pin, so on an image without CPU torch already present the install
+# would pull the CUDA build. The digest guarantees the CPU-torch image.
 x-lmcache-env: &lmcache-env
   # Required by LMCache to enable the v1 code paths.
   LMCACHE_USE_EXPERIMENTAL: "True"
@@ -60,31 +42,21 @@ x-vllm-common: &vllm-common
   command:
     - |
       pip install --quiet lmcache==0.5.4
-      # Qwen2.5-0.5B-Instruct is a small, ungated, instruction-tuned model that
-      # ships its own chat template, so vLLM can serve /v1/chat/completions
-      # directly. The notebook's multi-turn `messages` conversation renders to a
-      # deterministic token prefix, which is what LMCache keys its KV chunks on.
-      #
-      # LMCacheMPConnector hands this replica's KV to the standalone lmcache
-      # server (below), which owns storage and writes through to Valkey.
+      # Qwen2.5-0.5B-Instruct is small, ungated, and ships its own chat
+      # template, so vLLM can serve /v1/chat/completions directly. The
+      # notebook's multi-turn conversation renders to a deterministic token
+      # prefix, which is what LMCache keys its KV chunks on.
       #
       # lmcache.mp.mq_timeout bounds the worker<->server registration/transfer
-      # calls. With the server's transfer mode set correctly (see its
-      # --supported-transfer-mode below) registration takes about a second here;
-      # 120s is generous headroom for a slow or emulated host without implying
-      # the step is normally long. If it ever trips, suspect the server's
-      # transfer-mode/handler wiring, not a too-short timeout.
+      # calls. Registration takes about a second here; 120s is headroom for a
+      # slow or emulated host. If it trips, suspect the server's transfer-mode
+      # wiring (see --supported-transfer-mode), not a too-short timeout.
       #
-      # --dtype float16 avoids vLLM's default bf16-on-CPU. On an
-      # emulated/virtualized aarch64 host (e.g. this image running under a
-      # Podman VM on Apple Silicon), the virtual CPU may not advertise bf16
-      # hardware support; PyTorch's oneDNN backend then falls back from
-      # mkldnn_matmul to a plain BLAS gemm, and that fallback crashes with an
-      # illegal instruction the first time a real prefill runs (SIGILL,
-      # worker exit code -4). float16 sidesteps the bf16 kernel path entirely
-      # while keeping the same 2-byte-per-element footprint as bf16 (float32
-      # roughly doubles per-replica memory, which no longer fits two replicas
-      # in a 10 GiB budget).
+      # --dtype float16 avoids vLLM's default bf16-on-CPU. On an emulated
+      # aarch64 host the virtual CPU may not advertise bf16 support, and the
+      # oneDNN BLAS fallback then crashes on the first real prefill (SIGILL,
+      # worker exit -4). float16 sidesteps that path at the same 2-byte
+      # footprint as bf16; float32 would roughly double per-replica memory.
       exec python3 -m vllm.entrypoints.openai.api_server \
         --model Qwen/Qwen2.5-0.5B-Instruct \
         --dtype float16 \
@@ -96,10 +68,9 @@ x-vllm-common: &vllm-common
   environment:
     # Shared with lmcache-server via the *lmcache-env anchor.
     <<: *lmcache-env
-    # CPU KV-cache pool size in GiB. Must be an integer — vLLM's config
-    # validation rejects fractional values (e.g. "0.5") outright. 1 is the
-    # practical floor; kept small so two replicas, lmcache-server, and Valkey
-    # fit a 12 GiB container runtime.
+    # CPU KV-cache pool size in GiB. Must be an integer (vLLM rejects
+    # fractional values); 1 is the practical floor, kept small so the whole
+    # stack fits a 16 GiB runtime.
     VLLM_CPU_KVCACHE_SPACE: "1"
     # Qwen2.5-0.5B-Instruct is ungated; no HF token needed. Silence the rate-limit warning.
     HF_HUB_DISABLE_PROGRESS_BARS: "1"
@@ -176,12 +147,10 @@ services:
     ports:
       - "127.0.0.1:8001:8000"
 
-  # vllm-b depends on vllm-a being healthy (not just lmcache-server) so the two
-  # replicas load their model weights and allocate buffers sequentially rather
-  # than simultaneously. Model load briefly spikes above each replica's
-  # steady-state memory; staggering the two loads keeps that spike from
-  # stacking and exceeding a memory-constrained container runtime, even when
-  # both replicas comfortably fit once running.
+  # vllm-b waits on vllm-a being healthy (not just lmcache-server) so the two
+  # replicas load their weights sequentially. Model load spikes memory above
+  # steady state; staggering keeps the two spikes from stacking and exceeding a
+  # memory-constrained runtime, even though both fit comfortably once running.
   vllm-b:
     <<: *vllm-common
     container_name: vllm-b
