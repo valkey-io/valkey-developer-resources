@@ -128,6 +128,23 @@ jobs:
           VALKEY_HOST: 127.0.0.1
           VALKEY_PORT: "6379"
         run: pytest --nbmake --nbmake-timeout=600 ./*.ipynb
+      - name: Run cookbook tests (Valkey ${{ matrix.valkey-version }})
+        working-directory: ${{ matrix.cookbook }}
+        env:
+          VALKEY_HOST: 127.0.0.1
+          VALKEY_PORT: "6379"
+        # Standalone test_*.py files (e.g. config + compose-wiring checks) run
+        # here, not through nbmake. These catch drift between a cookbook's
+        # documented config and what its compose file actually passes. Tests
+        # needing the full runtime stack skip themselves when it isn't up, so
+        # the structural tier still runs against the Valkey service container.
+        # Skip cleanly when a cookbook ships no such tests.
+        run: |
+          if ls test_*.py >/dev/null 2>&1; then
+            pytest -v test_*.py
+          else
+            echo "No standalone test_*.py in this cookbook — skipping."
+          fi
 
   # ---------------------------------------------------------------------------
   # Node / TypeScript notebooks (tslab kernel)
