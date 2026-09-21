@@ -103,19 +103,23 @@ Reviewers evaluate every PR against this checklist. Use it as a self-check befor
 Cookbooks are **Jupyter notebooks (`.ipynb`)**, whatever the language. Prose and runnable code live
 in one artifact, so the reader executes cells as they read and CI executes the exact code the reader
 runs. Jupyter has kernels for the languages this repo uses (Python, and via community kernels Go,
-TypeScript/JavaScript, Java), so a cookbook in any of them is a notebook series.
+TypeScript/JavaScript, Java), so a cookbook in any of them is a notebook.
 
-A notebook holds the chapter *content*, but a cookbook still needs a few real files on disk that a
-notebook cannot carry — the runtime environment (dependency manifest, `docker-compose.yml`) and any
-shared helper module. See [Cookbook Structure](#cookbook-structure) for the layout and
-[Cookbook Content Requirements](#cookbook-content-requirements) for the content every chapter must
+A cookbook is **one or more notebooks**. A single self-contained notebook is the default and the
+simplest thing that works; only split into a numbered series when the material is genuinely too long
+for one notebook to hold comfortably. The notebook's own opening cell carries the title, audience,
+and setup, so a single-notebook cookbook needs no separate `README.md` index.
+
+A notebook holds the *content*, but a cookbook still needs a few real files on disk that a notebook
+cannot carry — the runtime environment (dependency manifest, `docker-compose.yml`) and any shared
+helper module. See [Cookbook Structure](#cookbook-structure) for the layout and
+[Cookbook Content Requirements](#cookbook-content-requirements) for the content every notebook must
 include.
 
 ## Cookbook Content Requirements
 
-These content rules apply to **every** cookbook chapter. A chapter is an `.ipynb` notebook; the
-rules describe the content it must carry, and [Cookbook Structure](#cookbook-structure) covers the
-file layout.
+These content rules apply to **every** cookbook notebook. [Cookbook Structure](#cookbook-structure)
+covers the file layout.
 
 ### Required Files
 
@@ -123,17 +127,20 @@ Every cookbook **must** have:
 
 | File | Purpose |
 |------|---------|
-| `README.md` | Overview with linked table of all cookbooks in the track (markdown) |
-| `01-getting-started.ipynb` | First chapter — always Beginner difficulty |
+| Cookbook notebook(s) | One `.ipynb` for a single-notebook cookbook (name it for the topic, e.g. `kv-caching-with-valkey.ipynb`), or a numbered series (`01-getting-started.ipynb`, `02-<topic>.ipynb`, …) when the material needs splitting |
 | Dependency manifest | `requirements.txt` / `package.json` / `go.mod` / `pom.xml` — the language environment CI builds before running the notebooks |
 | `docker-compose.yml` | Starts Valkey for the notebooks (include a healthcheck so `--wait` blocks until it's ready) |
 
-All four sit in the same cookbook directory (see [Cookbook Structure](#cookbook-structure)).
+They all sit in the same cookbook directory (see [Cookbook Structure](#cookbook-structure)). A
+separate `README.md` is **not** required — the notebook's opening cell is the index; add a README
+only for a multi-notebook series that benefits from a top-level table (see
+[Multi-notebook series](#multi-notebook-series)).
 
-### Chapter Structure
+### Notebook Structure
 
-Every numbered chapter follows this structure, expressed across the cells of an `.ipynb` notebook
-(see [Notebook Content Structure](#notebook-content-structure) for how the pieces map to cells):
+A cookbook notebook follows this shape, expressed across its cells (see
+[Notebook Content Structure](#notebook-content-structure) for how the pieces map to cells). Use
+topical headings that describe what each part does — not a rigid `## Step 1 / Step 2` sequence:
 
 ```markdown
 # Title with Framework + Valkey
@@ -142,35 +149,28 @@ Every numbered chapter follows this structure, expressed across the cells of an 
 
 **Difficulty** · Language · ~Time
 
-**Who is this for:** [Target audience — e.g., "Python developers building RAG pipelines who want low-latency vector caching" or "Backend engineers adding rate limiting to an existing Express app"]
+**Who is this for:** [Target audience — e.g., "Python developers building RAG pipelines who want low-latency vector caching"]
 
 [Optional 1–2 paragraph intro explaining why this matters]
 
-## Prerequisites
+## How to run this notebook
 
-- Docker installed
-- Language/runtime version requirement
-- Any API keys or accounts needed
+[Prerequisites, then the setup: `docker compose up -d --wait`, install deps, create/select the
+kernel. Include the security callout after the Valkey startup command.]
 
-## Step 1: Start Valkey
+## <Topic heading> ... ## <Topic heading>
 
-[Start Valkey with `docker compose up -d --wait`, then the security callout]
+[Runnable cells interleaved with prose. Each code cell prints the signal the reader should look for
+(key counts, cache hits, timings) so success is visible. Headings describe the concept, e.g.
+"Turn 1: cold", not "Step 3".]
 
-## Step 2: ...
-
-[Progressive steps with code]
-
-## How It Works
+## How It Works   (optional but recommended)
 
 [Table or diagram explaining the architecture]
 
-## Configuration Reference
+## Configuration Reference   (when a component has configurable options)
 
-[Table of config options — required for any component with configurable params]
-
----
-
-[← 01 - Previous](01-previous.ipynb) | [03 - Next →](03-next.ipynb)
+[Table of config options — or an annotated config file alongside the notebook]
 ```
 
 ### Mandatory Elements
@@ -180,14 +180,17 @@ Every numbered chapter follows this structure, expressed across the cells of an 
 | **Lead blockquote** | One sentence after the `# Title`, wrapped in `> ...` |
 | **Difficulty badge line** | `**Difficulty** · Language · ~Time` |
 | **Audience line** | `**Who is this for:**` — one sentence identifying the target reader |
-| **Prerequisites section** | Explicit `## Prerequisites` with bullet list |
-| **Step-based headings** | `## Step N: Title` — progressive, numbered |
-| **Navigation footer** | `---` rule + prev/next links at bottom |
-| **Security callout** | Required in the first chapter (01) after the Valkey startup command |
+| **How-to-run section** | Prerequisites + the setup commands (start Valkey, install deps, select the kernel) |
+| **Security callout** | After the Valkey startup command (in the first notebook, for a series) |
+| **Runnable cells with visible signals** | Every code cell runs top-to-bottom; cells print what the reader should observe |
+
+A **navigation footer** (prev/next links) is required only for a multi-notebook series — a single
+notebook needs none. `## Step N:` headings are **not** required or preferred; use topical headings.
 
 ### Security Callout (Required)
 
-The first chapter (`01-getting-started.ipynb`) must include this after the Valkey startup command:
+The notebook must include this after the Valkey startup command (in the first notebook, for a
+series):
 
 ```markdown
 > ⚠️ **Security:** These examples use no authentication or TLS for simplicity.
@@ -197,7 +200,7 @@ The first chapter (`01-getting-started.ipynb`) must include this after the Valke
 
 ### Valkey Startup
 
-Cookbooks start Valkey through their `docker-compose.yml` (a required file — see [Required Files](#required-files)), so Step 1 of every cookbook uses Compose rather than a bare `docker run`:
+Cookbooks start Valkey through their `docker-compose.yml` (a required file — see [Required Files](#required-files)), so the how-to-run section uses Compose rather than a bare `docker run`:
 
 ````markdown
 ```bash
@@ -238,27 +241,31 @@ When a component has configurable options, include a reference table:
 
 ## Cookbook Structure
 
-Cookbooks live under `cookbooks/` organized by category and language, with the chapters as notebooks
-and the support files alongside them in the same directory (no separate `sample/` subtree):
+Cookbooks live under `cookbooks/` organized by category and language, with the notebook(s) and the
+support files alongside them in the same directory (no separate `sample/` subtree). A single-notebook
+cookbook is the default:
 
 ```
 cookbooks/
 ├── framework-integrations/
 │   └── <language>/
 │       └── <framework-name>/
-│           ├── README.md              (index — markdown)
-│           ├── 01-getting-started.ipynb
-│           ├── 02-<topic>.ipynb
-│           ├── ...
-│           ├── <shared-helper>        (optional — e.g. common.py / common.ts)
-│           ├── <dependency-manifest>  (requirements.txt / package.json / go.mod / pom.xml)
-│           ├── docker-compose.yml     (starts Valkey for the notebooks)
+│           ├── <topic>-with-valkey.ipynb   (the cookbook; opening cell is the index)
+│           ├── <shared-helper>             (optional — e.g. common.py / common.ts)
+│           ├── <config-reference>          (optional — e.g. an annotated <tool>_config.yaml)
+│           ├── <test-file>                 (optional — e.g. test_<name>.py for structural/live checks)
+│           ├── <dependency-manifest>       (requirements.txt / package.json / go.mod / pom.xml)
+│           ├── docker-compose.yml          (starts Valkey for the notebook)
 │           └── .gitignore
 └── use-cases/
     └── <language>/
         └── <use-case-name>/
             └── ...
 ```
+
+For a multi-notebook series, replace the single `.ipynb` with numbered notebooks
+(`01-getting-started.ipynb`, `02-<topic>.ipynb`, …) and add a `README.md` index — see
+[Multi-notebook series](#multi-notebook-series).
 
 ### Directory Naming
 
@@ -279,8 +286,8 @@ A notebook holds the prose and the runnable cells, but not the *environment*:
 
 ### Kernel per language
 
-Each cookbook runs on the Jupyter kernel for its language; the cookbook's `README.md` documents how
-to install it:
+Each cookbook runs on the Jupyter kernel for its language; the notebook's how-to-run section
+documents how to install and select it:
 
 | Language | Kernel |
 |----------|--------|
@@ -294,17 +301,26 @@ to install it:
 Each notebook expresses the [Cookbook Content Requirements](#cookbook-content-requirements) as cells:
 
 - The **opening markdown cell** holds the title, lead blockquote, difficulty badge, and audience
-  line.
-- **Step headings** (`## Step N: Title`) are markdown cells; the code for each step is the code
-  cell immediately after it.
+  line. For a single-notebook cookbook it is also the index — there is no separate README.
+- A **"How to run this notebook" section** near the top: prerequisites, `docker compose up -d --wait`,
+  installing the language deps, and creating/selecting the kernel.
+- **Topical markdown headings** describe each part by what it does (e.g. "Turn 1: cold"), followed by
+  the code cell for that part. Do **not** use a rigid `## Step N:` sequence.
 - **Every code cell must execute top-to-bottom without error** against a running Valkey — this is
-  what CI enforces.
+  what CI enforces — and should print the signal the reader is meant to observe.
 - **Committed notebooks must have cleared or reproducible outputs.** Prefer clearing outputs before
   commit (`jupyter nbconvert --clear-output`); CI re-executes to produce them. Never commit
   notebooks containing secrets, tokens, or machine-specific paths in cell outputs.
+- **Make runs reproducible and idempotent.** If a cell's result depends on prior state (e.g. a cache
+  that persists across runs), give it a per-run nonce so re-running produces the same story — for a
+  cache-hit demo, tag the input with a fresh `uuid` so the "cold" path is genuinely cold on every run.
+- **Fail early on unmet requirements.** If the cookbook needs more than a default runtime provides
+  (memory, a service, a model), add a preflight cell that checks and stops with a clear message
+  rather than failing deep in a later cell.
 - The **security callout, How It Works, and Configuration Reference** are markdown cells.
-- The **navigation footer** is the final markdown cell; link sibling chapters by their `.ipynb`
-  filenames (e.g. `[← 01 - Getting Started](01-getting-started.ipynb)`).
+- A **navigation footer** is the final markdown cell **only in a multi-notebook series**; link sibling
+  notebooks by their `.ipynb` filenames (e.g. `[← 01 - Getting Started](01-getting-started.ipynb)`).
+  A single-notebook cookbook has no footer.
 
 ### `.gitignore`
 
@@ -318,9 +334,12 @@ __pycache__/
 
 ---
 
-## README.md Format
+## Multi-notebook series
 
-Each cookbook directory's README.md:
+Most cookbooks are a single notebook. When the material is genuinely too large for one — a multi-part
+track that builds across several sittings — split it into numbered notebooks
+(`01-getting-started.ipynb`, `02-<topic>.ipynb`, …), give each a prev/next navigation footer, and add
+a `README.md` index in the cookbook directory:
 
 ```markdown
 # Framework with Valkey
@@ -335,6 +354,9 @@ Each cookbook directory's README.md:
 | 02 | <nobr>[Topic](02-topic.ipynb)</nobr> | What this cookbook covers. | Intermediate, ~20 min, Python |
 ```
 
+The `01-getting-started.ipynb` notebook is always Beginner difficulty. A single-notebook cookbook
+needs none of this — its opening cell is the index.
+
 ---
 
 ## Runnable Code & CI
@@ -346,14 +368,14 @@ the repo, runs one or two setup commands, opens the notebooks, and every cell ru
 
 ### Runnable Setup
 
-`docker-compose.yml` starts Valkey; the reader then installs the language deps and launches the
-notebooks. A typical flow:
+`docker-compose.yml` starts Valkey; the reader then installs the language deps, selects the kernel,
+and runs the notebook. A typical flow:
 
 ```bash
 cd cookbooks/framework-integrations/<language>/<name>
 docker compose up -d --wait            # starts Valkey
-# install language deps (e.g. pip install -r requirements.txt), then:
-jupyter lab                            # open and run the notebooks
+# install language deps (e.g. pip install -r requirements.txt), then open the
+# notebook and select the cookbook's kernel — see the notebook's how-to-run section
 ```
 
 If a cookbook needs anything beyond Valkey (an API key, a GPU, a proprietary model), keep a free,
@@ -366,7 +388,7 @@ part needs.
 - **Pin dependency versions** — no open-ended version ranges
 - **Show expected output** — the executed cells (or the surrounding prose) make success verifiable
 - **Clean up resources** — document how to tear down (e.g., `docker compose down`)
-- **Mock expensive dependencies when possible** — use local embedders, stub responses, or deterministic test data in the getting-started chapter
+- **Mock expensive dependencies when possible** — use local embedders, stub responses, or deterministic test data in the getting-started section
 - **The default path must run for free** — no paid account, cloud credentials, or specialized
   hardware required to complete the core cookbook (this is the [Vendor Neutrality](#vendor-neutrality)
   rule applied to cookbooks). If a paid LLM (OpenAI, Anthropic, Bedrock, etc.) is shown, also include
@@ -399,15 +421,16 @@ maintainer will open an issue to track the fix.
 
 ## Cookbook Progression
 
-A cookbook track should follow this progression:
+A cookbook builds from a working baseline to the interesting result. In a single notebook this is the
+arc of its sections; in a multi-notebook series it maps to the numbered notebooks:
 
-| # | Title | Difficulty | Content |
-|---|-------|-----------|---------|
-| 01 | Getting Started | Beginner | Connect, basic operation, verify it works |
-| 02 | Core Feature | Intermediate | The main use case (RAG, caching, etc.) |
-| 03+ | Advanced / Production | Intermediate–Advanced | Scaling, security, deployment patterns |
+| Stage | Difficulty | Content |
+|-------|-----------|---------|
+| Getting Started | Beginner | Connect, basic operation, verify it works |
+| Core Feature | Intermediate | The main use case (RAG, caching, etc.) |
+| Advanced / Production | Intermediate–Advanced | Scaling, security, deployment patterns |
 
-The first cookbook should be achievable in ≤15 minutes with no paid dependencies.
+Keep the opening achievable in ≤15 minutes with no paid dependencies.
 
 ---
 
