@@ -18,10 +18,11 @@ Two tiers:
 
 from __future__ import annotations
 
-import json
 import shutil
 import subprocess
+import time
 import urllib.request
+import uuid
 from pathlib import Path
 
 import pytest
@@ -212,7 +213,6 @@ def clients():
 # Valkey. A short greeting would store nothing. A per-run nonce keeps the prefix
 # unique, so the "cold" turn is genuinely cold even if a previous run left KV in
 # Valkey (the test never depends on a flushed store).
-import uuid
 
 _LONG_CONTEXT_BODY = (
     "You are a concise assistant that answers questions about world geography. "
@@ -289,6 +289,14 @@ def test_cold_stores_kv_in_valkey_then_warm_and_cross_replica_reuse(clients):
     assert _valkey_get_calls() > gets_before, (
         "replica B should read the shared prefix's KV from Valkey (L2)"
     )
+    # LMCache writes through to Valkey asynchronously, so the key count can blip
+    # up briefly before settling. B is reusing the shared prefix, not producing
+    # new KV, so the count settles back to where it started. Poll for a short
+    # bounded window rather than asserting equality on the first read (which
+    # would race the async write-through) and rather than sleeping a fixed time.
+    deadline = time.monotonic() + 5.0
+    while _dbsize() != before_b and time.monotonic() < deadline:
+        time.sleep(0.1)
     assert _dbsize() == before_b, (
         "replica B should reuse the shared cache, not re-store the same prefix"
     )
