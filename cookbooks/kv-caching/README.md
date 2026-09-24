@@ -77,11 +77,11 @@ container is healthy:
 ```bash
 docker_memory_bytes="$(docker info --format "{{.MemTotal}}")"
 if [ "$docker_memory_bytes" -lt 16732614656 ]; then
-  echo "This two-replica example needs about 16 GiB (this check allows a little under, for container-runtime overhead). Increase the Docker memory limit and retry."
-  exit 1
+  echo "This two-replica example needs about 16 GiB of Docker memory (this check allows a little under, for container-runtime overhead). Increase the Docker memory limit and retry."
+else
+  docker compose up -d --wait
+  docker compose ps -a
 fi
-docker compose up -d --wait
-docker compose ps -a
 ```
 
 Both `vllm-a` and `vllm-b` must be `Up` and `healthy`. The first run takes a few
