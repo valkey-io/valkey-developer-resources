@@ -11,10 +11,15 @@ on:
     branches: [main]
     paths:
       - "cookbooks/**"
+      - ".github/workflows/cookbook-validation.yml"
+      - ".github/workflows/notebook-toolchain-requirements.txt"
   pull_request:
     branches: [main]
     paths:
       - "cookbooks/**"
+      - ".github/workflows/cookbook-validation.yml"
+      - ".github/workflows/notebook-toolchain-requirements.txt"
+  workflow_dispatch:
   schedule:
     - cron: "0 9 * * 1" # Weekly on Monday at 9am UTC — catches dependency breakage
 
