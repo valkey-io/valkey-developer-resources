@@ -43,7 +43,7 @@ jobs:
           # A cookbook is a directory that contains at least one .ipynb notebook.
           # Its language is determined by the dependency manifest sitting alongside
           # the notebooks (see CONTRIBUTING.md "Cookbook Structure"):
-          #   requirements.txt -> Python    package.json -> Node/TS
+          #   pyproject.toml   -> Python    package.json -> Node/TS
           #   go.mod           -> Go        pom.xml      -> Java
           #
           # discover_lang <output-name> <manifest-filename>
@@ -66,7 +66,7 @@ jobs:
             fi
           }
 
-          discover_lang python requirements.txt
+          discover_lang python pyproject.toml
           discover_lang node   package.json
           discover_lang go     go.mod
           discover_lang java   pom.xml
@@ -108,26 +108,31 @@ jobs:
           --health-retries 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - name: Install cookbook dependencies
         working-directory: ${{ matrix.cookbook }}
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          # ipykernel ships with Python; the pinned toolchain (pytest + nbmake)
-          # executes the notebooks — see notebook-toolchain-requirements.txt
-          pip install -r "$GITHUB_WORKSPACE/.github/workflows/notebook-toolchain-requirements.txt" ruff==0.11.13
+          # uv sync reads pyproject.toml + uv.lock: it provisions the pinned
+          # Python, the cookbook's runtime deps, and its dev group (pytest, etc.).
+          # requires-python in pyproject keeps the interpreter reproducible too.
+          uv sync
       - name: Lint notebooks with ruff
         working-directory: ${{ matrix.cookbook }}
-        run: ruff check .
+        # ruff and the notebook-execution toolchain (nbmake/jupyter) are shared
+        # CI tooling rather than cookbook deps, so run them with `uv run --with`
+        # at pinned versions inside the synced environment.
+        run: uv run --with ruff==0.11.13 ruff check .
       - name: Execute notebooks (Valkey ${{ matrix.valkey-version }})
         working-directory: ${{ matrix.cookbook }}
         env:
           VALKEY_HOST: 127.0.0.1
           VALKEY_PORT: "6379"
-        run: pytest --nbmake --nbmake-timeout=600 ./*.ipynb
+        run: >-
+          uv run
+          --with nbmake==1.5.5
+          --with jupyter==1.1.1
+          --with nbconvert==7.17.1
+          pytest --nbmake --nbmake-timeout=600 ./*.ipynb
       - name: Run cookbook tests (Valkey ${{ matrix.valkey-version }})
         working-directory: ${{ matrix.cookbook }}
         env:
@@ -141,7 +146,7 @@ jobs:
         # Skip cleanly when a cookbook ships no such tests.
         run: |
           if ls test_*.py >/dev/null 2>&1; then
-            pytest -v test_*.py
+            uv run pytest -v test_*.py
           else
             echo "No standalone test_*.py in this cookbook — skipping."
           fi
