@@ -90,16 +90,19 @@ the model downloads; later runs reuse the cached image layers and model volume.
 
 **3. Create the notebook environment and kernel:**
 
+This project uses [uv](https://docs.astral.sh/uv/). `uv sync` reads
+`pyproject.toml` and `uv.lock`, creates `.venv`, and installs the exact locked
+dependencies (fetching Python 3.12 if you don't already have it):
+
 ```bash
-python3.12 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python -m ipykernel install --user --name kv-caching-valkey
+uv sync
+uv run python -m ipykernel install --user --name kv-caching-valkey
 ```
 
 **4. Open the notebook and run it:**
 
 ```bash
-.venv/bin/jupyter lab kv-caching-with-valkey.ipynb
+uv run jupyter lab kv-caching-with-valkey.ipynb
 ```
 
 Select the `kv-caching-valkey` kernel, then run the cells top to bottom. Each
@@ -138,7 +141,8 @@ cache,"** marked in the notebook as the only cell to skip in single-replica mode
 | [`kv-caching-with-valkey.ipynb`](kv-caching-with-valkey.ipynb) | The cookbook — run this |
 | [`docker-compose.yml`](docker-compose.yml) | Starts Valkey, the LMCache server, and two vLLM replicas |
 | [`lmcache_config.yaml`](lmcache_config.yaml) | Documents the Valkey L2 adapter spec — the line that makes Valkey the LMCache backend |
-| [`requirements.txt`](requirements.txt) | Pinned Python dependencies for the notebook's client |
+| [`pyproject.toml`](pyproject.toml) | Project metadata and pinned Python dependencies for the notebook's client |
+| [`uv.lock`](uv.lock) | Fully resolved dependency lock (`uv` generates it; commit it for reproducible installs) |
 | [`test_lmcache_valkey.py`](test_lmcache_valkey.py) | Tests: config + compose wiring always; live cache-hit signals when the stack is up |
 
 ## Running the tests
@@ -148,5 +152,5 @@ exercise the cache-hit signals and run only when the stack is up:
 
 ```bash
 docker compose up -d --wait
-.venv/bin/python -m pytest test_lmcache_valkey.py -v
+uv run pytest test_lmcache_valkey.py -v
 ```

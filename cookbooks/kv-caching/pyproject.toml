@@ -1,0 +1,32 @@
+[project]
+name = "kv-caching-with-valkey"
+version = "0.1.0"
+description = "Notebook client for the 'Building a KV Cache for vLLM with Valkey' cookbook"
+readme = "README.md"
+# The notebook is written and tested against Python 3.12. Pinning the range
+# here (rather than only pinning packages) is what lets `uv` reproduce the
+# interpreter as well as the dependency set.
+requires-python = ">=3.12,<3.13"
+
+# Runtime dependencies for the notebook. The notebook talks to vLLM over its
+# OpenAI-compatible HTTP API and reads cache signals from Valkey over the
+# network with the Valkey GLIDE client. It does not import vLLM, torch, or
+# LMCache directly — those run inside the containers from docker-compose.yml.
+dependencies = [
+    "openai==1.109.1",
+    # Valkey GLIDE client (the sync build), the same client family the LMCache
+    # server uses for its Valkey L2 backend. The notebook reads cache signals
+    # (DBSIZE and INFO commandstats) from Valkey with it.
+    "valkey-glide-sync==2.5.2",
+    # Notebook tooling.
+    "jupyterlab==4.4.5",
+    "ipykernel==6.30.0",
+]
+
+# Test tooling, installed by `uv sync` but kept out of the notebook's runtime
+# dependency set. PyYAML backs the config + compose-wiring tests.
+[dependency-groups]
+dev = [
+    "pytest==8.3.5",
+    "pyyaml==6.0.2",
+]
