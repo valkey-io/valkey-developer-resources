@@ -14,12 +14,13 @@
 # server writes through to Valkey (its L2 backend), which is what makes one
 # replica's KV visible to the other.
 #
-# Resource note: each vLLM replica needs roughly 3.3 GiB of RAM. Give your
-# container runtime at least 16 GiB so both replicas, the LMCache server, and
-# Valkey fit. On a smaller machine, start one replica and skip the two-replica
-# step. The batching and cache-size flags below are capped low because the
-# notebook only sends one request at a time; the defaults over-provision for
-# concurrency this demo never uses.
+# Resource note: at steady state each vLLM replica uses about 3 GiB of RAM,
+# the LMCache server about 0.5 GiB and Valkey about 25 MiB. Give your
+# container runtime about 9 GiB for both replicas, or about 5 GiB to start one
+# replica and skip the two-replica step (README.md, "Memory requirements", has
+# the measured minimums). The batching and cache-size flags below are capped
+# low because the notebook only sends one request at a time; the defaults
+# over-provision for concurrency this demo never uses.
 #
 # LMCache is not bundled in the vLLM CPU image, so every service that needs it
 # pip-installs it on startup, pinned to one version in both places it appears
@@ -97,7 +98,8 @@ x-vllm-common: &vllm-common
     # Run the model in the engine-core process instead of a separate worker
     # process (2 Python processes per replica instead of 3; saves ~0.5 GiB).
     VLLM_ENABLE_V1_MULTIPROCESSING: "0"
-    # Qwen2.5-0.5B-Instruct is ungated; no HF token needed. Silence the rate-limit warning.
+    # Qwen2.5-0.5B-Instruct is ungated; no HF token needed. Keep the model
+    # download's progress bars out of the container logs.
     HF_HUB_DISABLE_PROGRESS_BARS: "1"
   volumes:
     - hf-cache:/root/.cache/huggingface
@@ -200,10 +202,14 @@ services:
     ports:
       - "127.0.0.1:8001:8000"
 
-  # vllm-b waits on vllm-a being healthy (not just lmcache-server) so the two
-  # replicas load their weights sequentially. Model load spikes memory above
-  # steady state; staggering keeps the two spikes from stacking and exceeding a
-  # memory-constrained runtime, even though both fit comfortably once running.
+  # vllm-b waits for vllm-a to be healthy (not just lmcache-server), and
+  # vllm-a only reports healthy after its warm-up completion (see the
+  # healthcheck above). On arm64 that order matters for memory: a freshly
+  # loaded replica holds ~0.6 GiB extra until its first decode, so loading B
+  # only after A has warmed up keeps the two surpluses from stacking (measured
+  # two-replica minimum 8.25 -> 7.5 GiB). On x86 there is no such surplus and
+  # starting both at once peaks no higher; the peak there is the steady state
+  # after both replicas have served requests.
   vllm-b:
     <<: *vllm-common
     container_name: vllm-b
