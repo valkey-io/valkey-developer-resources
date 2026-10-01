@@ -151,6 +151,8 @@ jobs:
           fi
           pytest --nbmake --nbmake-timeout=600 ./*.ipynb
       - name: Run cookbook tests (Valkey ${{ matrix.valkey-version }})
+        # Report the structural tier even when notebook execution failed.
+        if: ${{ !cancelled() }}
         working-directory: ${{ matrix.cookbook }}
         env:
           VALKEY_HOST: 127.0.0.1
