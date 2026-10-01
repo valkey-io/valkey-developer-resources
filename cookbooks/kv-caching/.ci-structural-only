@@ -1,0 +1,1 @@
+Runs vLLM CPU inference replicas plus LMCache; the stack does not fit a GitHub-hosted runner. Lint and the test_lmcache_valkey.py structural tests still run.
