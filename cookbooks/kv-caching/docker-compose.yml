@@ -58,11 +58,13 @@ x-vllm-common: &vllm-common
       # worker exit -4). float16 sidesteps that path at the same 2-byte
       # footprint as bf16; float32 would roughly double per-replica memory.
       #
-      # --kv-cache-memory-bytes 128M sizes vLLM's own KV pool (~10,900 tokens
-      # for this model, 5x one full 2048-token request). The notebook's longest
-      # request is under 600 tokens; the old VLLM_CPU_KVCACHE_SPACE=1 (1 GiB,
-      # its integer floor) was ~8x more than needed. Do not also set
-      # VLLM_CPU_KVCACHE_SPACE: when present it overrides this flag.
+      # --kv-cache-memory-bytes 32M sizes vLLM's own KV pool (~2,700 tokens
+      # for this model, 1.3x one full 2048-token request; vLLM refuses a pool
+      # that cannot hold one --max-model-len request). The notebook's longest
+      # request is under 600 tokens and LMCache keeps the reusable KV in
+      # Valkey, so the old VLLM_CPU_KVCACHE_SPACE=1 (1 GiB, its integer floor)
+      # was ~30x more than needed. Do not also set VLLM_CPU_KVCACHE_SPACE:
+      # when present it overrides this flag.
       #
       # --no-enable-prefix-caching turns off vLLM's in-process prefix cache so
       # that every reuse in the demo (Turn 2 on replica A, the timing cell, and
@@ -79,7 +81,7 @@ x-vllm-common: &vllm-common
         --enforce-eager \
         --max-num-seqs 4 \
         --max-num-batched-tokens 2048 \
-        --kv-cache-memory-bytes 128M \
+        --kv-cache-memory-bytes 32M \
         --no-enable-prefix-caching \
         --kv-transfer-config '{"kv_connector":"LMCacheMPConnector","kv_role":"kv_both","kv_connector_extra_config":{"lmcache.mp.host":"tcp://lmcache-server","lmcache.mp.port":5555,"lmcache.mp.mq_timeout":120.0}}'
   environment:
