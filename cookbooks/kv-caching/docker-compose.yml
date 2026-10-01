@@ -16,7 +16,7 @@
 #
 # Resource note: at steady state each vLLM replica uses about 3 GiB of RAM,
 # the LMCache server about 0.5 GiB and Valkey about 25 MiB. Give your
-# container runtime about 9 GiB for both replicas, or about 5 GiB to start one
+# container runtime about 9 GiB for both replicas, or about 5.5 GiB to start one
 # replica and skip the two-replica step (README.md, "Memory requirements", has
 # the measured minimums). The batching and cache-size flags below are capped
 # low because the notebook only sends one request at a time; the defaults

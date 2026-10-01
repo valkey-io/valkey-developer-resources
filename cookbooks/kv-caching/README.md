@@ -51,7 +51,7 @@ to the other.
 
 - **A container runtime with Compose** (Docker Compose or compatible).
 - **Memory.** Give your container runtime about **9 GiB** for the default
-  two-replica walkthrough, or about **5 GiB** to run a single replica (see
+  two-replica walkthrough, or about **5.5 GiB** to run a single replica (see
   [Running on a smaller machine](#running-on-a-smaller-machine-one-replica)).
   See [Memory requirements](#memory-requirements) for the measured numbers.
 - **Python 3.12** for the notebook client.
@@ -66,12 +66,13 @@ to the other.
 
 The lowest memory limit at which every cold run of the full walkthrough passed
 (notebook, live tests, and a healthy stack afterwards), measured on Linux with
-the containers under one hard memory limit and no swap:
+the containers under one hard memory limit and no swap. Docker, Podman and
+nerdctl measured the same within 0.25 GiB:
 
 | CPU | two replicas | one replica |
 | --- | --- | --- |
 | x86-64 | 6.75 GiB | 3.75 GiB |
-| arm64 (AWS Graviton) | 7.5 GiB (Docker), 7.75 GiB (Podman) | 4.5 GiB |
+| arm64 (AWS Graviton) | 7.5 GiB | 4.5 GiB |
 
 Docker Desktop and Podman machine run the containers in a VM, which needs memory
 of its own on top of these numbers, and Apple silicon was not measured
@@ -96,7 +97,11 @@ This checks that the runtime exposes enough memory first, then blocks until ever
 container is healthy:
 
 ```bash
-mem_bytes="$(docker info --format '{{.MemTotal}}' 2>/dev/null || podman info --format '{{.Host.MemTotal}}' 2>/dev/null)"
+if docker info >/dev/null 2>&1; then
+  rt=docker; mem_bytes="$(docker info --format '{{.MemTotal}}')"
+else
+  rt=podman; mem_bytes="$(podman info --format '{{.Host.MemTotal}}' 2>/dev/null)"
+fi
 case "$mem_bytes" in
   ''|*[!0-9]*)
     echo "Could not read the container runtime's memory from 'docker info' or 'podman info'. Is the runtime running?" ;;
@@ -104,15 +109,19 @@ case "$mem_bytes" in
     if [ "$mem_bytes" -lt 9126805504 ]; then
       echo "This two-replica example needs about 9 GiB of container-runtime memory (this check allows a little under). Increase the memory limit and retry, or see 'Running on a smaller machine'."
     else
-      docker compose up -d --wait
-      docker compose ps -a
+      "$rt" compose up -d --wait
+      "$rt" compose ps -a
     fi ;;
 esac
 ```
 
 The check accepts 8.5 GiB (9126805504 bytes), a little under the recommended
 9 GiB, because a VM reports slightly less than its configured size. It reads
-Docker's `{{.MemTotal}}` or, failing that, Podman's `{{.Host.MemTotal}}`.
+Docker's `{{.MemTotal}}` or, if Docker is not running, Podman's
+`{{.Host.MemTotal}}`, and starts the stack with the same runtime. If your
+`podman compose` uses podman-compose, which has no `--wait`, run
+`podman compose up -d` instead and wait until `podman ps` shows every
+container `healthy`.
 `MemTotal` is the memory of the Docker Desktop or Podman machine VM. On native
 Linux there is no VM, so it reports the host's total RAM and the check only
 tells you the machine is big enough, not that the memory is free.
@@ -166,11 +175,12 @@ cache,"** marked in the notebook as the only cell to skip in single-replica mode
 
 ## If the first request hangs or a replica dies
 
-`docker compose up -d --wait` can succeed on too little memory: the replicas
-grow a little when they serve their first requests. If the runtime then runs
-out, the kernel kills a replica's engine process (an out-of-memory kill) and
-the notebook cell fails with a connection or server error; just above that
-point the request can instead hang for minutes. To check:
+Each replica serves one short warm-up request before it reports healthy, so on
+too little memory `docker compose up -d --wait` usually fails with a replica
+`exited` or `unhealthy`. If it does succeed, a replica can still run out of
+memory on its first notebook request: the kernel kills its engine process (an
+out-of-memory kill) and the cell fails with a connection or server error; just
+above that point the request can instead hang for minutes. To check:
 
 ```bash
 docker compose ps -a
