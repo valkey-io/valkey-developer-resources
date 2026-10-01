@@ -50,14 +50,19 @@ x-vllm-common: &vllm-common
       #
       # lmcache.mp.mq_timeout bounds the worker<->server registration/transfer
       # calls. Registration takes about a second here; 120s is headroom for a
-      # slow or emulated host. If it trips, suspect the server's transfer-mode
+      # slower host. If it trips, suspect the server's transfer-mode
       # wiring (see --supported-transfer-mode), not a too-short timeout.
       #
-      # --dtype float16 avoids vLLM's default bf16-on-CPU. On an emulated
-      # aarch64 host the virtual CPU may not advertise bf16 support, and the
-      # oneDNN BLAS fallback then crashes on the first real prefill (SIGILL,
-      # worker exit -4). float16 sidesteps that path at the same 2-byte
-      # footprint as bf16; float32 would roughly double per-replica memory.
+      # --dtype defaults to float16 instead of vLLM's bf16-on-CPU. On Linux
+      # aarch64 vLLM assumes bf16 support without checking the CPU, so on a
+      # CPU without BF16 instructions (FEAT_BF16; for example Apple M1) the
+      # first real prefill crashes (SIGILL, worker exit -4). Docker Desktop
+      # and Podman machine on Apple silicon are hardware-virtualized, not
+      # emulated: the VM sees the host CPU's features, so this is about the
+      # CPU, not the runtime. float16 has the same 2-byte footprint as bf16;
+      # float32 would roughly double memory. On a CPU with BF16 set
+      # VLLM_DTYPE=bfloat16 before `docker compose up` (README, Prerequisites):
+      # same memory, and on arm64 decode is far faster than float16.
       #
       # --kv-cache-memory-bytes 32M sizes vLLM's own KV pool (~2,700 tokens
       # for this model, 1.3x one full 2048-token request; vLLM refuses a pool
@@ -77,7 +82,7 @@ x-vllm-common: &vllm-common
       exec python3 -m vllm.entrypoints.openai.api_server \
         --model Qwen/Qwen2.5-0.5B-Instruct \
         --revision 7ae557604adf67be50417f59c2c2f167def9a775 \
-        --dtype float16 \
+        --dtype ${VLLM_DTYPE:-float16} \
         --max-model-len 2048 \
         --enforce-eager \
         --max-num-seqs 4 \
@@ -139,7 +144,7 @@ x-vllm-common: &vllm-common
     timeout: 180s
     retries: 60
     # Grace for first startup: pip install + model load + KV registration is
-    # about 40s here; 180s leaves margin for a slower or emulated host.
+    # about 40s here; 180s leaves margin for a slower host.
     start_period: 180s
 
 services:

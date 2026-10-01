@@ -54,6 +54,15 @@ to the other.
   two-replica walkthrough, or about **5.5 GiB** to run a single replica (see
   [Running on a smaller machine](#running-on-a-smaller-machine-one-replica)).
   See [Memory requirements](#memory-requirements) for the measured numbers.
+- **CPU dtype (optional).** The replicas run in float16 so the stack also works
+  on CPUs without BF16 instructions (for example Apple M1). If your CPU has them,
+  run `export VLLM_DTYPE=bfloat16` in the terminal before you start the stack
+  (every later `docker compose up` then picks it up). Memory is the same; on
+  AWS Graviton4 the walkthrough runs several times faster (token generation
+  about 15x), and on x86 with AMX prefill is about 25% faster (so the cache's
+  relative saving looks smaller). To check your CPU, run
+  `docker run --rm alpine grep -m1 -owE 'bf16|avx512_bf16|amx_bf16' /proc/cpuinfo`;
+  if it prints nothing, keep float16.
 - **Python 3.12** for the notebook client.
 - **Disk.** The first run downloads about 3.5 GiB on amd64 (2.5 GiB on arm64):
   the vLLM CPU image (~1.7 GiB compressed on amd64, ~0.8 GiB on arm64), the
