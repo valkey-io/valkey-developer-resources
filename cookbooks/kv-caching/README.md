@@ -54,7 +54,16 @@ to the other.
   for your container runtime (each vLLM replica is ~4–5 GiB; the LMCache server
   and Valkey add a little more). On a smaller machine (~10 GiB) you can run a
   single replica — see the "Running on a smaller machine" section in the notebook.
-- **Python 3.12** for the notebook client.
+- **[uv](https://docs.astral.sh/uv/)** for Python dependency management. Install
+  it with the official installer:
+
+  ```bash
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  ```
+
+  (or `brew install uv`, or see the uv docs for other platforms). `uv` provides
+  the Python version this notebook needs (3.12), so you don't have to install
+  Python yourself.
 - **Disk.** The stack pulls about 5 GiB on first run (the vLLM CPU image ~3.7 GiB,
   the Valkey image ~0.4 GiB, and the model ~1 GiB).
 
@@ -90,9 +99,8 @@ the model downloads; later runs reuse the cached image layers and model volume.
 
 **3. Create the notebook environment and kernel:**
 
-This project uses [uv](https://docs.astral.sh/uv/). `uv sync` reads
-`pyproject.toml` and `uv.lock`, creates `.venv`, and installs the exact locked
-dependencies (fetching Python 3.12 if you don't already have it):
+`uv sync` reads `pyproject.toml` and `uv.lock`, creates `.venv`, and installs the
+exact locked dependencies (fetching Python 3.12 if you don't already have it):
 
 ```bash
 uv sync
