@@ -50,10 +50,14 @@ to the other.
 ## Prerequisites
 
 - **A container runtime with Compose** (Docker Compose or compatible).
-- **Memory.** Give your container runtime about **8 GiB** for the default
+- **Memory.** Give your container runtime **8 GiB (8192 MiB)** for the default
   two-replica walkthrough, or about **5.5 GiB** to run every step with one
   replica at a time (see
-  [Running on a smaller machine](#running-on-a-smaller-machine)).
+  [Running on a smaller machine](#running-on-a-smaller-machine)). Count in
+  MiB: a Podman machine with 8 GB in decimal units (7629 MiB) reports less
+  than the 7.5 GiB the check below needs. Check with `podman machine list` and fix
+  it with `podman machine stop`, `podman machine set --memory 8192`,
+  `podman machine start`.
   See [Memory requirements](#memory-requirements) for the measured numbers.
 - **CPU dtype (optional).** The replicas run in float16 so the stack also works
   on CPUs without BF16 instructions (for example Apple M1). If your CPU has them,
@@ -129,7 +133,8 @@ done
 if [ -z "$rt" ]; then
   echo "Could not read the container runtime's memory from 'docker info' or 'podman info'. Is the runtime running?"
 elif [ "$mem_bytes" -lt 8053063680 ]; then
-  echo "This two-replica example needs about 8 GiB of container-runtime memory (this check allows a little under). Increase the memory limit and retry, or run one replica at a time on about 5.5 GiB — see 'Running on a smaller machine'."
+  tenths=$(( mem_bytes * 10 / 1073741824 ))
+  echo "Not enough memory: $rt reports $(( tenths / 10 )).$(( tenths % 10 )) GiB; the two-replica example needs 8 GiB (8192 MiB), which this check sees as at least 7.5 GiB. Raise the limit (Docker Desktop: Settings > Resources; Podman: podman machine stop, then podman machine set --memory 8192, then podman machine start) and retry, or run one replica at a time on about 5.5 GiB — see 'Running on a smaller machine'."
 else
   "$rt" compose up -d --wait
   "$rt" compose ps -a
@@ -137,7 +142,8 @@ fi
 ```
 
 The check accepts 7.5 GiB (8053063680 bytes), a little under the recommended
-8 GiB, because a VM reports slightly less than its configured size. It uses the
+8 GiB, because a VM reports slightly less than its configured size. If the
+runtime has less, it prints how much memory the runtime reports. It uses the
 first of `docker` and `podman` that is installed and answers `info`, and starts
 the stack with that same command. A `docker` command that is really Podman (the
 `podman-docker` package) is read with Podman's `{{.Host.MemTotal}}`; a shell
