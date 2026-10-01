@@ -5,16 +5,28 @@ name: Cookbook Validation
 # notebooks, then executes every notebook end-to-end against a Valkey service
 # container on the matching Jupyter kernel. A cell that raises fails the build,
 # so the code a reader runs is the code CI runs.
+#
+# Structural-only cookbooks: a cookbook whose runtime stack cannot fit on a
+# GitHub-hosted runner (e.g. LLM inference replicas) opts out of notebook
+# execution by committing a `.ci-structural-only` file next to its notebooks.
+# Its first line states why and is echoed as a notice. Every other step (lint,
+# and for Python the standalone test_*.py tier) still runs, so config and
+# wiring drift is still caught. The default for a cookbook is full execution.
 
 on:
   push:
     branches: [main]
     paths:
       - "cookbooks/**"
+      - ".github/workflows/cookbook-validation.yml"
+      - ".github/workflows/notebook-toolchain-requirements.txt"
   pull_request:
     branches: [main]
     paths:
       - "cookbooks/**"
+      - ".github/workflows/cookbook-validation.yml"
+      - ".github/workflows/notebook-toolchain-requirements.txt"
+  workflow_dispatch:
   schedule:
     - cron: "0 9 * * 1" # Weekly on Monday at 9am UTC — catches dependency breakage
 
@@ -127,13 +139,23 @@ jobs:
         env:
           VALKEY_HOST: 127.0.0.1
           VALKEY_PORT: "6379"
-        run: >-
-          uv run
-          --with nbmake==1.5.5
-          --with jupyter==1.1.1
-          --with nbconvert==7.17.1
-          pytest --nbmake --nbmake-timeout=600 ./*.ipynb
+          COOKBOOK: ${{ matrix.cookbook }}
+        # A cookbook whose stack can't run on a hosted runner opts out of
+        # notebook execution with a .ci-structural-only file; lint and the
+        # structural test_*.py tier below still run.
+        run: |
+          if [ -f .ci-structural-only ]; then
+            echo "::notice title=$COOKBOOK::Notebook execution skipped (.ci-structural-only): $(head -n 1 .ci-structural-only)"
+            exit 0
+          fi
+          uv run \
+            --with nbmake==1.5.5 \
+            --with jupyter==1.1.1 \
+            --with nbconvert==7.17.1 \
+            pytest --nbmake --nbmake-timeout=600 ./*.ipynb
       - name: Run cookbook tests (Valkey ${{ matrix.valkey-version }})
+        # Report the structural tier even when notebook execution failed.
+        if: ${{ !cancelled() }}
         working-directory: ${{ matrix.cookbook }}
         env:
           VALKEY_HOST: 127.0.0.1
@@ -206,7 +228,12 @@ jobs:
         env:
           VALKEY_HOST: 127.0.0.1
           VALKEY_PORT: "6379"
+          COOKBOOK: ${{ matrix.cookbook }}
         run: |
+          if [ -f .ci-structural-only ]; then
+            echo "::notice title=$COOKBOOK::Notebook execution skipped (.ci-structural-only): $(head -n 1 .ci-structural-only)"
+            exit 0
+          fi
           for nb in ./*.ipynb; do
             echo "Executing $nb"
             jupyter nbconvert --to notebook --execute --ExecutePreprocessor.timeout=600 \
@@ -269,7 +296,12 @@ jobs:
         env:
           VALKEY_HOST: 127.0.0.1
           VALKEY_PORT: "6379"
+          COOKBOOK: ${{ matrix.cookbook }}
         run: |
+          if [ -f .ci-structural-only ]; then
+            echo "::notice title=$COOKBOOK::Notebook execution skipped (.ci-structural-only): $(head -n 1 .ci-structural-only)"
+            exit 0
+          fi
           for nb in ./*.ipynb; do
             echo "Executing $nb"
             jupyter nbconvert --to notebook --execute --ExecutePreprocessor.timeout=600 \
@@ -324,7 +356,12 @@ jobs:
         env:
           VALKEY_HOST: 127.0.0.1
           VALKEY_PORT: "6379"
+          COOKBOOK: ${{ matrix.cookbook }}
         run: |
+          if [ -f .ci-structural-only ]; then
+            echo "::notice title=$COOKBOOK::Notebook execution skipped (.ci-structural-only): $(head -n 1 .ci-structural-only)"
+            exit 0
+          fi
           for nb in ./*.ipynb; do
             echo "Executing $nb"
             jupyter nbconvert --to notebook --execute --ExecutePreprocessor.timeout=600 \
