@@ -50,7 +50,7 @@ to the other.
 ## Prerequisites
 
 - **A container runtime with Compose** (Docker Compose or compatible).
-- **Memory.** Give your container runtime about **9 GiB** for the default
+- **Memory.** Give your container runtime about **8 GiB** for the default
   two-replica walkthrough, or about **5.5 GiB** to run every step with one
   replica at a time (see
   [Running on a smaller machine](#running-on-a-smaller-machine)).
@@ -116,29 +116,33 @@ This checks that the runtime exposes enough memory first, then blocks until ever
 container is healthy:
 
 ```bash
-if docker info >/dev/null 2>&1; then
-  rt=docker; mem_bytes="$(docker info --format '{{.MemTotal}}')"
+rt=""; mem_bytes=""
+for candidate in docker podman; do
+  case "$(command -v "$candidate" 2>/dev/null)" in /*) ;; *) continue ;; esac
+  mem_bytes="$("$candidate" info --format '{{.MemTotal}}' 2>/dev/null)" ||
+    mem_bytes="$("$candidate" info --format '{{.Host.MemTotal}}' 2>/dev/null)"
+  case "$mem_bytes" in
+    ''|*[^0-9]*) mem_bytes="" ;;
+    *) rt="$candidate"; break ;;
+  esac
+done
+if [ -z "$rt" ]; then
+  echo "Could not read the container runtime's memory from 'docker info' or 'podman info'. Is the runtime running?"
+elif [ "$mem_bytes" -lt 8053063680 ]; then
+  echo "This two-replica example needs about 8 GiB of container-runtime memory (this check allows a little under). Increase the memory limit and retry, or run one replica at a time on about 5.5 GiB — see 'Running on a smaller machine'."
 else
-  rt=podman; mem_bytes="$(podman info --format '{{.Host.MemTotal}}' 2>/dev/null)"
+  "$rt" compose up -d --wait
+  "$rt" compose ps -a
 fi
-case "$mem_bytes" in
-  ''|*[^0-9]*)
-    echo "Could not read the container runtime's memory from 'docker info' or 'podman info'. Is the runtime running?" ;;
-  *)
-    if [ "$mem_bytes" -lt 9126805504 ]; then
-      echo "This two-replica example needs about 9 GiB of container-runtime memory (this check allows a little under). Increase the memory limit and retry, or run one replica at a time on about 5.5 GiB — see 'Running on a smaller machine'."
-    else
-      "$rt" compose up -d --wait
-      "$rt" compose ps -a
-    fi ;;
-esac
 ```
 
-The check accepts 8.5 GiB (9126805504 bytes), a little under the recommended
-9 GiB, because a VM reports slightly less than its configured size. It reads
-Docker's `{{.MemTotal}}` or, if Docker is not running, Podman's
-`{{.Host.MemTotal}}`, and starts the stack with the same runtime. If your
-`podman compose` uses podman-compose, which has no `--wait`, run
+The check accepts 7.5 GiB (8053063680 bytes), a little under the recommended
+8 GiB, because a VM reports slightly less than its configured size. It uses the
+first of `docker` and `podman` that is installed and answers `info`, and starts
+the stack with that same command. A `docker` command that is really Podman (the
+`podman-docker` package) is read with Podman's `{{.Host.MemTotal}}`; a shell
+alias such as `alias docker=podman` is skipped in favour of the real `podman`.
+If your `podman compose` uses podman-compose, which has no `--wait`, run
 `podman compose up -d` instead and wait until `podman ps` shows every
 container `healthy`.
 `MemTotal` is the memory of the Docker Desktop or Podman machine VM. On native
