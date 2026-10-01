@@ -108,10 +108,33 @@ x-vllm-common: &vllm-common
     lmcache-server:
       condition: service_healthy
   healthcheck:
-    # Ready when the OpenAI-compatible server answers /health.
-    test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+    # Ready when the OpenAI-compatible server answers /health and has served
+    # one short warm-up completion. On arm64 (measured on Graviton) a freshly
+    # loaded replica holds ~0.6 GiB more than it does after its first decode
+    # of a few dozen tokens; warming replica A before replica B starts loading
+    # keeps the two from peaking together. x86 shows no such surplus; there
+    # the warm-up only adds about a second to startup.
+    # The warm-up is cheap and deterministic: a fixed 32-token prompt and 32
+    # greedy tokens, once per container (marker file), then /health only. It
+    # is shorter than one 256-token LMCache chunk, so it stores no key in
+    # Valkey and reads none: the notebook's dbsize and GET counters are the
+    # same as without it.
+    test:
+      - CMD
+      - python3
+      - -c
+      - |
+        import json, os, urllib.request as u
+        u.urlopen("http://localhost:8000/health", timeout=5)
+        if not os.path.exists("/tmp/warmed"):
+            model = json.load(u.urlopen("http://localhost:8000/v1/models", timeout=5))["data"][0]["id"]
+            body = {"model": model, "prompt": "hello " * 32, "max_tokens": 32, "ignore_eos": True, "temperature": 0}
+            req = u.Request("http://localhost:8000/v1/completions", json.dumps(body).encode(), {"Content-Type": "application/json"})
+            u.urlopen(req, timeout=170).read()
+            open("/tmp/warmed", "w").close()
     interval: 10s
-    timeout: 5s
+    # Covers the one-time warm-up on a slow CPU; /health alone answers in ms.
+    timeout: 180s
     retries: 60
     # Grace for first startup: pip install + model load + KV registration is
     # about 40s here; 180s leaves margin for a slower or emulated host.
