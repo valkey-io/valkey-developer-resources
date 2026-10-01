@@ -68,8 +68,12 @@ x-vllm-common: &vllm-common
       # that every reuse in the demo (Turn 2 on replica A, the timing cell, and
       # replica B) is served by LMCache from Valkey rather than from replica
       # A's own memory. Production deployments usually keep it on.
+      #
+      # --revision pins the model snapshot so answers stay reproducible; the
+      # served model name stays "Qwen/Qwen2.5-0.5B-Instruct".
       exec python3 -m vllm.entrypoints.openai.api_server \
         --model Qwen/Qwen2.5-0.5B-Instruct \
+        --revision 7ae557604adf67be50417f59c2c2f167def9a775 \
         --dtype float16 \
         --max-model-len 2048 \
         --enforce-eager \
@@ -81,7 +85,6 @@ x-vllm-common: &vllm-common
   environment:
     # Shared with lmcache-server via the *lmcache-env anchor.
     <<: *lmcache-env
-    # Qwen2.5-0.5B-Instruct is ungated; no HF token needed. Silence the rate-limit warning.
     # The image preloads tcmalloc; return freed memory (model-load and first
     # request scratch) to the OS instead of keeping it in the heap.
     TCMALLOC_AGGRESSIVE_DECOMMIT: "true"
@@ -92,6 +95,7 @@ x-vllm-common: &vllm-common
     # Run the model in the engine-core process instead of a separate worker
     # process (2 Python processes per replica instead of 3; saves ~0.5 GiB).
     VLLM_ENABLE_V1_MULTIPROCESSING: "0"
+    # Qwen2.5-0.5B-Instruct is ungated; no HF token needed. Silence the rate-limit warning.
     HF_HUB_DISABLE_PROGRESS_BARS: "1"
   volumes:
     - hf-cache:/root/.cache/huggingface
@@ -139,9 +143,14 @@ services:
         # the server default (lmcache_driven) loads only the GPU/server-driven
         # handlers, so a CPU worker's register request finds no handler and the
         # connector hangs. "auto" lets either device type connect.
+        #
+        # --l1-size-gb: on CPU the L1 buffer is allocated and zero-filled at
+        # startup, so its full size is resident memory. With skip_l1 it is only
+        # a write buffer; one request here is at most a few 3 MiB KV chunks, so
+        # 0.05 GiB (~16 chunks) is plenty and saves ~0.45 GiB over 0.5.
         exec lmcache server \
           --host 0.0.0.0 --port 5555 \
-          --l1-size-gb 0.5 \
+          --l1-size-gb 0.05 \
           --eviction-policy noop \
           --l2-store-policy skip_l1 \
           --supported-transfer-mode auto \
