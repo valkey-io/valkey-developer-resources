@@ -11,15 +11,18 @@ Two tiers:
 2. **Run only when the stack is up** (``docker compose up -d --wait``). These
    drive the same signals the notebook shows: Valkey is reachable, both replicas
    serve the model, a cold request grows ``dbsize`` (KV written through to
-   Valkey), and a warm request with a shared prefix increments
-   ``keyspace_hits``. They ``skip`` when the stack isn't running so the
-   config/structure tier still passes in a bare CI job.
+   Valkey), and a request on the second replica that shares the prefix reads it
+   back (Valkey ``GET``/``MGET`` calls increase). They read Valkey over the
+   network with the Valkey GLIDE client, like the notebook, so they work with
+   any container runtime (Docker, Podman, nerdctl). They ``skip`` when the
+   stack isn't running so the config/structure tier still passes in a bare CI
+   job.
 """
 
 from __future__ import annotations
 
-import shutil
-import subprocess
+import os
+import socket
 import time
 import urllib.request
 import uuid
@@ -37,6 +40,10 @@ L2_ADAPTER_TYPE = "valkey"
 VALKEY_STARTUP_NODES = "valkey:6379"
 REPLICA_A = "http://localhost:8001"
 REPLICA_B = "http://localhost:8002"
+# Valkey as published by docker-compose.yml (127.0.0.1:6379); overridable the
+# same way the CI workflow exposes its Valkey service.
+VALKEY_HOST = os.environ.get("VALKEY_HOST", "127.0.0.1")
+VALKEY_PORT = int(os.environ.get("VALKEY_PORT", "6379"))
 
 
 # ---------------------------------------------------------------------------
@@ -137,17 +144,35 @@ class TestComposeWiring:
 # ---------------------------------------------------------------------------
 # Tier 2: live stack (skipped unless the stack is up)
 # ---------------------------------------------------------------------------
+def _connect_valkey():
+    """A Valkey GLIDE (sync) client on the published Valkey port."""
+    from glide_sync import GlideClient, GlideClientConfiguration, NodeAddress
+
+    return GlideClient.create(
+        GlideClientConfiguration(
+            addresses=[NodeAddress(VALKEY_HOST, VALKEY_PORT)],
+            request_timeout=2000,
+        )
+    )
+
+
 def _valkey_running() -> bool:
-    if shutil.which("docker") is None:
+    # Cheap TCP probe first: with nothing listening, GLIDE would retry the
+    # connection for a few seconds (and log each attempt) before giving up.
+    try:
+        socket.create_connection((VALKEY_HOST, VALKEY_PORT), timeout=2).close()
+    except OSError:
         return False
     try:
-        out = subprocess.run(
-            ["docker", "exec", "valkey", "valkey-cli", "PING"],
-            capture_output=True, text=True, timeout=10,
-        )
+        client = _connect_valkey()
     except Exception:
         return False
-    return out.stdout.strip() == "PONG"
+    try:
+        return client.ping() in (b"PONG", "PONG")
+    except Exception:
+        return False
+    finally:
+        client.close()
 
 
 def _replica_healthy(base_url: str) -> bool:
@@ -173,26 +198,29 @@ requires_stack = pytest.mark.skipif(
 )
 
 
-def _valkey_cli(*args) -> str:
-    out = subprocess.run(
-        ["docker", "exec", "valkey", "valkey-cli", *args],
-        capture_output=True, text=True, timeout=10,
-    )
-    return out.stdout.strip()
+@pytest.fixture(scope="module")
+def valkey():
+    pytest.importorskip("glide_sync")
+    client = _connect_valkey()
+    yield client
+    client.close()
 
 
-def _dbsize() -> int:
-    return int(_valkey_cli("DBSIZE"))
+def _dbsize(valkey) -> int:
+    return int(valkey.custom_command(["DBSIZE"]))
 
 
-def _valkey_get_calls() -> int:
+def _valkey_get_calls(valkey) -> int:
     """Cumulative Valkey GET/MGET calls, from INFO commandstats.
 
     With the server's ``--l2-store-policy skip_l1`` (L1 is a write buffer only),
     a cache *read* has to come from Valkey, so reuse shows up as GET calls here.
     """
+    info = valkey.custom_command(["INFO", "commandstats"])
+    if isinstance(info, bytes):
+        info = info.decode()
     total = 0
-    for line in _valkey_cli("INFO", "commandstats").splitlines():
+    for line in info.splitlines():
         if line.startswith(("cmdstat_get:", "cmdstat_mget:")):
             for field in line.split(":", 1)[1].split(","):
                 if field.startswith("calls="):
@@ -233,7 +261,7 @@ def test_both_replicas_serve_the_model(clients):
 
 
 @requires_stack
-def test_cold_stores_kv_in_valkey_then_warm_and_cross_replica_reuse(clients):
+def test_cold_stores_kv_in_valkey_then_warm_and_cross_replica_reuse(clients, valkey):
     """The signals the notebook shows, in one flow.
 
     KV storage is owned by the shared LMCache server. It runs with
@@ -256,12 +284,12 @@ def test_cold_stores_kv_in_valkey_then_warm_and_cross_replica_reuse(clients):
     # Turn 1 (cold): full prefill on replica A. This prefix is unique to this
     # run, so its KV cannot already be cached. LMCache writes the KV through to
     # Valkey (L2), so the key count grows.
-    before = _dbsize()
+    before = _dbsize(valkey)
     r1 = a.chat.completions.create(
         model=MODEL, messages=prefix, max_tokens=32, temperature=0.0,
     )
     assert r1.choices[0].message.content is not None
-    after_cold = _dbsize()
+    after_cold = _dbsize(valkey)
     assert after_cold > before, "cold turn should store KV blocks in Valkey"
 
     # Turn 2 (warm, shared prefix on replica A): the prefix is already cached, so
@@ -275,18 +303,18 @@ def test_cold_stores_kv_in_valkey_then_warm_and_cross_replica_reuse(clients):
     a.chat.completions.create(
         model=MODEL, messages=warm, max_tokens=32, temperature=0.0,
     )
-    assert _dbsize() >= after_cold, "warm turn must not lose the cached KV"
+    assert _dbsize(valkey) >= after_cold, "warm turn must not lose the cached KV"
 
     # Cross-replica: replica B has served no traffic, but the KV for this exact
     # prefix lives in Valkey. B reads it back from Valkey rather than recomputing
     # or re-storing it: GET calls increment and the key count does not grow.
-    gets_before = _valkey_get_calls()
-    before_b = _dbsize()
+    gets_before = _valkey_get_calls(valkey)
+    before_b = _dbsize(valkey)
     r3 = b.chat.completions.create(
         model=MODEL, messages=prefix, max_tokens=32, temperature=0.0,
     )
     assert r3.choices[0].message.content is not None
-    assert _valkey_get_calls() > gets_before, (
+    assert _valkey_get_calls(valkey) > gets_before, (
         "replica B should read the shared prefix's KV from Valkey (L2)"
     )
     # LMCache writes through to Valkey asynchronously, so the key count can blip
@@ -295,8 +323,8 @@ def test_cold_stores_kv_in_valkey_then_warm_and_cross_replica_reuse(clients):
     # bounded window rather than asserting equality on the first read (which
     # would race the async write-through) and rather than sleeping a fixed time.
     deadline = time.monotonic() + 5.0
-    while _dbsize() != before_b and time.monotonic() < deadline:
+    while _dbsize(valkey) != before_b and time.monotonic() < deadline:
         time.sleep(0.1)
-    assert _dbsize() == before_b, (
+    assert _dbsize(valkey) == before_b, (
         "replica B should reuse the shared cache, not re-store the same prefix"
     )
