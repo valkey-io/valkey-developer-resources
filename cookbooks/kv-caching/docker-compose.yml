@@ -14,7 +14,7 @@
 # server writes through to Valkey (its L2 backend), which is what makes one
 # replica's KV visible to the other.
 #
-# Resource note: each vLLM replica needs roughly 4–5 GiB of RAM. Give your
+# Resource note: each vLLM replica needs roughly 3.3 GiB of RAM. Give your
 # container runtime at least 16 GiB so both replicas, the LMCache server, and
 # Valkey fit. On a smaller machine, start one replica and skip the two-replica
 # step. The batching and cache-size flags below are capped low because the
@@ -57,6 +57,17 @@ x-vllm-common: &vllm-common
       # oneDNN BLAS fallback then crashes on the first real prefill (SIGILL,
       # worker exit -4). float16 sidesteps that path at the same 2-byte
       # footprint as bf16; float32 would roughly double per-replica memory.
+      #
+      # --kv-cache-memory-bytes 128M sizes vLLM's own KV pool (~10,900 tokens
+      # for this model, 5x one full 2048-token request). The notebook's longest
+      # request is under 600 tokens; the old VLLM_CPU_KVCACHE_SPACE=1 (1 GiB,
+      # its integer floor) was ~8x more than needed. Do not also set
+      # VLLM_CPU_KVCACHE_SPACE: when present it overrides this flag.
+      #
+      # --no-enable-prefix-caching turns off vLLM's in-process prefix cache so
+      # that every reuse in the demo (Turn 2 on replica A, the timing cell, and
+      # replica B) is served by LMCache from Valkey rather than from replica
+      # A's own memory. Production deployments usually keep it on.
       exec python3 -m vllm.entrypoints.openai.api_server \
         --model Qwen/Qwen2.5-0.5B-Instruct \
         --dtype float16 \
@@ -64,15 +75,23 @@ x-vllm-common: &vllm-common
         --enforce-eager \
         --max-num-seqs 4 \
         --max-num-batched-tokens 2048 \
+        --kv-cache-memory-bytes 128M \
+        --no-enable-prefix-caching \
         --kv-transfer-config '{"kv_connector":"LMCacheMPConnector","kv_role":"kv_both","kv_connector_extra_config":{"lmcache.mp.host":"tcp://lmcache-server","lmcache.mp.port":5555,"lmcache.mp.mq_timeout":120.0}}'
   environment:
     # Shared with lmcache-server via the *lmcache-env anchor.
     <<: *lmcache-env
-    # CPU KV-cache pool size in GiB. Must be an integer (vLLM rejects
-    # fractional values); 1 is the practical floor, kept small so the whole
-    # stack fits a 16 GiB runtime.
-    VLLM_CPU_KVCACHE_SPACE: "1"
     # Qwen2.5-0.5B-Instruct is ungated; no HF token needed. Silence the rate-limit warning.
+    # The image preloads tcmalloc; return freed memory (model-load and first
+    # request scratch) to the OS instead of keeping it in the heap.
+    TCMALLOC_AGGRESSIVE_DECOMMIT: "true"
+    # Use vLLM's V1 CPU model runner. The default V2 runner JIT-compiles a
+    # Triton kernel for the model's repetition_penalty on the first request
+    # (~90 s and ~0.3 GiB extra); V1 applies the penalty with plain torch ops.
+    VLLM_USE_V2_MODEL_RUNNER: "0"
+    # Run the model in the engine-core process instead of a separate worker
+    # process (2 Python processes per replica instead of 3; saves ~0.5 GiB).
+    VLLM_ENABLE_V1_MULTIPROCESSING: "0"
     HF_HUB_DISABLE_PROGRESS_BARS: "1"
   volumes:
     - hf-cache:/root/.cache/huggingface
