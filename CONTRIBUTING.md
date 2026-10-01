@@ -54,7 +54,8 @@ Every contribution must meet these requirements to be merged:
 - **Runs against stable Valkey** — use `valkey/valkey-bundle` with a pinned version tag (e.g., `valkey/valkey-bundle:8.1.7`). Never use `:latest` or `:unstable`. CI validates samples against a matrix of supported Valkey versions.
 - **Uses current stable client libraries** — use the latest published release of the official Valkey client for your language (valkey-glide, valkey-py, etc.)
 - **Focused on Valkey** — the sample demonstrates Valkey features, not application scaffolding. Readers should be able to identify the Valkey patterns without excavating them from UI code.
-- **Self-contained** — each sample directory is independently runnable with its own dependency file (`requirements.txt`, `go.mod`, `package.json`, etc.)
+- **Self-contained** — each sample directory is independently runnable with its own dependency manifest (`pyproject.toml` + `uv.lock` for Python, `go.mod`, `package.json`, etc.)
+- **Python cookbooks use [uv](https://docs.astral.sh/uv/)** — manage dependencies with a committed `pyproject.toml` and `uv.lock` (not a bare `requirements.txt`). Pin `requires-python` so the interpreter is reproduced along with the packages, list `uv` in the cookbook's Prerequisites with an install pointer, and have readers run `uv sync` / `uv run`. This locks the full transitive tree, so a clean clone reproduces the exact environment CI tests against.
 - **All references publicly accessible** — all links, paths, and package names resolve for any community member (no private trackers, local paths, or internal wikis)
 - **Factual and substantiated** — all performance claims backed with objective, measurable proof and linked to source benchmarks. Use a neutral, technical tone.
 
@@ -128,7 +129,7 @@ Every cookbook **must** have:
 | File | Purpose |
 |------|---------|
 | Cookbook notebook(s) | One `.ipynb` for a single-notebook cookbook (name it for the topic, e.g. `kv-caching-with-valkey.ipynb`), or a numbered series (`01-getting-started.ipynb`, `02-<topic>.ipynb`, …) when the material needs splitting |
-| Dependency manifest | `requirements.txt` / `package.json` / `go.mod` / `pom.xml` — the language environment CI builds before running the notebooks |
+| Dependency manifest | `pyproject.toml` + `uv.lock` (Python) / `package.json` / `go.mod` / `pom.xml` — the language environment CI builds before running the notebooks |
 | `docker-compose.yml` | Starts Valkey for the notebooks (include a healthcheck so `--wait` blocks until it's ready) |
 
 They all sit in the same cookbook directory (see [Cookbook Structure](#cookbook-structure)). A
@@ -254,7 +255,7 @@ cookbooks/
 │           ├── <shared-helper>             (optional — e.g. common.py / common.ts)
 │           ├── <config-reference>          (optional — e.g. an annotated <tool>_config.yaml)
 │           ├── <test-file>                 (optional — e.g. test_<name>.py for structural/live checks)
-│           ├── <dependency-manifest>       (requirements.txt / package.json / go.mod / pom.xml)
+│           ├── <dependency-manifest>       (pyproject.toml + uv.lock / package.json / go.mod / pom.xml)
 │           ├── docker-compose.yml          (starts Valkey for the notebook)
 │           └── .gitignore
 └── use-cases/
@@ -279,7 +280,7 @@ A notebook holds the prose and the runnable cells, but not the *environment*:
 
 | File | Why it can't live inside the notebook |
 |------|---------------------------------------|
-| Dependency manifest | CI (and readers) build the language environment *before* launching the notebook (`requirements.txt`, `package.json`, `go.mod`, `pom.xml`, …). |
+| Dependency manifest | CI (and readers) build the language environment *before* launching the notebook (`pyproject.toml` + `uv.lock` for Python, `package.json`, `go.mod`, `pom.xml`, …). |
 | `docker-compose.yml` | Valkey runs as a container started outside the kernel; cells connect to it. |
 | Shared helper (optional) | Helpers imported by multiple notebooks — keep them in one module rather than duplicating cells across notebooks (duplicated utility code is a review failure). |
 | `.gitignore` | Ignores build/venv dirs and notebook checkpoints (see [`.gitignore`](#gitignore) below). |
@@ -374,7 +375,7 @@ and runs the notebook. A typical flow:
 ```bash
 cd cookbooks/framework-integrations/<language>/<name>
 docker compose up -d --wait            # starts Valkey
-# install language deps (e.g. pip install -r requirements.txt), then open the
+# install language deps (for Python: `uv sync`), then open the
 # notebook and select the cookbook's kernel — see the notebook's how-to-run section
 ```
 
@@ -467,7 +468,7 @@ Every demo **must** include:
 |------|---------|
 | `README.md` | Overview, prerequisites, how to run, expected output |
 | `docker-compose.yml` | One-command run experience (starts Valkey + demo) |
-| Dependency file | `requirements.txt`, `go.mod`, `package.json`, etc. |
+| Dependency file | `pyproject.toml` + `uv.lock` (Python), `go.mod`, `package.json`, etc. |
 | Source code | Minimal implementation demonstrating the use case |
 | `.gitignore` | Exclude binaries, venvs, node_modules, etc. |
 
@@ -511,7 +512,7 @@ Every sample app **must** include:
 |------|---------|
 | `README.md` | Overview, architecture, prerequisites, how to run, **Valkey code locations** |
 | `docker-compose.yml` | One-command run experience |
-| Dependency file | `requirements.txt`, `go.mod`, `package.json`, etc. |
+| Dependency file | `pyproject.toml` + `uv.lock` (Python), `go.mod`, `package.json`, etc. |
 | `src/` | Source directory with application code |
 | `.gitignore` | Exclude binaries, venvs, node_modules, etc. |
 
