@@ -16,11 +16,12 @@
 #
 # Resource note: at steady state each vLLM replica uses about 3 GiB of RAM,
 # the LMCache server about 0.5 GiB and Valkey about 25 MiB. Give your
-# container runtime about 9 GiB for both replicas, or about 5.5 GiB to start one
-# replica and skip the two-replica step (README.md, "Memory requirements", has
-# the measured minimums). The batching and cache-size flags below are capped
-# low because the notebook only sends one request at a time; the defaults
-# over-provision for concurrency this demo never uses.
+# container runtime about 9 GiB for both replicas, or about 5.5 GiB to run
+# the replicas one at a time (README.md, "Running on a smaller machine"; its
+# "Memory requirements" table has the measured minimums). The batching and
+# cache-size flags below are capped low because the notebook only sends one
+# request at a time; the defaults over-provision for concurrency this demo
+# never uses.
 #
 # LMCache is not bundled in the vLLM CPU image, so every service that needs it
 # pip-installs it on startup, pinned to one version in both places it appears
@@ -210,6 +211,8 @@ services:
   # two-replica minimum 8.25 -> 7.5 GiB). On x86 there is no such surplus and
   # starting both at once peaks no higher; the peak there is the steady state
   # after both replicas have served requests.
+  # In the README's one-replica-at-a-time flow, start it with
+  # `docker compose up -d --wait --no-deps vllm-b` after stopping vllm-a.
   vllm-b:
     <<: *vllm-common
     container_name: vllm-b

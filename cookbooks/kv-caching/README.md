@@ -51,8 +51,9 @@ to the other.
 
 - **A container runtime with Compose** (Docker Compose or compatible).
 - **Memory.** Give your container runtime about **9 GiB** for the default
-  two-replica walkthrough, or about **5.5 GiB** to run a single replica (see
-  [Running on a smaller machine](#running-on-a-smaller-machine-one-replica)).
+  two-replica walkthrough, or about **5.5 GiB** to run every step with one
+  replica at a time (see
+  [Running on a smaller machine](#running-on-a-smaller-machine)).
   See [Memory requirements](#memory-requirements) for the measured numbers.
 - **Python 3.12** for the notebook client.
 - **Disk.** The first run downloads about 3.5 GiB on amd64 (2.5 GiB on arm64):
@@ -69,10 +70,10 @@ The lowest memory limit at which every cold run of the full walkthrough passed
 the containers under one hard memory limit and no swap. Docker, Podman and
 nerdctl measured the same within 0.25 GiB:
 
-| CPU | two replicas | one replica |
-| --- | --- | --- |
-| x86-64 | 6.75 GiB | 3.75 GiB |
-| arm64 (AWS Graviton) | 7.5 GiB | 4.5 GiB |
+| CPU | two replicas | one replica at a time | single replica |
+| --- | --- | --- | --- |
+| x86-64 | 6.75 GiB | 3.75 GiB | 3.75 GiB |
+| arm64 (AWS Graviton) | 7.5 GiB | 4.5 GiB | 4.5 GiB |
 
 Docker Desktop and Podman machine run the containers in a VM, which needs memory
 of its own on top of these numbers, and Apple silicon was not measured
@@ -154,24 +155,50 @@ watch the cache fill and get reused.
 docker compose down
 ```
 
-## Running on a smaller machine (one replica)
+## Running on a smaller machine
 
-The default walkthrough runs two vLLM replicas to show cross-instance cache
-sharing, which needs the most memory (see [Prerequisites](#prerequisites)). If
-your machine has less, run a single replica instead. You still see the core
-win — a cold turn stores its KV in Valkey and a warm turn reads it back — just
-not cross-replica sharing.
+The default walkthrough keeps both vLLM replicas running at the same time,
+which needs the most memory (see [Prerequisites](#prerequisites)). If your
+container runtime has less, run the replicas one at a time: only one replica is
+ever resident, so it fits the one-replica figure in Prerequisites.
 
-Start only replica A (Compose also starts `valkey` and `lmcache-server`, which
-it depends on):
+### One replica at a time (every step, including cross-replica reuse)
 
-```bash
-docker compose up -d --wait vllm-a
-```
+Valkey and the LMCache server keep running the whole time, so the KV that
+replica A wrote is still in Valkey when replica B starts. Replica B reading it
+back also shows that the cache outlives the replica that computed it.
 
-Then run the notebook as usual, but skip the one cell that calls the second
-replica — it's the cell under **"A second replica hits the first replica's
-cache,"** marked in the notebook as the only cell to skip in single-replica mode.
+1. Start Valkey, the LMCache server, and replica A only:
+
+   ```bash
+   docker compose up -d --wait vllm-a
+   ```
+
+2. Run the notebook from the top and stop at
+   **"A second replica hits the first replica's cache."**
+3. Swap replica A for replica B, from a terminal in this directory:
+
+   ```bash
+   docker compose stop vllm-a
+   docker compose up -d --wait --no-deps vllm-b
+   ```
+
+   Keep `--no-deps`: `vllm-b` normally waits for `vllm-a` to be healthy, so
+   without it Compose would start replica A again. Replica B needs a minute or
+   two to install LMCache, load the model, and warm up.
+4. Run the remaining cells. Replica B's request reads replica A's KV from
+   Valkey: the `GET` calls go up and `dbsize` stays the same.
+
+With Podman, run the same commands with `podman compose`. If your
+`podman compose` has no `--wait`, drop it and wait until `podman compose ps`
+shows `vllm-b` as healthy.
+
+### A single replica
+
+If you only want the single-replica part of the demo, start replica A as in
+step 1 and skip the one cell that calls `replica_b` (under
+**"A second replica hits the first replica's cache"**). You still see a cold
+turn store its KV in Valkey and a warm turn read it back.
 
 ## If the first request hangs or a replica dies
 
@@ -196,8 +223,9 @@ on native Linux, or `podman machine ssh 'sudo dmesg' | grep -i 'killed process'`
 for a Podman machine.
 
 Give the container runtime more memory (see [Prerequisites](#prerequisites)) or
-run a single replica, then recreate the stack with `docker compose down` and
-`docker compose up -d --wait`.
+run the replicas one at a time (see
+[Running on a smaller machine](#running-on-a-smaller-machine)), then recreate
+the stack with `docker compose down` and `docker compose up -d --wait`.
 
 ## What's in this directory
 
