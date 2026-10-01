@@ -210,6 +210,24 @@ def _dbsize(valkey) -> int:
     return int(valkey.custom_command(["DBSIZE"]))
 
 
+def _settled_dbsize(valkey, quiet_s: float = 1.0, timeout_s: float = 15.0) -> int:
+    """``dbsize`` once it has stopped changing for ``quiet_s`` seconds.
+
+    The LMCache server writes KV through to Valkey asynchronously, so a read
+    taken right after a response can miss keys that are still in flight.
+    """
+    deadline = time.monotonic() + timeout_s
+    last, since = _dbsize(valkey), time.monotonic()
+    while time.monotonic() < deadline:
+        time.sleep(0.1)
+        current = _dbsize(valkey)
+        if current != last:
+            last, since = current, time.monotonic()
+        elif time.monotonic() - since >= quiet_s:
+            break
+    return last
+
+
 def _valkey_get_calls(valkey) -> int:
     """Cumulative Valkey GET/MGET calls, from INFO commandstats.
 
@@ -283,13 +301,14 @@ def test_cold_stores_kv_in_valkey_then_warm_and_cross_replica_reuse(clients, val
 
     # Turn 1 (cold): full prefill on replica A. This prefix is unique to this
     # run, so its KV cannot already be cached. LMCache writes the KV through to
-    # Valkey (L2), so the key count grows.
-    before = _dbsize(valkey)
+    # Valkey (L2), so the key count grows. The write-through is asynchronous,
+    # so read the count once it has settled rather than right after the reply.
+    before = _settled_dbsize(valkey)
     r1 = a.chat.completions.create(
         model=MODEL, messages=prefix, max_tokens=32, temperature=0.0,
     )
     assert r1.choices[0].message.content is not None
-    after_cold = _dbsize(valkey)
+    after_cold = _settled_dbsize(valkey)
     assert after_cold > before, "cold turn should store KV blocks in Valkey"
 
     # Turn 2 (warm, shared prefix on replica A): the prefix is already cached, so
@@ -303,13 +322,16 @@ def test_cold_stores_kv_in_valkey_then_warm_and_cross_replica_reuse(clients, val
     a.chat.completions.create(
         model=MODEL, messages=warm, max_tokens=32, temperature=0.0,
     )
-    assert _dbsize(valkey) >= after_cold, "warm turn must not lose the cached KV"
+    assert _settled_dbsize(valkey) >= after_cold, "warm turn must not lose the cached KV"
 
     # Cross-replica: replica B has served no traffic, but the KV for this exact
     # prefix lives in Valkey. B reads it back from Valkey rather than recomputing
     # or re-storing it: GET calls increment and the key count does not grow.
+    # Keys are never removed in this stack (eviction policy noop, no TTL), so
+    # the count cannot drop back: sample it only after the earlier turns' async
+    # writes have landed, and compare once B's own writes (if any) would have.
     gets_before = _valkey_get_calls(valkey)
-    before_b = _dbsize(valkey)
+    before_b = _settled_dbsize(valkey)
     r3 = b.chat.completions.create(
         model=MODEL, messages=prefix, max_tokens=32, temperature=0.0,
     )
@@ -317,14 +339,6 @@ def test_cold_stores_kv_in_valkey_then_warm_and_cross_replica_reuse(clients, val
     assert _valkey_get_calls(valkey) > gets_before, (
         "replica B should read the shared prefix's KV from Valkey (L2)"
     )
-    # LMCache writes through to Valkey asynchronously, so the key count can blip
-    # up briefly before settling. B is reusing the shared prefix, not producing
-    # new KV, so the count settles back to where it started. Poll for a short
-    # bounded window rather than asserting equality on the first read (which
-    # would race the async write-through) and rather than sleeping a fixed time.
-    deadline = time.monotonic() + 5.0
-    while _dbsize(valkey) != before_b and time.monotonic() < deadline:
-        time.sleep(0.1)
-    assert _dbsize(valkey) == before_b, (
+    assert _settled_dbsize(valkey) == before_b, (
         "replica B should reuse the shared cache, not re-store the same prefix"
     )
