@@ -50,10 +50,20 @@ to the other.
 ## Prerequisites
 
 - **A container runtime with Compose** (Docker Compose or compatible).
-- **Memory.** The default two-replica walkthrough needs about **16 GiB** of RAM
-  for your container runtime (each vLLM replica is ~4–5 GiB; the LMCache server
-  and Valkey add a little more). On a smaller machine (~10 GiB) you can run a
-  single replica — see the "Running on a smaller machine" section in the notebook.
+- **Memory.** Give your container runtime about **9 GiB** for the default
+  two-replica walkthrough, or about **5.5 GiB** to run every step with one
+  replica at a time (see
+  [Running on a smaller machine](#running-on-a-smaller-machine)).
+  See [Memory requirements](#memory-requirements) for the measured numbers.
+- **CPU dtype (optional).** The replicas run in float16 so the stack also works
+  on CPUs without BF16 instructions (for example Apple M1). If your CPU has them,
+  run `export VLLM_DTYPE=bfloat16` in the terminal before you start the stack
+  (every later `docker compose up` then picks it up). Memory is the same; on
+  AWS Graviton4 the walkthrough runs several times faster (token generation
+  about 15x), and on x86 with AMX prefill is about 25% faster (so the cache's
+  relative saving looks smaller). To check your CPU, run
+  `docker run --rm alpine grep -m1 -owE 'bf16|avx512_bf16|amx_bf16' /proc/cpuinfo`;
+  if it prints nothing, keep float16.
 - **[uv](https://docs.astral.sh/uv/)** for Python dependency management. Install
   it with the official installer:
 
@@ -64,8 +74,30 @@ to the other.
   (or `brew install uv`, or see the uv docs for other platforms). `uv` provides
   the Python version this notebook needs (3.12), so you don't have to install
   Python yourself.
-- **Disk.** The stack pulls about 5 GiB on first run (the vLLM CPU image ~3.7 GiB,
-  the Valkey image ~0.4 GiB, and the model ~1 GiB).
+- **Disk.** The first run downloads about 3.5 GiB on amd64 (2.5 GiB on arm64):
+  the vLLM CPU image (~1.7 GiB compressed on amd64, ~0.8 GiB on arm64), the
+  Valkey image (~0.4 GiB), the model (~1 GiB), and the packages the three
+  LMCache containers install at startup. Unpacked, the vLLM image takes ~7.5 GB
+  on amd64 (~3.7 GB on arm64), so plan for about 11 GB of free disk (about 7 GB
+  on arm64).
+
+### Memory requirements
+
+The lowest memory limit at which every cold run of the full walkthrough passed
+(notebook, live tests, and a healthy stack afterwards), measured on Linux with
+the containers under one hard memory limit and no swap. Docker, Podman and
+nerdctl measured the same within 0.25 GiB:
+
+| CPU | two replicas | one replica at a time | single replica |
+| --- | --- | --- | --- |
+| x86-64 | 6.75 GiB | 3.75 GiB | 3.75 GiB |
+| arm64 (AWS Graviton) | 7.5 GiB | 4.5 GiB | 4.5 GiB |
+
+Docker Desktop and Podman machine run the containers in a VM, which needs memory
+of its own on top of these numbers, and Apple silicon was not measured
+directly; the recommendations above add a margin for that to the larger arm64
+figure. At steady state each vLLM replica uses about 3 GiB, the LMCache
+server about 0.5 GiB, and Valkey about 25 MiB.
 
 ## Getting started
 
@@ -84,14 +116,34 @@ This checks that the runtime exposes enough memory first, then blocks until ever
 container is healthy:
 
 ```bash
-docker_memory_bytes="$(docker info --format "{{.MemTotal}}")"
-if [ "$docker_memory_bytes" -lt 16732614656 ]; then
-  echo "This two-replica example needs about 16 GiB of Docker memory (this check allows a little under, for container-runtime overhead). Increase the Docker memory limit and retry."
+if docker info >/dev/null 2>&1; then
+  rt=docker; mem_bytes="$(docker info --format '{{.MemTotal}}')"
 else
-  docker compose up -d --wait
-  docker compose ps -a
+  rt=podman; mem_bytes="$(podman info --format '{{.Host.MemTotal}}' 2>/dev/null)"
 fi
+case "$mem_bytes" in
+  ''|*[^0-9]*)
+    echo "Could not read the container runtime's memory from 'docker info' or 'podman info'. Is the runtime running?" ;;
+  *)
+    if [ "$mem_bytes" -lt 9126805504 ]; then
+      echo "This two-replica example needs about 9 GiB of container-runtime memory (this check allows a little under). Increase the memory limit and retry, or run one replica at a time on about 5.5 GiB — see 'Running on a smaller machine'."
+    else
+      "$rt" compose up -d --wait
+      "$rt" compose ps -a
+    fi ;;
+esac
 ```
+
+The check accepts 8.5 GiB (9126805504 bytes), a little under the recommended
+9 GiB, because a VM reports slightly less than its configured size. It reads
+Docker's `{{.MemTotal}}` or, if Docker is not running, Podman's
+`{{.Host.MemTotal}}`, and starts the stack with the same runtime. If your
+`podman compose` uses podman-compose, which has no `--wait`, run
+`podman compose up -d` instead and wait until `podman ps` shows every
+container `healthy`.
+`MemTotal` is the memory of the Docker Desktop or Podman machine VM. On native
+Linux there is no VM, so it reports the host's total RAM and the check only
+tells you the machine is big enough, not that the memory is free.
 
 Both `vllm-a` and `vllm-b` must be `Up` and `healthy`. The first run takes a few
 minutes while Docker pulls the image, the containers install pinned packages, and
@@ -123,24 +175,79 @@ watch the cache fill and get reused.
 docker compose down
 ```
 
-## Running on a smaller machine (one replica)
+## Running on a smaller machine
 
-The default walkthrough runs two vLLM replicas to show cross-instance cache
-sharing, which needs about 16 GiB. If your machine has less (about 10 GiB is
-enough), run a single replica instead. You still see the core win — a cold turn
-stores its KV in Valkey and a warm turn reads it back — just not cross-replica
-sharing.
+The default walkthrough keeps both vLLM replicas running at the same time,
+which needs the most memory (see [Prerequisites](#prerequisites)). If your
+container runtime has less, run the replicas one at a time: only one replica is
+ever resident, so it fits in about 5.5 GiB (the one-replica figure in
+[Prerequisites](#prerequisites); see [Memory requirements](#memory-requirements)
+for the measured minimums).
 
-Start only replica A (Compose also starts `valkey` and `lmcache-server`, which
-it depends on):
+### One replica at a time (every step, including cross-replica reuse)
+
+Valkey and the LMCache server keep running the whole time, so the KV that
+replica A wrote is still in Valkey when replica B starts. Replica B reading it
+back also shows that the cache outlives the replica that computed it.
+
+1. Start Valkey, the LMCache server, and replica A only:
+
+   ```bash
+   docker compose up -d --wait vllm-a
+   ```
+
+2. Run the notebook from the top and stop at
+   **"A second replica hits the first replica's cache."**
+3. Swap replica A for replica B, from a terminal in this directory:
+
+   ```bash
+   docker compose stop vllm-a
+   docker compose up -d --wait --no-deps vllm-b
+   ```
+
+   Keep `--no-deps`: `vllm-b` normally waits for `vllm-a` to be healthy, so
+   without it Compose would start replica A again. Replica B needs a minute or
+   two to install LMCache, load the model, and warm up.
+4. Run the remaining cells. Replica B's request reads replica A's KV from
+   Valkey: the `GET` calls go up and `dbsize` stays the same.
+
+With Podman, run the same commands with `podman compose`. If your
+`podman compose` has no `--wait`, drop it and wait until `podman compose ps`
+shows `vllm-b` as healthy.
+
+### A single replica
+
+If you only want the single-replica part of the demo, start replica A as in
+step 1 and skip the one cell that calls `replica_b` (under
+**"A second replica hits the first replica's cache"**). You still see a cold
+turn store its KV in Valkey and a warm turn read it back.
+
+## If the first request hangs or a replica dies
+
+Each replica serves one short warm-up request before it reports healthy, so on
+too little memory `docker compose up -d --wait` usually fails with a replica
+`exited` or `unhealthy`. If it does succeed, a replica can still run out of
+memory on its first notebook request: the kernel kills its engine process (an
+out-of-memory kill) and the cell fails with a connection or server error; just
+above that point the request can instead hang for minutes. To check:
 
 ```bash
-docker compose up -d --wait vllm-a
+docker compose ps -a
+docker compose logs --tail 30 vllm-a vllm-b
+docker stats --no-stream
 ```
 
-Then run the notebook as usual, but skip the one cell that calls the second
-replica — it's the cell under **"A second replica hits the first replica's
-cache,"** marked in the notebook as the only cell to skip in single-replica mode.
+A replica that is `Exited`, `unhealthy` or restarting, or log lines with
+`EngineDeadError` or `died unexpectedly`, point to memory. With Podman use
+`podman ps -a`, `podman logs --tail 30 vllm-a` and `podman stats --no-stream`.
+The kernel log names the killed process: `sudo dmesg | grep -i 'killed process'`
+on native Linux, or `podman machine ssh 'sudo dmesg' | grep -i 'killed process'`
+for a Podman machine.
+
+Give the container runtime more memory (see [Prerequisites](#prerequisites)) or
+run the replicas one at a time (see
+[Running on a smaller machine](#running-on-a-smaller-machine)), then recreate
+the stack with `docker compose down` and `docker compose up -d --wait`.
 
 ## What's in this directory
 

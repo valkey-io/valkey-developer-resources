@@ -14,12 +14,14 @@
 # server writes through to Valkey (its L2 backend), which is what makes one
 # replica's KV visible to the other.
 #
-# Resource note: each vLLM replica needs roughly 4–5 GiB of RAM. Give your
-# container runtime at least 16 GiB so both replicas, the LMCache server, and
-# Valkey fit. On a smaller machine, start one replica and skip the two-replica
-# step. The batching and cache-size flags below are capped low because the
-# notebook only sends one request at a time; the defaults over-provision for
-# concurrency this demo never uses.
+# Resource note: at steady state each vLLM replica uses about 3 GiB of RAM,
+# the LMCache server about 0.5 GiB and Valkey about 25 MiB. Give your
+# container runtime about 9 GiB for both replicas, or about 5.5 GiB to run
+# the replicas one at a time (README.md, "Running on a smaller machine"; its
+# "Memory requirements" table has the measured minimums). The batching and
+# cache-size flags below are capped low because the notebook only sends one
+# request at a time; the defaults over-provision for concurrency this demo
+# never uses.
 #
 # LMCache is not bundled in the vLLM CPU image, so every service that needs it
 # pip-installs it on startup, pinned to one version in both places it appears
@@ -49,30 +51,61 @@ x-vllm-common: &vllm-common
       #
       # lmcache.mp.mq_timeout bounds the worker<->server registration/transfer
       # calls. Registration takes about a second here; 120s is headroom for a
-      # slow or emulated host. If it trips, suspect the server's transfer-mode
+      # slower host. If it trips, suspect the server's transfer-mode
       # wiring (see --supported-transfer-mode), not a too-short timeout.
       #
-      # --dtype float16 avoids vLLM's default bf16-on-CPU. On an emulated
-      # aarch64 host the virtual CPU may not advertise bf16 support, and the
-      # oneDNN BLAS fallback then crashes on the first real prefill (SIGILL,
-      # worker exit -4). float16 sidesteps that path at the same 2-byte
-      # footprint as bf16; float32 would roughly double per-replica memory.
+      # --dtype defaults to float16 instead of vLLM's bf16-on-CPU. On Linux
+      # aarch64 vLLM assumes bf16 support without checking the CPU, so on a
+      # CPU without BF16 instructions (FEAT_BF16; for example Apple M1) the
+      # first real prefill crashes (SIGILL, worker exit -4). Docker Desktop
+      # and Podman machine on Apple silicon are hardware-virtualized, not
+      # emulated: the VM sees the host CPU's features, so this is about the
+      # CPU, not the runtime. float16 has the same 2-byte footprint as bf16;
+      # float32 would roughly double memory. On a CPU with BF16 set
+      # VLLM_DTYPE=bfloat16 before `docker compose up` (README, Prerequisites):
+      # same memory, and on arm64 decode is far faster than float16.
+      #
+      # --kv-cache-memory-bytes 32M sizes vLLM's own KV pool (~2,700 tokens
+      # for this model, 1.3x one full 2048-token request; vLLM refuses a pool
+      # that cannot hold one --max-model-len request). The notebook's longest
+      # request is under 600 tokens and LMCache keeps the reusable KV in
+      # Valkey, so the old VLLM_CPU_KVCACHE_SPACE=1 (1 GiB, its integer floor)
+      # was ~30x more than needed. Do not also set VLLM_CPU_KVCACHE_SPACE:
+      # when present it overrides this flag.
+      #
+      # --no-enable-prefix-caching turns off vLLM's in-process prefix cache so
+      # that every reuse in the demo (Turn 2 on replica A, the timing cell, and
+      # replica B) is served by LMCache from Valkey rather than from replica
+      # A's own memory. Production deployments usually keep it on.
+      #
+      # --revision pins the model snapshot so answers stay reproducible; the
+      # served model name stays "Qwen/Qwen2.5-0.5B-Instruct".
       exec python3 -m vllm.entrypoints.openai.api_server \
         --model Qwen/Qwen2.5-0.5B-Instruct \
-        --dtype float16 \
+        --revision 7ae557604adf67be50417f59c2c2f167def9a775 \
+        --dtype ${VLLM_DTYPE:-float16} \
         --max-model-len 2048 \
         --enforce-eager \
         --max-num-seqs 4 \
         --max-num-batched-tokens 2048 \
+        --kv-cache-memory-bytes 32M \
+        --no-enable-prefix-caching \
         --kv-transfer-config '{"kv_connector":"LMCacheMPConnector","kv_role":"kv_both","kv_connector_extra_config":{"lmcache.mp.host":"tcp://lmcache-server","lmcache.mp.port":5555,"lmcache.mp.mq_timeout":120.0}}'
   environment:
     # Shared with lmcache-server via the *lmcache-env anchor.
     <<: *lmcache-env
-    # CPU KV-cache pool size in GiB. Must be an integer (vLLM rejects
-    # fractional values); 1 is the practical floor, kept small so the whole
-    # stack fits a 16 GiB runtime.
-    VLLM_CPU_KVCACHE_SPACE: "1"
-    # Qwen2.5-0.5B-Instruct is ungated; no HF token needed. Silence the rate-limit warning.
+    # The image preloads tcmalloc; return freed memory (model-load and first
+    # request scratch) to the OS instead of keeping it in the heap.
+    TCMALLOC_AGGRESSIVE_DECOMMIT: "true"
+    # Use vLLM's V1 CPU model runner. The default V2 runner JIT-compiles a
+    # Triton kernel for the model's repetition_penalty on the first request
+    # (~90 s and ~0.3 GiB extra); V1 applies the penalty with plain torch ops.
+    VLLM_USE_V2_MODEL_RUNNER: "0"
+    # Run the model in the engine-core process instead of a separate worker
+    # process (2 Python processes per replica instead of 3; saves ~0.5 GiB).
+    VLLM_ENABLE_V1_MULTIPROCESSING: "0"
+    # Qwen2.5-0.5B-Instruct is ungated; no HF token needed. Keep the model
+    # download's progress bars out of the container logs.
     HF_HUB_DISABLE_PROGRESS_BARS: "1"
   volumes:
     - hf-cache:/root/.cache/huggingface
@@ -83,13 +116,36 @@ x-vllm-common: &vllm-common
     lmcache-server:
       condition: service_healthy
   healthcheck:
-    # Ready when the OpenAI-compatible server answers /health.
-    test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+    # Ready when the OpenAI-compatible server answers /health and has served
+    # one short warm-up completion. On arm64 (measured on Graviton) a freshly
+    # loaded replica holds ~0.6 GiB more than it does after its first decode
+    # of a few dozen tokens; warming replica A before replica B starts loading
+    # keeps the two from peaking together. x86 shows no such surplus; there
+    # the warm-up only adds about a second to startup.
+    # The warm-up is cheap and deterministic: a fixed 32-token prompt and 32
+    # greedy tokens, once per container (marker file), then /health only. It
+    # is shorter than one 256-token LMCache chunk, so it stores no key in
+    # Valkey and reads none: the notebook's dbsize and GET counters are the
+    # same as without it.
+    test:
+      - CMD
+      - python3
+      - -c
+      - |
+        import json, os, urllib.request as u
+        u.urlopen("http://localhost:8000/health", timeout=5)
+        if not os.path.exists("/tmp/warmed"):
+            model = json.load(u.urlopen("http://localhost:8000/v1/models", timeout=5))["data"][0]["id"]
+            body = {"model": model, "prompt": "hello " * 32, "max_tokens": 32, "ignore_eos": True, "temperature": 0}
+            req = u.Request("http://localhost:8000/v1/completions", json.dumps(body).encode(), {"Content-Type": "application/json"})
+            u.urlopen(req, timeout=170).read()
+            open("/tmp/warmed", "w").close()
     interval: 10s
-    timeout: 5s
+    # Covers the one-time warm-up on a slow CPU; /health alone answers in ms.
+    timeout: 180s
     retries: 60
     # Grace for first startup: pip install + model load + KV registration is
-    # about 40s here; 180s leaves margin for a slower or emulated host.
+    # about 40s here; 180s leaves margin for a slower host.
     start_period: 180s
 
 services:
@@ -120,9 +176,14 @@ services:
         # the server default (lmcache_driven) loads only the GPU/server-driven
         # handlers, so a CPU worker's register request finds no handler and the
         # connector hangs. "auto" lets either device type connect.
+        #
+        # --l1-size-gb: on CPU the L1 buffer is allocated and zero-filled at
+        # startup, so its full size is resident memory. With skip_l1 it is only
+        # a write buffer; one request here is at most a few 3 MiB KV chunks, so
+        # 0.05 GiB (~16 chunks) is plenty and saves ~0.45 GiB over 0.5.
         exec lmcache server \
           --host 0.0.0.0 --port 5555 \
-          --l1-size-gb 0.5 \
+          --l1-size-gb 0.05 \
           --eviction-policy noop \
           --l2-store-policy skip_l1 \
           --supported-transfer-mode auto \
@@ -147,10 +208,16 @@ services:
     ports:
       - "127.0.0.1:8001:8000"
 
-  # vllm-b waits on vllm-a being healthy (not just lmcache-server) so the two
-  # replicas load their weights sequentially. Model load spikes memory above
-  # steady state; staggering keeps the two spikes from stacking and exceeding a
-  # memory-constrained runtime, even though both fit comfortably once running.
+  # vllm-b waits for vllm-a to be healthy (not just lmcache-server), and
+  # vllm-a only reports healthy after its warm-up completion (see the
+  # healthcheck above). On arm64 that order matters for memory: a freshly
+  # loaded replica holds ~0.6 GiB extra until its first decode, so loading B
+  # only after A has warmed up keeps the two surpluses from stacking (measured
+  # two-replica minimum 8.25 -> 7.5 GiB). On x86 there is no such surplus and
+  # starting both at once peaks no higher; the peak there is the steady state
+  # after both replicas have served requests.
+  # In the README's one-replica-at-a-time flow, start it with
+  # `docker compose up -d --wait --no-deps vllm-b` after stopping vllm-a.
   vllm-b:
     <<: *vllm-common
     container_name: vllm-b
