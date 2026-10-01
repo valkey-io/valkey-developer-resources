@@ -93,7 +93,7 @@ Reviewers evaluate every PR against this checklist. Use it as a self-check befor
 - [ ] No private links, internal references, or local paths
 - [ ] No marketing language or uncited claims
 - [ ] Vendor-neutral by default (affiliation disclosed where applicable)
-- [ ] README explains the Valkey concept demonstrated, prerequisites, and how to run
+- [ ] The Valkey concept demonstrated, prerequisites, and how to run are explained (in the README for demos and sample apps; in the notebook's opening cells for cookbooks)
 - [ ] Dependencies pinned to specific versions
 - [ ] CI validates the sample
 
@@ -308,7 +308,8 @@ Each notebook expresses the [Cookbook Content Requirements](#cookbook-content-re
 - **Topical markdown headings** describe each part by what it does (e.g. "Turn 1: cold"), followed by
   the code cell for that part. Do **not** use a rigid `## Step N:` sequence.
 - **Every code cell must execute top-to-bottom without error** against a running Valkey — this is
-  what CI enforces — and should print the signal the reader is meant to observe.
+  what CI enforces (except under the [heavy-runtime exception](#ci-validation)) — and should print
+  the signal the reader is meant to observe.
 - **Committed notebooks must have cleared or reproducible outputs.** Prefer clearing outputs before
   commit (`jupyter nbconvert --clear-output`); CI re-executes to produce them. Never commit
   notebooks containing secrets, tokens, or machine-specific paths in cell outputs.
@@ -403,10 +404,18 @@ part needs.
 
 All cookbooks must pass CI before merge:
 
-- **Notebook execution** — CI installs the cookbook's dependencies, starts Valkey via its
-  `docker-compose.yml`, and executes every `.ipynb` end-to-end (e.g. `pytest --nbmake` or
-  `jupyter nbconvert --execute` for Python; the equivalent kernel run for other languages). A cell
-  that raises fails the build, so the code a reader runs is the code CI runs.
+- **Notebook execution** — CI installs the cookbook's dependencies, starts a Valkey service
+  container on `127.0.0.1:6379` (exposed to the notebooks as `VALKEY_HOST` / `VALKEY_PORT`; CI does
+  not run the cookbook's `docker-compose.yml`), and executes every `.ipynb` end-to-end (e.g.
+  `pytest --nbmake` for Python; `jupyter nbconvert --execute` on the matching kernel for other
+  languages). A cell that raises fails the build, so the code a reader runs is the code CI runs.
+- **Heavy-runtime exception** — if a cookbook's stack cannot run on a standard GitHub-hosted runner
+  (e.g. LLM inference servers that need more memory than the runner has), commit a
+  `.ci-structural-only` file next to its notebooks whose first line states why. CI then skips
+  notebook execution for that cookbook and runs only its lint and structural tier (standalone
+  `test_*.py` files that check config and compose wiring without the full stack). The exception
+  covers CI only: the default path must still run locally for free, and you must still execute the
+  notebook end-to-end against the full local stack before submitting.
 - **Version matrix** — CI runs against multiple Valkey versions (currently 8.1.x and 9.x) to ensure
   compatibility across supported releases
 - **Lint check** — markdown (READMEs and notebook markdown cells) passes linting, links resolve
