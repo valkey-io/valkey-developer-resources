@@ -576,6 +576,5 @@ docs: update framework-integrations README
 
 ## Questions?
 
-- Open a [GitHub Discussion](https://github.com/valkey-io/Valkey-Samples/discussions) for questions
-- Open an [Issue](https://github.com/valkey-io/Valkey-Samples/issues) for bugs or feature requests
+- Open an [Issue](https://github.com/valkey-io/valkey-developer-resources/issues) for questions, bugs or feature requests
 - Join the [Valkey community](https://valkey.io/community/) for broader project discussion
