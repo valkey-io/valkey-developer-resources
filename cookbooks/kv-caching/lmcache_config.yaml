@@ -1,0 +1,53 @@
+# Valkey L2 adapter spec: the configuration you are most likely to change,
+# plus the commonly adjusted options.
+#
+# In this cookbook KV storage is owned by the standalone `lmcache server` (see
+# docker-compose.yml), and the line that makes Valkey its backing store is the
+# server's L2 adapter spec:
+#
+#   --l2-adapter '{"type":"valkey","startup_nodes":"valkey:6379"}'
+#
+# This file documents that adapter spec. The config/wiring test
+# (test_lmcache_valkey.py) loads it as the single source of truth for the
+# adapter shape, and it mirrors the JSON passed to the server on the command
+# line. (The adapter is configured on the server, as above, not in an
+# in-process LMCache config file.)
+#
+# Adapter type: "valkey", backed by the official valkey-glide sync client.
+type: valkey
+
+# Comma-separated "host:port[,host:port...]". In standalone mode only the first
+# is used; in cluster mode glide discovers the rest from any reachable seed.
+startup_nodes: "valkey:6379"
+
+# Standalone vs. Valkey Cluster. Leave false for the single-node demo.
+cluster_mode: false
+
+# Optional deployment-level key namespace (joined to the wire key with "@").
+# Empty means the keys land in Valkey exactly as LMCache names them.
+# You might use key prefixes to keep users, models or tenants separate.
+key_prefix: ""
+
+# TLS is required for managed Valkey services (e.g. ElastiCache Serverless);
+# off for the local demo.
+tls_enable: false
+
+# Optional per-key TTL in seconds. Unset (the default) means keys never expire.
+# KV chunks are large, so a TTL is a simple way to bound how much Valkey holds:
+# set it to how long a cached prefix stays useful — e.g. the window in which a
+# user is likely to resume a conversation (say 3600 for an hour) — and Valkey
+# expires idle chunks on its own. Leave it unset if you instead cap size with
+# LMCache-owned eviction (max_capacity_gb); do not use both at once, since
+# server-side expiry drifts LMCache's byte accounting.
+# ttl_seconds: 3600
+
+# chunk_size is a server-level setting (`lmcache server --chunk-size`, default
+# 256 tokens) that sets how many tokens each stored KV chunk covers. It drives
+# cache hit rates and performance: larger chunks mean fewer, bigger Valkey
+# objects and coarser prefix matching; smaller chunks match shorter shared
+# prefixes but store more keys. The default (256) is a reasonable starting
+# point. It is configured on the server, not in this adapter file.
+
+# See the LMCache MP server configuration reference for the full option set
+# (auth, timeouts, capacity/eviction, TTL):
+# https://docs.lmcache.ai/mp/configuration.html
