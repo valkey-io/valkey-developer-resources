@@ -105,14 +105,15 @@ server about 0.5 GiB, and Valkey about 25 MiB.
 
 ## Getting started
 
-Run these once, from a terminal, in this directory
+Run these once, from a terminal. Step 1 clones the repository; every later
+command runs in the cookbook directory it switches to
 (`cookbooks/kv-caching/`).
 
 **1. Clone the repository and switch to the notebook folder:**
 
 ```bash
-git clone https://github.com/valkey-io/valkey-samples.git
-cd valkey-samples/cookbooks/kv-caching
+git clone https://github.com/valkey-io/valkey-developer-resources.git
+cd valkey-developer-resources/cookbooks/kv-caching
 ```
 
 **2. Start the stack** (Valkey, the LMCache server, and both vLLM replicas).
@@ -126,7 +127,7 @@ for candidate in docker podman; do
   mem_bytes="$("$candidate" info --format '{{.MemTotal}}' 2>/dev/null)" ||
     mem_bytes="$("$candidate" info --format '{{.Host.MemTotal}}' 2>/dev/null)"
   case "$mem_bytes" in
-    ''|*[^0-9]*) mem_bytes="" ;;
+    ''|*[!0-9]*) mem_bytes="" ;;
     *) rt="$candidate"; break ;;
   esac
 done
@@ -141,6 +142,10 @@ else
 fi
 ```
 
+> ⚠️ **Security:** These examples use no authentication or TLS for simplicity.
+> For any non-localhost deployment, enable authentication and TLS.
+> See the [Valkey security documentation](https://valkey.io/topics/security/).
+
 The check accepts 7.5 GiB (8053063680 bytes), a little under the recommended
 8 GiB, because a VM reports slightly less than its configured size. If the
 runtime has less, it prints how much memory the runtime reports. It uses the
@@ -148,9 +153,9 @@ first of `docker` and `podman` that is installed and answers `info`, and starts
 the stack with that same command. A `docker` command that is really Podman (the
 `podman-docker` package) is read with Podman's `{{.Host.MemTotal}}`; a shell
 alias such as `alias docker=podman` is skipped in favour of the real `podman`.
-If your `podman compose` uses podman-compose, which has no `--wait`, run
-`podman compose up -d` instead and wait until `podman ps` shows every
-container `healthy`.
+If your `podman compose` uses an older podman-compose without `--wait` (1.0.x,
+for example the one Ubuntu 24.04 ships), run `podman compose up -d` instead and
+wait until `podman ps` shows every container `healthy`.
 `MemTotal` is the memory of the Docker Desktop or Podman machine VM. On native
 Linux there is no VM, so it reports the host's total RAM and the check only
 tells you the machine is big enough, not that the memory is free.
@@ -258,6 +263,22 @@ Give the container runtime more memory (see [Prerequisites](#prerequisites)) or
 run the replicas one at a time (see
 [Running on a smaller machine](#running-on-a-smaller-machine)), then recreate
 the stack with `docker compose down` and `docker compose up -d --wait`.
+
+## If you restart the LMCache server
+
+The KV chunks live in Valkey, so they survive a restart of `lmcache-server`,
+but the vLLM replicas do not reconnect to a restarted server: their requests
+hang (until the client times out) while `docker compose ps` still shows them
+`healthy`. Restart the replicas after the server:
+
+```bash
+docker compose restart lmcache-server
+docker compose restart vllm-a vllm-b
+```
+
+A restarted replica reports healthy again within about half a minute on a fast
+host (longer on a slow CPU), and its next request reads the prefixes cached
+before the restart back from Valkey.
 
 ## What's in this directory
 
