@@ -1,10 +1,10 @@
-# Valkey Samples
+# Valkey Developer Resources
 
 A list of curated resources with demos, tutorials, samples and recipes for Valkey.
 
-## Cookbooks
+## Cookbook
 
-Each cookbook is a set of recipes — runnable, notebook-based walkthroughs of a
+This cookbook is a set of recipes — runnable, notebook-based walkthroughs of a
 Valkey usage pattern.
 
 ### KV caching
