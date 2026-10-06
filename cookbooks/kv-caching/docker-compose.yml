@@ -34,16 +34,47 @@
 # this exact image ships torch as a CPU build. LMCache depends on torch without
 # a version pin, so on an image without CPU torch already present the install
 # would pull the CUDA build. The digest guarantees the CPU-torch image.
+#
+# Images are written fully qualified (docker.io/...). Docker treats a short
+# name as docker.io anyway; Podman resolves short names through
+# registries.conf, which on Debian/Ubuntu lists no search registry at all and
+# on Fedora/podman machine lists several, so a short name can fail to pull.
 x-lmcache-env: &lmcache-env
   # Required by LMCache to enable the v1 code paths.
   LMCACHE_USE_EXPERIMENTAL: "True"
+  # pip constraints for everything `pip install lmcache` adds to (or changes
+  # in) the pinned vLLM image: lmcache, the sync glide client, and their
+  # transitive dependencies. LMCache leaves most of its dependencies
+  # unpinned, so without this list each container start would resolve them
+  # afresh and a later upstream release could change what readers run.
+  # Captured from `pip freeze` in the running containers (identical on amd64
+  # and arm64); regenerate it whenever you bump lmcache or the vLLM image.
+  LMCACHE_PIP_CONSTRAINTS: >-
+    aiofile==3.12.3 aiofiles==25.1.0 awscrt==0.37.0 caio==0.12.9
+    cuda-pathfinder==1.8.3 cufile-python==0.2.0 cupy-cuda13x==14.2.0
+    google-api-core==2.34.0 google-auth==2.59.1 google-cloud-bigtable==2.49.0
+    google-cloud-core==2.8.0 google-cloud-monitoring==2.32.0
+    google-crc32c==1.9.0 grpc-google-iam-v1==0.14.5 grpcio-status==1.84.0
+    grpcio==1.84.0 importlib_metadata==8.7.1 iniconfig==2.3.0 lmcache==0.5.4
+    numpy==2.2.6 nvtx==0.2.16 opentelemetry-api==1.40.0
+    opentelemetry-exporter-otlp-proto-common==1.40.0
+    opentelemetry-exporter-otlp-proto-grpc==1.40.0
+    opentelemetry-exporter-otlp-proto-http==1.40.0
+    opentelemetry-exporter-otlp==1.40.0
+    opentelemetry-exporter-prometheus==0.61b0 opentelemetry-proto==1.40.0
+    opentelemetry-sdk==1.40.0 opentelemetry-semantic-conventions==0.61b0
+    pluggy==1.6.0 prometheus_client==0.24.1 proto-plus==1.29.0
+    protobuf==6.33.6 pyasn1==0.6.4 pyasn1_modules==0.4.2 pytest==9.1.1
+    redis==8.1.0 setuptools-scm==10.3.4 sortedcontainers==2.4.0
+    valkey-glide-sync==2.5.2 vcs-versioning==2.5.0 zipp==4.1.1
 
 x-vllm-common: &vllm-common
-  image: vllm/vllm-openai-cpu:v0.28.0@sha256:197354e6475e638eb5ccca09beb078488046a82de0e204e7429bf1a804df9647
+  image: docker.io/vllm/vllm-openai-cpu:v0.28.0@sha256:197354e6475e638eb5ccca09beb078488046a82de0e204e7429bf1a804df9647
   entrypoint: ["/bin/bash", "-c"]
   command:
     - |
-      pip install --quiet lmcache==0.5.4
+      printf '%s\n' $$LMCACHE_PIP_CONSTRAINTS > /tmp/lmcache-constraints.txt
+      pip install --quiet -c /tmp/lmcache-constraints.txt lmcache==0.5.4
       # Qwen2.5-0.5B-Instruct is small, ungated, and ships its own chat
       # template, so vLLM can serve /v1/chat/completions directly. The
       # notebook's multi-turn conversation renders to a deterministic token
@@ -127,19 +158,23 @@ x-vllm-common: &vllm-common
     # is shorter than one 256-token LMCache chunk, so it stores no key in
     # Valkey and reads none: the notebook's dbsize and GET counters are the
     # same as without it.
+    #
+    # Written as ONE shell line (CMD-SHELL), not as a multi-line `python3 -c`
+    # CMD array: Podman 4.x's Docker-compatible API (used by docker-compose on
+    # Podman) splits CMD arguments on whitespace, and podman-compose 1.0.x
+    # re-quotes them, so a multi-line script reaches python as `import` alone
+    # and the replica never turns healthy. A single CMD-SHELL string survives
+    # every runtime (the lmcache-server healthcheck below uses the same form).
     test:
-      - CMD
-      - python3
-      - -c
-      - |
-        import json, os, urllib.request as u
-        u.urlopen("http://localhost:8000/health", timeout=5)
-        if not os.path.exists("/tmp/warmed"):
-            model = json.load(u.urlopen("http://localhost:8000/v1/models", timeout=5))["data"][0]["id"]
-            body = {"model": model, "prompt": "hello " * 32, "max_tokens": 32, "ignore_eos": True, "temperature": 0}
-            req = u.Request("http://localhost:8000/v1/completions", json.dumps(body).encode(), {"Content-Type": "application/json"})
-            u.urlopen(req, timeout=170).read()
-            open("/tmp/warmed", "w").close()
+      - CMD-SHELL
+      - >-
+        python3 -c 'import json, os, urllib.request as u;
+        u.urlopen("http://localhost:8000/health", timeout=5);
+        warmed = os.path.exists("/tmp/warmed");
+        model = warmed or json.load(u.urlopen("http://localhost:8000/v1/models", timeout=5))["data"][0]["id"];
+        body = {"model": model, "prompt": "hello " * 32, "max_tokens": 32, "ignore_eos": True, "temperature": 0};
+        warmed or u.urlopen(u.Request("http://localhost:8000/v1/completions", json.dumps(body).encode(), {"Content-Type": "application/json"}), timeout=170).read();
+        warmed or open("/tmp/warmed", "w").close()'
     interval: 10s
     # Covers the one-time warm-up on a slow CPU; /health alone answers in ms.
     timeout: 180s
@@ -151,7 +186,7 @@ x-vllm-common: &vllm-common
 services:
   valkey:
     container_name: valkey
-    image: valkey/valkey-bundle:9.1.2
+    image: docker.io/valkey/valkey-bundle:9.1.2
     ports:
       - "127.0.0.1:6379:6379"
     healthcheck:
@@ -165,12 +200,15 @@ services:
   # L2 adapter. Both vLLM replicas connect to it over ZMQ on port 5555.
   lmcache-server:
     container_name: lmcache-server
-    image: vllm/vllm-openai-cpu:v0.28.0@sha256:197354e6475e638eb5ccca09beb078488046a82de0e204e7429bf1a804df9647
+    image: docker.io/vllm/vllm-openai-cpu:v0.28.0@sha256:197354e6475e638eb5ccca09beb078488046a82de0e204e7429bf1a804df9647
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |
         # The Valkey L2 adapter needs the *sync* glide client specifically.
-        pip install --quiet lmcache==0.5.4 valkey-glide-sync==2.5.2
+        # Both pins, and every dependency they pull in, are fixed by the
+        # shared LMCACHE_PIP_CONSTRAINTS list above.
+        printf '%s\n' $$LMCACHE_PIP_CONSTRAINTS > /tmp/lmcache-constraints.txt
+        pip install --quiet -c /tmp/lmcache-constraints.txt lmcache==0.5.4 valkey-glide-sync==2.5.2
         # --supported-transfer-mode auto loads BOTH worker->server transfer
         # paths. CPU vLLM workers use the "engine_driven" (PREPARE/COMMIT) path;
         # the server default (lmcache_driven) loads only the GPU/server-driven

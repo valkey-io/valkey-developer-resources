@@ -85,8 +85,42 @@ class TestComposeWiring:
 
     def test_valkey_pinned_bundle(self, compose):
         image = compose["services"]["valkey"]["image"]
-        assert image.startswith("valkey/valkey-bundle:")
+        assert image.startswith("docker.io/valkey/valkey-bundle:")
         assert ":latest" not in image
+
+    def test_images_fully_qualified(self, compose):
+        # Podman resolves short names through registries.conf, which may list no
+        # search registry (Debian/Ubuntu) or several (Fedora, podman machine).
+        for name, svc in compose["services"].items():
+            assert svc["image"].startswith("docker.io/"), name
+
+    def test_healthchecks_survive_every_runtime(self, compose):
+        # Podman's Docker-compatible API splits CMD arguments on whitespace and
+        # podman-compose 1.0.x re-quotes them, so a healthcheck must be either a
+        # single CMD-SHELL string or a CMD whose arguments contain no whitespace.
+        for name, svc in compose["services"].items():
+            test = svc["healthcheck"]["test"]
+            if test[0] == "CMD-SHELL":
+                assert len(test) == 2 and "\n" not in test[1], name
+            else:
+                assert test[0] == "CMD", name
+                assert not any(any(ch.isspace() for ch in arg) for arg in test[1:]), name
+
+    def test_lmcache_installs_are_fully_constrained(self, compose):
+        # Every service that pip-installs LMCache does so against the shared
+        # constraints list, and that list pins the same lmcache version the
+        # command asks for (client and server halves must match).
+        for svc in ("lmcache-server", "vllm-a", "vllm-b"):
+            service = compose["services"][svc]
+            pins = service["environment"]["LMCACHE_PIP_CONSTRAINTS"].split()
+            assert all("==" in p for p in pins), svc
+            command = service["command"]
+            command_text = " ".join(command) if isinstance(command, list) else command
+            assert "-c /tmp/lmcache-constraints.txt" in command_text, svc
+            for req in ("lmcache==", "valkey-glide-sync=="):
+                for word in command_text.split():
+                    if word.startswith(req):
+                        assert word in pins, (svc, word)
 
     def test_lmcache_server_uses_valkey_l2_adapter(self, compose):
         server = compose["services"]["lmcache-server"]
@@ -113,7 +147,7 @@ class TestComposeWiring:
         service = compose["services"][svc]
         # Official vLLM CPU image, pinned to the v0.28.0 tag (optionally by
         # digest as well, e.g. ...:v0.28.0@sha256:...).
-        assert service["image"].startswith("vllm/vllm-openai-cpu:v0.28.0")
+        assert service["image"].startswith("docker.io/vllm/vllm-openai-cpu:v0.28.0")
         assert ":latest" not in service["image"]
         command = service["command"]
         command_text = " ".join(command) if isinstance(command, list) else command
