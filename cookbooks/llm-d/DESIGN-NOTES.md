@@ -217,3 +217,117 @@ is a poor fit for a Python notebook. Options:
 - GPU: does the batch inference path need a GPU, or can the async component +
   queue/quota be shown with a trivial/stub model so it runs on a laptop-class
   kind cluster? Determines whether "see it working" is even locally reproducible.
+
+---
+
+## UPDATE 2026-10-19 (b) — inference backend + "what the runner sees" (VERIFIED in source, NOT yet run)
+
+### No Ollama / no real inference engine needed — and we don't want one
+- llm-d-async is a **queue/dispatch layer**, not an engine. It forwards
+  OpenAI-style requests to any HTTP `/v1/completions` endpoint.
+- The e2e stack's backend is **`llm-d-inference-sim`**
+  (`ghcr.io/llm-d/llm-d-inference-sim`, `--model test-model --fake-metrics`):
+  a vLLM-API-compatible **simulator**, instant fake completions, GPU-free, no
+  weights, no download. `cpu: 10m`, no mem limit.
+- Adding Ollama would pull GBs, add nondeterministic latency, blow the 8 GB
+  budget, and distract from the point. The cookbook is about **Valkey holding
+  the queue + quota**, NOT about inference — the stub backend is correct *by
+  design*. (Swapping the sim for Ollama/any real endpoint is a one-env-var
+  optional footnote, off the critical path.)
+
+### GPU question: ANSWERED — no GPU. The sim replaces the only GPU-hungry part.
+
+### Memory: Tier 2 "shows everything" fits 8 GB (ESTIMATE, not measured)
+Prod-shaped stack = Valkey + async-processor + EPP + InferencePool + Envoy
+(512Mi, the only sizable ask) + sim (10m cpu). Drop Jaeger/Prometheus/pubsub.
+kind control plane ~2–3 GB + pods ~1–1.5 GB + images/headroom → ~4–6 GB,
+inside 8 GB. **Must measure peak on a real bring-up before quoting a number**
+(same bar as kv-caching's 8 GiB).
+
+### What the runner SEES — three observable layers (key names/paths from source)
+1. **Valkey directly (the star).** `valkey-cli` against the Valkey pod; watch
+   keys change live as jobs flow:
+   - `request-sortedset` — the **job queue** (ZSET). `ZCARD` / `ZRANGE ...
+     WITHSCORES` shows jobs land (priority+seq order) then drain. ← AC #1/#3.
+   - `result-list` + `:result-claimed` / `:result-claim-owners` /
+     `:result-claims-idx` — result delivery / claim state.
+   - `request-cancel:<id>`, `request-active:<id>`,
+     `request-payload:<id>:<token>` — per-request markers w/ TTLs.
+   - quota-gate ZSET — fills to the limit. ← AC #2.
+   (`valkey-cli monitor` or `watch 'valkey-cli ZCARD request-sortedset'`.)
+2. **Request/response — quota made visible.** Over-quota requests get **429**
+   (`api/inference_error.go`; `ErrCategoryRateLimit`). Submit a burst past the
+   quota → some 200 (results return), some 429. ← AC #2 made visible.
+3. **Metrics — the "prod" proof.** async-processor exposes Prometheus counters:
+   - `async_gate_decisions_total{reason="quota_exhausted"}` — counts quota
+     rejections (help text: "redis-quota in blocking mode").
+   - `async_dispatched_requests_total`, `async_inflight_requests`,
+     `async_successful_requests_total`, `async_queue_*`.
+
+### The concrete "show" (reader walkthrough)
+1. Stand up trimmed kind stack; store → Valkey via `REDIS_URL`.
+2. Open a Valkey watch window (empty to start).
+3. Submit a batch of jobs to the gateway (OpenAI-style `/v1/completions`).
+4. See `request-sortedset` fill (ZRANGE shows priority ordering). ← AC #1.
+5. See it drain → sim returns instant completions → `result-list` flows.
+6. Burst past quota → 429s + `async_gate_decisions_total{quota_exhausted}`
+   climbs. ← AC #2.
+7. Show "unchanged": cite upstream `values.yaml` ("…including Valkey… all
+   redis.* fields work unchanged"); only `REDIS_URL` changed. ← AC #3.
+
+### Honest caveats
+- Confirmed key names, the 429 path, and the metric **from source**; have NOT
+  run the stack. Exact batch-submit `curl` through Envoy/EPP and the precise
+  queue→drain→429 sequence need a live bring-up; changes may be needed.
+- Backend is a **stub** by design — README must say completions are simulated;
+  this demonstrates queue+quota, not inference.
+
+---
+
+## UPDATE 2026-10-19 (c) — does a notebook work? YES (Python, as client/driver)
+
+The submit side is **OpenAI-compatible HTTP**, which makes a notebook viable:
+- async-processor forwards to `/v1/completions` (`requestPathURL`,
+  `batchSize: 10`).
+- batch-gateway exposes an **OpenAI-compatible Batch API**: `POST /v1/files`,
+  `POST /v1/batches`, `GET /v1/batches/{id}` (status/progress),
+  `GET /v1/batches`, `POST /v1/batches/{id}/cancel`.
+
+So the notebook's action cells are **real client code**, not kubectl theatre:
+- submit with the `openai` Python client (or httpx) at the gateway;
+- inspect Valkey with `valkey-py` (`zcard`/`zrange ... withscores` on
+  `request-sortedset`, the result-list keys, the quota ZSET);
+- poll `GET /v1/batches/{id}`; read metrics via an HTTP GET.
+
+**Language: Python** (matches the repo's uv/nbmake tooling). llm-d-async is Go,
+but the notebook is a *client* — client side is just HTTP + Valkey, both with
+clean Python libs. No Go kernel.
+
+### Key difference from kv-caching (state honestly)
+- kv-caching: the notebook code *is* the system under test (LMCache+vLLM
+  in-process).
+- llm-d: the notebook is a **client/driver + observer** of a system running in
+  kind. Legitimate notebook style, but not "the notebook is the app."
+
+### The format that fits = hybrid (same shape kv-caching already uses)
+- **README + setup script / Helm values** stand up the stack (the
+  kind+helm-install equivalent of kv-caching's `docker-compose.yml`). Cluster
+  lifecycle does NOT go in notebook cells — slow, stateful, not nbmake-friendly.
+- **Notebook** = the re-runnable interesting part: drive jobs, watch
+  `request-sortedset` fill/drain, trip the quota → 429s +
+  `async_gate_decisions_total{quota_exhausted}`. This is the CI-structural piece.
+
+### Proposed notebook chapters
+0. setup/prose + a cell asserting the stack is up & port-forward reachable.
+1. job queue: valkey-py shows ZSET empty → submit batch → ZSET fills (priority/
+   score order) → drains → results. (AC #1/#3)
+2. quota gate: burst past quota → 200s + 429s; metric counter climbs. (AC #2)
+3. "unchanged": markdown citing upstream values.yaml + the one-line REDIS_URL.
+   (AC #3)
+
+### Verdict
+A Python Jupyter notebook **does** work and can mirror the kv-caching
+"set up, then run code that makes things happen and shows it" feel — as a client
+driving kind-hosted llm-d and observing Valkey. Infra bring-up stays in
+README/support files. Still pending a live bring-up to confirm the exact submit
+API call and sequence.
