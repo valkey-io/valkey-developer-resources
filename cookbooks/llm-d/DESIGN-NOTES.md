@@ -331,3 +331,70 @@ A Python Jupyter notebook **does** work and can mirror the kv-caching
 driving kind-hosted llm-d and observing Valkey. Infra bring-up stays in
 README/support files. Still pending a live bring-up to confirm the exact submit
 API call and sequence.
+
+---
+
+## UPDATE 2026-10-19 (d) — COURSE CORRECTION: no k8s / no kind / no Homebrew.
+## docker compose runs the core (like kv-caching).
+
+Investigated whether we actually need Kubernetes before installing kind/helm/
+kubectl. We do **not**. The async-processor runs standalone in a container.
+
+### Evidence (from source)
+- `cmd/main.go` is flag/env driven (`pflag`); no in-cluster config required.
+- Transport = a JSON `--transport-config` (or `--transport-config-file`) + the
+  `REDIS_URL` env; the sorted-set config carries `igw_base_url`,
+  `request_path_url`, `request_queue_name`, and `gate_type`/`gate_params` (the
+  quota gate). `pkg/redis/options.go`.
+- The forward target is a **plain HTTP base URL** (`igw_base_url` +
+  `request_path_url: /v1/completions`) — point it straight at the sim. No
+  InferencePool *resolution* needed; `InferencePool` in the code is only a
+  **metric label string**.
+- The code is explicitly built k8s-free:
+  `pkg/plugins/handle.go` — "a trimmed, **Kubernetes-free** analog of EPP's
+  Handle"; `pkg/plugins/typedname.go` — "intentionally free of Kubernetes/
+  controller-runtime".
+- Their own Makefile `run` target is off-cluster: `go run ./cmd/main.go`
+  ("Run a controller from your host").
+
+### Tooling / images
+- Host tools needed: **just Docker** (have it, Colima 16 GB) + `valkey-cli`
+  (have it). **No Homebrew, no kind, no helm, no kubectl.**
+- kubectl/helm are pure API clients — trivially containerizable — but we don't
+  need them at all for the compose route.
+- Images verified multi-arch incl. **arm64** (Apple Silicon) via
+  `docker manifest inspect`:
+  - `ghcr.io/llm-d/llm-d-async` (real tag e.g. `:e2e-test`)
+  - `ghcr.io/llm-d/llm-d-inference-sim` (real tag e.g. `:v0.0.0-test`)
+  - `valkey/valkey-bundle`
+  Pin real tags, not `:latest`, in the cookbook.
+
+### The compose stack (kv-caching shape, no k8s)
+```
+valkey/valkey-bundle               # the store (queue + quota)
+ghcr.io/llm-d/llm-d-inference-sim  # stub backend, serves /v1/completions
+ghcr.io/llm-d/llm-d-async          # async-processor:
+                                   #   REDIS_URL -> valkey
+                                   #   transport-config: redis-sortedset,
+                                   #     igw_base_url -> http://llm-sim:8000
+                                   #     request_path_url: /v1/completions
+                                   #     gate_type: redis-quota (for AC #2)
+```
+This is strictly better for a cookbook than kind: no new tooling, far less
+memory, ships as a `docker-compose.yml` the reader already knows (and matches
+the repo's one existing cookbook). EPP/Envoy were only prod *gateway* plumbing,
+not part of the Valkey story.
+
+### Supersedes earlier Tier-2/kind plan
+The kind/Helm "Tier 2" above is now the *prod-reference* appendix at most. The
+**primary** bring-up and the cookbook's run path = this compose stack. Memory
+should be well under the kv-caching 8 GiB (no vLLM, no k8s control plane) —
+MEASURE on bring-up.
+
+### Next action (the actual "try it out")
+Build a throwaway compose + transport-config JSON, `docker compose up`, then:
+submit to the sim path, watch `request-sortedset` fill/drain in `valkey-cli`,
+trip the quota → 429 + `async_gate_decisions_total{quota_exhausted}`. Fix
+assumptions (exact transport-config JSON shape, how a job is submitted to the
+processor vs. directly to the sim, whether the quota gate needs extra config)
+as reality corrects them.
