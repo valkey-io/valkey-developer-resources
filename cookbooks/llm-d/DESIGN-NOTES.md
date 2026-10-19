@@ -398,3 +398,128 @@ trip the quota → 429 + `async_gate_decisions_total{quota_exhausted}`. Fix
 assumptions (exact transport-config JSON shape, how a job is submitted to the
 processor vs. directly to the sim, whether the quota gate needs extra config)
 as reality corrects them.
+
+---
+
+## UPDATE 2026-10-19 (e) — CORRECTION: submission is a Go producer library,
+## NOT an HTTP/OpenAI endpoint on the async component.
+
+Verified against source while prepping the bring-up. Overturns the earlier
+"notebook submits via the OpenAI /v1/batches API" assumption.
+
+- `producer.Producer` is a **Go interface**; `SubmitRequest(ctx, req)` is a Go
+  method (`producer/producer.go`, `producer/redis_sortedset_producer.go`). The
+  e2e tests submit by calling `producer.SubmitRequest(...)` **in-process from
+  Go** (`test/e2e/e2e_test.go`), then `producer.GetResult(...)`.
+- **No HTTP submit front-end exists in llm-d-async.** `cmd/main.go` builds the
+  *consumer* (async-processor). The only producer `main.go` is a test fixture
+  (`test/e2e/oldproducer/main.go`).
+- The OpenAI-compatible Batch API (`/v1/files`, `/v1/batches`) belongs to a
+  **separate repo — `llm-d-batch-gateway`** — not to llm-d-async. Do not
+  conflate them.
+- `igw_base_url` + `request_path_url` (`/v1/completions`) are where the
+  processor **forwards dequeued work** to the backend (the sim), NOT where a
+  client submits.
+
+### Verified transport-config JSON shape (for the compose wiring)
+`SortedSetConfig` (top level, `pkg/redis/options.go`): `url`, `mode`,
+`result_queue_name` (default `result-list`), `poll_interval_ms` (1000),
+`batch_size` (10), `claim_lease_ttl_seconds`, `queues[]`.
+`SortedSetQueueConfig` (per queue, `pkg/redis/sortedset_impl.go`): `id`,
+`queue_name`, `worker_pool_id`, `inference_objective`, `request_path_url`,
+`igw_base_url`, embedded `pipeline.GateConfig` (the gate_type/params — incl.
+the quota gate), `labels`. Quota gate: `pkg/redis/quota_gate.go` —
+`QuotaMode` is `rate-limit` or `concurrency`; refusal →
+`Refuse().WithReason(ReasonQuotaExhausted)` → the `quota_exhausted` metric.
+
+### Image tags (public registry — real resolvable tags)
+- `ghcr.io/llm-d/llm-d-async:main` (and `:latest`). `e2e-test` does NOT resolve.
+- `ghcr.io/llm-d/llm-d-inference-sim:v0.3.0` (also `:latest`, `:v0.1.0`,
+  `:v0.2.0`). `v0.0.0-test` does NOT resolve.
+- `valkey/valkey-bundle` (arm64 OK). Pin released tags in the cookbook.
+
+### Impact on the NOTEBOOK format decision
+A pure-Python notebook **cannot submit through the real producer library**
+without a Go helper. Options for the submission step:
+1. **Tiny Go producer** (build `test/e2e/oldproducer` or a ~30-line program on
+   the `producer` package) — faithful, uses the real enqueue path. Honest, but
+   introduces Go into a Python-notebook repo.
+2. **Direct Valkey writes replicating `submitRequestScript`** — language-free,
+   but re-implements their Lua protocol, which cuts against the "no new code /
+   works unchanged" framing. Weaker story.
+3. **Pull in `llm-d-batch-gateway`** (separate repo) to get the OpenAI HTTP
+   submit API — more moving parts; revisits scope.
+→ Lean **(1)**: the demo ships a small Go producer container in the compose
+stack (a 4th service) that submits jobs; the notebook/README then observes
+Valkey + reads results. Revisit whether the cookbook is then "Go-flavored"
+rather than a Python notebook. **Flag to user.**
+
+### Bring-up plan (unchanged in spirit, corrected in detail)
+Compose services: valkey-bundle + inference-sim + llm-d-async (consumer) +
+a small Go producer (submitter). Then observe `request-sortedset` fill/drain
+and the quota path in valkey-cli. MEASURE memory.
+
+---
+
+## UPDATE 2026-10-19 (f) — VALIDATION RUN: consumer path PROVEN off-cluster;
+## producer blocked only by sandbox Go-proxy DNS.
+
+Scratch harness at `/Users/matthowt/GITWorkspace/improving/llm-d-valkey-scratch/`
+(compose + transport-config + a producer program/Dockerfile). Images pulled:
+`valkey/valkey-bundle:latest`, `ghcr.io/llm-d/llm-d-async:main`,
+`ghcr.io/llm-d/llm-d-inference-sim:v0.3.0` (all arm64).
+
+### PROVEN
+- The async-processor (consumer) runs in **docker compose, no k8s**, reaches
+  steady state: "Spawning workers for pool {default, 4}", readiness true,
+  metrics server serving, **3 client connections to Valkey**, polling
+  `request-sortedset` (depth 0, waiting). Transport-config-file parsed, Valkey
+  reached via `REDIS_URL`/`url`.
+- **Measured footprint (the "how little memory" answer):**
+  async-processor **10.3 MiB**, valkey **47 MiB**, sim **4.3 MiB** →
+  whole core stack **~62 MiB**. Orders of magnitude under kv-caching's 8 GiB
+  (no k8s control plane, no real vLLM). 8 GiB is vast overkill for this stack.
+
+### Three config corrections banked (assumption → reality)
+1. `worker_pool_id` must be **`"default"`** (the auto-created pool) or you must
+   supply `--pool-config-file` defining the named pool. An arbitrary name →
+   fatal "worker pool \"X\" not found in pool configuration".
+2. `--metrics-endpoint-auth=false` is necessary **but not sufficient**.
+3. **`startMetricsServer` calls `ctrl.GetConfigOrDie()` UNCONDITIONALLY**
+   (`pkg/server/runner.go:122`→`:361`); no `metrics-port=0` guard. Off-cluster
+   the process **will not boot** without a kubeconfig. **Fix that works:** mount
+   a **dummy kubeconfig** (server `https://127.0.0.1:1`) and set `KUBECONFIG` to
+   it. With auth off, no real k8s call is made; the process boots and serves
+   metrics `{secure:false}`. **This is the key non-obvious finding for a
+   compose-only cookbook** — flag it prominently in the README, or (better) ask
+   upstream to gate the metrics server on `metrics-port>0`.
+
+### BLOCKED (environment, not design)
+- Building the Go producer needs `go-redis v9.22.0` from the module proxy.
+  **This sandbox has no DNS to `proxy.golang.org`** (host AND container; only
+  the image registry is reachable). `GOPROXY=off` can't help — the dep isn't in
+  the local module cache and llm-d-async isn't vendored. So the
+  **submit→queue→dispatch→result** end-to-end could not be completed *here*.
+  Everything checkable offline WAS checked: producer code compiles against the
+  API (types verified, `*RequestMessage` implements `api.Request`,
+  `ResultMessage` fields match), transport-config shape matches upstream
+  compat_test, all images run.
+- **Next-env step:** on a machine with Go-proxy access, `docker build` the
+  producer (in-container, no host Go), run `producer submit`, and confirm:
+  `request-sortedset` fills (ZRANGE WITHSCORES shows priority+seq order), drains
+  as the sim answers, `result-list` delivers, and a quota gate
+  (`gate_type: redis-quota` in the queue config) yields 429s +
+  `async_gate_decisions_total{quota_exhausted}`.
+
+### Net assessment of Option 1
+Architecture is **validated as far as this environment allows**: the real
+`llm-d-async` consumer runs unchanged on Valkey via compose, tiny footprint, no
+k8s. The producer is a known, small, verified-to-compile piece blocked only by a
+sandbox network rule. Option 1 is sound; finish the producer leg where Go
+modules resolve.
+
+### Scratch files (throwaway — NOT the deliverable)
+`llm-d-valkey-scratch/`: `docker-compose.yml`, `transport-config.json`
+(`worker_pool_id: default`, igw→sim), `kubeconfig-dummy.yaml`,
+`producer/{main.go,Dockerfile,go.mod}`. Keep as the bring-up reference; the
+cookbook's real files get authored separately once the full loop is seen.
