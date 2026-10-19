@@ -142,3 +142,78 @@ yet) and the notebook premise itself is in question.
 - `test/integration/claim_expiry_loss_test.go` — reclaim correctness.
 - `test/e2e/yaml/redis.yaml` — how the store is deployed in e2e (k8s, 6379).
 - `docs/architecture/batch/*` (main `llm-d` repo) — the narrative context.
+
+---
+
+## UPDATE 2026-10-19 — clarification received (direction resolved)
+
+Received a clarified request (Overview + Use Case + Acceptance Criteria). It
+resolves the A/B/C fork **in favor of A** and against my earlier B/C lean.
+
+### What the request says (the decisive language)
+- "a **usage/integration guide rather than new Valkey code**"
+- "Both of these work with Valkey **unchanged**"
+- AC: "Guide **confirms both components work with Valkey unchanged (no Valkey
+  code changes)**"
+- Use case: "Batch and latency-tolerant inference jobs queued through llm-d,
+  with Valkey holding the job queue and the admission quotas."
+
+→ This **rules out B/C** (re-implementing the queue/quota/reclaim protocol in a
+notebook is exactly the "new code" the request says not to write). The
+deliverable is **A**: drive the *real* llm-d-async, point its store at Valkey,
+and show llm-d's own queue + quota gate working **unchanged**. The star artifact
+is the *evidence*, not our code.
+
+### "Works with Valkey unchanged" — VERIFIED, and it's upstream's own claim
+Config path is code-free: a single **`REDIS_URL`** (Helm injects it as a Secret
+→ env; `pkg/redis/options.go` reads `REDIS_URL`; `producer/redis_conn.go` does
+`redis.ParseURL`). standalone / cluster / sentinel all via the same URL.
+
+Upstream **documents Valkey support in their own chart values**
+(`charts/llm-d-async/values.yaml`, the `ap.redis` block ~lines 205–216):
+- "Compatible with any Redis-protocol server including Valkey."
+- "All redis.* fields work unchanged when pointed at a Valkey endpoint."
+- example `url: "redis://redis-master.redis.svc.cluster.local:6379"`.
+Transport is `ap.transport: redis-sortedset` with
+`ap.transportConfig.urlSecret.url` (the `ap.redis.*` block is deprecated but
+works). So the AC is satisfiable with upstream's words + a live run — no Valkey
+or llm-d code changes.
+
+### The one real decision left: FORMAT (notebook vs guide)
+The request says "cookbook" but every AC is "demonstrates / shows / confirms" —
+**none require a `.ipynb`.** And the thing being driven is Go + Helm/k8s, which
+is a poor fit for a Python notebook. Options:
+- **A1 — deploy-and-verify guide.** README + Helm values (`transport:
+  redis-sortedset`, `urlSecret.url` → Valkey) + a verify script that watches the
+  ZSET queue fill/drain and the quota gate reject over-limit, via `redis-cli`/
+  `valkey-cli` against the Valkey pod while a batch job runs. Matches the Go/k8s
+  reality and the "guide" language. **Leaning this.**
+- **A2 — thin notebook wrapper** that shells out to `helm`/`kubectl` and inspects
+  Valkey with a client. Satisfies "notebook" literally but the notebook adds
+  little over a script; risks being notebook-theatre around shell commands.
+- Repo-fit note: this repo has **no Go/k8s cookbook and no k8s-in-CI**. Either
+  option is almost certainly **`.ci-structural-only`** (can't stand up GPU/k8s
+  llm-d in CI); verification is "run it locally against kind + a Valkey pod",
+  like kv-caching's "see it working" bar, not a CI e2e.
+
+### Concrete shape (pending format pick), placement/name unchanged leanings
+`cookbooks/llm-d/` ("llm-d with Valkey"), containing:
+1. `README.md` — what llm-d-async is, the two integration points, the "unchanged"
+   claim with the upstream values.yaml citation, prerequisites (kind/minikube or
+   an existing cluster, helm), and the run/verify steps.
+2. Helm values file pointing `ap.transport: redis-sortedset` at a Valkey pod.
+3. A Valkey deploy manifest (swap `valkey/valkey-bundle` into their
+   `test/e2e/yaml/redis.yaml` shape) OR reuse an existing Valkey.
+4. A verify step: submit batch jobs → observe the `request-sortedset` ZSET and
+   the quota gate in Valkey (`valkey-cli`), and the results list drain.
+5. `.ci-structural-only` marker.
+
+### Still to confirm with the requester
+- **Format:** notebook vs guide (A1 vs A2). The ACs permit a guide; the repo
+  convention leans notebook. **Needs a call** — flag the mismatch.
+- **Published in `valkey-developer-resources`** (AC) — that's this repo
+  (valkey-io/valkey-samples / "Valkey Developer Resources"). Confirm it's the
+  same target and not a different repo by that literal name.
+- GPU: does the batch inference path need a GPU, or can the async component +
+  queue/quota be shown with a trivial/stub model so it runs on a laptop-class
+  kind cluster? Determines whether "see it working" is even locally reproducible.
