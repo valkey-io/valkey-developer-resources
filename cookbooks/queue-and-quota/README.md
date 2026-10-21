@@ -160,4 +160,7 @@ docker compose down
   dependencies so the image builds with no network, which matters on locked-down
   or sandboxed setups where the build container cannot reach the Go module proxy.
   To update them, bump the versions in `producer/go.mod` and re-run
-  `go mod tidy && go mod vendor` in `producer/`.
+  `go mod tidy && go mod vendor` in `producer/`, then delete any Markdown that
+  `go mod vendor` pulls in (`find producer/vendor -name '*.md' -delete`) so the
+  third-party docs don't trip the repo's Markdown linter. Only the Go sources,
+  `LICENSE` files, and `modules.txt` are needed to build.
