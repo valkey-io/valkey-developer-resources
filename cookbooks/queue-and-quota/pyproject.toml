@@ -1,0 +1,34 @@
+[project]
+name = "queue-and-quota-with-valkey"
+version = "0.1.0"
+description = "Notebook client for the 'Valkey as a job queue and admission gate for llm-d' cookbook"
+readme = "README.md"
+# The notebook is written and tested against Python 3.12. Pinning the range
+# here (rather than only pinning packages) is what lets `uv` reproduce the
+# interpreter as well as the dependency set.
+requires-python = ">=3.12,<3.13"
+
+# Runtime dependencies for the notebook. The notebook reads the job queue and
+# the quota state directly from Valkey with the Valkey GLIDE client, scrapes the
+# async processor's Prometheus metrics endpoint over HTTP, and shells out to the
+# container runtime to submit jobs through the producer image. It does not import
+# llm-d — that runs inside the containers from docker-compose.yml.
+dependencies = [
+    # Valkey GLIDE client (the sync build). The notebook reads request-sortedset
+    # (the queue) and the quota:userid:* sorted sets (the gate) with it.
+    "valkey-glide-sync==2.5.2",
+    # The async processor exposes Prometheus metrics; the notebook scrapes the
+    # quota_exhausted counter over HTTP.
+    "requests==2.32.3",
+    # Notebook tooling.
+    "jupyterlab==4.4.5",
+    "ipykernel==6.30.0",
+]
+
+# Test tooling, installed by `uv sync` but kept out of the notebook's runtime
+# dependency set. PyYAML backs the config + compose-wiring tests.
+[dependency-groups]
+dev = [
+    "pytest==8.3.5",
+    "pyyaml==6.0.2",
+]

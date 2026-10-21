@@ -1,0 +1,1 @@
+Runs llm-d's async batch processor plus an inference simulator and submits jobs through a built producer image; the multi-container stack and the image build do not fit a GitHub-hosted runner. Lint and the test_llm_d_valkey.py structural tests still run.

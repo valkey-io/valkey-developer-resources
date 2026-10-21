@@ -1,0 +1,57 @@
+# Valkey as the job queue and admission gate behind llm-d's async batch component.
+#
+# Three services — nothing here is modified from upstream except a connection URL:
+#   valkey           the store: holds the job queue (a sorted set) and the quota
+#                    gate's counters. This is the component the cookbook is about.
+#   llm-sim          a stub inference backend (llm-d-inference-sim): speaks the
+#                    OpenAI /v1/completions API with instant fake completions.
+#                    No GPU, no model download — the cookbook is about Valkey, not
+#                    inference, so the backend is deliberately a simulator.
+#   async-processor  llm-d's async batch processor (the real upstream image),
+#                    pointed at Valkey by URL. It dequeues jobs from the Valkey
+#                    sorted set, applies the admission (quota) gate, and forwards
+#                    admitted jobs to llm-sim.
+#
+# Jobs are submitted by a small producer built from ./producer (see the README);
+# it runs as a one-shot container, not a long-lived service.
+services:
+  valkey:
+    image: docker.io/valkey/valkey-bundle:8.1.7
+    # Bound to localhost so the notebook can inspect the queue and quota keys.
+    ports: ["127.0.0.1:6379:6379"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  llm-sim:
+    image: ghcr.io/llm-d/llm-d-inference-sim:v0.3.0
+    command: ["--model", "test-model", "--port", "8000"]
+    ports: ["127.0.0.1:8000:8000"]
+
+  async-processor:
+    image: ghcr.io/llm-d/llm-d-async:v1.0.0@sha256:62a3e78320b0423c3c2ed327e6b870f786c3daf48f81a34f9e0332c80905663c
+    depends_on:
+      valkey:
+        condition: service_healthy
+    volumes:
+      - ./transport-config.json:/etc/ap/transport-config.json:ro
+      # The processor calls controller-runtime's GetConfigOrDie() at startup to
+      # build its metrics server, which needs a kubeconfig even off-cluster. This
+      # dummy config (pointing at an unreachable API) satisfies that call; with
+      # metrics auth disabled, no Kubernetes API is ever contacted. See the README.
+      - ./kubeconfig-dummy.yaml:/etc/ap/kubeconfig.yaml:ro
+    environment:
+      - KUBECONFIG=/etc/ap/kubeconfig.yaml
+    command:
+      - "--transport=redis-sortedset"
+      - "--transport-config-file=/etc/ap/transport-config.json"
+      - "--metrics-port=9090"
+      - "--health-port=8081"
+      - "--metrics-endpoint-auth=false"
+      - "--concurrency=4"
+      - "-v=2"
+    ports:
+      - "127.0.0.1:9090:9090"
+      - "127.0.0.1:8081:8081"

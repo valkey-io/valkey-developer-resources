@@ -1,0 +1,27 @@
+{
+  "url": "redis://valkey:6379",
+  "result_queue_name": "result-list",
+  "poll_interval_ms": 500,
+  "batch_size": 10,
+  "claim_lease_ttl_seconds": 300,
+  "queues": [
+    {
+      "id": "batch",
+      "queue_name": "request-sortedset",
+      "result_queue_name": "result-list",
+      "worker_pool_id": "default",
+      "inference_objective": "default",
+      "request_path_url": "/v1/completions",
+      "igw_base_url": "http://llm-sim:8000",
+      "gate_type": "redis-quota",
+      "gate_params": {
+        "address": "valkey:6379",
+        "attribute": "userid",
+        "mode": "rate-limit",
+        "limit": 3,
+        "window": "1m",
+        "prefix": "quota:"
+      }
+    }
+  ]
+}
