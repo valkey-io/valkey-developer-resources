@@ -265,9 +265,12 @@ jobs:
           --health-retries 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-go@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
-          go-version: "1.24"
+          # 1.26: gophernotes v0.7.6 (and its gomacro) run on Go >= 1.25, and some
+          # cookbook dependency modules now declare a go >= 1.25 directive. 1.26
+          # also carries the recent Go security fixes.
+          go-version: "1.26"
           cache-dependency-path: ${{ matrix.cookbook }}/go.mod
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -286,10 +289,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r "$GITHUB_WORKSPACE/.github/workflows/notebook-toolchain-requirements.txt"
-          go install github.com/gopherdata/gophernotes@v0.7.5
+          go install github.com/gopherdata/gophernotes@v0.7.6
           mkdir -p "$HOME/.local/share/jupyter/kernels/gophernotes"
           cd "$HOME/.local/share/jupyter/kernels/gophernotes"
-          cp "$(go env GOPATH)/pkg/mod/github.com/gopherdata/gophernotes@v0.7.5/kernel/"* .
+          cp "$(go env GOPATH)/pkg/mod/github.com/gopherdata/gophernotes@v0.7.6/kernel/"* .
           sed "s|gophernotes|$(go env GOPATH)/bin/gophernotes|" < kernel.json.in > kernel.json
       - name: Execute notebooks (Valkey ${{ matrix.valkey-version }})
         working-directory: ${{ matrix.cookbook }}
