@@ -156,6 +156,8 @@ resource "aws_instance" "host" {
 
   user_data = templatefile("${path.module}/user_data.sh.tftpl", {
     auto_stop_minutes = var.auto_stop_minutes
+    repo_url          = var.repo_url
+    repo_ref          = var.repo_ref
   })
 
   tags        = { Name = "${var.name_prefix}-host" }

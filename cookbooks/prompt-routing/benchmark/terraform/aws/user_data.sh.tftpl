@@ -1,9 +1,13 @@
 #!/bin/bash
 # Runs once, on first boot. Installs an auto-stop backstop that re-arms on
-# every boot. Holds no secrets.
+# every boot, makes sure the Docker Compose plugin is present, and optionally
+# clones the repo that holds the benchmark stack. Holds no secrets.
 set -euo pipefail
 
 AUTO_STOP_MINUTES=${auto_stop_minutes}
+REPO_URL='${repo_url}'
+REPO_REF='${repo_ref}'
+REPO_DIR=/opt/bench/repo
 
 if [ "$AUTO_STOP_MINUTES" -gt 0 ]; then
   cat >/etc/systemd/system/auto-stop.service <<EOF
@@ -23,8 +27,22 @@ EOF
   systemctl enable --now auto-stop.service
 fi
 
-# Sanity log: confirm the GPU stack the benchmark relies on is present.
+# The rest is best effort: log failures instead of aborting, so a missing
+# package doesn't leave the host without the bootcheck log.
+set +e
 {
+  # The benchmark is driven by `docker compose`.
+  if ! docker compose version; then
+    apt-get update && apt-get install -y docker-compose-plugin
+    docker compose version || echo "docker compose plugin missing"
+  fi
+
+  if [ -n "$REPO_URL" ]; then
+    mkdir -p "$(dirname "$REPO_DIR")"
+    git clone --depth 1 --branch "$REPO_REF" "$REPO_URL" "$REPO_DIR" || echo "git clone failed"
+  fi
+
+  # Confirm the GPU stack the benchmark relies on is present.
   nvidia-smi || echo "nvidia-smi failed"
   docker info --format 'docker {{.ServerVersion}} runtimes={{json .Runtimes}}' || echo "docker info failed"
 } >/var/log/gpu-bench-bootcheck.log 2>&1

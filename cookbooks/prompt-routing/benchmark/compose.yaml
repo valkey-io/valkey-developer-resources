@@ -1,0 +1,181 @@
+# Prompt-routing latency benchmark: llm-d's router in front of four vLLM
+# replicas, with Valkey as the router's prefix-cache index.
+#
+# Runs on any Linux host with four NVIDIA GPUs (24 GB or more each), Docker,
+# the Compose plugin, and the NVIDIA Container Toolkit. No Kubernetes: the
+# router uses llm-d's file-discovery plugin to read its endpoints from
+# epp/endpoints.yaml (see llm-d/guides/no-kubernetes-deployment).
+#
+# Don't start this file by hand; scripts/run-benchmark.sh renders the router
+# and load-generator configs, then drives each routing strategy in turn.
+#
+# Every container sits on one bridge network with fixed addresses, because
+# the file-discovery plugin needs literal IPs and each vLLM replica must bind
+# the same KV-event ports (5556, 5559) in its own network namespace:
+#
+#   172.30.0.5   valkey     routing index (precise-valkey strategy)
+#   172.30.0.10  envoy      router data plane; the EPP shares its network
+#   172.30.0.11  vllm-0  .. 172.30.0.14  vllm-3
+
+name: prompt-routing-bench
+
+x-hf-cache: &hf-cache
+  - ${HF_CACHE:-./.hf-cache}:/hf-cache
+
+x-vllm: &vllm
+  image: docker.io/vllm/vllm-openai:v0.30.0
+  entrypoint: ["/bin/bash", "/bench/serve-vllm.sh"]
+  shm_size: 2g
+  environment: &vllm-env
+    MODEL: ${MODEL:-Qwen/Qwen3-8B}
+    HF_HOME: /hf-cache
+    HF_TOKEN: ${HF_TOKEN:-}
+    DO_NOT_TRACK: "1"
+    # Exposes POST /reset_prefix_cache, which run-benchmark.sh uses to start
+    # every strategy from a cold cache. Reachable only on the bench network.
+    VLLM_SERVER_DEV_MODE: "1"
+    GPU_MEMORY_UTILIZATION: ${GPU_MEMORY_UTILIZATION:-0.90}
+    MAX_MODEL_LEN: ${MAX_MODEL_LEN:-16384}
+    MAX_NUM_BATCHED_TOKENS: ${MAX_NUM_BATCHED_TOKENS:-8192}
+  volumes:
+    - ${HF_CACHE:-./.hf-cache}:/hf-cache
+    - ./vllm/serve-vllm.sh:/bench/serve-vllm.sh:ro
+  depends_on:
+    model-download:
+      condition: service_completed_successfully
+  healthcheck:
+    test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+    interval: 10s
+    timeout: 5s
+    retries: 30
+    start_period: 900s
+
+services:
+  # Downloads the model weights once into the shared cache, so the four
+  # replicas don't race each other for the same files.
+  model-download:
+    image: docker.io/vllm/vllm-openai:v0.30.0
+    entrypoint: ["python3", "-c", "import os; from huggingface_hub import snapshot_download; snapshot_download(os.environ['MODEL'])"]
+    environment:
+      MODEL: ${MODEL:-Qwen/Qwen3-8B}
+      HF_HOME: /hf-cache
+      HF_TOKEN: ${HF_TOKEN:-}
+    volumes: *hf-cache
+    networks: [bench]
+
+  vllm-0:
+    <<: *vllm
+    environment: {<<: *vllm-env, POD_IP: 172.30.0.11}
+    networks: {bench: {ipv4_address: 172.30.0.11}}
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, device_ids: ["0"], capabilities: [gpu]}]
+
+  vllm-1:
+    <<: *vllm
+    environment: {<<: *vllm-env, POD_IP: 172.30.0.12}
+    networks: {bench: {ipv4_address: 172.30.0.12}}
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, device_ids: ["1"], capabilities: [gpu]}]
+
+  vllm-2:
+    <<: *vllm
+    environment: {<<: *vllm-env, POD_IP: 172.30.0.13}
+    networks: {bench: {ipv4_address: 172.30.0.13}}
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, device_ids: ["2"], capabilities: [gpu]}]
+
+  vllm-3:
+    <<: *vllm
+    environment: {<<: *vllm-env, POD_IP: 172.30.0.14}
+    networks: {bench: {ipv4_address: 172.30.0.14}}
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, device_ids: ["3"], capabilities: [gpu]}]
+
+  valkey:
+    image: docker.io/valkey/valkey:9.0.7
+    # The index is rebuilt for every run, so persistence is off.
+    command: ["valkey-server", "--save", "", "--appendonly", "no"]
+    networks: {bench: {ipv4_address: 172.30.0.5}}
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  envoy:
+    image: docker.io/envoyproxy/envoy:distroless-v1.33.2
+    command:
+      - --service-node
+      - envoy-proxy
+      - --log-level
+      - warn
+      - --concurrency
+      - "8"
+      - --drain-strategy
+      - immediate
+      - --drain-time-s
+      - "60"
+      - -c
+      - /etc/envoy/envoy.yaml
+    volumes:
+      - ./envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro
+    # Loopback only. On the AWS host, reach these through SSM port forwarding.
+    ports:
+      - 127.0.0.1:8081:8081   # OpenAI-compatible API through the router
+      - 127.0.0.1:9090:9090   # EPP Prometheus metrics
+    networks: {bench: {ipv4_address: 172.30.0.10}}
+
+  # The Endpoint Picker. It shares Envoy's network namespace so Envoy reaches
+  # its ext_proc server on 127.0.0.1:9002, as in llm-d's no-Kubernetes guide.
+  # EPP_STRATEGY selects the rendered config (random, approximate,
+  # precise-memory, precise-valkey).
+  epp:
+    image: ghcr.io/llm-d/llm-d-router-endpoint-picker:v1.0.0
+    network_mode: service:envoy
+    depends_on:
+      envoy:
+        condition: service_started
+      valkey:
+        condition: service_healthy
+    volumes:
+      - ./rendered/epp:/etc/epp:ro
+    command:
+      - --config-file=/etc/epp/${EPP_STRATEGY:-precise-valkey}.yaml
+      - --pool-name=file-discovery
+      - --pool-namespace=default
+      - --grpc-port=9002
+      - --grpc-health-port=9003
+      - --metrics-port=9090
+      - --secure-serving=false
+      - --health-checking=true
+      - --v=2
+
+  # Load generator and helper scripts. Started on demand by run-benchmark.sh
+  # with `docker compose run`, so it runs inside the bench network.
+  loadgen:
+    image: quay.io/inference-perf/inference-perf:v0.7.0
+    profiles: [tools]
+    entrypoint: ["inference-perf"]
+    environment:
+      HF_HOME: /hf-cache
+      HF_TOKEN: ${HF_TOKEN:-}
+    volumes:
+      - ${HF_CACHE:-./.hf-cache}:/hf-cache
+      - ./rendered/loadgen:/etc/loadgen:ro
+      - ./scripts:/bench/scripts:ro
+      - ./results:/results
+    networks: [bench]
+
+networks:
+  bench:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24

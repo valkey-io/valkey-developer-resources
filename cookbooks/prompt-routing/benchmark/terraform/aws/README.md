@@ -5,8 +5,8 @@
 > benchmark; this Terraform is one way to get such a host on AWS.
 
 This configuration creates one GPU instance with Docker and nothing else. The
-benchmark stack itself (vLLM, the llm-d router, Valkey, and the load
-generator) is host-agnostic and lives one level up in `benchmark/`.
+[benchmark stack](../../README.md) itself (vLLM, the llm-d router, Valkey,
+and the load generator) is host-agnostic and runs on that host.
 
 ## What it creates
 
@@ -22,6 +22,9 @@ generator) is host-agnostic and lives one level up in `benchmark/`.
   and the SSM agent. IMDSv2 is required and the gp3 root volume is encrypted.
 - A systemd unit that shuts the host down `auto_stop_minutes` after every boot
   (default 240). On-demand instances stop; Spot instances terminate.
+- On first boot, a clone of `repo_url` at `repo_ref` in `/opt/bench/repo`
+  (defaults to this repository's `main` branch), and the Docker Compose plugin
+  if the AMI lacks it.
 
 The default instance type is `g6.12xlarge` (4x NVIDIA L4, 24 GB each), enough
 for two to four vLLM replicas of a small ungated model at TP=1. No Hugging Face
@@ -50,15 +53,24 @@ cp terraform.tfvars.example terraform.tfvars   # edit as needed
 terraform init
 terraform apply
 
-# Shell on the host
+# Shell on the host, then run the benchmark
 eval "$(terraform output -raw ssm_shell)"
+#   cd /opt/bench/repo/cookbooks/prompt-routing/benchmark
+#   sudo ./scripts/run-benchmark.sh
+#   cat results/*/summary.md
 
 # Forward a port from the host to your machine
 eval "$(terraform output -raw ssm_port_forward_example)"
 ```
 
-On the host, `/var/log/gpu-bench-bootcheck.log` records `nvidia-smi` and the
-Docker runtimes from first boot.
+On the host, `/var/log/gpu-bench-bootcheck.log` records the first-boot
+setup: the Compose plugin check, the clone, `nvidia-smi`, and the Docker
+runtimes.
+
+The run takes longer than a quick shell session, so start it under `nohup`
+or `tmux` if your SSM session might drop. Copy any results you want to keep
+before you destroy the stack, for example by printing `summary.md` and
+`run.yaml` in the session.
 
 When you finish a run, tear everything down:
 

@@ -9,3 +9,7 @@ auto_stop_minutes = 240
 # extra_tags = {
 #   Owner = "you@example.com"
 # }
+
+# Repo cloned to /opt/bench/repo on first boot (empty to skip).
+# repo_url = "https://github.com/valkey-io/valkey-developer-resources.git"
+# repo_ref = "main"

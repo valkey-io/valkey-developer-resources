@@ -70,3 +70,25 @@ variable "extra_tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "repo_url" {
+  description = "HTTPS Git URL cloned to /opt/bench/repo on first boot, for the benchmark stack. Empty skips the clone."
+  type        = string
+  default     = "https://github.com/valkey-io/valkey-developer-resources.git"
+
+  validation {
+    condition     = var.repo_url == "" || can(regex("^https://[A-Za-z0-9._~/-]+$", var.repo_url))
+    error_message = "repo_url must be empty or an https:// URL made of letters, digits, and . _ ~ / - characters."
+  }
+}
+
+variable "repo_ref" {
+  description = "Branch or tag of repo_url to clone."
+  type        = string
+  default     = "main"
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9._/-]+$", var.repo_ref))
+    error_message = "repo_ref must contain only letters, digits, and . _ / - characters."
+  }
+}
