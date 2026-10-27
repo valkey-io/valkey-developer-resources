@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the prompt-routing cookbook notebook (Go kernel, shell-out design).
+"""Generate the prompt-routing recipe notebook (Go kernel, shell-out design).
 
 The notebook runs on the gophernotes (Go) kernel. Rather than interpreting
 llm-d's indexer library in-kernel — gophernotes' gomacro interpreter can't load
@@ -8,7 +8,7 @@ compiled program in ./cmd/prompt-routing via os/exec. The program is llm-d's rea
 indexer code, compiled normally, so what runs is exactly what a reader runs with
 `go run`.
 
-Each cell sets cmd.Dir to $PWD (the cookbook directory, which is nbconvert's
+Each cell sets cmd.Dir to $PWD (the recipe directory, which is nbconvert's
 working directory) so `go run` finds the module.
 """
 import nbformat as nbf
@@ -26,7 +26,7 @@ HELPER = '''import (
 
 // run executes one step of the compiled prompt-routing program and prints its
 // output. The program is llm-d's real indexer code; os/exec runs it as a normal
-// binary. cmd.Dir is the cookbook directory (nbconvert's working directory),
+// binary. cmd.Dir is the recipe directory (nbconvert's working directory),
 // so `go run` resolves the module (deps are pinned in go.mod/go.sum).
 func run(step string) {
     cmd := exec.Command("go", "run", "./cmd/prompt-routing", step)

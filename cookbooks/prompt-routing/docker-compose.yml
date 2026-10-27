@@ -1,6 +1,6 @@
 # Valkey as llm-d's shared KV-cache routing index.
 #
-# This cookbook needs only Valkey: it demonstrates the routing index that
+# This recipe needs only Valkey: it demonstrates the routing index that
 # llm-d's router (the Endpoint Picker) keeps in Valkey — a block-key -> pods map
 # that lets every router replica agree on which model server already holds a
 # conversation's KV cache. The index operations run against llm-d's real indexer
@@ -9,7 +9,7 @@
 #
 # A full routing+serving deployment (model servers emitting KV-cache events, the
 # router scoring live requests) is a Kubernetes/GPU system and out of scope here;
-# this cookbook focuses on the Valkey-backed index itself.
+# this recipe focuses on the Valkey-backed index itself.
 services:
   valkey:
     image: docker.io/valkey/valkey-bundle:8.1.7

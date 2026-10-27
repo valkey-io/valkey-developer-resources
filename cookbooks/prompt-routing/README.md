@@ -3,7 +3,7 @@
 llm-d routes each prompt to the model server most likely to already hold its KV
 cache, so that server can reuse the work instead of recomputing it. That
 decision, called prompt routing, rests on an index: a map of which server holds
-each block of a conversation's KV cache. This cookbook runs that index on Valkey.
+each block of a conversation's KV cache. This recipe runs that index on Valkey.
 
 The index records locations, not the cached tensors themselves. It answers the
 router's "who has this prefix?" lookup and updates as blocks are evicted. Putting
@@ -20,7 +20,7 @@ they know. Point the index at Valkey and the map becomes one shared store, where
 every replica reads and writes the same index and agrees on which server holds
 each conversation.
 
-This cookbook is about that index, the piece prompt routing is built on. It
+This recipe is about that index, the piece prompt routing is built on. It
 drives llm-d's real indexer library
 ([`llm-d-kv-cache`](https://github.com/llm-d/llm-d-kv-cache)) against Valkey, so
 the keys it writes are exactly what a live router stores. The router's live
@@ -148,7 +148,7 @@ docker compose down
 
 ## What this shows, and what it doesn't
 
-This cookbook is about the routing index itself: the shared state in Valkey.
+This recipe is about the routing index itself: the shared state in Valkey.
 It uses llm-d's released indexer code, so the index mechanics (the block-to-server
 map, the prefix-chain scoring, the shared-across-replicas property) are real.
 
@@ -166,24 +166,24 @@ Current limits worth knowing:
 - The router scores servers from this index plus its own load signals; the
   index records where blocks are cached, it is not a separate oracle the router
   queries for cache contents.
-- This cookbook uses no authentication. A separate component, LMCache, has an
+- This recipe uses no authentication. A separate component, LMCache, has an
   open fix for passing Valkey credentials that is not yet in a release; it does
   not affect this no-auth demo, which does not use LMCache.
 
-## How this relates to the KV caching cookbook
+## How this relates to the KV caching recipe
 
-The [KV caching cookbook](../kv-caching/) runs two vLLM replicas that share one
+The [KV caching recipe](../kv-caching/) runs two vLLM replicas that share one
 KV cache in Valkey. Its notebook picks which replica serves each request by hand:
 it calls replica A, then deliberately replica B, so it can show the second
 replica reusing the first's cached tensors. That hardcoded choice stands in for a
 router.
 
-This cookbook is that missing piece, the index a router consults to make the
+This recipe is that missing piece, the index a router consults to make the
 choice on its own. In a full deployment the two fit together. The router reads
 this index to send a request to the already-warm replica, and that replica then
-reloads the cached tensors from Valkey (what the KV caching cookbook shows)
-instead of recomputing them. This cookbook holds the block-to-server locations;
-the KV caching cookbook holds the tensors those locations point to.
+reloads the cached tensors from Valkey (what the KV caching recipe shows)
+instead of recomputing them. This recipe holds the block-to-server locations;
+the KV caching recipe holds the tensors those locations point to.
 
 Wiring llm-d's real router (its Endpoint Picker) in front of those replicas, with
 the servers emitting the KV-cache events that populate this index, is the
@@ -193,7 +193,7 @@ Kubernetes and GPU deployment described above.
 
 ```
 docker-compose.yml               starts Valkey (the routing index store)
-prompt-routing-with-valkey.ipynb  the cookbook notebook (Go / gophernotes kernel)
+prompt-routing-with-valkey.ipynb  the recipe notebook (Go / gophernotes kernel)
 cmd/prompt-routing/main.go        the demo program the notebook runs per step
 go.mod / go.sum                  pins github.com/llm-d/llm-d-kv-cache v1.0.0
 _build_notebook.py               regenerates the notebook (see note below)

@@ -12,7 +12,7 @@ writes are exactly what a live router would store.
 It is deliberately small: it exercises the index backend directly (Add, Lookup,
 Evict) rather than standing up model servers, a tokenizer, or GPUs. The full
 routing+serving path — servers emitting KV-cache events, the router scoring live
-requests — is a Kubernetes/GPU system and out of scope for this cookbook.
+requests — is a Kubernetes/GPU system and out of scope for this recipe.
 
 Each subcommand opens a fresh connection and does one step. Because the index
 lives in Valkey, running the steps as separate processes mirrors separate router
