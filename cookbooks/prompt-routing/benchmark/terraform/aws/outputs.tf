@@ -22,3 +22,8 @@ output "ssm_port_forward_example" {
   description = "Forward the host's port 8000 (e.g. the Envoy router) to localhost:8000."
   value       = "aws ssm start-session --region ${var.region} --target ${aws_instance.host.id} --document-name AWS-StartPortForwardingSession --parameters 'portNumber=[\"8000\"],localPortNumber=[\"8000\"]'"
 }
+
+output "region" {
+  description = "Region the host runs in."
+  value       = var.region
+}

@@ -63,6 +63,14 @@ eval "$(terraform output -raw ssm_shell)"
 eval "$(terraform output -raw ssm_port_forward_example)"
 ```
 
+To run your local copy of the stack instead of a clone (for example while
+you're changing it), set `repo_url = ""` and push it over SSM. It lands in
+`/opt/bench/stack`, and pushing again keeps any results already on the host:
+
+```bash
+./push-stack.sh
+```
+
 On the host, `/var/log/gpu-bench-bootcheck.log` records the first-boot
 setup: the Compose plugin check, the clone, `nvidia-smi`, and the Docker
 runtimes.
