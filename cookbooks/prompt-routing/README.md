@@ -154,10 +154,13 @@ map, the prefix-chain scoring, the shared-across-replicas property) are real.
 
 It does not stand up the full routing-and-serving path: model servers emitting
 KV-cache events, the router tokenizing live prompts and scoring real traffic, or
-the first-token-latency win that cache-aware routing produces end to end. That is
-a Kubernetes and GPU deployment and is out of scope here. See llm-d's
-[precise prefix-cache routing guide](https://github.com/llm-d/llm-d/tree/main/guides/precise-prefix-cache-routing)
-for the full stack.
+the first-token-latency win that cache-aware routing produces end to end. That
+needs GPU model servers, so it lives in a separate, optional
+[GPU benchmark](benchmark/). The benchmark runs llm-d's router, four vLLM
+replicas and Valkey as plain containers, with no Kubernetes, and measures
+time-to-first-token against random routing; its README has the results. For a
+Kubernetes deployment, see llm-d's
+[precise prefix-cache routing guide](https://github.com/llm-d/llm-d/tree/main/guides/precise-prefix-cache-routing).
 
 Current limits worth knowing:
 
@@ -186,8 +189,8 @@ instead of recomputing them. This recipe holds the block-to-server locations;
 the KV caching recipe holds the tensors those locations point to.
 
 Wiring llm-d's real router (its Endpoint Picker) in front of those replicas, with
-the servers emitting the KV-cache events that populate this index, is the
-Kubernetes and GPU deployment described above.
+the servers emitting the KV-cache events that populate this index, is what the
+[GPU benchmark](benchmark/) does.
 
 ## What's in this directory
 

@@ -8,8 +8,8 @@
 # what a live router would store.
 #
 # A full routing+serving deployment (model servers emitting KV-cache events, the
-# router scoring live requests) is a Kubernetes/GPU system and out of scope here;
-# this recipe focuses on the Valkey-backed index itself.
+# router scoring live requests) needs GPUs and lives in the optional benchmark/
+# stack; this recipe focuses on the Valkey-backed index itself.
 services:
   valkey:
     image: docker.io/valkey/valkey-bundle:8.1.7

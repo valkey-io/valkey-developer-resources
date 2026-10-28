@@ -10,8 +10,9 @@ and the load generator) is host-agnostic and runs on that host.
 
 ## What it creates
 
-- A dedicated VPC with one public subnet and an internet gateway, placed in an
-  availability zone that offers the chosen instance type.
+- A dedicated VPC with one public subnet and an internet gateway, placed in
+  `availability_zone`, or in the first zone that offers the chosen instance
+  type if that's empty.
 - A security group with no inbound rules. Outbound traffic is open so the host
   can pull images and model weights.
 - An IAM role and instance profile with `AmazonSSMManagedInstanceCore` only.
@@ -29,6 +30,10 @@ and the load generator) is host-agnostic and runs on that host.
 The default instance type is `g6.12xlarge` (4x NVIDIA L4, 24 GB each), enough
 for two to four vLLM replicas of a small ungated model at TP=1. No Hugging Face
 token is needed for ungated models, and the configuration holds no secrets.
+The published results were measured on a `g4dn.12xlarge` (4x T4, 16 GB each)
+in `ca-central-1`, because L4 capacity was unavailable on the day; see the
+[benchmark README](../../README.md#results) for the settings that size the
+stack for 16 GB GPUs.
 
 ## Before you start
 
@@ -42,6 +47,23 @@ token is needed for ungated models, and the configuration holds no secrets.
   networking (VPC, subnet, internet gateway, route table, security group),
   instances and volumes, IAM roles and instance profiles (including attaching
   a managed policy and `iam:PassRole`), and read SSM parameters.
+- Capacity: GPU instances regularly run out of on-demand capacity in a zone,
+  or a whole region. `terraform apply` then sits on "Still creating..." while
+  the provider retries `InsufficientInstanceCapacity`. Stop it, pick another
+  zone with `availability_zone` (or another region or instance type), and
+  apply again. A quick way to find a zone with capacity is to create a
+  one-instance capacity reservation there and cancel it straight away (a
+  reservation bills like a running instance while it's active):
+
+  ```bash
+  aws ec2 create-capacity-reservation --region us-east-1 \
+    --availability-zone us-east-1c --instance-type g6.12xlarge \
+    --instance-platform Linux/UNIX --instance-count 1
+  # On success, cancel it (or keep it until the instance launches into it):
+  aws ec2 cancel-capacity-reservation --region us-east-1 \
+    --capacity-reservation-id <id from the output>
+  ```
+
 - Cost: check current rates for your region and instance type in the
   [AWS Pricing Calculator](https://calculator.aws/).
 

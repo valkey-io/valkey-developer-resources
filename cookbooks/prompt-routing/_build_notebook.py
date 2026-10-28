@@ -144,10 +144,11 @@ block-to-server map, the prefix chain, and the shared-across-replicas property.
 
 It does not stand up the full routing-and-serving path: model servers emitting
 KV-cache events, the router tokenizing live prompts and scoring real traffic, or
-the first-token-latency win that cache-aware routing produces end to end. That is
-a Kubernetes and GPU deployment, and is out of scope here. See llm-d's
-[precise prefix-cache routing guide](https://github.com/llm-d/llm-d/tree/main/guides/precise-prefix-cache-routing)
-for the full stack."""),
+the first-token-latency win that cache-aware routing produces end to end. That
+needs GPU model servers and is out of scope for this notebook. The recipe's
+optional [GPU benchmark](benchmark/) runs the full path as plain containers, with
+no Kubernetes, and measures it. For a Kubernetes deployment, see llm-d's
+[precise prefix-cache routing guide](https://github.com/llm-d/llm-d/tree/main/guides/precise-prefix-cache-routing)."""),
 ]
 
 nb["cells"] = cells

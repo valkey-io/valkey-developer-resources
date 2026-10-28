@@ -18,8 +18,119 @@ following llm-d's
 
 ## Results
 
-Not run yet. This section will hold the measured numbers, the exact host,
-and the command that produced them.
+We ran this benchmark on an AWS `g4dn.12xlarge` (4x NVIDIA T4, 16 GB each)
+in `ca-central-1`, provisioned with the Terraform in
+[`terraform/aws/`](terraform/aws/), on 2026-10-28. We had planned to use
+`g6.12xlarge` (4x L4), but on-demand capacity for it, and for every other
+4-GPU G instance we tried, was unavailable in all US zones that day. Read
+the caveats below before quoting these numbers.
+
+### Many prefixes competing for cache
+
+128 shared system prompts of 1,024 tokens each, four users per prompt, a
+128-token question and 16 output tokens. The shared prefixes add up to about
+131k tokens, more than the four replicas can cache between them (about 120k),
+so every strategy has to evict. 256 warm-up requests, then 384 requests at
+each concurrency level.
+
+| Strategy | Concurrency | TTFT p50 ms | TTFT p90 ms | TTFT p99 ms | Prompt tokens from cache | Requests/s |
+| --- | --- | --- | --- | --- | --- | --- |
+| random | 8 | 916 | 2,411 | 3,331 | 14% | 2.83 |
+| approximate | 8 | 842 | 1,048 | 1,619 | 40% | 4.25 |
+| precise-memory | 8 | 585 | 968 | 1,348 | 58% | 4.75 |
+| precise-valkey | 8 | 577 | 977 | 1,337 | 58% | 4.75 |
+| random | 16 | 1,461 | 4,554 | 9,095 | 11% | 2.82 |
+| approximate | 16 | 940 | 1,408 | 2,096 | 38% | 5.14 |
+| precise-memory | 16 | 897 | 1,205 | 2,060 | 57% | 6.25 |
+| precise-valkey | 16 | 847 | 1,152 | 1,718 | 58% | 6.37 |
+
+What this shows:
+
+- Precise prefix-cache routing reused 58% of prompt tokens from cache,
+  against 40% for the approximate scorer and 11-14% for random routing. At
+  concurrency 8 it cut median time-to-first-token by 31% compared
+  with the approximate scorer, and by about 37% compared with random.
+- At concurrency 16, precise routing served 2.3 times the requests per second
+  of random routing, and about 24% more than the approximate scorer.
+- Keeping the index in Valkey instead of the router's memory made no
+  measurable difference here: the two precise rows are within run-to-run
+  noise of each other. After the `precise-valkey` run, Valkey held 5,312
+  index keys written from vLLM's KV-cache events; after the other strategies
+  it held none.
+
+### Every prefix fits in cache
+
+32 shared system prompts of 1,024 tokens, eight users per prompt, same
+question and output lengths. The shared prefixes total about 33k tokens,
+which fits in the replicas' combined cache with plenty to spare. 64 warm-up
+requests, then 384 requests at each concurrency level.
+
+| Strategy | Concurrency | TTFT p50 ms | TTFT p90 ms | TTFT p99 ms | Prompt tokens from cache | Requests/s |
+| --- | --- | --- | --- | --- | --- | --- |
+| random | 4 | 261 | 933 | 1,565 | 62% | 3.07 |
+| approximate | 4 | 183 | 265 | 810 | 91% | 4.47 |
+| precise-memory | 4 | 195 | 279 | 833 | 91% | 4.32 |
+| precise-valkey | 4 | 198 | 279 | 825 | 91% | 4.30 |
+| random | 8 | 363 | 1,130 | 3,758 | 67% | 4.64 |
+| approximate | 8 | 199 | 267 | 323 | 94% | 8.09 |
+| precise-memory | 8 | 207 | 293 | 393 | 94% | 7.71 |
+| precise-valkey | 8 | 206 | 286 | 353 | 94% | 7.75 |
+| random | 16 | 897 | 1,846 | 3,053 | 64% | 5.89 |
+| approximate | 16 | 234 | 348 | 454 | 94% | 12.60 |
+| precise-memory | 16 | 249 | 361 | 613 | 94% | 12.10 |
+| precise-valkey | 16 | 247 | 375 | 473 | 94% | 11.98 |
+
+Any prefix-aware routing beats random here: at concurrency 16, median
+time-to-first-token drops from 897 ms to under 250 ms and throughput roughly
+doubles. But with this little cache pressure, the approximate scorer matches
+precise routing and even comes out slightly ahead, though within noise. Precise routing
+pays off when caches are under pressure and evicting, as in the first
+workload, because it routes on what vLLM actually holds rather than on what
+the router has sent where. Valkey held 3,960 index keys after the
+`precise-valkey` run and again added no measurable latency.
+
+### How these numbers were produced
+
+The T4 settings differ from the defaults, which are sized for 24 GB GPUs:
+
+```bash
+MODEL=Qwen/Qwen3-4B DTYPE=half MAX_MODEL_LEN=10240 \
+SYSTEM_PROMPT_LEN=1024 QUESTION_LEN=128 OUTPUT_LEN=16 \
+NUM_PREFIXES=128 PROMPTS_PER_PREFIX=4 \
+WARMUP_REQUESTS=256 STAGE_REQUESTS=384 CONCURRENCY_LEVELS="8 16" \
+PEAK_PREFILL_THROUGHPUT=299 \
+sudo -E ./scripts/run-benchmark.sh
+```
+
+For the second workload, change `NUM_PREFIXES=32 PROMPTS_PER_PREFIX=8
+WARMUP_REQUESTS=64 CONCURRENCY_LEVELS="4 8 16"`.
+
+`PEAK_PREFILL_THROUGHPUT=299` is the value the script's calibration step
+measured on this host (an 8,192-token prefill took 27.4 seconds).
+
+### Caveats
+
+- **Old GPUs.** The T4 is too old for FlashAttention (it needs compute
+  capability 8.0; the T4 is 7.5), so vLLM falls back to a slower Triton
+  attention kernel. Absolute latencies are far higher than on current GPUs.
+  Compare strategies with each other, not with other published numbers.
+- **Small model and short prefixes.** Qwen3-4B in fp16 leaves each 16 GB GPU
+  about 30k tokens of KV cache, so the shared prefixes are 1,024 tokens rather
+  than the 4,096 the defaults use. Longer prefixes make each cache hit worth
+  more, so we'd expect a larger gap on bigger GPUs, but we haven't measured it.
+- **One run each.** Each row is a single run of 384 requests, without repeats
+  or confidence intervals. Treat differences under about 10% as noise.
+- **One router.** The run uses a single router replica, as llm-d's precise
+  routing guide does. It doesn't measure what a Valkey index is for: sharing
+  one index across router replicas and keeping it through a router restart.
+- **Same workload, cold start.** Every strategy saw the same prompts in the
+  same order (fixed seed), and started with empty prefix caches and an empty
+  index. Warm-up requests are excluded from the tables.
+- **"Prompt tokens from cache"** is vLLM's own count of cached prompt tokens,
+  as reported per response and summed by inference-perf.
+- inference-perf flagged a few requests where its count of output tokens
+  differed from vLLM's. That affects output-token statistics only, not
+  time-to-first-token.
 
 ## What it compares
 
@@ -43,8 +154,10 @@ run like this one doesn't measure that benefit.
 
 ## What you need
 
-- A Linux host with four NVIDIA GPUs of 24 GB or more (the defaults are
-  sized for an AWS `g6.12xlarge`, 4x L4).
+- A Linux host with four NVIDIA GPUs. The defaults are sized for 24 GB GPUs
+  such as an AWS `g6.12xlarge` (4x L4). 16 GB GPUs work with a smaller model
+  and shorter prefixes; [the results above](#how-these-numbers-were-produced)
+  list the settings we used on 4x T4.
 - Docker with the Compose plugin, the NVIDIA Container Toolkit, and
   `python3`.
 - About 100 GB of free disk for images and model weights.
