@@ -25,7 +25,7 @@ done
 [[ "$status" == "Online" ]] || { echo "instance not online in SSM (status: ${status:-none})" >&2; exit 1; }
 
 # COPYFILE_DISABLE keeps macOS tar from adding ._ metadata files.
-payload="$(COPYFILE_DISABLE=1 tar -C "$BENCH_DIR" \
+payload="$(COPYFILE_DISABLE=1 tar --no-xattrs -C "$BENCH_DIR" \
   --exclude ./terraform --exclude ./results --exclude ./rendered \
   --exclude ./.hf-cache --exclude ./.env \
   -czf - . | base64 | tr -d '\n')"
@@ -36,12 +36,19 @@ trap 'rm -f "$request"' EXIT
 python3 - "$INSTANCE_ID" "$DEST" "$payload" > "$request" <<'PY'
 import json, sys
 instance, dest, payload = sys.argv[1:4]
+# AWS-RunShellScript runs under /bin/sh (dash on Ubuntu), so stick to POSIX
+# sh: no pipefail, and no pipes, so each step's exit status counts.
 script = [
-    "set -euo pipefail",
+    "set -eu",
     f"mkdir -p {dest}",
-    f"echo '{payload}' | base64 -d | tar -xzf - -C {dest} --no-same-owner",
+    f"printf '%s' '{payload}' > /tmp/bench-stack.b64",
+    "base64 -d /tmp/bench-stack.b64 > /tmp/bench-stack.tgz",
+    f"tar -xzf /tmp/bench-stack.tgz -C {dest} --no-same-owner",
+    "rm -f /tmp/bench-stack.b64 /tmp/bench-stack.tgz",
     f"chmod +x {dest}/scripts/*.sh {dest}/scripts/*.py {dest}/vllm/*.sh",
-    f"echo synced to {dest}; ls {dest}",
+    f"echo synced to {dest}",
+    f"ls {dest}",
+    f"grep -c DTYPE {dest}/compose.yaml {dest}/vllm/serve-vllm.sh",
 ]
 print(json.dumps({
     "InstanceIds": [instance],

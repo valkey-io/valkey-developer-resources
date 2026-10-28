@@ -23,7 +23,12 @@ import urllib.request
 def post(url: str, body: dict | None = None, timeout: float = 30.0):
     data = json.dumps(body).encode() if body is not None else b""
     req = urllib.request.Request(url, data=data, method="POST", headers={"Content-Type": "application/json"})
-    return urllib.request.urlopen(req, timeout=timeout)
+    try:
+        return urllib.request.urlopen(req, timeout=timeout)
+    except urllib.error.HTTPError as exc:
+        # Surface the server's explanation (vLLM puts it in the body).
+        detail = exc.read().decode(errors="replace")[:500]
+        raise RuntimeError(f"POST {url} returned HTTP {exc.code}: {detail}") from None
 
 
 def time_to_first_token(endpoint: str, model: str, n_tokens: int) -> float:
@@ -77,7 +82,7 @@ def wait_router(args: argparse.Namespace) -> None:
                     print("wait-router: router is serving", file=sys.stderr)
                     return
                 last_error = f"HTTP {resp.status}"
-        except (urllib.error.URLError, OSError) as exc:
+        except (urllib.error.URLError, OSError, RuntimeError) as exc:
             last_error = str(exc)
         time.sleep(3)
     sys.exit(f"wait-router: router not serving after {args.timeout}s (last error: {last_error})")

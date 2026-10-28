@@ -44,5 +44,5 @@ set +e
 
   # Confirm the GPU stack the benchmark relies on is present.
   nvidia-smi || echo "nvidia-smi failed"
-  docker info --format 'docker {{.ServerVersion}} runtimes={{json .Runtimes}}' || echo "docker info failed"
+  docker info --format 'docker {{.ServerVersion}} runtimes:{{range $name, $_ := .Runtimes}} {{$name}}{{end}}' || echo "docker info failed"
 } >/var/log/gpu-bench-bootcheck.log 2>&1

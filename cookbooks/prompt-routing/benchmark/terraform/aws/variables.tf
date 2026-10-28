@@ -92,3 +92,9 @@ variable "repo_ref" {
     error_message = "repo_ref must contain only letters, digits, and . _ / - characters."
   }
 }
+
+variable "availability_zone" {
+  description = "Availability zone for the host, e.g. us-east-1c. Empty picks the first zone that offers instance_type. Set this if launch fails with InsufficientInstanceCapacity."
+  type        = string
+  default     = ""
+}

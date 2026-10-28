@@ -37,6 +37,8 @@ x-vllm: &vllm
     GPU_MEMORY_UTILIZATION: ${GPU_MEMORY_UTILIZATION:-0.90}
     MAX_MODEL_LEN: ${MAX_MODEL_LEN:-16384}
     MAX_NUM_BATCHED_TOKENS: ${MAX_NUM_BATCHED_TOKENS:-8192}
+    # "half" on GPUs without bfloat16 support, such as the T4.
+    DTYPE: ${DTYPE:-auto}
   volumes:
     - ${HF_CACHE:-./.hf-cache}:/hf-cache
     - ./vllm/serve-vllm.sh:/bench/serve-vllm.sh:ro
@@ -156,6 +158,8 @@ services:
       - --metrics-port=9090
       - --secure-serving=false
       - --health-checking=true
+      # No trace collector runs here; without this the EPP logs export errors.
+      - --tracing=false
       - --v=2
 
   # Load generator and helper scripts. Started on demand by run-benchmark.sh

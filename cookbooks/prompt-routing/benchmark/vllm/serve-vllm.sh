@@ -22,6 +22,7 @@ KV_EVENTS_CONFIG=$(printf '{"enable_kv_cache_events":true,"publisher":"zmq","end
 exec vllm serve "$MODEL" \
   --host 0.0.0.0 \
   --port 8000 \
+  --dtype "${DTYPE:-auto}" \
   --block-size 64 \
   --enable-prefix-caching \
   --enable-scale-out \

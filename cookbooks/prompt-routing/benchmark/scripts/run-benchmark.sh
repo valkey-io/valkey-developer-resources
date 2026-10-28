@@ -25,6 +25,7 @@ fi
 
 export MODEL="${MODEL:-Qwen/Qwen3-8B}"
 export MAX_NUM_BATCHED_TOKENS="${MAX_NUM_BATCHED_TOKENS:-8192}"
+export MAX_MODEL_LEN="${MAX_MODEL_LEN:-16384}"
 export STRATEGIES="${STRATEGIES:-random approximate precise-memory precise-valkey}"
 export CONCURRENCY_LEVELS="${CONCURRENCY_LEVELS:-8 16 32}"
 export WARMUP_REQUESTS="${WARMUP_REQUESTS:-128}"
@@ -49,6 +50,13 @@ log() { printf '\n==> %s\n' "$*"; }
 benchctl() {
   docker compose run --rm --no-deps -T --entrypoint python3 loadgen /bench/scripts/benchctl.py "$@"
 }
+
+# Calibration sends MAX_NUM_BATCHED_TOKENS prompt tokens plus one output
+# token, so the context window has to be larger.
+if (( MAX_MODEL_LEN <= MAX_NUM_BATCHED_TOKENS )); then
+  echo "MAX_MODEL_LEN ($MAX_MODEL_LEN) must be larger than MAX_NUM_BATCHED_TOKENS ($MAX_NUM_BATCHED_TOKENS)" >&2
+  exit 1
+fi
 
 for strategy in $STRATEGIES; do
   [[ -f "epp/$strategy.yaml" ]] || { echo "unknown strategy: $strategy" >&2; exit 1; }
@@ -77,6 +85,9 @@ python3 scripts/render.py
 {
   echo "run_id: $RUN_ID"
   echo "model: $MODEL"
+  echo "dtype: ${DTYPE:-auto}"
+  echo "max_model_len: $MAX_MODEL_LEN"
+  echo "gpu_memory_utilization: ${GPU_MEMORY_UTILIZATION:-0.90}"
   echo "peak_prefill_throughput: $PEAK_PREFILL_THROUGHPUT"
   echo "strategies: $STRATEGIES"
   echo "concurrency_levels: $CONCURRENCY_LEVELS"

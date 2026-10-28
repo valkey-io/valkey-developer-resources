@@ -20,8 +20,9 @@ data "aws_ec2_instance_type_offerings" "gpu" {
 }
 
 locals {
-  azs        = sort(data.aws_ec2_instance_type_offerings.gpu.locations)
-  az         = length(local.azs) > 0 ? local.azs[0] : null
+  azs = sort(data.aws_ec2_instance_type_offerings.gpu.locations)
+  # An explicit zone wins; otherwise take the first zone that offers the type.
+  az         = var.availability_zone != "" ? var.availability_zone : (length(local.azs) > 0 ? local.azs[0] : null)
   vpc_prefix = tonumber(split("/", var.vpc_cidr)[1])
 }
 
@@ -53,8 +54,8 @@ resource "aws_subnet" "public" {
 
   lifecycle {
     precondition {
-      condition     = local.az != null
-      error_message = "No availability zone in ${var.region} offers ${var.instance_type}. Pick another region or instance type."
+      condition     = local.az != null && contains(local.azs, local.az)
+      error_message = "${var.instance_type} is not offered in ${coalesce(local.az, "any zone of ${var.region}")}. Offered zones: ${join(", ", local.azs)}."
     }
   }
 }
