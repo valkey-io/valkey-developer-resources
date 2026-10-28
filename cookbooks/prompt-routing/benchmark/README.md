@@ -141,9 +141,10 @@ measured on this host (an 8,192-token prefill took 27.4 seconds).
   capability 8.0; the T4 is 7.5), so vLLM falls back to a slower Triton
   attention kernel. Absolute latencies are far higher than on current GPUs.
   Compare strategies with each other, not with other published numbers. We
-  used T4s because no newer GPU was available: on-demand capacity for
-  `g6.12xlarge` (4x L4), and for every other 4-GPU G instance we tried, ran
-  out in every zone of the US and Canadian regions we checked that day.
+  used T4s because no newer GPU was available: when we tried, AWS had no
+  on-demand capacity for `g6.12xlarge` (4x L4) in `us-east-1`, `us-east-2`,
+  `us-west-2` or `ca-central-1`, or for the A10G (`g5`) and L40S (`g6e`)
+  alternatives we tried there.
 - **Small model and short prefixes.** Qwen3-4B in fp16 leaves each 16 GB GPU
   about 30k tokens of KV cache, so the shared prefixes are 1,024 tokens rather
   than the 4,096 the defaults use. Longer prefixes make each cache hit worth
