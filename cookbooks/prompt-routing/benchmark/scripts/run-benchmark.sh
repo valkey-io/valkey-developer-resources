@@ -95,7 +95,7 @@ python3 scripts/render.py
   echo "stage_requests: $STAGE_REQUESTS"
   echo "workload: $NUM_PREFIXES prefixes x $SYSTEM_PROMPT_LEN tokens, $PROMPTS_PER_PREFIX prompts each, question $QUESTION_LEN, output $OUTPUT_LEN, seed $SEED"
   echo "images:"
-  docker compose config --images | sort -u | sed 's/^/  - /'
+  docker compose --profile tools config --images | sort -u | sed 's/^/  - /'
   echo "gpus:"
   if command -v nvidia-smi >/dev/null; then
     nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader | sed 's/^/  - /'
