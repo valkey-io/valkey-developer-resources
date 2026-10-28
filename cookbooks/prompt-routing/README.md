@@ -23,9 +23,9 @@ each conversation.
 This recipe is about that index, the piece prompt routing is built on. It
 drives llm-d's real indexer library
 ([`llm-d-kv-cache`](https://github.com/llm-d/llm-d-kv-cache)) against Valkey, so
-the keys it writes are exactly what a live router stores. The router's live
-routing decisions sit on top of this index and are out of scope here (see
-[What this shows, and what it doesn't](#what-this-shows-and-what-it-doesnt)).
+the keys it writes are exactly what a live router stores. The router's decisions sit on top of this index. The notebook doesn't run them, but
+an optional [GPU benchmark](benchmark/) does, and measures the result (see
+[Measured end to end](#measured-end-to-end)).
 
 ## What you'll have working at the end
 
@@ -36,6 +36,22 @@ block you see the cached prefix shorten. You inspect the index directly with
 `valkey-cli`, and the state is shared: a second router replica pointed at the
 same Valkey would read the same index. It runs on CPU, with no model server or
 GPU required.
+
+## Measured end to end
+
+The notebook runs on CPU and shows the index itself. To see what the index buys
+you, the optional [GPU benchmark](benchmark/) runs llm-d's real router in front
+of four vLLM replicas, with the index in Valkey, and compares time-to-first-token
+against random routing. It runs as plain containers on any host with four NVIDIA
+GPUs, and includes optional Terraform for an AWS host.
+
+On four NVIDIA T4s, with more shared prompts than the replicas could cache,
+precise prefix-cache routing reused 58% of prompt tokens from cache against 14%
+for random routing. That cut median time-to-first-token from 916 ms to 577 ms at
+8 concurrent users. Keeping the index in Valkey rather than in the router's
+memory made no measurable difference to latency. The benchmark README has the
+full tables, the caveats (old GPUs, a small model, single runs), and why you'd
+put the index in Valkey when it isn't faster.
 
 ## How it works
 
@@ -200,6 +216,7 @@ prompt-routing-with-valkey.ipynb  the recipe notebook (Go / gophernotes kernel)
 cmd/prompt-routing/main.go        the demo program the notebook runs per step
 go.mod / go.sum                  pins github.com/llm-d/llm-d-kv-cache v1.0.0
 _build_notebook.py               regenerates the notebook (see note below)
+benchmark/                       optional GPU latency benchmark, results, and AWS Terraform
 ```
 
 The notebook cells run the compiled program in `cmd/prompt-routing` via `go run`

@@ -89,6 +89,35 @@ workload, because it routes on what vLLM actually holds rather than on what
 the router has sent where. Valkey held 3,960 index keys after the
 `precise-valkey` run and again added no measurable latency.
 
+### Why use Valkey if it isn't faster?
+
+In both workloads, `precise-valkey` and `precise-memory` are within noise of
+each other. Each request does a few small index lookups, and against a Valkey
+on the same host those take well under a millisecond, while time-to-first-token
+on these GPUs is hundreds of milliseconds. Two things would make the overhead look larger outside this
+setup: faster GPUs shrink
+time-to-first-token, and a Valkey on another host or in another availability
+zone adds a network round trip to each lookup. We haven't measured either.
+
+What Valkey changes is where the index lives: outside the router process.
+
+- **Router restarts and upgrades.** An in-memory index starts empty when the
+  router restarts, and can only rebuild from vLLM's limited event replay buffer
+  and from new events. Until it does, routing is close to random. A Valkey index
+  is still there. llm-d's precise routing guide names this gap: a router that
+  starts after the model servers have warmed up misses the prefixes they cached
+  before its replay window.
+- **More than one router.** A new or replacement router reads the complete
+  index from Valkey instead of building its own. This covers the index side of
+  running several routers. llm-d still recommends a single router for precise
+  routing, because its in-flight load accounting is per process.
+- **One copy, visible.** The index is stored once instead of once per router,
+  and you can inspect it directly, as the recipe notebook does.
+
+This benchmark runs one router that never restarts, so it doesn't measure any
+of these. A run that restarts the router partway
+through would show the difference.
+
 ### How these numbers were produced
 
 The T4 settings differ from the defaults, which are sized for 24 GB GPUs:
