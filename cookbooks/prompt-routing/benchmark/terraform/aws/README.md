@@ -30,10 +30,12 @@ and the load generator) is host-agnostic and runs on that host.
 The default instance type is `g6.12xlarge` (4x NVIDIA L4, 24 GB each), enough
 for two to four vLLM replicas of a small ungated model at TP=1. No Hugging Face
 token is needed for ungated models, and the configuration holds no secrets.
-The published results were measured on a `g4dn.12xlarge` (4x T4, 16 GB each)
-in `ca-central-1`, because L4 capacity was unavailable on the day; see the
-[benchmark README](../../README.md#results) for the settings that size the
-stack for 16 GB GPUs.
+The published results were measured on a `g6e.12xlarge` (4x L40S, 48 GB
+each) in `ap-northeast-1`, with a smaller run on a `g4dn.12xlarge` (4x T4,
+16 GB each), because L4 capacity was unavailable on the days we tried. Set
+`instance_type`, `region` and `availability_zone` to match; the
+[benchmark README](../../README.md#results) lists the workload settings for
+each.
 
 ## Before you start
 

@@ -45,13 +45,14 @@ of four vLLM replicas, with the index in Valkey, and compares time-to-first-toke
 against random routing. It runs as plain containers on any host with four NVIDIA
 GPUs, and includes optional Terraform for an AWS host.
 
-On four NVIDIA T4s, with more shared prompts than the replicas could cache,
-precise prefix-cache routing reused 58% of prompt tokens from cache against 14%
-for random routing. That cut median time-to-first-token from 916 ms to 577 ms at
-8 concurrent users. Keeping the index in Valkey rather than in the router's
-memory made no measurable difference to latency. The benchmark README has the
-full tables, the caveats (old GPUs, a small model, single runs), and why you'd
-put the index in Valkey when it isn't faster.
+On four NVIDIA L40S GPUs, with more shared prompts than the replicas could
+cache, precise prefix-cache routing reused 65% of prompt tokens from cache
+against 14% for random routing. That cut median time-to-first-token from
+409 ms to 133 ms at 8 concurrent users. Keeping the index in Valkey rather
+than in the router's memory made no measurable difference to latency. The
+benchmark README has the full tables, a smaller run on older T4 GPUs, the
+caveats (single runs, one router, and a KV-event replay problem we hit and
+worked around), and why you'd put the index in Valkey when it isn't faster.
 
 ## How it works
 
