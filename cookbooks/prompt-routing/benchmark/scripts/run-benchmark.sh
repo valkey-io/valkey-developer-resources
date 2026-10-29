@@ -37,6 +37,12 @@ export QUESTION_LEN="${QUESTION_LEN:-256}"
 export OUTPUT_LEN="${OUTPUT_LEN:-64}"
 export SEED="${SEED:-42}"
 export RUN_ID="${RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
+# Restart the vLLM replicas before each strategy (1) or only reset their
+# prefix caches (0). Restarting gives each router run a fresh KV-event stream:
+# a router that joins long-running replicas mid-stream asks vLLM to replay
+# events it no longer buffers, and on fast GPUs the resulting resets degrade
+# precise routing.
+export RESTART_REPLICAS="${RESTART_REPLICAS:-1}"
 
 REPLICAS=(vllm-0 vllm-1 vllm-2 vllm-3)
 REPLICA_URLS=(http://172.30.0.11:8000 http://172.30.0.12:8000 http://172.30.0.13:8000 http://172.30.0.14:8000)
@@ -93,6 +99,7 @@ python3 scripts/render.py
   echo "concurrency_levels: $CONCURRENCY_LEVELS"
   echo "warmup_requests: $WARMUP_REQUESTS"
   echo "stage_requests: $STAGE_REQUESTS"
+  echo "restart_replicas: $RESTART_REPLICAS"
   echo "workload: $NUM_PREFIXES prefixes x $SYSTEM_PROMPT_LEN tokens, $PROMPTS_PER_PREFIX prompts each, question $QUESTION_LEN, output $OUTPUT_LEN, seed $SEED"
   echo "images:"
   docker compose --profile tools config --images | sort -u | sed 's/^/  - /'
@@ -106,7 +113,12 @@ docker compose logs --no-color vllm-0 > "$RESULTS/vllm-0.log" 2>&1 || true
 for strategy in $STRATEGIES; do
   log "Strategy: $strategy"
   docker compose rm -sf epp >/dev/null
-  benchctl reset-prefix-cache "${REPLICA_URLS[@]}"
+  if [[ "$RESTART_REPLICAS" == "1" ]]; then
+    docker compose restart "${REPLICAS[@]}" >/dev/null
+    docker compose up -d --no-deps --wait --wait-timeout 1200 "${REPLICAS[@]}"
+  else
+    benchctl reset-prefix-cache "${REPLICA_URLS[@]}"
+  fi
   docker compose exec -T valkey valkey-cli FLUSHALL >/dev/null
 
   EPP_STRATEGY="$strategy" docker compose up -d --no-deps epp
