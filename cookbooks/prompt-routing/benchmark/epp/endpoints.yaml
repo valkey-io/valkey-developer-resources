@@ -1,0 +1,25 @@
+# Endpoints for llm-d's file-discovery plugin: the four vLLM replicas in
+# compose.yaml. Addresses must be literal IPv4 (the plugin does not resolve
+# hostnames) and must match each replica's POD_IP, because vLLM names itself
+# by that address in its KV-event topic.
+endpoints:
+  - name: vllm-0
+    address: 172.30.0.11
+    port: "8000"
+    labels:
+      model: ${MODEL}
+  - name: vllm-1
+    address: 172.30.0.12
+    port: "8000"
+    labels:
+      model: ${MODEL}
+  - name: vllm-2
+    address: 172.30.0.13
+    port: "8000"
+    labels:
+      model: ${MODEL}
+  - name: vllm-3
+    address: 172.30.0.14
+    port: "8000"
+    labels:
+      model: ${MODEL}

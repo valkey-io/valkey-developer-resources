@@ -1,0 +1,13 @@
+# Jupyter
+.ipynb_checkpoints/
+.virtual_documents/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.uv/
+
+# Go build output
+/cmd/prompt-routing/prompt-routing
+/prompt-routing
