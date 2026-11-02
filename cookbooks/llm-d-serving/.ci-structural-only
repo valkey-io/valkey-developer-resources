@@ -1,0 +1,1 @@
+Runs two vLLM CPU inference replicas, LMCache, llm-d's router and llm-d-async (about 7.4 GiB of container memory under load); the stack does not fit a GitHub-hosted runner. Lint and the test_llm_d_serving.py structural tests still run.
