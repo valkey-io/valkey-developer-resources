@@ -1,23 +1,35 @@
 # llm-d Serving with Valkey
 
-Put [llm-d](https://llm-d.ai)'s router in front of two CPU vLLM servers and use
-one Valkey for three things: the router's prefix-cache index, the KV cache the
-servers share through LMCache, and the batch job queue with per-user quotas.
+Put [llm-d](https://llm-d.ai)'s router in front of two vLLM servers and use one
+Valkey for three things:
 
-This recipe builds on the [KV caching recipe](../kv-caching/), which shares one
-KV cache between two vLLM servers through Valkey. Here llm-d's router (Envoy
-plus llm-d's Endpoint Picker, run without Kubernetes) decides which server gets
-each request: it keeps an index of which server holds which prompt blocks, and
-sends follow-up turns of a conversation to the server that already has them in
-memory. When it has to send a conversation elsewhere, the other server loads it
-from Valkey instead of recomputing it. llm-d's batch processor (llm-d-async)
-queues jobs and enforces quotas in the same Valkey and sends the jobs through
-the same router.
+- **Routing index:** Track which server has each prompt prefix cached, so
+  follow-up requests go to a server that can start answering sooner.
+- **Shared KV cache:** Store the model's computed attention state through
+  LMCache. When a conversation moves to another server, that server can reuse
+  the work instead of processing the whole prompt again.
+- **Batch queue and per-user quotas:** Hold background jobs until they can run,
+  and limit how many jobs each user has admitted within a time window.
 
 llm-d is an open-source framework for serving LLMs across several vLLM servers.
-Its router sends each request to a server based on what it already has cached
-and how busy it is. Every component here is an unmodified upstream image,
-pointed at Valkey by configuration.
+Its router chooses a server based on what it already has cached and how busy
+it is.
+
+**Why CPU here?** This recipe runs on CPU so readers can try it locally without
+GPU hardware. llm-d also supports GPU deployments; its
+[upstream routing guide](https://github.com/llm-d/llm-d/tree/v1.0.0/guides/precise-prefix-cache-routing)
+defaults to NVIDIA GPUs. The three Valkey roles are useful in either setup.
+This Compose stack and the timings shown here were tested only on CPU. A GPU
+version would need an appropriate vLLM image, GPU device configuration, and
+router load settings calibrated for that hardware.
+
+This recipe builds on the [KV caching recipe](../kv-caching/), which shares one
+KV cache between two vLLM servers through Valkey. Here, llm-d's router—Envoy
+plus its Endpoint Picker—runs without Kubernetes, and llm-d's batch processor
+sends admitted jobs through the same router.
+
+Every component here is an unmodified upstream image, pointed at Valkey by
+configuration.
 
 ## What you'll have working at the end
 
