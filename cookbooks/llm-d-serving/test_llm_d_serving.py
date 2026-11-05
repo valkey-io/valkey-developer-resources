@@ -17,7 +17,8 @@ Two tiers:
    that holds the conversation, the router index in Valkey database 1, a
    replica loading another replica's KV from Valkey, a busy replica spilling a
    conversation over to its neighbor, and a batch job submitted from Python in
-   llm-d-async's wire format coming back through the router. They read Valkey
+   llm-d-async's wire format coming back through the router, with excess jobs
+   held by the per-user quota until its window expires. They read Valkey
    with the Valkey GLIDE client, like the notebook, and ``skip`` when the stack
    isn't running so the first tier still passes in a bare CI job.
 """
@@ -571,30 +572,40 @@ return seq
 """
 
 
-@requires_stack
-def test_batch_job_from_python_runs_through_the_router(valkey):
+def _submit_batch_job(valkey, job_id: str, userid: str | None = None):
+    """Submit a short job, optionally subject to the configured per-user gate."""
     from glide_sync import Script
 
-    job_id = f"test-{uuid.uuid4().hex}"
     created = int(time.time())
     deadline = created + 120
     token = secrets.token_hex(16)
+    data = {
+        "id": job_id, "created": created, "deadline": deadline,
+        "payload": {"model": MODEL, "prompt": "Say hello.", "max_tokens": 4},
+        "endpoint": "/v1/completions", "model": MODEL,
+    }
+    if userid is not None:
+        data["metadata"] = {"userid": userid}
     envelope = json.dumps({
         "internal": {"request_token": token, "request_queue_name": "request-sortedset",
                      "result_queue_name": "result-list", "enqueue_seq": -1},
         "request_kind": "plain",
-        "data": {"id": job_id, "created": created, "deadline": deadline,
-                 "payload": {"model": MODEL, "prompt": "Say hello.", "max_tokens": 4},
-                 "endpoint": "/v1/completions", "model": MODEL},
+        "data": data,
     }, separators=(",", ":"))
     head, tail = envelope.split('"enqueue_seq":-1', 1)
-    before = _counters()
     valkey.invoke_script(
         Script(SUBMIT_REQUEST),
         keys=[f"request-seq:request-sortedset:{deadline}", f"request-cancel:{job_id}",
               f"request-active:{job_id}", "request-sortedset"],
         args=[token, str((deadline - created) * 1000), str(deadline + 3600),
               head + '"enqueue_seq":', tail, str(deadline)])
+
+
+@requires_stack
+def test_batch_job_from_python_runs_through_the_router(valkey):
+    job_id = f"test-{uuid.uuid4().hex}"
+    before = _counters()
+    _submit_batch_job(valkey, job_id)
     result = None
     stop = time.monotonic() + 60
     while result is None and time.monotonic() < stop:
@@ -610,3 +621,82 @@ def test_batch_job_from_python_runs_through_the_router(valkey):
     after = _counters()
     assert sum(after[n]["served"] - before[n]["served"] for n in after) >= 1
     assert not valkey.exists([f"request-active:{job_id}"]), "processor cleans up the job state"
+
+
+@requires_stack
+def test_per_user_quota_holds_excess_batch_jobs_until_the_window_expires(valkey, transport):
+    queue = transport["queues"][0]
+    gate = queue["gate_params"]
+    limit = gate["limit"]
+    window = re.fullmatch(r"(\d+)s", gate["window"])
+    assert window, "this test expects a quota window expressed in seconds"
+    window_s = int(window.group(1))
+    user = f"test-quota-{uuid.uuid4().hex}"
+    quota_key = f"{gate['prefix']}{gate['attribute']}:{user}"
+    job_ids = {f"{user}-{i}" for i in range(limit + 1)}
+
+    def results():
+        return {result["id"]: result
+                for raw in valkey.custom_command(["LRANGE", queue["result_queue_name"], "0", "-1"]) or []
+                if (result := json.loads(raw))["id"] in job_ids}
+
+    def queued_jobs():
+        return {job_id
+                for raw in valkey.custom_command(["ZRANGE", queue["queue_name"], "0", "-1"]) or []
+                if (job_id := json.loads(raw)["data"]["id"]) in job_ids}
+
+    started = time.monotonic()
+    try:
+        for job_id in sorted(job_ids):
+            _submit_batch_job(valkey, job_id, userid=user)
+
+        # Observe only this user's jobs, before any admission can age out.
+        # Refused jobs are briefly dequeued on each poll, so retry snapshots
+        # until the excess job is back in the sorted set.
+        stop = started + window_s - 2
+        held_since = None
+        while time.monotonic() < stop:
+            admitted = results()
+            assert len(admitted) <= limit, "the quota admitted too many jobs in one window"
+            if (len(admitted) == limit
+                    and queued_jobs() == job_ids - admitted.keys()
+                    and valkey.zcard(quota_key) == limit):
+                held_since = held_since or time.monotonic()
+                # Wait through at least two processor polls to catch a gate
+                # that records admissions but does not actually hold jobs.
+                if time.monotonic() - held_since >= 1:
+                    break
+            time.sleep(0.1)
+        else:
+            pytest.fail("did not observe the admitted jobs and excess queued job before quota expiry")
+
+        assert all(result["status_code"] == 200 for result in admitted.values())
+        assert valkey.exists([quota_key]), "the per-user quota should live in database 0"
+        assert valkey.custom_command(["TYPE", quota_key]) == b"zset"
+        assert valkey.ttl(quota_key) > 0
+
+        # The held job must eventually run when the sliding window frees a
+        # slot; a job permanently stuck in the queue is not a passing gate.
+        stop = started + 2 * window_s + 10
+        while time.monotonic() < stop:
+            completed = results()
+            if time.monotonic() - started < window_s:
+                assert len(completed) <= limit, "the held job ran before the quota window expired"
+            if completed.keys() == job_ids:
+                break
+            time.sleep(0.2)
+        else:
+            pytest.fail("the held batch job did not finish after the quota window expired")
+        assert all(result["status_code"] == 200 for result in completed.values())
+        assert all(json.loads(result["payload"])["choices"] for result in completed.values())
+        assert not queued_jobs()
+        assert not valkey.exists([f"request-active:{job_id}" for job_id in job_ids])
+    finally:
+        # Preserve other users' queued jobs and results, including on failure.
+        for raw in valkey.custom_command(["ZRANGE", queue["queue_name"], "0", "-1"]) or []:
+            if json.loads(raw)["data"]["id"] in job_ids:
+                valkey.custom_command(["ZREM", queue["queue_name"], raw])
+        for raw in valkey.custom_command(["LRANGE", queue["result_queue_name"], "0", "-1"]) or []:
+            if json.loads(raw)["id"] in job_ids:
+                valkey.custom_command(["LREM", queue["result_queue_name"], "1", raw])
+        valkey.delete([quota_key, *[f"request-active:{job_id}" for job_id in job_ids]])

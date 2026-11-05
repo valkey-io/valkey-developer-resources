@@ -14,10 +14,10 @@ from Valkey instead of recomputing it. llm-d's batch processor (llm-d-async)
 queues jobs and enforces quotas in the same Valkey and sends the jobs through
 the same router.
 
-llm-d is a Cloud Native Computing Foundation (CNCF) sandbox project, founded by
-Red Hat, Google Cloud, IBM Research, CoreWeave and NVIDIA. LMCache and vLLM are
-independent open-source projects. Every component here is an unmodified
-upstream image, pointed at Valkey by configuration.
+llm-d is an open-source framework for serving LLMs across several vLLM servers.
+Its router sends each request to a server based on what it already has cached
+and how busy it is. Every component here is an unmodified upstream image,
+pointed at Valkey by configuration.
 
 ## What you'll have working at the end
 
@@ -242,14 +242,14 @@ the same checks apply.
 | [`envoy/envoy.yaml`](envoy/envoy.yaml) | Envoy config, from llm-d's no-Kubernetes guide |
 | [`async/`](async/) | llm-d-async's transport config and the dummy kubeconfig it needs off-cluster |
 | [`pyproject.toml`](pyproject.toml), [`uv.lock`](uv.lock) | Pinned Python dependencies for the notebook and tests |
-| [`test_llm_d_serving.py`](test_llm_d_serving.py) | Tests: config and compose wiring always; routing, KV reuse and the batch queue when the stack is up |
+| [`test_llm_d_serving.py`](test_llm_d_serving.py) | Tests: config and compose wiring always; routing, KV reuse, the batch queue and per-user quotas when the stack is up |
 | [`.ci-structural-only`](.ci-structural-only) | Tells CI to skip notebook execution (the stack does not fit a hosted runner) |
 
 ## Running the tests
 
 The config and wiring tests run without the stack. The live tests drive the
-router, the replicas and the batch queue, and run only when the stack is up with
-the default router config:
+router, the replicas, the batch queue and per-user quotas, and run only when
+the stack is up with the default router config:
 
 ```bash
 docker compose up -d --wait

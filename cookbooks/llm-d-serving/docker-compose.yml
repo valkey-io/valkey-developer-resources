@@ -82,8 +82,9 @@ x-vllm-common: &vllm-common
       #   the router recomputes vLLM's block hashes from the prompt tokens.
       # --kv-cache-memory-bytes 96M gives each replica 128 blocks of 64 tokens
       #   (8,192 tokens; one block is 0.75 MiB for this model in float16). The
-      #   notebook's conversations are about 1,100 tokens (18 blocks) each and
-      #   at most five are active at a time, so a replica keeps what the router
+      #   notebook's 29-clause conversations start at roughly 950-1,150 tokens
+      #   (15-18 allocated blocks), depending on the tag, and grow on follow-ups.
+      #   At most five are active at a time, so a replica keeps what the router
       #   sent it in memory and a local hit really is local. With 64M (85
       #   blocks) the random-routing section overflowed a replica and some
       #   follow-ups that stayed put were loaded from Valkey instead: vLLM
