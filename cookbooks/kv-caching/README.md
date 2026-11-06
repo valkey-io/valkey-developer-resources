@@ -126,10 +126,10 @@ for candidate in docker podman; do
   case "$(command -v "$candidate" 2>/dev/null)" in /*) ;; *) continue ;; esac
   mem_bytes="$("$candidate" info --format '{{.MemTotal}}' 2>/dev/null)" ||
     mem_bytes="$("$candidate" info --format '{{.Host.MemTotal}}' 2>/dev/null)"
-  case "$mem_bytes" in
-    ''|*[!0-9]*) mem_bytes="" ;;
-    *) rt="$candidate"; break ;;
-  esac
+  if [ -n "$mem_bytes" ] && [ "$mem_bytes" -ge 0 ] 2>/dev/null; then
+    rt="$candidate"; break
+  fi
+  mem_bytes=""
 done
 if [ -z "$rt" ]; then
   echo "Could not read the container runtime's memory from 'docker info' or 'podman info'. Is the runtime running?"
