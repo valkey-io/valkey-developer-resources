@@ -204,6 +204,11 @@ run, how many chunks lookups found in L1 and how many they loaded from
 Valkey. To measure the CPU stack's policy instead, set
 `LMCACHE_L2_STORE_POLICY=skip_l1` and `LMCACHE_EVICTION_POLICY=noop`.
 
+Valkey runs with 8 I/O threads (`VALKEY_IO_THREADS`). Every KV load is a
+36 MiB GET. With Valkey's default of one thread, the first GPU runs had its
+main thread at 100% CPU in socket writes at about 1.5 GB/s, and a load from
+Valkey took about as long as recomputing the prefill.
+
 ### Workload
 
 192 shared system prompts of 4,096 tokens, four users per prompt, a

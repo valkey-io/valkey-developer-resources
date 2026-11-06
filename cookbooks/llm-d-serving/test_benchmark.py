@@ -142,6 +142,8 @@ class TestBenchmarkCompose:
         args = dict(zip(command[1::2], command[2::2]))
         assert args["--save"] == "" and args["--appendonly"] == "no"
         assert args["--maxmemory-policy"] == "noeviction"
+        assert args["--io-threads"] == "${VALKEY_IO_THREADS:-8}"
+        assert _script_defaults()["VALKEY_IO_THREADS"] == "8"
         default = re.fullmatch(r"\$\{VALKEY_MAXMEMORY:-(\w+)\}", args["--maxmemory"]).group(1)
         assert default == _script_defaults()["VALKEY_MAXMEMORY"]
 

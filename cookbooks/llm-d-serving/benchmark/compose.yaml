@@ -122,6 +122,12 @@ services:
     # run-benchmark.sh records Valkey's OOM error count) instead of evicting.
     # An LRU policy would evict across all databases, including the router's
     # index in database 1.
+    #
+    # io-threads: every KV load is a 36 MiB GET. With one thread (Valkey's
+    # default), the first GPU runs had Valkey's main thread at 100% CPU,
+    # almost all of it in socket writes, at about 1.5 GB/s, which made a load
+    # from Valkey no faster than recomputing the prefill. Set
+    # VALKEY_IO_THREADS in .env.
     command:
       - valkey-server
       - --save
@@ -132,6 +138,8 @@ services:
       - ${VALKEY_MAXMEMORY:-192gb}
       - --maxmemory-policy
       - noeviction
+      - --io-threads
+      - ${VALKEY_IO_THREADS:-8}
     networks: {bench: {ipv4_address: 172.16.90.5}}
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
