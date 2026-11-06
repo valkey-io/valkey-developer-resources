@@ -24,8 +24,8 @@ version would need an appropriate vLLM image, GPU device configuration, and
 router load settings calibrated for that hardware.
 
 This recipe builds on the [KV caching recipe](../kv-caching/), which shares one
-KV cache between two vLLM servers through Valkey. Here, llm-d's router—Envoy
-plus its Endpoint Picker—runs without Kubernetes, and llm-d's batch processor
+KV cache between two vLLM servers through Valkey. Here, llm-d's router (Envoy
+plus its Endpoint Picker) runs without Kubernetes, and llm-d's batch processor
 sends admitted jobs through the same router.
 
 Every component here is an unmodified upstream image, pointed at Valkey by
@@ -79,8 +79,9 @@ detail.
 ## Prerequisites
 
 - **A container runtime with Compose** (Docker Compose or compatible). Tested
-  with Colima (Docker Engine 29.5) on Apple silicon. The commands work the
-  same with `podman compose`, but this recipe has not been run on Podman.
+  with Colima (Docker Engine 29.5) on Apple silicon (arm64). Not yet tested on
+  x86-64 (amd64) hosts, on Docker Desktop, or on Podman. The commands should
+  work the same with `podman compose`.
 - **Memory.** Give the container runtime **10 GiB (10240 MiB)**. See
   [Memory requirements](#memory-requirements).
 - **CPU.** 8 cores is comfortable; the typical timings quoted in the notebook
