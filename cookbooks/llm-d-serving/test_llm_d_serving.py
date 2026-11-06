@@ -184,14 +184,15 @@ class TestReplicaAddressing:
             assert endpoint["address"] not in code, endpoint["name"]
 
     def test_notebook_memory_preflight_matches_readme(self):
-        # The notebook's preflight and the README's startup check stop at the
-        # same memory cutoff.
+        # The notebook's preflight and the README's startup check use the same
+        # minimum (stop) and recommended (warn) memory thresholds.
         code = "\n".join("".join(c["source"]) for c in json.loads(NOTEBOOK_PATH.read_text())["cells"]
                          if c["cell_type"] == "code")
-        cutoff = re.search(r"MIN_RUNTIME_MEMORY = ([0-9_]+)", code)
-        assert cutoff, "the setup cell should define MIN_RUNTIME_MEMORY"
         readme = (HERE / "README.md").read_text()
-        assert f'-lt {int(cutoff.group(1).replace("_", ""))} ]' in readme
+        for name in ("MIN_RUNTIME_MEMORY", "RECOMMENDED_RUNTIME_MEMORY"):
+            cutoff = re.search(rf"\b{name} = ([0-9_]+)", code)
+            assert cutoff, f"the setup cell should define {name}"
+            assert f'-lt {int(cutoff.group(1).replace("_", ""))} ]' in readme, name
 
     def test_every_fixed_address_is_unique_and_in_subnet(self, compose):
         subnet = ipaddress.ip_network(compose["networks"]["serving"]["ipam"]["config"][0]["subnet"])

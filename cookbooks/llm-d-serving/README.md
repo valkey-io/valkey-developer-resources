@@ -82,8 +82,9 @@ detail.
   with Colima (Docker Engine 29.5) on Apple silicon (arm64). Not yet tested on
   x86-64 (amd64) hosts, on Docker Desktop, or on Podman. The commands should
   work the same with `podman compose`.
-- **Memory.** Give the container runtime **10 GiB (10240 MiB)**. See
-  [Memory requirements](#memory-requirements).
+- **Memory.** Give the container runtime 10 GiB (10240 MiB). The measured
+  minimum is 8.5 GiB; see [Memory requirements](#memory-requirements) and
+  [Running on a smaller machine](#running-on-a-smaller-machine).
 - **CPU.** 8 cores is comfortable; the typical timings quoted in the notebook
   were measured on an 8-CPU, 16 GiB Colima VM on an Apple M4 Pro.
 - **[uv](https://docs.astral.sh/uv/)** for Python dependency management:
@@ -94,12 +95,13 @@ detail.
 
   (or `brew install uv`). `uv` provides the Python version this notebook needs
   (3.12).
-- **Disk.** About 3 GiB to download on arm64 (more on amd64): the images from
-  the KV caching recipe (vLLM CPU, Valkey), the router, Envoy and llm-d-async
-  images (about 0.4 GiB unpacked together), the model (about 1 GiB), and the
-  packages the LMCache containers install at startup. If you have run the KV
-  caching recipe, only the router, Envoy and llm-d-async images and a second
-  copy of the model are new.
+- **Disk.** On arm64 the first start downloads about 2.3 GiB: the images (about
+  1 GiB), the model (about 1 GiB), and the packages the LMCache containers
+  install at startup (about 0.4 GiB). Unpacked and installed, that takes about
+  10 GB of disk. On x86-64 the images are about 0.85 GiB larger, mostly the vLLM
+  CPU image (from the image manifests; not run on x86-64). If you have run the
+  KV caching recipe, its vLLM and Valkey images are reused; the router, Envoy and
+  llm-d-async images and a second copy of the model are new.
 - **Free ports** on localhost: 6379 (Valkey), 8001 and 8002 (replicas), 8080
   (router), 9090 (router metrics), 9091 (llm-d-async metrics). The container
   names and ports overlap with the KV caching recipe, so stop that stack first
@@ -111,8 +113,15 @@ detail.
 
 ### Memory requirements
 
-Measured with `docker stats` every few seconds during startup and a full
-notebook run, on an 8-CPU Colima VM with 15.6 GiB (arm64):
+The lowest memory setting at which every cold run passed was **8.5 GiB**,
+measured on an 8-CPU Colima VM on Apple silicon (arm64), which reports 8.2 GiB
+at that setting. A run passed if the notebook ran end to end, the live tests
+passed twice in a row, and every service still answered afterwards. Two runs at
+8.5 GiB and one at 9 GiB passed. At 8 GiB the kernel killed vllm-a's engine
+during the live tests.
+
+Peak memory per container, measured with `docker stats` every few seconds
+during startup and a full notebook run (arm64, 15.6 GiB VM):
 
 | Container | Peak |
 | --- | --- |
@@ -125,10 +134,13 @@ notebook run, on an 8-CPU Colima VM with 15.6 GiB (arm64):
 
 Valkey grows by about 0.3 GiB each time you run the notebook, because LMCache
 keeps every 3 MiB KV chunk (no TTL in this demo) until you run
-`docker compose down`. The 10 GiB recommendation adds room for that and for the
-VM itself. The lowest working limit was not measured; the
-[KV caching recipe](../kv-caching/README.md#memory-requirements) measured 7.5 GiB
-for its two replicas on arm64, and this stack needs a little more.
+`docker compose down`. The 10 GiB recommendation leaves room for that, so you
+can run the notebook again without restarting the stack.
+
+x86-64 has not been tested. The
+[KV caching recipe](../kv-caching/README.md#memory-requirements) measured its
+two replicas on both architectures, and x86-64 needed 0.75 GiB less than arm64,
+so the arm64 numbers here should be enough on x86-64 too.
 
 ## Getting started
 
@@ -140,8 +152,9 @@ cd valkey-developer-resources/cookbooks/llm-d-serving
 ```
 
 **2. Start the stack.** This checks that the runtime exposes enough memory,
-then blocks until the services with healthchecks are healthy (about two minutes
-once the images are pulled):
+then blocks until the services with healthchecks are healthy. That takes about
+two minutes; the first start also downloads the images and the model, and took
+about three minutes in total in our test:
 
 ```bash
 rt=""; mem_bytes=""
@@ -158,10 +171,14 @@ for candidate in docker podman; do
 done
 if [ -z "$rt" ]; then
   echo "Could not read the container runtime's memory from 'docker info' or 'podman info'. Is the runtime running?"
-elif [ "$mem_bytes" -lt 10200547328 ]; then
+elif [ "$mem_bytes" -lt 8589934592 ]; then
   tenths=$(( mem_bytes * 10 / 1073741824 ))
-  echo "Not enough memory: $rt reports $(( tenths / 10 )).$(( tenths % 10 )) GiB; this recipe needs 10 GiB (10240 MiB), which this check sees as at least 9.5 GiB. Raise the limit (Docker Desktop: Settings > Resources; Podman: podman machine stop, then podman machine set --memory 10240, then podman machine start) and retry."
+  echo "Not enough memory: $rt reports $(( tenths / 10 )).$(( tenths % 10 )) GiB; this recipe needs at least 8.5 GiB (10 GiB recommended), which this check sees as at least 8.0 GiB. Raise the limit (Docker Desktop: Settings > Resources; Podman: podman machine stop, then podman machine set --memory 10240, then podman machine start) and retry."
 else
+  if [ "$mem_bytes" -lt 10200547328 ]; then
+    tenths=$(( mem_bytes * 10 / 1073741824 ))
+    echo "Note: $rt reports $(( tenths / 10 )).$(( tenths % 10 )) GiB, below the recommended 10 GiB. See 'Running on a smaller machine' in the README."
+  fi
   "$rt" compose up -d --wait
   "$rt" compose ps -a
 fi
@@ -202,7 +219,30 @@ docker compose down
 The model weights stay in the `hf-cache` volume for the next run
 (`docker compose down -v` removes them).
 
+## Running on a smaller machine
+
+The stack runs with 8.5 GiB for the container runtime, the measured minimum
+(see [Memory requirements](#memory-requirements)). On a 16 GiB laptop that
+leaves room for the host. At that size:
+
+- Stop anything else running in the container runtime first, including the
+  KV caching recipe's stack.
+- Run `docker compose down` and then `docker compose up -d --wait` before each
+  new notebook run. Valkey keeps every KV chunk until the stack is taken down,
+  so it grows by about 0.3 GiB per run.
+
+Both replicas have to run at once, because routing between them is what this
+recipe shows, so there is no one-replica mode like the KV caching recipe's.
+Lowering `--kv-cache-memory-bytes` doesn't help much either: it is only 96 MiB
+per replica, and the model and runtime take the rest (about 3 GiB per replica).
+
 ## Troubleshooting
+
+**`error mounting ... not a directory` when the stack starts, on Colima.**
+Colima shares only your home directory with its VM by default. In a clone
+outside it, for example under `/tmp`, the containers see empty paths where the
+config files should be. Clone under your home directory, or add the path to
+Colima's `mounts` setting.
 
 **The router returns errors or the first cell times out.** Check
 `docker compose logs epp`. Right after startup the EPP needs a few seconds to
