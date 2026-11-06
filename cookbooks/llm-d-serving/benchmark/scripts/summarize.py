@@ -124,8 +124,10 @@ def valkey_runs(run_dir: Path) -> list[dict]:
             after = json.loads(stats.read_text())
             start = run / "valkey-before.json"
             before = json.loads(start.read_text()) if start.exists() else {}
+            # INFO keyspace omits empty databases, so a recorded snapshot
+            # without db1 means the index was empty; no snapshot means unknown.
             rows.append({"config": config, "run": run.name.removeprefix("run-"), "after": after,
-                         "index_keys_at_start": (before.get("keys_per_db") or {}).get("db1")})
+                         "index_keys_at_start": (before.get("keys_per_db") or {}).get("db1", 0) if before else None})
     return rows
 
 

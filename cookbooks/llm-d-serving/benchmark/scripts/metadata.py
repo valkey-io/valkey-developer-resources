@@ -52,7 +52,7 @@ WORKLOAD_VARS = (
 STACK_VARS = (
     "DTYPE", "MAX_MODEL_LEN", "MAX_NUM_BATCHED_TOKENS", "GPU_MEMORY_UTILIZATION",
     "PEAK_PREFILL_THROUGHPUT", "VALKEY_MAXMEMORY", "LMCACHE_L1_SIZE_GB",
-    "LMCACHE_EVICTION_POLICY", "LMCACHE_L2_STORE_POLICY",
+    "LMCACHE_EVICTION_POLICY", "LMCACHE_L2_STORE_POLICY", "LMCACHE_MAX_GPU_WORKERS",
     "LMCACHE_SERVER_TRANSFER_MODE", "LMCACHE_MP_TRANSFER_MODE", "FLUSH_ROUTER_INDEX",
 )
 # Fixed in serve-vllm.sh, compose.yaml and the router configs.
@@ -193,6 +193,15 @@ def collect() -> dict:
     probes["git_commit"] = run(["git", "rev-parse", "HEAD"], errors)
     status = run(["git", "status", "--porcelain", "--", "."], errors)
     probes["git_dirty"] = None if status is None else bool(status)
+    # A copy pushed without .git (e.g. terraform/aws/push-stack.sh) carries
+    # the commit in .stack-commit: the commit on line 1, "dirty" or "clean" on line 2.
+    stack_commit = Path(__file__).resolve().parent.parent / ".stack-commit"
+    if probes["git_commit"] is None and stack_commit.is_file():
+        lines = stack_commit.read_text().split()
+        if lines:
+            probes["git_commit"] = lines[0]
+            probes["git_dirty"] = len(lines) > 1 and lines[1] == "dirty"
+            errors[:] = [e for e in errors if not e.startswith("git ")]
 
     meta = build_metadata(dict(os.environ), probes)
     meta["lmcache_version_in_replicas"] = probes["versions"]["lmcache_in_vllm_0"]
