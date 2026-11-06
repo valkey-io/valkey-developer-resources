@@ -1,0 +1,24 @@
+# Baseline: pick a replica at random. Same Envoy and EPP path as
+# precise-valkey.yaml, so the only difference is the routing decision. Each
+# vLLM replica still keeps its own prefix cache and still shares KV through
+# LMCache and Valkey; the router just doesn't know who has what.
+apiVersion: llm-d.ai/v1
+kind: EndpointPickerConfig
+
+plugins:
+  - name: file-discovery
+    type: file-discovery
+    parameters:
+      path: /etc/epp/endpoints.yaml
+      watchFile: false
+  - type: random-picker
+
+schedulingProfiles:
+  - name: default
+    plugins:
+      - pluginRef: random-picker
+
+dataLayer:
+  discovery:
+    endpoints:
+      pluginRef: file-discovery

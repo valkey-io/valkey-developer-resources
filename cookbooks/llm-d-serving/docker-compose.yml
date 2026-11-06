@@ -1,0 +1,340 @@
+# llm-d serving with Valkey: the full stack the notebook drives.
+#
+#   valkey           one Valkey with three jobs: the router's prefix-cache
+#                    index, LMCache's KV-cache store (L2), and the batch job
+#                    queue plus per-user quota
+#   lmcache-server   standalone LMCache server: L1 in its own memory, L2 -> Valkey
+#   vllm-a, vllm-b   two CPU vLLM replicas. Each keeps its own in-memory prefix
+#                    cache, hands KV to the LMCache server, and publishes
+#                    KV-cache events (block stored / removed) over ZMQ
+#   envoy            the router's front door on localhost:8080. For every
+#                    request it asks the endpoint picker which replica to use
+#   epp              llm-d's Endpoint Picker (EPP). It subscribes to both
+#                    replicas' KV events, keeps the resulting block -> replica
+#                    index in Valkey, and picks the replica for each request
+#   async-processor  llm-d's batch processor. It pulls jobs from a Valkey
+#                    sorted set, checks each user's quota in Valkey, and sends
+#                    admitted jobs through Envoy like any other request
+#
+# The first four services are the KV caching recipe (../kv-caching/) with the
+# vLLM flags the router needs (prefix caching on, a 64-token block size, KV
+# events, cached-token counts in responses). Nothing here is built from source:
+# every component is an upstream image pointed at Valkey by configuration.
+#
+# Resource note: measured on an 8-CPU Colima VM (Apple silicon), the
+# containers together peak at about 7.4 GiB during a notebook run (each vLLM
+# replica about 3.4 GiB, the LMCache server 0.6 GiB, Valkey 0.3 GiB and
+# growing by about 0.3 GiB per run, the router and batch processor under
+# 0.1 GiB together). Give the container runtime 10 GiB; 8.5 GiB is the
+# measured minimum (README.md, "Memory requirements").
+#
+# Images are written fully qualified (docker.io/..., ghcr.io/...). Docker treats
+# a short name as docker.io anyway; Podman resolves short names through
+# registries.conf, which may list no search registry or several. The vLLM,
+# router and Envoy images are pinned by digest as well as tag.
+x-lmcache-env: &lmcache-env
+  # Required by LMCache to enable the v1 code paths.
+  LMCACHE_USE_EXPERIMENTAL: "True"
+  # pip constraints for everything `pip install lmcache` adds to (or changes
+  # in) the pinned vLLM image. Identical to the KV caching recipe; regenerate
+  # it from `pip freeze` in the running containers whenever you bump lmcache
+  # or the vLLM image.
+  LMCACHE_PIP_CONSTRAINTS: >-
+    aiofile==3.12.3 aiofiles==25.1.0 awscrt==0.37.0 caio==0.12.9
+    cuda-pathfinder==1.8.3 cufile-python==0.2.0 cupy-cuda13x==14.2.0
+    google-api-core==2.34.0 google-auth==2.59.1 google-cloud-bigtable==2.49.0
+    google-cloud-core==2.8.0 google-cloud-monitoring==2.32.0
+    google-crc32c==1.9.0 grpc-google-iam-v1==0.14.5 grpcio-status==1.84.0
+    grpcio==1.84.0 importlib_metadata==8.7.1 iniconfig==2.3.0 lmcache==0.5.4
+    numpy==2.2.6 nvtx==0.2.16 opentelemetry-api==1.40.0
+    opentelemetry-exporter-otlp-proto-common==1.40.0
+    opentelemetry-exporter-otlp-proto-grpc==1.40.0
+    opentelemetry-exporter-otlp-proto-http==1.40.0
+    opentelemetry-exporter-otlp==1.40.0
+    opentelemetry-exporter-prometheus==0.61b0 opentelemetry-proto==1.40.0
+    opentelemetry-sdk==1.40.0 opentelemetry-semantic-conventions==0.61b0
+    pluggy==1.6.0 prometheus_client==0.24.1 proto-plus==1.29.0
+    protobuf==6.33.6 pyasn1==0.6.4 pyasn1_modules==0.4.2 pytest==9.1.1
+    redis==8.1.0 setuptools-scm==10.3.4 sortedcontainers==2.4.0
+    valkey-glide-sync==2.5.2 vcs-versioning==2.5.0 zipp==4.1.1
+
+x-vllm-common: &vllm-common
+  # Pinned by digest: this exact image ships torch as a CPU build, which keeps
+  # `pip install lmcache` from pulling the CUDA build (see ../kv-caching/).
+  image: docker.io/vllm/vllm-openai-cpu:v0.28.0@sha256:197354e6475e638eb5ccca09beb078488046a82de0e204e7429bf1a804df9647
+  entrypoint: ["/bin/bash", "-c"]
+  command:
+    - |
+      printf '%s\n' $$LMCACHE_PIP_CONSTRAINTS > /tmp/lmcache-constraints.txt
+      pip install --quiet -c /tmp/lmcache-constraints.txt lmcache==0.5.4
+      # KV-cache events: vLLM publishes every block it stores or evicts on a
+      # ZMQ PUB socket (5556) and keeps a replay buffer (5559) so a router that
+      # joins late can catch up. The router identifies each replica by the
+      # "<ip>:<port>" in the topic, so POD_IP must be this container's fixed
+      # address on the compose network (and match epp/endpoints.yaml).
+      KV_EVENTS=$$(printf '{"enable_kv_cache_events":true,"publisher":"zmq","endpoint":"tcp://*:5556","replay_endpoint":"tcp://*:5559","topic":"kv@%s:8000@Qwen/Qwen2.5-0.5B-Instruct"}' "$$POD_IP")
+      # Flags that differ from the KV caching recipe:
+      #
+      # --enable-prefix-caching keeps vLLM's in-memory prefix cache on. That
+      #   local cache is what the router routes towards; LMCache and Valkey
+      #   back it up for the replicas that do not have a prefix locally.
+      # --block-size 64 must equal blockSizeTokens in epp/precise-valkey.yaml:
+      #   the router recomputes vLLM's block hashes from the prompt tokens.
+      # --kv-cache-memory-bytes 96M gives each replica 128 blocks of 64 tokens
+      #   (8,192 tokens; one block is 0.75 MiB for this model in float16). The
+      #   notebook's 29-clause conversations start at roughly 950-1,150 tokens
+      #   (15-18 allocated blocks), depending on the tag, and grow on follow-ups.
+      #   At most five are active at a time, so a replica keeps what the router
+      #   sent it in memory and a local hit really is local. With 64M (85
+      #   blocks) the random-routing section overflowed a replica and some
+      #   follow-ups that stayed put were loaded from Valkey instead: vLLM
+      #   evicts the oldest blocks, tells the router, and LMCache still has
+      #   them. That is the cache working, but it blurs the comparison.
+      # --enable-prompt-tokens-details reports usage.prompt_tokens_details.
+      #   cached_tokens in every response, which the notebook prints.
+      # --max-num-seqs 2 (4 in the KV caching recipe) lets two long requests
+      #   fill a replica, so in the notebook's busy-replica example a third
+      #   request really would wait for a free slot.
+      #
+      # The rest (float16, eager mode, small batch limits, LMCache MP connector)
+      # is explained in ../kv-caching/docker-compose.yml.
+      exec python3 -m vllm.entrypoints.openai.api_server \
+        --model Qwen/Qwen2.5-0.5B-Instruct \
+        --revision 7ae557604adf67be50417f59c2c2f167def9a775 \
+        --dtype ${VLLM_DTYPE:-float16} \
+        --max-model-len 2048 \
+        --enforce-eager \
+        --max-num-seqs 2 \
+        --max-num-batched-tokens 2048 \
+        --kv-cache-memory-bytes 96M \
+        --block-size 64 \
+        --enable-prefix-caching \
+        --enable-prompt-tokens-details \
+        --kv-events-config "$$KV_EVENTS" \
+        --kv-transfer-config '{"kv_connector":"LMCacheMPConnector","kv_role":"kv_both","kv_connector_extra_config":{"lmcache.mp.host":"tcp://lmcache-server","lmcache.mp.port":5555,"lmcache.mp.mq_timeout":120.0}}'
+  environment: &vllm-env
+    <<: *lmcache-env
+    TCMALLOC_AGGRESSIVE_DECOMMIT: "true"
+    VLLM_USE_V2_MODEL_RUNNER: "0"
+    VLLM_ENABLE_V1_MULTIPROCESSING: "0"
+    HF_HUB_DISABLE_PROGRESS_BARS: "1"
+  volumes:
+    - hf-cache:/root/.cache/huggingface
+  shm_size: "2gb"
+  healthcheck:
+    # Same as the KV caching recipe: ready after /health answers and one short
+    # warm-up completion has run. The warm-up (32 prompt + 32 output tokens)
+    # fills one 64-token block, the same one on both replicas, so it adds two
+    # entries to the router index and nothing to LMCache (256-token chunks).
+    # One CMD-SHELL line so it survives Podman's argument splitting.
+    test:
+      - CMD-SHELL
+      - >-
+        python3 -c 'import json, os, urllib.request as u;
+        u.urlopen("http://localhost:8000/health", timeout=5);
+        warmed = os.path.exists("/tmp/warmed");
+        model = warmed or json.load(u.urlopen("http://localhost:8000/v1/models", timeout=5))["data"][0]["id"];
+        body = {"model": model, "prompt": "hello " * 32, "max_tokens": 32, "ignore_eos": True, "temperature": 0};
+        warmed or u.urlopen(u.Request("http://localhost:8000/v1/completions", json.dumps(body).encode(), {"Content-Type": "application/json"}), timeout=170).read();
+        warmed or open("/tmp/warmed", "w").close()'
+    interval: 10s
+    timeout: 180s
+    retries: 60
+    start_period: 180s
+
+services:
+  valkey:
+    container_name: valkey
+    image: docker.io/valkey/valkey-bundle:9.1.2
+    ports:
+      - "127.0.0.1:6379:6379"
+    networks:
+      serving: {ipv4_address: 172.16.89.5}
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  lmcache-server:
+    container_name: lmcache-server
+    image: docker.io/vllm/vllm-openai-cpu:v0.28.0@sha256:197354e6475e638eb5ccca09beb078488046a82de0e204e7429bf1a804df9647
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        printf '%s\n' $$LMCACHE_PIP_CONSTRAINTS > /tmp/lmcache-constraints.txt
+        pip install --quiet -c /tmp/lmcache-constraints.txt lmcache==0.5.4 valkey-glide-sync==2.5.2
+        # Same server flags as the KV caching recipe. skip_l1 makes L1 a write
+        # buffer only, so every KV load a replica gets from LMCache is read
+        # from Valkey.
+        exec lmcache server \
+          --host 0.0.0.0 --port 5555 \
+          --l1-size-gb 0.05 \
+          --eviction-policy noop \
+          --l2-store-policy skip_l1 \
+          --supported-transfer-mode auto \
+          --l2-adapter '{"type":"valkey","startup_nodes":"valkey:6379"}'
+    environment:
+      <<: *lmcache-env
+    networks:
+      serving: {ipv4_address: 172.16.89.6}
+    depends_on:
+      valkey:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import socket; s=socket.socket(); s.settimeout(2); s.connect(('localhost',5555))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
+
+  vllm-a:
+    <<: *vllm-common
+    container_name: vllm-a
+    environment:
+      <<: *vllm-env
+      POD_IP: 172.16.89.11
+    ports:
+      - "127.0.0.1:8001:8000"
+    networks:
+      serving: {ipv4_address: 172.16.89.11}
+    depends_on:
+      lmcache-server:
+        condition: service_healthy
+
+  # vllm-b starts after vllm-a has warmed up, so the two replicas do not peak
+  # in memory at the same time (see ../kv-caching/docker-compose.yml).
+  vllm-b:
+    <<: *vllm-common
+    container_name: vllm-b
+    environment:
+      <<: *vllm-env
+      POD_IP: 172.16.89.12
+    ports:
+      - "127.0.0.1:8002:8000"
+    networks:
+      serving: {ipv4_address: 172.16.89.12}
+    depends_on:
+      lmcache-server:
+        condition: service_healthy
+      vllm-a:
+        condition: service_healthy
+
+  # Envoy is the address clients use (localhost:8080). It sends each request's
+  # headers and body to the EPP over gRPC (ext_proc), and forwards the request
+  # to whichever replica the EPP names. See envoy/envoy.yaml.
+  #
+  # The Envoy and EPP images are distroless (no shell, no curl), so neither
+  # service can have a healthcheck. The notebook's first cell waits until a
+  # request through the router succeeds.
+  envoy:
+    container_name: envoy
+    image: docker.io/envoyproxy/envoy:distroless-v1.33.2@sha256:85500e28ed088ec39ff0adc1be3d358a8ad062926aaa62c36b28bde00919e4e8
+    command: ["--service-node", "envoy-proxy", "--log-level", "warn", "-c", "/etc/envoy/envoy.yaml"]
+    # Bind mounts here and below are read-only (ro) and relabelled for
+    # SELinux (z, shared between containers), so they are readable on
+    # SELinux-enforcing hosts (Fedora, RHEL, Podman); elsewhere z is a no-op.
+    volumes:
+      - ./envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro,z
+    ports:
+      # The router (Envoy listener 8081 inside the container).
+      - "127.0.0.1:8080:8081"
+      # The EPP's Prometheus metrics. The EPP shares Envoy's network
+      # namespace, so its ports are published here.
+      - "127.0.0.1:9090:9090"
+    networks:
+      serving: {ipv4_address: 172.16.89.10}
+
+  epp:
+    container_name: epp
+    image: ghcr.io/llm-d/llm-d-router-endpoint-picker:v1.0.0@sha256:024188e998f516879f68532016ca24fabca00afbdcc2af9a61b17634e197df2c
+    # Runs inside Envoy's network namespace, so Envoy reaches the EPP's gRPC
+    # port on 127.0.0.1:9002 (as in llm-d's no-Kubernetes guide), and the EPP
+    # reaches Valkey and the replicas over the compose network.
+    network_mode: service:envoy
+    depends_on:
+      envoy:
+        condition: service_started
+      valkey:
+        condition: service_healthy
+      # The EPP subscribes to each replica's KV events at startup; start it
+      # once both replicas are serving.
+      vllm-b:
+        condition: service_healthy
+    volumes:
+      - ./epp:/etc/epp:ro,z
+    command:
+      # EPP_STRATEGY picks the routing config in ./epp: precise-valkey (the
+      # default; prefix-cache index in Valkey) or random (the baseline). The
+      # notebook switches between them with `docker compose up -d epp`.
+      - --config-file=/etc/epp/${EPP_STRATEGY:-precise-valkey}.yaml
+      # No Kubernetes: the pool flags only name the endpoint pool that the
+      # file-discovery plugin fills from epp/endpoints.yaml.
+      - --pool-name=file-discovery
+      - --pool-namespace=default
+      - --grpc-port=9002
+      - --grpc-health-port=9003
+      - --metrics-port=9090
+      - --secure-serving=false
+      # Envoy's ext_proc cluster health-checks the EPP over gRPC.
+      - --health-checking=true
+      - --tracing=false
+      - --v=2
+
+  # llm-d's batch processor, unchanged upstream image. All of its Valkey use is
+  # in async/transport-config.json: the job queue, the result list, and the
+  # per-user quota. Its queue sends admitted jobs to Envoy (igw_base_url), so
+  # batch jobs are routed by the same EPP as interactive requests. Like Envoy
+  # and the EPP, the image is distroless, so it has no healthcheck either; it
+  # only needs Valkey, and waits for it to be healthy.
+  async-processor:
+    container_name: async-processor
+    image: ghcr.io/llm-d/llm-d-async:v1.0.0@sha256:62a3e78320b0423c3c2ed327e6b870f786c3daf48f81a34f9e0332c80905663c
+    depends_on:
+      valkey:
+        condition: service_healthy
+      epp:
+        condition: service_started
+    volumes:
+      - ./async/transport-config.json:/etc/ap/transport-config.json:ro,z
+      # The processor builds its metrics server with controller-runtime, which
+      # needs a kubeconfig to parse even off-cluster. This dummy one points at
+      # an unreachable API; with metrics auth off it is never contacted.
+      - ./async/kubeconfig-dummy.yaml:/etc/ap/kubeconfig.yaml:ro,z
+    environment:
+      KUBECONFIG: /etc/ap/kubeconfig.yaml
+    command:
+      - --transport=redis-sortedset
+      - --transport-config-file=/etc/ap/transport-config.json
+      - --metrics-port=9091
+      # The default health port (8081) is the same number as Envoy's listener.
+      # They are in different containers so they would not clash, but a
+      # distinct number keeps "8081" meaning one thing in this recipe.
+      - --health-port=8082
+      - --metrics-endpoint-auth=false
+      - --concurrency=4
+      - -v=2
+    ports:
+      - "127.0.0.1:9091:9091"
+    networks:
+      serving: {ipv4_address: 172.16.89.20}
+
+networks:
+  serving:
+    ipam:
+      config:
+        # The router's file discovery (epp/endpoints.yaml) needs each
+        # replica's literal IPv4 address, so the network has a fixed subnet.
+        # 172.16.89.0/24 is outside the pools Docker (172.17-172.31.x.x,
+        # 192.168.x.x) and Podman (10.88-10.255.x.x) allocate by default. If it
+        # clashes with a LAN or VPN route on your machine, change all of these
+        # together: this subnet, every service's ipv4_address in this file,
+        # POD_IP for vllm-a and vllm-b, and both addresses in
+        # epp/endpoints.yaml. The notebook reads the replica addresses from
+        # epp/endpoints.yaml, so it follows automatically. `uv run pytest`
+        # checks that they agree.
+        - subnet: 172.16.89.0/24
+
+volumes:
+  # Cache model weights across restarts so replicas don't each re-download.
+  hf-cache:
