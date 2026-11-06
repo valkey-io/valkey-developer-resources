@@ -162,8 +162,6 @@ for candidate in docker podman; do
   case "$(command -v "$candidate" 2>/dev/null)" in /*) ;; *) continue ;; esac
   mem_bytes="$("$candidate" info --format '{{.MemTotal}}' 2>/dev/null)" ||
     mem_bytes="$("$candidate" info --format '{{.Host.MemTotal}}' 2>/dev/null)"
-  # A numeric test, not a case pattern with a negated bracket: pasted into an
-  # interactive zsh or bash, that bracket's character starts history expansion.
   if [ -n "$mem_bytes" ] && [ "$mem_bytes" -ge 0 ] 2>/dev/null; then
     rt="$candidate"; break
   fi
