@@ -17,7 +17,7 @@ provider "aws" {
       {
         Project   = var.name_prefix
         ManagedBy = "terraform"
-        Purpose   = "valkey-prompt-routing-benchmark"
+        Purpose   = "valkey-llm-d-gpu-benchmark"
       },
       var.extra_tags,
     )

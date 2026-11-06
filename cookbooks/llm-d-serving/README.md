@@ -21,7 +21,8 @@ GPU hardware. llm-d also supports GPU deployments; its
 defaults to NVIDIA GPUs. The three Valkey roles are useful in either setup.
 This Compose stack and the timings shown here were tested only on CPU. A GPU
 version would need an appropriate vLLM image, GPU device configuration, and
-router load settings calibrated for that hardware.
+router load settings calibrated for that hardware. An optional GPU-only
+benchmark of the same stack on four GPUs is in [`benchmark/`](benchmark/).
 
 This recipe builds on the [KV caching recipe](../kv-caching/), which shares one
 KV cache between two vLLM servers through Valkey. Here, llm-d's router (Envoy
@@ -294,6 +295,7 @@ the same checks apply.
 | [`async/`](async/) | llm-d-async's transport config and the dummy kubeconfig it needs off-cluster |
 | [`pyproject.toml`](pyproject.toml), [`uv.lock`](uv.lock) | Pinned Python dependencies for the notebook and tests |
 | [`test_llm_d_serving.py`](test_llm_d_serving.py) | Tests: config and compose wiring always; routing, KV reuse, the batch queue and per-user quotas when the stack is up |
+| [`benchmark/`](benchmark/), [`test_benchmark.py`](test_benchmark.py) | Optional GPU benchmark, and its structural tests (no GPU needed) |
 | [`.ci-structural-only`](.ci-structural-only) | Tells CI to skip notebook execution (the stack does not fit a hosted runner) |
 
 ## Running the tests

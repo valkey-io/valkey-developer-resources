@@ -1,6 +1,10 @@
 # Baseline: pick a replica at random. Same Envoy and EPP path as the other
 # strategies, so the only difference is the routing decision. Each vLLM
-# replica still keeps its own local prefix cache; it just isn't routed to.
+# replica still keeps its own GPU prefix cache; it just isn't routed to.
+#
+# Used by two configurations: random (replicas share KV through LMCache and
+# Valkey, so a miss on one replica can load what another computed) and
+# random-no-lmcache (no KV connector; a miss is a full prefill).
 apiVersion: llm-d.ai/v1
 kind: EndpointPickerConfig
 
