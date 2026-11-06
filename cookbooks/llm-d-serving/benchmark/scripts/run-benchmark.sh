@@ -60,13 +60,15 @@ export SEED="${SEED:-42}"
 # Valkey and LMCache (see compose.yaml).
 export VALKEY_MAXMEMORY="${VALKEY_MAXMEMORY:-192gb}"
 export LMCACHE_L1_SIZE_GB="${LMCACHE_L1_SIZE_GB:-16}"
+export LMCACHE_MAX_GPU_WORKERS="${LMCACHE_MAX_GPU_WORKERS:-4}"
 export LMCACHE_EVICTION_POLICY="${LMCACHE_EVICTION_POLICY:-noop}"
 export LMCACHE_L2_STORE_POLICY="${LMCACHE_L2_STORE_POLICY:-skip_l1}"
 export LMCACHE_SERVER_TRANSFER_MODE="${LMCACHE_SERVER_TRANSFER_MODE:-auto}"
 export LMCACHE_MP_TRANSFER_MODE="${LMCACHE_MP_TRANSFER_MODE:-auto}"
-# 1 also flushes the router's index (database 1) before each run. By default
-# only the KV store (database 0) is flushed; the index's key count at the
-# start of each run is recorded either way.
+# 1 (the default) also flushes the router's index (database 1) before each
+# run, while the router is stopped, so precise-valkey starts as empty as
+# precise-memory. The index's key count at the start of each run is recorded
+# either way.
 export FLUSH_ROUTER_INDEX="${FLUSH_ROUTER_INDEX:-1}"
 
 # Host memory the preflight reserves besides Valkey and LMCache's L1, in GiB.
@@ -148,6 +150,8 @@ log "Rendering router configs"
 python3 scripts/render.py epp
 
 log "Recording run metadata"
+# The router only starts per configuration; pull it now so its digest is known.
+docker compose pull --quiet epp
 python3 scripts/metadata.py collect --out "$RESULTS/metadata.json"
 docker compose logs --no-color vllm-0 > "$RESULTS/vllm-0.log" 2>&1 || true
 docker compose logs --no-color lmcache-server > "$RESULTS/lmcache-server.log" 2>&1 || true

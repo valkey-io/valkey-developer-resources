@@ -26,6 +26,12 @@ for _ in $(seq 1 60); do
 done
 [[ "$status" == "Online" ]] || { echo "instance not online in SSM (status: ${status:-none})" >&2; exit 1; }
 
+# Record the commit being sent; the host gets no .git (scripts/metadata.py).
+commit="$(git -C "$BENCH_DIR" rev-parse HEAD 2>/dev/null || echo unknown)"
+dirty=clean
+[[ -n "$(git -C "$BENCH_DIR" status --porcelain -- . 2>/dev/null)" ]] && dirty=dirty
+printf '%s\n%s\n' "$commit" "$dirty" > "$BENCH_DIR/.stack-commit"
+
 # COPYFILE_DISABLE keeps macOS tar from adding ._ metadata files.
 payload="$(COPYFILE_DISABLE=1 tar --no-xattrs -C "$BENCH_DIR" \
   --exclude ./terraform --exclude ./results --exclude ./rendered \
