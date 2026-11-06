@@ -7,7 +7,7 @@ variable "region" {
 variable "name_prefix" {
   description = "Prefix for resource names and the Project tag."
   type        = string
-  default     = "prompt-routing-bench"
+  default     = "llm-d-gpu-bench"
 
   validation {
     condition     = can(regex("^[a-z0-9-]{1,32}$", var.name_prefix))
@@ -16,9 +16,9 @@ variable "name_prefix" {
 }
 
 variable "instance_type" {
-  description = "NVIDIA GPU instance type. The default (4x L4 24 GB) fits 2-4 vLLM replicas at TP=1."
+  description = "NVIDIA GPU instance type. The default, g6e.12xlarge (4x L40S 48 GB, 384 GiB RAM), has the four GPUs and the host RAM the benchmark's default workload needs (Valkey holds about 150 GiB of KV per run)."
   type        = string
-  default     = "g6.12xlarge"
+  default     = "g6e.12xlarge"
 
   validation {
     condition     = can(regex("^(g4dn|g5|g6|g6e|p4d|p4de|p5|p5e|p5en)\\.", var.instance_type))
@@ -33,7 +33,7 @@ variable "use_spot" {
 }
 
 variable "root_volume_gb" {
-  description = "Size of the encrypted gp3 root volume, in GiB. Needs room for container images and model weights."
+  description = "Size of the encrypted gp3 root volume, in GiB. Needs room for the AMI (about 40 GiB used), the vLLM image (about 20 GiB unpacked, more with the containerd image store) plus the lmcache layer, the other images (about 5 GiB), Qwen3-8B's weights (about 16 GiB), and logs and results (a few GiB per run). Valkey keeps its data in memory with persistence off, so it needs no disk."
   type        = number
   default     = 200
 

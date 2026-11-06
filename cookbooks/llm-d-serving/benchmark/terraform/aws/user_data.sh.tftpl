@@ -45,4 +45,17 @@ set +e
   # Confirm the GPU stack the benchmark relies on is present.
   nvidia-smi || echo "nvidia-smi failed"
   docker info --format 'docker {{.ServerVersion}} runtimes:{{range $name, $_ := .Runtimes}} {{$name}}{{end}}' || echo "docker info failed"
+
+  # Where this host runs, for the benchmark's metadata.json. run-benchmark.sh
+  # reads this file if it exists; the benchmark itself has no AWS-specific
+  # code. Values come from instance metadata (IMDSv2).
+  imds_token="$(curl -fsS -X PUT http://169.254.169.254/latest/api/token -H 'X-aws-ec2-metadata-token-ttl-seconds: 300')"
+  imds() { curl -fsS -H "X-aws-ec2-metadata-token: $imds_token" "http://169.254.169.254/latest/meta-data/$1"; }
+  mkdir -p /etc/llm-d-gpu-bench
+  {
+    echo "BENCH_CLOUD=aws"
+    echo "BENCH_INSTANCE_TYPE=$(imds instance-type)"
+    echo "BENCH_REGION=$(imds placement/region)"
+  } > /etc/llm-d-gpu-bench/host.env
+  cat /etc/llm-d-gpu-bench/host.env
 } >/var/log/gpu-bench-bootcheck.log 2>&1

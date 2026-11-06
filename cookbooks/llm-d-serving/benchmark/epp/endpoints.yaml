@@ -4,22 +4,22 @@
 # by that address in its KV-event topic.
 endpoints:
   - name: vllm-0
-    address: 172.30.0.11
+    address: 172.16.90.11
     port: "8000"
     labels:
       model: ${MODEL}
   - name: vllm-1
-    address: 172.30.0.12
+    address: 172.16.90.12
     port: "8000"
     labels:
       model: ${MODEL}
   - name: vllm-2
-    address: 172.30.0.13
+    address: 172.16.90.13
     port: "8000"
     labels:
       model: ${MODEL}
   - name: vllm-3
-    address: 172.30.0.14
+    address: 172.16.90.14
     port: "8000"
     labels:
       model: ${MODEL}
