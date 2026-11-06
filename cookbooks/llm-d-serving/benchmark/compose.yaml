@@ -169,6 +169,7 @@ services:
           --eviction-policy "$$LMCACHE_EVICTION_POLICY" \
           --l2-store-policy "$$LMCACHE_L2_STORE_POLICY" \
           --supported-transfer-mode "$$LMCACHE_SERVER_TRANSFER_MODE" \
+          --max-gpu-workers "$$LMCACHE_MAX_GPU_WORKERS" \
           --l2-adapter '{"type":"valkey","startup_nodes":"valkey:6379"}'
     ipc: host
     environment:
@@ -178,6 +179,9 @@ services:
       LMCACHE_L2_STORE_POLICY: ${LMCACHE_L2_STORE_POLICY:-skip_l1}
       # auto serves both lmcache_driven (CUDA IPC) and engine_driven workers.
       LMCACHE_SERVER_TRANSFER_MODE: ${LMCACHE_SERVER_TRANSFER_MODE:-auto}
+      # Threads for KV stores and loads. Each replica's requests stay on one
+      # thread, and lmcache's default of 1 makes all four replicas share it.
+      LMCACHE_MAX_GPU_WORKERS: ${LMCACHE_MAX_GPU_WORKERS:-4}
     networks: {bench: {ipv4_address: 172.16.90.6}}
     depends_on:
       valkey:

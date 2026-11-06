@@ -150,10 +150,12 @@ class TestBenchmarkCompose:
         text = _command_text(svc).replace(" ", "")
         assert '--l2-adapter\'{"type":"valkey","startup_nodes":"valkey:6379"}\'' in text
         assert "--supported-transfer-mode\"$$LMCACHE_SERVER_TRANSFER_MODE\"" in text
+        assert "--max-gpu-workers\"$$LMCACHE_MAX_GPU_WORKERS\"" in text
         assert "importlmcache.v1.multiprocess.server" in text and "glide_sync" in text
         env = svc["environment"]
         defaults = _script_defaults()
         for name, value in (("LMCACHE_L2_STORE_POLICY", "skip_l1"), ("LMCACHE_SERVER_TRANSFER_MODE", "auto"),
+                            ("LMCACHE_MAX_GPU_WORKERS", "4"),
                             ("LMCACHE_L1_SIZE_GB", defaults["LMCACHE_L1_SIZE_GB"]),
                             ("LMCACHE_EVICTION_POLICY", defaults["LMCACHE_EVICTION_POLICY"])):
             assert env[name] == f"${{{name}:-{value}}}", name
