@@ -66,7 +66,7 @@ start of each run is recorded in `valkey-before.json`.
   sized for 48 GB GPUs such as the L40S; see [Workload](#workload) for
   smaller ones.
 - Host RAM for Valkey's `maxmemory` plus the replicas and the LMCache
-  server: 296 GiB with the defaults (see [Sizing Valkey](#sizing-valkey)).
+  server: 344 GiB with the defaults (see [Sizing Valkey](#sizing-valkey)).
   The script refuses to start on a host with less.
 - Docker with the Compose plugin, the NVIDIA Container Toolkit, and
   `python3` on the host.
@@ -182,11 +182,27 @@ set `LMCACHE_MP_TRANSFER_MODE=engine_driven` in `.env`: the replicas then
 send KV to the server themselves, and the server's default (`auto`) accepts
 both modes.
 
-The LMCache server uses the same policy as the CPU stack: `skip_l1` removes
-each chunk from its L1 memory once it is in Valkey, so the KV a replica
-loads comes from Valkey. L1 is still where chunks are staged on the way in
-and out, and a chunk is 36 MiB here, so L1 defaults to 16 GB
-(`LMCACHE_L1_SIZE_GB`) instead of the CPU stack's 0.05 GB.
+### LMCache policy
+
+The CPU stack runs the LMCache server with `skip_l1`, which drops each
+chunk from the server's L1 memory once it is in Valkey, so every load comes
+from Valkey. This benchmark doesn't, for a reason measured on the first GPU
+runs. In lmcache 0.5.5, each lookup asks for the whole prompt, including the
+part vLLM already holds in its GPU prefix cache, and the server copies every
+chunk it finds into L1 before the request is scheduled. Under `skip_l1` that
+copy always came from Valkey: about 576 MiB, taking 230-370 ms, on every
+request, even when vLLM then used almost none of it. Median first-token time
+at concurrency 8 was about 500 ms for precise routing, against 123 ms
+without LMCache. LMCache fixed this after 0.5.6
+([LMCache/LMCache#5383](https://github.com/LMCache/LMCache/pull/5383)).
+
+So L1 is a cache here: chunks stay in host memory (`LRU` eviction) and are
+also stored to Valkey, which is the shared tier behind it. L1 defaults to
+64 GB (`LMCACHE_L1_SIZE_GB`), about half of the default workload's KV, so
+many lookups still have to load from Valkey. The summary reports, for each
+run, how many chunks lookups found in L1 and how many they loaded from
+Valkey. To measure the CPU stack's policy instead, set
+`LMCACHE_L2_STORE_POLICY=skip_l1` and `LMCACHE_EVICTION_POLICY=noop`.
 
 ### Workload
 
@@ -257,11 +273,11 @@ Host RAM, as `run-benchmark.sh` checks it before starting anything:
 | Item | Default |
 | --- | --- |
 | Valkey `maxmemory` (`VALKEY_MAXMEMORY`) | 192 GiB |
-| LMCache L1 (`LMCACHE_L1_SIZE_GB`) | 16 GiB |
+| LMCache L1 (`LMCACHE_L1_SIZE_GB`) | 64 GiB |
 | LMCache server process (`LMCACHE_SERVER_HOST_RAM_GIB`) | 8 GiB |
 | Four vLLM replicas (`REPLICA_HOST_RAM_GIB` each) | 4 × 16 GiB |
 | OS, Docker, router, load generator (`SYSTEM_HOST_RAM_GIB`) | 16 GiB |
-| Total | 296 GiB |
+| Total | 344 GiB |
 
 The last three are allowances, not measurements; adjust them in `.env` once
 you have measured your host.

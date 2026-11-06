@@ -144,11 +144,16 @@ services:
   # the copy kernels on the replicas' KV caches itself (CUDA IPC, matched by
   # device UUID, so its GPU numbering need not match the replicas').
   #
-  # Same policy as the CPU stack: skip_l1 deletes each chunk from L1 once it is
-  # in Valkey, so KV loads come from Valkey. L1 is still the staging area for
-  # stores and loads, and GPU chunks are large (36 MiB for Qwen3-8B), so the
-  # default is 16 GB instead of the CPU stack's 0.05 GB. Override with
-  # LMCACHE_L1_SIZE_GB and LMCACHE_L2_STORE_POLICY in .env.
+  # Unlike the CPU stack (skip_l1), L1 is a cache here: chunks stay in host
+  # memory (LRU) and are also stored to Valkey, which is the shared tier
+  # behind it. With lmcache 0.5.5 every lookup prefetches the whole prompt's
+  # chunks into L1, including the part vLLM already has on the GPU, and the
+  # request waits for that. Under skip_l1 every lookup therefore read the full
+  # prefix from Valkey (230-370 ms per request in the first GPU runs). LMCache
+  # fixed this after 0.5.6 (LMCache/LMCache#5383). The 64 GB default is about
+  # half of the default workload's KV, so many lookups still go to Valkey.
+  # Override with LMCACHE_L1_SIZE_GB, LMCACHE_EVICTION_POLICY and
+  # LMCACHE_L2_STORE_POLICY in .env.
   #
   # --chunk-size 256 is LMCache's default, written out because it must be a
   # multiple of vLLM's --block-size (64; LMCacheMPConnector checks this at
@@ -174,9 +179,9 @@ services:
     ipc: host
     environment:
       <<: *lmcache-env
-      LMCACHE_L1_SIZE_GB: ${LMCACHE_L1_SIZE_GB:-16}
-      LMCACHE_EVICTION_POLICY: ${LMCACHE_EVICTION_POLICY:-noop}
-      LMCACHE_L2_STORE_POLICY: ${LMCACHE_L2_STORE_POLICY:-skip_l1}
+      LMCACHE_L1_SIZE_GB: ${LMCACHE_L1_SIZE_GB:-64}
+      LMCACHE_EVICTION_POLICY: ${LMCACHE_EVICTION_POLICY:-LRU}
+      LMCACHE_L2_STORE_POLICY: ${LMCACHE_L2_STORE_POLICY:-default}
       # auto serves both lmcache_driven (CUDA IPC) and engine_driven workers.
       LMCACHE_SERVER_TRANSFER_MODE: ${LMCACHE_SERVER_TRANSFER_MODE:-auto}
       # Threads for KV stores and loads. Each replica's requests stay on one
