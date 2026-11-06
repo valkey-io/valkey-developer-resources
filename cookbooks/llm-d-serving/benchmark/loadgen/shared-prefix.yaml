@@ -1,0 +1,52 @@
+# inference-perf workload for the prompt-routing benchmark.
+#
+# Many users share a handful of long system prompts. That is where
+# prefix-aware routing pays off: if every request for a given system prompt
+# lands on the replica that already cached it, that replica prefills only
+# the short question. Random routing scatters each prefix across all
+# replicas, so each one has to cache every prefix.
+#
+# Sizing (defaults in run-benchmark.sh): 16 prefixes x 4096 tokens is about
+# 65k tokens of shared prefix. That's more than one L4 replica's KV cache
+# holds for Qwen3-8B, but a quarter of it fits easily. So the routed case
+# can keep each prefix resident while the random case keeps evicting.
+# Check "GPU KV cache size" in results/<run>/vllm-0.log and resize if your
+# GPUs differ.
+#
+# Rendered by scripts/render.py; the placeholders are filled from
+# run-benchmark.sh.
+load:
+  type: concurrent
+  stages:
+${STAGES}
+api:
+  type: completion
+  # Streaming is required for time-to-first-token.
+  streaming: true
+server:
+  type: vllm
+  model_name: ${MODEL}
+  # Envoy, which asks the EPP where to send each request.
+  base_url: http://172.30.0.10:8081
+  ignore_eos: true
+tokenizer:
+  pretrained_model_name_or_path: ${MODEL}
+data:
+  type: shared_prefix
+  shared_prefix:
+    num_unique_system_prompts: ${NUM_PREFIXES}
+    num_users_per_system_prompt: ${PROMPTS_PER_PREFIX}
+    system_prompt_len: ${SYSTEM_PROMPT_LEN}
+    question_len: ${QUESTION_LEN}
+    output_len: ${OUTPUT_LEN}
+    # Same seed for every strategy, so each one sees identical prompts.
+    seed: ${SEED}
+report:
+  request_lifecycle:
+    summary: true
+    per_stage: true
+    per_request: true
+    percentiles: [50, 90, 99]
+storage:
+  local_storage:
+    path: /results/${RUN_ID}/${STRATEGY}
