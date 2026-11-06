@@ -154,7 +154,7 @@ class TestBenchmarkCompose:
         assert "importlmcache.v1.multiprocess.server" in text and "glide_sync" in text
         env = svc["environment"]
         defaults = _script_defaults()
-        for name, value in (("LMCACHE_L2_STORE_POLICY", "skip_l1"), ("LMCACHE_SERVER_TRANSFER_MODE", "auto"),
+        for name, value in (("LMCACHE_L2_STORE_POLICY", "default"), ("LMCACHE_SERVER_TRANSFER_MODE", "auto"),
                             ("LMCACHE_MAX_GPU_WORKERS", "4"),
                             ("LMCACHE_L1_SIZE_GB", defaults["LMCACHE_L1_SIZE_GB"]),
                             ("LMCACHE_EVICTION_POLICY", defaults["LMCACHE_EVICTION_POLICY"])):
@@ -554,7 +554,33 @@ class TestSummarize:
         assert "| precise-valkey | 8 | 3 | 120 (100–140) | 240 (200–280) | 360 (300–420) | 4.00 (3.80–4.40) " \
                "| 62% (60–64%) | 28% (26–30%) | 1 |" in text
         assert "rejected writes (OOM) in precise-valkey run 2" in text
-        assert "| precise-valkey | 1 | 150.0 | 151.0 | 192 | 3840 | 20000 | 1 | 0 |" in text
+        assert "| precise-valkey | 1 | 150.0 | 151.0 | 192 | 3840 | 20000 | 1 | 0 | n/a | n/a | n/a |" in text
+
+    def test_lookup_split_from_lmcache_log(self, run_dir):
+        esc = "\x1b[32;20m"
+        log = "\n".join([
+            f"lmcache-server-1  | {esc}[2026-11-06 17:55:55,847] LMCache INFO:\x1b[0m Prefetch request completed "
+            "(L1+L2): 16/17 retained keys (0 L1, 16 L2) in 239.4 ms (external_request_id=cmpl-a, prefetch_request_id=1)",
+            "lmcache-server-1  | [2026-11-06 17:55:56,000] LMCache INFO: Prefetch request completed "
+            "(L1+L2): 17/17 retained keys (17 L1, 0 L2) in 21.8 ms (external_request_id=cmpl-b, prefetch_request_id=2)",
+            "lmcache-server-1  | [2026-11-06 17:55:56,100] LMCache INFO: Stored 256 tokens in 0.001 seconds",
+            "lmcache-server-1  | [2026-11-06 17:55:56,200] LMCache INFO: Prefetch request completed "
+            "(L1+L2): 12/17 retained keys (4 L1, 8 L2) in 120.0 ms (external_request_id=cmpl-c, prefetch_request_id=3)",
+        ])
+        (run_dir / "precise-valkey" / "run-1" / "lmcache-server.log").write_text(log)
+        assert summarize.lmcache_lookups(run_dir / "precise-valkey" / "run-1" / "lmcache-server.log") == {
+            "lookups": 3, "l1_chunks": 21, "valkey_chunks": 24, "prefetch_ms_p50": 120.0}
+        assert summarize.lmcache_lookups(run_dir / "missing.log") is None
+        text, _ = summarize.render(run_dir)
+        assert "| precise-valkey | 1 | 150.0 | 151.0 | 192 | 3840 | 20000 | 1 | 0 | 21 | 24 | 120 |" in text
+
+    def test_empty_index_at_start_is_zero(self, run_dir):
+        # INFO keyspace leaves out empty databases.
+        (run_dir / "precise-valkey" / "run-1" / "valkey-before.json").write_text(json.dumps({"keys_per_db": {}}))
+        (run_dir / "precise-valkey" / "run-2" / "valkey-before.json").unlink()
+        rows = {r["run"]: r for r in summarize.valkey_runs(run_dir)}
+        assert rows["1"]["index_keys_at_start"] == 0
+        assert rows["2"]["index_keys_at_start"] is None
 
 
 class TestMetadata:

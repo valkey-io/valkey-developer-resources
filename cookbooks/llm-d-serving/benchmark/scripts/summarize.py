@@ -127,8 +127,31 @@ def valkey_runs(run_dir: Path) -> list[dict]:
             # INFO keyspace omits empty databases, so a recorded snapshot
             # without db1 means the index was empty; no snapshot means unknown.
             rows.append({"config": config, "run": run.name.removeprefix("run-"), "after": after,
-                         "index_keys_at_start": (before.get("keys_per_db") or {}).get("db1", 0) if before else None})
+                         "index_keys_at_start": (before.get("keys_per_db") or {}).get("db1", 0) if before else None,
+                         "lookups": lmcache_lookups(run / "lmcache-server.log")})
     return rows
+
+
+# lmcache 0.5.5 logs one line per lookup prefetch, e.g.
+#   Prefetch request completed (L1+L2): 16/17 retained keys (0 L1, 16 L2) in 239.4 ms
+_PREFETCH = re.compile(r"Prefetch request completed \(L1\+L2\): \d+/\d+ retained keys "
+                       r"\((\d+) L1, (\d+) L2\) in ([0-9.]+) ms")
+_ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def lmcache_lookups(log: Path) -> dict | None:
+    """Chunks LMCache's lookups found in L1 vs loaded from Valkey (L2) during a
+    run, warm-up included, and the median prefetch time. None without a log."""
+    if not log.exists():
+        return None
+    l1 = l2 = 0
+    times = []
+    for match in _PREFETCH.finditer(_ANSI.sub("", log.read_text(errors="replace"))):
+        l1 += int(match.group(1))
+        l2 += int(match.group(2))
+        times.append(float(match.group(3)))
+    return {"lookups": len(times), "l1_chunks": l1, "valkey_chunks": l2,
+            "prefetch_ms_p50": statistics.median(times) if times else None}
 
 
 def fmt(cell: dict | None, kind: str) -> str:
@@ -166,17 +189,23 @@ def results_table(summary: dict) -> list[str]:
 def valkey_table(rows: list[dict]) -> list[str]:
     lines = [
         "| Configuration | Run | Valkey used_memory GiB | used_memory_peak GiB | maxmemory GiB "
-        "| KV keys (db 0) | Index keys (db 1) | Index keys at start (db 1) | OOM rejections |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| KV keys (db 0) | Index keys (db 1) | Index keys at start (db 1) | OOM rejections "
+        "| Lookup chunks from L1 | Lookup chunks from Valkey | Prefetch p50 ms |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for row in rows:
         a = row["after"]
         keys = a.get("keys_per_db") or {}
         at_start = row["index_keys_at_start"]
+        lk = row.get("lookups")
+        if lk and lk["lookups"]:
+            lookup_cells = f"{lk['l1_chunks']:,} | {lk['valkey_chunks']:,} | {lk['prefetch_ms_p50']:.0f}"
+        else:
+            lookup_cells = "n/a | n/a | n/a"
         lines.append(
             f"| {row['config']} | {row['run']} | {a['used_memory'] / GIB:.1f} | {a['used_memory_peak'] / GIB:.1f} "
             f"| {a.get('maxmemory', 0) / GIB:.0f} | {keys.get('db0', 0)} | {keys.get('db1', 0)} "
-            f"| {'n/a' if at_start is None else at_start} | {a.get('oom_errors', 0)} |")
+            f"| {'n/a' if at_start is None else at_start} | {a.get('oom_errors', 0)} | {lookup_cells} |")
     return lines
 
 
