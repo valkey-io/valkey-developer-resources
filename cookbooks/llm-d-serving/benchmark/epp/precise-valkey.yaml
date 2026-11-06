@@ -10,6 +10,13 @@
 # vLLM publishes KV-cache events over ZMQ; the router subscribes to each
 # replica, writes block-to-replica entries into Valkey, and routes each
 # request to the replica that already holds the longest cached prefix.
+#
+# GPU load settings: peakPrefillThroughput is measured on this hardware
+# (scripts/benchctl.py calibrate), and maxTTFTPenaltyMs and the in-flight
+# load producer keep llm-d's GPU defaults. The recipe's CPU config
+# (../../epp/precise-valkey.yaml) overrides addEstimatedOutputTokens,
+# peakPrefillThroughput (1000) and maxTTFTPenaltyMs (1500) for small CPU
+# replicas; those overrides are deliberately not used here.
 apiVersion: llm-d.ai/v1
 kind: EndpointPickerConfig
 
@@ -43,9 +50,15 @@ plugins:
           enableMetrics: true
           redisConfig:
             # Valkey speaks the same protocol; redis:// is the URL scheme the
-            # router's client library parses. run-benchmark.sh flushes this
-            # database before each strategy.
-            address: redis://172.30.0.5:6379
+            # router's client library parses.
+            #
+            # /1 selects database 1, as in the CPU stack. LMCache's KV chunks
+            # are string keys in database 0. When a replica restarts, the
+            # router drops that replica's entries by SCANning its whole
+            # database and reading every non-"engine:" key as a hash
+            # (RedisIndex.Clear in llm-d-router v1.0.0); in a shared database
+            # that stops at the first LMCache key with WRONGTYPE.
+            address: redis://valkey:6379/1
       kvEventsConfig:
         engineType: vllm
         topicFilter: "kv@"

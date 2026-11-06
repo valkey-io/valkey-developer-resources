@@ -1,7 +1,7 @@
 # Copy to terraform.tfvars and edit. terraform.tfvars is gitignored.
 
 region            = "us-east-1"
-instance_type     = "g6.12xlarge"
+instance_type     = "g6e.12xlarge"
 use_spot          = false
 root_volume_gb    = 200
 auto_stop_minutes = 240

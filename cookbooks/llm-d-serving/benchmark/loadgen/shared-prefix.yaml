@@ -1,24 +1,29 @@
-# inference-perf workload for the prompt-routing benchmark.
+# inference-perf workload for the llm-d serving GPU benchmark.
 #
-# Many users share a handful of long system prompts. That is where
-# prefix-aware routing pays off: if every request for a given system prompt
-# lands on the replica that already cached it, that replica prefills only
-# the short question. Random routing scatters each prefix across all
-# replicas, so each one has to cache every prefix.
+# Many users share a few long system prompts. If every request for a given
+# system prompt lands on the replica that already cached it, that replica
+# prefills only the short question. Random routing scatters each prefix
+# across all replicas. With LMCache, a replica that misses in its GPU prefix
+# cache can still load the prefix from Valkey if another replica computed it.
 #
-# Sizing (defaults in run-benchmark.sh): 16 prefixes x 4096 tokens is about
-# 65k tokens of shared prefix. That's more than one L4 replica's KV cache
-# holds for Qwen3-8B, but a quarter of it fits easily. So the routed case
-# can keep each prefix resident while the random case keeps evicting.
-# Check "GPU KV cache size" in results/<run>/vllm-0.log and resize if your
-# GPUs differ.
+# Default sizing (run-benchmark.sh): 192 system prompts x 4,096 tokens, four
+# users each, a 256-token question and 64 output tokens. The shared prefixes
+# add up to 786,432 tokens, more than four 48 GB replicas can hold in GPU KV
+# cache with Qwen3-8B, so every strategy has to evict. Check "GPU KV cache
+# size" in results/<run>/vllm-0.log and resize if your GPUs differ.
 #
-# Rendered by scripts/render.py; the placeholders are filled from
-# run-benchmark.sh.
+# inference-perf builds NUM_PREFIXES x PROMPTS_PER_PREFIX prompts (768 by
+# default) from the seed, shuffles them with the same seed, and sends them
+# in that order, cycling. Every configuration and run sees the same prompts. run-benchmark.sh runs each stage (warm-up, then one per
+# concurrency level) as its own inference-perf invocation, so vLLM's
+# cache-hit counters can be read between stages.
+#
+# Rendered by scripts/render.py, one file per stage; the placeholders are
+# filled from run-benchmark.sh.
 load:
   type: concurrent
   stages:
-${STAGES}
+    - {num_requests: ${NUM_REQUESTS}, concurrency_level: ${CONCURRENCY}}
 api:
   type: completion
   # Streaming is required for time-to-first-token.
@@ -27,7 +32,7 @@ server:
   type: vllm
   model_name: ${MODEL}
   # Envoy, which asks the EPP where to send each request.
-  base_url: http://172.30.0.10:8081
+  base_url: http://172.16.90.10:8081
   ignore_eos: true
 tokenizer:
   pretrained_model_name_or_path: ${MODEL}
@@ -39,7 +44,6 @@ data:
     system_prompt_len: ${SYSTEM_PROMPT_LEN}
     question_len: ${QUESTION_LEN}
     output_len: ${OUTPUT_LEN}
-    # Same seed for every strategy, so each one sees identical prompts.
     seed: ${SEED}
 report:
   request_lifecycle:
@@ -49,4 +53,4 @@ report:
     percentiles: [50, 90, 99]
 storage:
   local_storage:
-    path: /results/${RUN_ID}/${STRATEGY}
+    path: ${OUTPUT_DIR}

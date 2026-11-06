@@ -1,12 +1,14 @@
-# Optional: AWS GPU host for the latency benchmark
+# Optional, AWS-specific: a GPU host for the benchmark
 
-> This is an optional, paid path. The rest of the recipe runs locally for free.
-> Any NVIDIA host with Docker and the NVIDIA Container Toolkit works for the
-> benchmark; this Terraform is one way to get such a host on AWS.
+> This is an optional, paid path, and the only AWS-specific part of the
+> recipe. The recipe notebook runs locally on CPU. Any Linux host that meets
+> the [benchmark's prerequisites](../../README.md#what-you-need) works; this
+> Terraform is one way to get such a host on AWS.
 
 This configuration creates one GPU instance with Docker and nothing else. The
-[benchmark stack](../../README.md) itself (vLLM, the llm-d router, Valkey,
-and the load generator) is host-agnostic and runs on that host.
+[benchmark stack](../../README.md) itself (vLLM, LMCache, the llm-d router,
+Valkey, and the load generator) has no AWS-specific code and runs on that
+host.
 
 ## What it creates
 
@@ -26,16 +28,21 @@ and the load generator) is host-agnostic and runs on that host.
 - On first boot, a clone of `repo_url` at `repo_ref` in `/opt/bench/repo`
   (defaults to this repository's `main` branch), and the Docker Compose plugin
   if the AMI lacks it.
+- On first boot, `/etc/llm-d-gpu-bench/host.env` with `BENCH_CLOUD=aws` and
+  the instance type and region from instance metadata (IMDSv2).
+  `run-benchmark.sh` reads it, so each result's `metadata.json` says where it
+  was measured.
 
-The default instance type is `g6.12xlarge` (4x NVIDIA L4, 24 GB each), enough
-for two to four vLLM replicas of a small ungated model at TP=1. No Hugging Face
-token is needed for ungated models, and the configuration holds no secrets.
-The published results were measured on a `g6e.12xlarge` (4x L40S, 48 GB
-each) in `ap-northeast-1`, with a smaller run on a `g4dn.12xlarge` (4x T4,
-16 GB each), because L4 capacity was unavailable on the days we tried. Set
-`instance_type`, `region` and `availability_zone` to match; the
-[benchmark README](../../README.md#results) lists the workload settings for
-each.
+The default instance type is `g6e.12xlarge`: four NVIDIA L40S (48 GB each)
+and 384 GiB of RAM. The benchmark's default workload needs four GPUs and
+about 296 GiB of host RAM, most of it for Valkey (see
+[Sizing Valkey](../../README.md#sizing-valkey)). A `g6.12xlarge` (4x L4,
+24 GB, 192 GiB RAM) needs a smaller workload and `VALKEY_MAXMEMORY`. The
+region is a variable (`region`); GPU capacity varies by region and zone. The
+default 200 GiB root volume holds the AMI, the images (the vLLM image alone
+is about 20 GiB unpacked), the model weights (about 16 GiB) and the results.
+No Hugging Face token is needed for the default model, and the configuration
+holds no secrets.
 
 ## Before you start
 
@@ -43,7 +50,7 @@ each.
   [Session Manager plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html).
 - Service quotas: new accounts often have a quota of 0 vCPUs for "Running
   On-Demand G and VT instances", and Spot has a separate quota. A
-  `g6.12xlarge` needs 48 vCPUs. Request an increase early; approval can take a
+  `g6e.12xlarge` needs 48 vCPUs. Request an increase early; approval can take a
   while.
 - Permissions: the identity running `terraform apply` needs to manage EC2
   networking (VPC, subnet, internet gateway, route table, security group),
@@ -59,9 +66,14 @@ each.
 
   ```bash
   aws ec2 create-capacity-reservation --region us-east-1 \
-    --availability-zone us-east-1c --instance-type g6.12xlarge \
+    --availability-zone us-east-1c --instance-type g6e.12xlarge \
     --instance-platform Linux/UNIX --instance-count 1
-  # On success, cancel it (or keep it until the instance launches into it):
+  ```
+
+  On success, cancel it (or keep it until the instance launches into it),
+  with the reservation ID from the output:
+
+  ```bash
   aws ec2 cancel-capacity-reservation --region us-east-1 \
     --capacity-reservation-id <id from the output>
   ```
@@ -71,19 +83,37 @@ each.
 
 ## Usage
 
+Copy the example variables:
+
 ```bash
-cd cookbooks/prompt-routing/benchmark/terraform/aws
-cp terraform.tfvars.example terraform.tfvars   # edit as needed
+cd cookbooks/llm-d-serving/benchmark/terraform/aws
+cp terraform.tfvars.example terraform.tfvars
+```
+
+Edit `terraform.tfvars` (region, instance type, zone), then create the host:
+
+```bash
 terraform init
 terraform apply
+```
 
-# Shell on the host, then run the benchmark
+Open a shell on the host:
+
+```bash
 eval "$(terraform output -raw ssm_shell)"
-#   cd /opt/bench/repo/cookbooks/prompt-routing/benchmark
-#   sudo ./scripts/run-benchmark.sh
-#   cat results/*/summary.md
+```
 
-# Forward a port from the host to your machine
+and run the benchmark there:
+
+```bash
+cd /opt/bench/repo/cookbooks/llm-d-serving/benchmark
+sudo ./scripts/run-benchmark.sh
+cat results/*/summary.md
+```
+
+To reach the router from your machine, forward its port (8081):
+
+```bash
 eval "$(terraform output -raw ssm_port_forward_example)"
 ```
 
@@ -96,13 +126,13 @@ you're changing it), set `repo_url = ""` and push it over SSM. It lands in
 ```
 
 On the host, `/var/log/gpu-bench-bootcheck.log` records the first-boot
-setup: the Compose plugin check, the clone, `nvidia-smi`, and the Docker
-runtimes.
+setup: the Compose plugin check, the clone, `nvidia-smi`, the Docker
+runtimes, and the contents of `/etc/llm-d-gpu-bench/host.env`.
 
 The run takes longer than a quick shell session, so start it under `nohup`
 or `tmux` if your SSM session might drop. Copy any results you want to keep
 before you destroy the stack, for example by printing `summary.md` and
-`run.yaml` in the session.
+`metadata.json` in the session.
 
 When you finish a run, tear everything down:
 

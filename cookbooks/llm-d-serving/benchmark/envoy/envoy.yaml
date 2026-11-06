@@ -1,4 +1,4 @@
-# Envoy config for the prompt-routing benchmark.
+# Envoy config for the llm-d serving recipe's GPU benchmark.
 #
 # Copied unchanged (below this header) from llm-d's
 # guides/no-kubernetes-deployment/router/envoy/envoy.yaml at commit 188e66d9,

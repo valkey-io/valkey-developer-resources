@@ -5,6 +5,10 @@
 # Valkey's benefit is that the index lives outside the router process: it
 # survives router restarts and can be shared, which a single-router benchmark
 # does not measure.
+#
+# The replicas still share KV through LMCache and Valkey (database 0); only
+# the router's index is in memory. Same GPU load settings as
+# precise-valkey.yaml (no CPU overrides).
 apiVersion: llm-d.ai/v1
 kind: EndpointPickerConfig
 

@@ -1,268 +1,145 @@
-# Prompt-routing latency benchmark
+# GPU benchmark for the llm-d serving recipe
 
-> Optional and GPU-only. The rest of the recipe runs locally on CPU for free.
-> This benchmark measures what the routing index buys you end to end:
-> time-to-first-token with llm-d's precise prefix-cache routing, against
-> random routing, on real GPUs.
+> Optional and GPU-only. The [recipe notebook](../llm-d-serving-with-valkey.ipynb)
+> runs on CPU and is the main path; you don't need this benchmark to follow it.
 
-The recipe notebook shows how llm-d's router keeps its index in Valkey. This
-benchmark runs the real thing: four vLLM replicas emitting KV-cache events,
-llm-d's router (the Endpoint Picker, behind Envoy) writing those events into
-Valkey and routing on them, and a load generator that sends many users'
-prompts built on a few long, shared system prompts.
+The notebook shows how the stack works: Valkey holds the router's
+prefix-cache index and the KV cache that LMCache shares between vLLM
+replicas. On CPU, loading KV from Valkey costs about as much as a local hit,
+so the timing differences between routing strategies are small. This
+benchmark runs the same stack on four GPUs, where prefill is expensive, and
+measures first-token time, throughput, and where the cached prompt tokens
+came from.
 
-No Kubernetes is involved. Every component is a container, and the router
-reads its list of replicas from a file using llm-d's file-discovery plugin,
-following llm-d's
-[no-Kubernetes deployment guide](https://github.com/llm-d/llm-d/tree/main/guides/no-kubernetes-deployment).
+It is the same wiring as the recipe's [`docker-compose.yml`](../docker-compose.yml),
+scaled up: four vLLM replicas with `LMCacheMPConnector`, a standalone LMCache
+server whose store is Valkey, and llm-d's router (Envoy and the Endpoint
+Picker v1.0.0) with its index in Valkey database 1. No Kubernetes is
+involved; the router reads its list of replicas from a file, following
+llm-d's [no-Kubernetes deployment guide](https://github.com/llm-d/llm-d/tree/main/guides/no-kubernetes-deployment).
 
 ## Results
 
-We ran this benchmark on an AWS `g6e.12xlarge` (4x NVIDIA L40S, 48 GB each)
-in `ap-northeast-1`, provisioned with the Terraform in
-[`terraform/aws/`](terraform/aws/), on 2026-10-29, with the default model
-(Qwen3-8B) and 4,096-token shared prompts. Each vLLM replica had 165,248
-tokens of KV cache, about 661k across the four. Read the caveats below
-before quoting these numbers.
+No results have been published for this stack yet. Each published result
+will state the cloud, instance type, GPU, region and date it was measured
+on; `summarize.py` prints that line above every table.
 
-### Many prefixes competing for cache
-
-192 shared system prompts of 4,096 tokens each, four users per prompt, a
-256-token question and 64 output tokens. The shared prefixes add up to about
-786k tokens, 1.2 times what the four replicas can cache between them, so
-every strategy has to evict. 384 warm-up requests, then 768 requests at each
-concurrency level.
-
-| Strategy | Concurrency | TTFT p50 ms | TTFT p90 ms | TTFT p99 ms | Prompt tokens from cache | Requests/s |
-| --- | --- | --- | --- | --- | --- | --- |
-| random | 8 | 409 | 716 | 1,086 | 14% | 3.22 |
-| approximate | 8 | 367 | 422 | 449 | 47% | 3.90 |
-| precise-memory | 8 | 132 | 434 | 456 | 65% | 4.03 |
-| precise-valkey | 8 | 133 | 435 | 463 | 65% | 4.02 |
-| random | 16 | 418 | 782 | 1,532 | 16% | 4.99 |
-| approximate | 16 | 395 | 435 | 767 | 46% | 6.30 |
-| precise-memory | 16 | 149 | 450 | 553 | 65% | 6.78 |
-| precise-valkey | 16 | 147 | 447 | 524 | 64% | 6.80 |
-| random | 32 | 466 | 1,420 | 2,755 | 14% | 6.64 |
-| approximate | 32 | 405 | 452 | 1,636 | 48% | 9.40 |
-| precise-memory | 32 | 241 | 497 | 1,398 | 65% | 10.59 |
-| precise-valkey | 32 | 224 | 466 | 1,375 | 64% | 10.58 |
-
-What this shows:
-
-- Precise prefix-cache routing reused 64-65% of prompt tokens from cache,
-  against 46-48% for the approximate scorer and 14-16% for random routing.
-- At concurrency 8 and 16 it cut median time-to-first-token by 62-64%
-  compared with the approximate scorer, and by 64-68% compared with random.
-  At concurrency 32 the cut was 41-45% against approximate.
-- At concurrency 32, precise routing served 1.6 times the requests per second
-  of random routing, and 13% more than the approximate scorer.
-- For the prefix-aware strategies, the p90 is close to a full 4,352-token
-  prefill (about 380 ms at the calibrated rate): the slowest tenth of their
-  requests are cache misses.
-- Keeping the index in Valkey instead of the router's memory made no
-  measurable difference: the two precise rows are within noise of each other.
-  After the `precise-valkey` run, Valkey held 20,976 index keys written from
-  vLLM's KV-cache events; after the other strategies it held none.
-
-### Every prefix fits in cache
-
-40 shared system prompts of 4,096 tokens, eight users per prompt, same
-question and output lengths. The shared prefixes total about 164k tokens, a
-quarter of the replicas' combined cache. 96 warm-up requests, then 768
-requests at each concurrency level.
-
-| Strategy | Concurrency | TTFT p50 ms | TTFT p90 ms | TTFT p99 ms | Prompt tokens from cache | Requests/s |
-| --- | --- | --- | --- | --- | --- | --- |
-| random | 8 | 108 | 404 | 537 | 78% | 4.29 |
-| approximate | 8 | 94 | 114 | 140 | 97% | 4.72 |
-| random | 16 | 114 | 412 | 498 | 82% | 7.62 |
-| approximate | 16 | 100 | 132 | 228 | 99% | 8.24 |
-| random | 32 | 126 | 417 | 744 | 82% | 12.53 |
-| approximate | 32 | 106 | 128 | 188 | 99% | 15.77 |
-
-With this little cache pressure, random routing already hits the cache for
-most tokens, and the approximate scorer nearly always does: 97-99% of prompt
-tokens, with a p90 of about 130 ms against random's 410 ms. Precise routing
-has little left to win here. We leave its rows out because this run predates
-the replica restart described under [Caveats](#caveats), and its precise
-results were affected by replay churn.
-
-### Also run on older GPUs (4x T4)
-
-Before the L40S run we ran a smaller version on an AWS `g4dn.12xlarge` (4x
-NVIDIA T4, 16 GB each) in `ca-central-1`, on 2026-10-28, when no newer GPU
-had capacity. The T4 can't use FlashAttention, so vLLM falls back to a slower
-attention kernel and prefill is about 38 times slower than on the L40S. It
-needed a smaller model (Qwen3-4B in fp16) and 1,024-token prefixes.
-
-With more prefixes than the replicas could cache (128 x 1,024 tokens against
-about 120k tokens of combined cache), at concurrency 16:
-
-| Strategy | TTFT p50 ms | Prompt tokens from cache | Requests/s |
-| --- | --- | --- | --- |
-| random | 1,461 | 11% | 2.82 |
-| approximate | 940 | 38% | 5.14 |
-| precise-memory | 897 | 57% | 6.25 |
-| precise-valkey | 847 | 58% | 6.37 |
-
-The ordering matches the L40S: precise routing reuses the most, the two
-index backends tie, and random trails. When every prefix fit (32 x 1,024
-tokens), approximate and precise routing tied at 94% of prompt tokens from
-cache. These runs predate the replica restart, and we didn't check them for
-replay churn. The full T4 tables and settings are in this file's history.
-
-### Why use Valkey if it isn't faster?
-
-In every run, `precise-valkey` and `precise-memory` are within noise of each
-other. Each request does a few small index lookups.
-Against a Valkey on the same host those take well under a millisecond, while
-time-to-first-token is around a hundred milliseconds or more even on the
-L40S. A Valkey on another
-host or in another availability zone would add a network round trip to each
-lookup; we haven't measured that.
-
-What Valkey changes is where the index lives: outside the router process.
-
-- **Router restarts and upgrades.** An in-memory index starts empty when the
-  router restarts, and can only rebuild from vLLM's limited event replay buffer
-  and from new events. Until it does, routing is close to random. A Valkey index
-  is still there. llm-d's precise routing guide names this gap: a router that
-  starts after the model servers have warmed up misses the prefixes they cached
-  before its replay window.
-- **More than one router.** A new or replacement router reads the complete
-  index from Valkey instead of building its own. That handles the index part of running several routers. llm-d still recommends a single router for precise
-  routing, because its in-flight load accounting is per process.
-- **One copy, visible.** The index is stored once instead of once per router,
-  and you can inspect it directly, as the recipe notebook does.
-
-This benchmark runs one router per strategy against freshly restarted
-replicas, so it doesn't measure any of these. One caveat from our runs: with llm-d-router v1.0.0, a router
-that joined busy replicas mid-stream degraded precise routing with either
-backend (see [Caveats](#caveats)), so a Valkey index didn't protect against
-that case.
-
-### How these numbers were produced
-
-The L40S runs use the defaults for the model and prompt shape, with a larger
-workload sized to the L40S's cache:
-
-```bash
-NUM_PREFIXES=192 PROMPTS_PER_PREFIX=4 \
-WARMUP_REQUESTS=384 STAGE_REQUESTS=768 CONCURRENCY_LEVELS="8 16 32" \
-sudo -E ./scripts/run-benchmark.sh
-```
-
-For the second workload, change `NUM_PREFIXES=40 PROMPTS_PER_PREFIX=8
-WARMUP_REQUESTS=96`. The calibration step measured
-`peakPrefillThroughput` at 11,471 tokens/s (an 8,192-token prefill took 0.71
-seconds). The `random` rows in the first table come from an earlier run of the
-same workload without replica restarts; random routing doesn't use KV-cache
-events, so the restart doesn't affect it.
-
-For the T4 runs:
-
-```bash
-MODEL=Qwen/Qwen3-4B DTYPE=half MAX_MODEL_LEN=10240 \
-SYSTEM_PROMPT_LEN=1024 QUESTION_LEN=128 OUTPUT_LEN=16 \
-NUM_PREFIXES=128 PROMPTS_PER_PREFIX=4 \
-WARMUP_REQUESTS=256 STAGE_REQUESTS=384 CONCURRENCY_LEVELS="8 16" \
-PEAK_PREFILL_THROUGHPUT=299 \
-sudo -E ./scripts/run-benchmark.sh
-```
-
-### Caveats
-
-- **Replay churn without replica restarts.** Our first L40S runs kept the
-  vLLM replicas up across strategies and only restarted the router. Each new
-  router joined the replicas' KV-event streams mid-stream and asked for a full
-  replay, which vLLM's replay buffer could no longer serve. The incomplete
-  replays kept resetting index entries. On the first workload, precise
-  routing's share of prompt tokens from cache swung between 24% and 63% from
-  run to run, tracking the number of replays rather than the index backend. `run-benchmark.sh` now restarts the
-  replicas before each strategy (`RESTART_REPLICAS=1`), and the precise rows
-  in the first table come from that run, with no mid-stream joins or
-  incomplete replays in the router logs. A production router that restarts
-  against busy replicas could see the same churn.
-- **One GPU type each, and not the one the defaults target.** The defaults are
-  sized for 24 GB GPUs such as the L4. We used L40S and T4 because no L4 had
-  capacity: when we tried, AWS had no on-demand capacity for `g6.12xlarge`
-  (4x L4) in `us-east-1`, `us-east-2`, `us-west-2`, `ca-central-1`,
-  `eu-central-1` or `ap-northeast-1`, apart from one zone that filled again
-  within a minute.
-- **One run each.** Each row is a single run of 768 requests (384 on the T4),
-  without repeats or confidence intervals. Treat differences under about 10%
-  as noise.
-- **One router.** Each run uses a single router replica, as llm-d's precise
-  routing guide does. It doesn't measure what a Valkey index is for: sharing
-  one index across router replicas and keeping it through a router restart.
-- **Same workload, cold start.** Every strategy saw the same prompts in the
-  same order (fixed seed), and started with empty prefix caches and an empty
-  index. Warm-up requests are excluded from the tables.
-- **"Prompt tokens from cache"** is vLLM's own count of cached prompt tokens,
-  as reported per response and summed by inference-perf.
-- Three measured requests failed across the L40S runs; the one we inspected
-  was an HTTP 503 from the router path. inference-perf also flagged a few requests where its count
-  of output tokens differed from vLLM's; that affects output-token statistics
-  only, not time-to-first-token.
+A note on what to expect. An earlier version of this benchmark
+([#107](https://github.com/valkey-io/valkey-developer-resources/pull/107))
+had no shared KV cache, and there precise routing's first-token times were
+well below random routing's. Here, a request that random routing sends to
+the wrong replica can still load the prefix from Valkey instead of
+recomputing it, so the gap between random and precise routing may be
+smaller. The `random-no-lmcache` baseline shows the combined effect
+of routing and the shared cache. The benchmark reports whatever it measures.
 
 ## What it compares
 
-`scripts/run-benchmark.sh` runs the same workload once per routing strategy:
+`scripts/run-benchmark.sh` runs the same workload for each configuration,
+three times each (`RUNS`):
 
-| Strategy | How the router picks a replica |
-| --- | --- |
-| `random` | At random. Each replica still has its own prefix cache, but requests aren't steered to it. |
-| `approximate` | llm-d's default prefix-aware scorers, which estimate cache contents from the requests they've routed. No KV events, no Valkey. |
-| `precise-memory` | Precise prefix-cache routing from vLLM's KV events, with the index in the router's memory. |
-| `precise-valkey` | The same, with the index in Valkey. |
+| Configuration | Router | KV sharing |
+| --- | --- | --- |
+| `random-no-lmcache` | At random | None. Replicas run without `--kv-transfer-config`, so a miss in a replica's GPU prefix cache is a full prefill. |
+| `random` | At random | LMCache and Valkey |
+| `approximate` | llm-d's default prefix-aware scorers, which estimate cache contents from the requests they've routed. No KV events, no index. | LMCache and Valkey |
+| `precise-memory` | Precise prefix-cache routing from vLLM's KV events, index in the router's memory | LMCache and Valkey |
+| `precise-valkey` | The same, index in Valkey database 1 | LMCache and Valkey |
 
-Before each strategy the script clears every replica's prefix cache and
-flushes Valkey, so every strategy starts cold. All four use the same Envoy
-and router path; only the router config changes.
+All five use the same Envoy and router path; only the router config (and,
+for the baseline, the replicas' KV connector) changes. The router configs
+are in [`epp/`](epp/); `random` and `random-no-lmcache` share
+`epp/random.yaml`.
 
-Comparing `precise-memory` with `precise-valkey` shows what moving the index
-out of the router process costs in latency. The reason to move it is that a
-Valkey index outlives the router process and can be shared. A single-router
-run like this one doesn't measure that benefit.
+Before every run the script stops the router and the replicas, restarts the
+LMCache server (empty L1), flushes Valkey database 0 (the KV store) and
+resets Valkey's error counters, then recreates the replicas, so each run
+starts with empty GPU prefix caches and an empty KV store. It also flushes
+database 1, the router's index, while the router is stopped, so
+`precise-valkey` starts each run with an empty index, as `precise-memory`
+does. Set `FLUSH_ROUTER_INDEX=0` to keep it. The index's key count at the
+start of each run is recorded in `valkey-before.json`.
 
 ## What you need
 
-- A Linux host with four NVIDIA GPUs. The defaults are sized for 24 GB GPUs
-  such as an AWS `g6.12xlarge` (4x L4). 16 GB GPUs work with a smaller model
-  and shorter prefixes; [the results above](#how-these-numbers-were-produced)
-  list the settings we used on 4x T4.
+- A Linux host with four NVIDIA GPUs, 24 GB or more each. The defaults are
+  sized for 48 GB GPUs such as the L40S; see [Workload](#workload) for
+  smaller ones.
+- Host RAM for Valkey's `maxmemory` plus the replicas and the LMCache
+  server: 296 GiB with the defaults (see [Sizing Valkey](#sizing-valkey)).
+  The script refuses to start on a host with less.
 - Docker with the Compose plugin, the NVIDIA Container Toolkit, and
-  `python3`.
-- About 100 GB of free disk for images and model weights.
-- Outbound internet access to pull images and the model. The default model,
-  `Qwen/Qwen3-8B`, is ungated, so no Hugging Face token is needed.
+  `python3` on the host.
+- About 150 GB of free disk for images, model weights and logs.
+- Outbound internet access to pull images, Python packages and the model.
+  The default model, `Qwen/Qwen3-8B`, is ungated, so no Hugging Face token
+  is needed.
 
-To get such a host on AWS, see [`terraform/aws/`](terraform/aws/). Any other
-NVIDIA host works the same way.
+To get such a host on AWS, see the optional [`terraform/aws/`](terraform/aws/).
+Any other host that meets the list above works the same way.
 
 ## Run it
 
 ```bash
-cd cookbooks/prompt-routing/benchmark
-cp .env.example .env        # optional: change the model or workload
-sudo ./scripts/run-benchmark.sh
+cd cookbooks/llm-d-serving/benchmark
+cp .env.example .env
+./scripts/run-benchmark.sh
 ```
 
-The first run downloads about 16 GB of weights and several GB of images, and
-the vLLM replicas take a few minutes to start. After that, each strategy
-takes a few minutes, depending on the workload settings.
+Edit `.env` first to set `BENCH_CLOUD`, `BENCH_INSTANCE_TYPE` and
+`BENCH_REGION` (they go into `metadata.json` and above every results table)
+or to change the model or workload. If your user is not in the `docker`
+group, run the script with `sudo`; settings in `.env` still apply.
 
-When it finishes, the results are in `results/<run-id>/`:
+The first run builds the vLLM image (the pinned `vllm/vllm-openai:v0.30.0`
+plus lmcache 0.5.5 and `valkey-glide-sync` 2.5.2, see
+[`vllm/Dockerfile`](vllm/Dockerfile)), downloads about 16 GB of weights, and
+waits a few minutes for the replicas to start. Each run then recreates the
+replicas and sends 2,688 requests. With five configurations, three runs
+each and the default workload, plan for several hours.
 
-- `summary.md`: the comparison table
-- `run.yaml`: model, settings, image tags, GPUs, and the calibrated
-  `peakPrefillThroughput`
-- `<strategy>/`: inference-perf's per-stage and per-request reports, the
-  router log, and `index.txt`, which records how many keys the router left in
-  Valkey (nonzero only for `precise-valkey`)
+Stop everything afterwards with `docker compose down`.
 
-Stop everything with `sudo docker compose down`.
+## Results layout
+
+```text
+results/<run-id>/
+  metadata.json             where, when and with what the run was measured
+  summary.md, summary.json  the results tables, and the numbers behind them
+  vllm-0.log, lmcache-server.log   startup logs (KV cache size, transfer mode)
+  <configuration>/run-<n>/
+    warmup/                 inference-perf report for the warm-up stage
+    c8/, c16/, c32/         inference-perf report for each concurrency level,
+                            plus counters-before.json and counters-after.json
+    valkey-before.json      Valkey memory and key counts when the run started
+    valkey.json, valkey.txt Valkey INFO memory, keyspace and errorstats after the run
+    epp.log, lmcache-server.log, vllm-<n>.log
+```
+
+`metadata.json` records the date (UTC), `BENCH_CLOUD`, `BENCH_INSTANCE_TYPE`
+and `BENCH_REGION`, the GPU model, count, memory and driver from
+`nvidia-smi`, host RAM, the image each container ran (from `docker
+inspect`), the lmcache, `valkey-glide-sync` and vLLM versions inside the
+containers, the package changes the image build made, the model, the
+workload and stack settings, and the git commit of this repository.
+
+`summary.md` has one row per configuration and concurrency level:
+
+- TTFT p50, p90 and p99, and requests per second, from inference-perf.
+- Prompt tokens from the GPU prefix cache and from Valkey, as shares of all
+  prompt tokens. These come from vLLM's counters on every replica, read
+  just before and just after each stage: `vllm:prefix_cache_hits_total`
+  (local hits), `vllm:external_prefix_cache_hits_total` (tokens LMCache
+  supplied, which it reads from Valkey) and `vllm:prompt_tokens_total`. The
+  recipe notebook tells local hits from Valkey hits with the same two
+  counters.
+- Failed requests, summed over the runs.
+
+Each cell is the median of the runs, with the spread (minimum to maximum) in
+brackets. A second table lists Valkey's `used_memory`, `used_memory_peak`,
+key counts per database and OOM rejections for every run. Rerun
+`python3 scripts/summarize.py results/<run-id>` at any time to print the
+tables again.
 
 ## How it's wired
 
@@ -270,66 +147,157 @@ Stop everything with `sudo docker compose down`.
 loadgen (inference-perf)
    |
    v
-envoy :8081  --ext_proc-->  EPP (router)  --reads/writes-->  valkey
-   |                          ^
-   |                          | KV-cache events (ZMQ :5556, replay :5559)
-   v                          |
-vllm-0 .. vllm-3  ------------+
+envoy :8081  --ext_proc-->  EPP (router)  --index, db 1-->  valkey
+   |                          ^                               ^
+   |                          | KV events (ZMQ :5556, :5559)  | KV chunks, db 0
+   v                          |                               |
+vllm-0 .. vllm-3  ------------+-------- LMCacheMPConnector --> lmcache-server
 ```
 
 | File | Purpose |
 | --- | --- |
-| `compose.yaml` | All services on one bridge network with fixed IPs |
-| `vllm/serve-vllm.sh` | vLLM flags: block size 64, KV events, render endpoints, cached-token reporting |
+| `compose.yaml` | All services on one bridge network with fixed addresses |
+| `vllm/Dockerfile`, `vllm/install-lmcache.sh` | The vLLM image with lmcache 0.5.5 and `valkey-glide-sync` 2.5.2 |
+| `vllm/serve-vllm.sh` | vLLM flags: block size 64, prefix caching, KV events, render endpoints, the LMCache connector (or none) |
 | `epp/*.yaml` | Router config for each strategy, plus `endpoints.yaml` for file discovery |
 | `envoy/envoy.yaml` | Envoy config, copied from llm-d's no-Kubernetes guide |
 | `loadgen/shared-prefix.yaml` | inference-perf workload template |
-| `scripts/run-benchmark.sh` | Runs everything, one strategy at a time |
-| `scripts/benchctl.py` | Calibration, cache reset, and readiness helpers |
-| `scripts/render.py`, `scripts/summarize.py` | Config templating and the results table |
+| `scripts/run-benchmark.sh` | Runs everything, one configuration and run at a time |
+| `scripts/benchctl.py` | Calibration, router readiness, counter snapshots, Valkey stats, the host RAM check |
+| `scripts/render.py`, `scripts/summarize.py`, `scripts/metadata.py` | Config templating, the results tables, and `metadata.json` |
+
+Block and chunk sizes line up the way the CPU stack's do. vLLM's
+`--block-size 64` equals the router's `blockSizeTokens`, because the router
+recomputes vLLM's block hashes from the prompt tokens. LMCache stores KV in
+256-token chunks, four vLLM blocks each, and the connector checks at
+startup that the chunk size is a whole number of blocks. The default
+4,096-token system prompts are exactly 16 chunks.
+
+On GPUs, LMCache's `auto` transfer mode resolves to `lmcache_driven`: the
+LMCache server maps each replica's KV cache through CUDA IPC handles and
+copies chunks with its own kernels. That is why the LMCache server runs from
+the same image, gets all four GPUs, and shares the host IPC namespace
+(`ipc: host`) with the replicas. If CUDA IPC between the containers fails,
+set `LMCACHE_MP_TRANSFER_MODE=engine_driven` in `.env`: the replicas then
+send KV to the server themselves, and the server's default (`auto`) accepts
+both modes.
+
+The LMCache server uses the same policy as the CPU stack: `skip_l1` removes
+each chunk from its L1 memory once it is in Valkey, so the KV a replica
+loads comes from Valkey. L1 is still where chunks are staged on the way in
+and out, and a chunk is 36 MiB here, so L1 defaults to 16 GB
+(`LMCACHE_L1_SIZE_GB`) instead of the CPU stack's 0.05 GB.
 
 ### Workload
 
-Sixteen system prompts of 4,096 tokens each, 64 users per prompt, a
-256-token question, and 64 output tokens. Stage 0 (128 requests) warms the
-caches and is left out of the summary. Then come 512 requests each at 8, 16,
-and 32 concurrent users. The seed is fixed, so every strategy sees the same
-prompts.
+192 shared system prompts of 4,096 tokens, four users per prompt, a
+256-token question and 64 output tokens: the "many prefixes competing for
+cache" workload from #107. The shared prefixes add up to 786,432 tokens,
+more than four 48 GB replicas can keep in GPU memory, so every strategy has
+to evict. Each run sends 384 warm-up requests at the first concurrency
+level, then 768 requests at each of 8, 16 and 32 concurrent users. The seed
+is fixed, so every configuration and run sees the same prompts.
 
-The sizes are chosen so the shared prefixes (about 65k tokens) don't fit in
-one replica's KV cache but do fit across all four. With random routing, each
-replica has to cache every prefix and keeps evicting. With prefix routing,
-each replica holds about a quarter of them. If you change the model or GPU,
-check the `GPU KV cache size` line in `results/<run-id>/vllm-0.log` and
-adjust `NUM_PREFIXES` or `SYSTEM_PROMPT_LEN` to keep that relationship.
+Each stage is a separate inference-perf run, so the counters can be read
+between stages. The caches are not flushed between stages of one run.
+
+If you change the model or GPU, check the `GPU KV cache size` line in
+`results/<run-id>/vllm-0.log` and adjust `NUM_PREFIXES` or
+`SYSTEM_PROMPT_LEN` so the shared prefixes still don't fit in the replicas'
+combined GPU cache. Keep `SYSTEM_PROMPT_LEN` a multiple of 256.
 
 ### Calibration
 
 The precise strategies estimate each replica's prefill time from
 `peakPrefillThroughput`, which depends on the model and GPU. The script
-measures it before the first strategy runs. It sends random-token prompts of
-`MAX_NUM_BATCHED_TOKENS` tokens straight to `vllm-0` and divides by the
-median time-to-first-token, the same method llm-d's
+measures it once, before the first run: it sends random-token prompts of
+`MAX_NUM_BATCHED_TOKENS` tokens straight to `vllm-0` (with LMCache on) and
+divides by the median first-token time, the method llm-d's
 [calibration recipe](https://github.com/llm-d/llm-d/tree/main/guides/recipes/router/calibration)
 uses. Set `PEAK_PREFILL_THROUGHPUT` in `.env` to reuse a value you measured
 earlier.
 
+The router configs keep llm-d's GPU defaults for everything else. The CPU
+stack's overrides (`addEstimatedOutputTokens`, `peakPrefillThroughput:
+1000`, `maxTTFTPenaltyMs: 1500`) are tuned for small CPU replicas and are
+not used here.
+
+## Sizing Valkey
+
+Valkey holds every KV chunk LMCache stores during a run, so its `maxmemory`
+and the host's RAM have to be planned for the workload.
+
+- KV per token for Qwen3-8B: 36 layers × 8 KV heads × 128 head dim × 2 (K
+  and V) × 2 bytes = 147,456 bytes, or 144 KiB.
+- LMCache stores whole 256-token chunks, so one chunk is 36 MiB. Valkey's
+  allocator rounds an allocation of that size up to 40 MiB, which is what
+  `used_memory` counts.
+- Shared prefixes: 192 × 4,096 tokens = 786,432 tokens = 3,072 chunks.
+- Questions: each of the 768 distinct prompts (192 × 4) adds one more full
+  chunk, tokens 4,096 to 4,351: 768 chunks. The rest of a prompt and its
+  output tokens don't fill another chunk and are not stored.
+- Total: 3,840 chunks × 40 MiB = 150 GiB per run (135 GiB of KV data).
+
+The default `VALKEY_MAXMEMORY` is `192gb`. The extra 42 GiB covers prompts
+that tokenize a few tokens short of 4,352: their output tokens complete the
+17th chunk, and since outputs are sampled, that chunk differs per request.
+In the worst case that adds one chunk per request, up to 105 GiB, so check
+`used_memory` in `valkey.json` after your first run. Valkey runs with
+`noeviction`: when it is full it rejects new writes instead of evicting, and
+the summary flags any run with OOM rejections. An LRU policy would evict
+across all databases, the router's index in database 1 included.
+
+For other workloads the same arithmetic applies: (prefix chunks + one
+chunk per distinct prompt for the question) × the rounded chunk size of
+your model, with some margin. Lower `NUM_PREFIXES` and `VALKEY_MAXMEMORY`
+together to fit a smaller host.
+
+Host RAM, as `run-benchmark.sh` checks it before starting anything:
+
+| Item | Default |
+| --- | --- |
+| Valkey `maxmemory` (`VALKEY_MAXMEMORY`) | 192 GiB |
+| LMCache L1 (`LMCACHE_L1_SIZE_GB`) | 16 GiB |
+| LMCache server process (`LMCACHE_SERVER_HOST_RAM_GIB`) | 8 GiB |
+| Four vLLM replicas (`REPLICA_HOST_RAM_GIB` each) | 4 × 16 GiB |
+| OS, Docker, router, load generator (`SYSTEM_HOST_RAM_GIB`) | 16 GiB |
+| Total | 296 GiB |
+
+The last three are allowances, not measurements; adjust them in `.env` once
+you have measured your host.
+
 ## Versions
 
-| Component | Image |
+| Component | Version |
 | --- | --- |
-| vLLM | `docker.io/vllm/vllm-openai:v0.30.0` |
-| llm-d router (EPP) | `ghcr.io/llm-d/llm-d-router-endpoint-picker:v1.0.0` |
-| Envoy | `docker.io/envoyproxy/envoy:distroless-v1.33.2` |
-| Valkey | `docker.io/valkey/valkey:9.0.7` |
-| inference-perf | `quay.io/inference-perf/inference-perf:v0.7.0` (amd64 only) |
+| vLLM | `docker.io/vllm/vllm-openai:v0.30.0`, pinned by digest in `vllm/Dockerfile` |
+| LMCache | 0.5.5, installed by `vllm/Dockerfile` |
+| Valkey GLIDE (sync) | 2.5.2, used by LMCache's Valkey adapter |
+| Valkey | `docker.io/valkey/valkey-bundle:9.1.2` (same as the recipe and CI) |
+| llm-d router (EPP) | `ghcr.io/llm-d/llm-d-router-endpoint-picker:v1.0.0`, pinned by digest |
+| Envoy | `docker.io/envoyproxy/envoy:distroless-v1.33.2`, pinned by digest |
+| inference-perf | `quay.io/inference-perf/inference-perf:v0.7.0`, pinned by digest (amd64 only) |
 
 ## Limits
 
-- One router replica. llm-d's precise routing guide also runs a single
-  replica, because its in-flight load accounting is local to each process.
+- One router replica. llm-d's precise routing guide also runs one, because
+  its in-flight load accounting is local to each process. The benchmark
+  doesn't measure what a Valkey index adds for several routers or across a
+  router restart.
+- LMCache doesn't report what it stores back to the router
+  (`LMCacheMPConnector` emits no KV events), so the precise strategies route
+  on what is in each replica's GPU cache, not on what is in Valkey.
 - Valkey runs as a single node without authentication, on a private Docker
-  network.
-- vLLM runs with `VLLM_SERVER_DEV_MODE=1` so the script can reset prefix
-  caches between strategies. That exposes extra admin endpoints, which are
-  reachable only on the benchmark's Docker network.
+  network, with persistence off.
+- Each stage runs as its own inference-perf process, so the warm-up and the
+  first measured stage start at the same point in the prompt order. Results
+  aren't directly comparable with #107's, which ran all stages in one
+  process and had no shared KV cache.
+
+## AWS host (optional, AWS-specific)
+
+[`terraform/aws/`](terraform/aws/) creates one GPU instance on AWS
+(`g6e.12xlarge` by default: 4x L40S 48 GB, 384 GiB RAM), reachable only
+through SSM Session Manager, and writes `BENCH_CLOUD`, `BENCH_INSTANCE_TYPE`
+and `BENCH_REGION` for the benchmark from instance metadata. It is one way
+to get a host; nothing else in this directory depends on AWS.

@@ -5,13 +5,15 @@
 # are not sent, and results already on the host are left alone.
 #
 # Usage: ./push-stack.sh            (after terraform apply)
-# Lands in /opt/bench/stack on the host.
+# Sends cookbooks/llm-d-serving/benchmark/ (this directory's grandparent,
+# without terraform/) and lands in /opt/bench/stack on the host.
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 INSTANCE_ID="$(terraform output -raw instance_id)"
 REGION="$(terraform output -raw region)"
 BENCH_DIR="$(cd ../.. && pwd)"
+[[ -f "$BENCH_DIR/compose.yaml" ]] || { echo "expected the benchmark's compose.yaml in $BENCH_DIR" >&2; exit 1; }
 DEST=/opt/bench/stack
 
 echo "Waiting for $INSTANCE_ID to register with SSM..."
@@ -53,7 +55,7 @@ script = [
 print(json.dumps({
     "InstanceIds": [instance],
     "DocumentName": "AWS-RunShellScript",
-    "Comment": "push prompt-routing benchmark stack",
+    "Comment": "push llm-d serving GPU benchmark stack",
     "Parameters": {"commands": script},
 }))
 PY
