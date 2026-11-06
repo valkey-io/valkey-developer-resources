@@ -1,0 +1,69 @@
+# Precise prefix-cache routing with the index in the router's own memory.
+#
+# Identical to precise-valkey.yaml except for the index backend. Comparing the
+# two shows what moving the index into Valkey costs in first-token latency.
+# Valkey's benefit is that the index lives outside the router process: it
+# survives router restarts and can be shared, which a single-router benchmark
+# does not measure.
+apiVersion: llm-d.ai/v1
+kind: EndpointPickerConfig
+
+plugins:
+  - name: file-discovery
+    type: file-discovery
+    parameters:
+      path: /etc/epp/endpoints.yaml
+      watchFile: false
+
+  - type: token-producer
+    parameters:
+      modelName: ${MODEL}
+      vllm:
+        endpointDiscovery:
+          attemptTimeout: 2s
+
+  - type: endpoint-notification-source
+
+  - type: precise-prefix-cache-producer
+    parameters:
+      tokenProcessorConfig:
+        blockSizeTokens: 64
+        hashAlgorithm: xxh64
+      speculativeIndexing: true
+      indexerConfig:
+        kvBlockIndexConfig:
+          enableMetrics: true
+      kvEventsConfig:
+        engineType: vllm
+        topicFilter: "kv@"
+        concurrency: 8
+        discoverPods: true
+        podDiscoveryConfig:
+          socketPort: 5556
+          replaySocketPort: 5559
+
+  - type: inflight-load-producer
+    parameters:
+      prefixMatchInfoProducerName: precise-prefix-cache-producer
+
+  - type: prefix-cache-affinity-filter
+    parameters:
+      prefixMatchInfoProducerName: precise-prefix-cache-producer
+      peakPrefillThroughput: ${PEAK_PREFILL_THROUGHPUT}
+
+  - type: token-load-scorer
+
+dataLayer:
+  discovery:
+    endpoints:
+      pluginRef: file-discovery
+  sources:
+    - pluginRef: endpoint-notification-source
+      extractors:
+        - pluginRef: precise-prefix-cache-producer
+
+schedulingProfiles:
+  - name: default
+    plugins:
+      - pluginRef: prefix-cache-affinity-filter
+      - pluginRef: token-load-scorer

@@ -1,0 +1,84 @@
+# Precise prefix-cache routing with the index in Valkey.
+#
+# Adapted from llm-d's guides/precise-prefix-cache-routing/router/
+# precise-prefix-cache-routing.values.yaml, with two changes:
+#   - file-discovery replaces the Kubernetes InferencePool as the source of
+#     endpoints (from guides/no-kubernetes-deployment)
+#   - kvBlockIndexConfig.redisConfig points the index at Valkey instead of
+#     keeping it in the router's memory
+#
+# vLLM publishes KV-cache events over ZMQ; the router subscribes to each
+# replica, writes block-to-replica entries into Valkey, and routes each
+# request to the replica that already holds the longest cached prefix.
+apiVersion: llm-d.ai/v1
+kind: EndpointPickerConfig
+
+plugins:
+  - name: file-discovery
+    type: file-discovery
+    parameters:
+      path: /etc/epp/endpoints.yaml
+      watchFile: false
+
+  # Tokenizes prompts by calling /v1/completions/render on the vLLM replicas
+  # themselves, so the router needs no tokenizer of its own.
+  - type: token-producer
+    parameters:
+      modelName: ${MODEL}
+      vllm:
+        endpointDiscovery:
+          attemptTimeout: 2s
+
+  - type: endpoint-notification-source
+
+  - type: precise-prefix-cache-producer
+    parameters:
+      tokenProcessorConfig:
+        # Must match vLLM's --block-size.
+        blockSizeTokens: 64
+        hashAlgorithm: xxh64
+      speculativeIndexing: true
+      indexerConfig:
+        kvBlockIndexConfig:
+          enableMetrics: true
+          redisConfig:
+            # Valkey speaks the same protocol; redis:// is the URL scheme the
+            # router's client library parses. run-benchmark.sh flushes this
+            # database before each strategy.
+            address: redis://172.30.0.5:6379
+      kvEventsConfig:
+        engineType: vllm
+        topicFilter: "kv@"
+        concurrency: 8
+        # Subscribe to every endpoint the file-discovery plugin reports.
+        discoverPods: true
+        podDiscoveryConfig:
+          socketPort: 5556
+          replaySocketPort: 5559
+
+  - type: inflight-load-producer
+    parameters:
+      prefixMatchInfoProducerName: precise-prefix-cache-producer
+
+  - type: prefix-cache-affinity-filter
+    parameters:
+      prefixMatchInfoProducerName: precise-prefix-cache-producer
+      # Measured on this hardware by scripts/benchctl.py calibrate.
+      peakPrefillThroughput: ${PEAK_PREFILL_THROUGHPUT}
+
+  - type: token-load-scorer
+
+dataLayer:
+  discovery:
+    endpoints:
+      pluginRef: file-discovery
+  sources:
+    - pluginRef: endpoint-notification-source
+      extractors:
+        - pluginRef: precise-prefix-cache-producer
+
+schedulingProfiles:
+  - name: default
+    plugins:
+      - pluginRef: prefix-cache-affinity-filter
+      - pluginRef: token-load-scorer

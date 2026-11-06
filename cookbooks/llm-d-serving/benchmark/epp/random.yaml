@@ -1,0 +1,23 @@
+# Baseline: pick a replica at random. Same Envoy and EPP path as the other
+# strategies, so the only difference is the routing decision. Each vLLM
+# replica still keeps its own local prefix cache; it just isn't routed to.
+apiVersion: llm-d.ai/v1
+kind: EndpointPickerConfig
+
+plugins:
+  - name: file-discovery
+    type: file-discovery
+    parameters:
+      path: /etc/epp/endpoints.yaml
+      watchFile: false
+  - type: random-picker
+
+schedulingProfiles:
+  - name: default
+    plugins:
+      - pluginRef: random-picker
+
+dataLayer:
+  discovery:
+    endpoints:
+      pluginRef: file-discovery

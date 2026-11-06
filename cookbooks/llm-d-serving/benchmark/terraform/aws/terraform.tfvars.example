@@ -1,0 +1,15 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored.
+
+region            = "us-east-1"
+instance_type     = "g6.12xlarge"
+use_spot          = false
+root_volume_gb    = 200
+auto_stop_minutes = 240
+
+# extra_tags = {
+#   Owner = "you@example.com"
+# }
+
+# Repo cloned to /opt/bench/repo on first boot (empty to skip).
+# repo_url = "https://github.com/valkey-io/valkey-developer-resources.git"
+# repo_ref = "main"
