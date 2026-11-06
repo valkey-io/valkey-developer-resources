@@ -35,7 +35,7 @@ host.
 
 The default instance type is `g6e.12xlarge`: four NVIDIA L40S (48 GB each)
 and 384 GiB of RAM. The benchmark's default workload needs four GPUs and
-about 296 GiB of host RAM, most of it for Valkey (see
+about 344 GiB of host RAM, most of it for Valkey and LMCache (see
 [Sizing Valkey](../../README.md#sizing-valkey)). A `g6.12xlarge` (4x L4,
 24 GB, 192 GiB RAM) needs a smaller workload and `VALKEY_MAXMEMORY`. The
 region is a variable (`region`); GPU capacity varies by region and zone. The
