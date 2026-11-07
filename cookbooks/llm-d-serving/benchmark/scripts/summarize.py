@@ -11,7 +11,9 @@ Reads, for every configuration, run and concurrency level:
       vLLM's counters on every replica, read just before and just after the
       stage (benchctl.py snapshot). The difference gives the prompt tokens
       served from each replica's GPU prefix cache (local) and from LMCache,
-      that is Valkey (external), as shares of all prompt tokens.
+      from its L1 memory or from Valkey (external), as shares of all prompt
+      tokens. <config>/run-<n>/lmcache-server.log splits LMCache's lookups
+      into L1 and Valkey chunks.
   <config>/run-<n>/valkey.json
       Valkey's memory and key counts after the run (benchctl.py valkey-stats)
 
@@ -173,7 +175,7 @@ def fmt(cell: dict | None, kind: str) -> str:
 def results_table(summary: dict) -> list[str]:
     lines = [
         "| Configuration | Concurrency | Runs | TTFT p50 ms | TTFT p90 ms | TTFT p99 ms | Requests/s "
-        "| Prompt tokens from GPU prefix cache | Prompt tokens from Valkey | Failed requests |",
+        "| Prompt tokens from GPU prefix cache | Prompt tokens from LMCache (L1 or Valkey) | Failed requests |",
         "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for config, levels in summary.items():
@@ -218,7 +220,9 @@ def render(run_dir: Path) -> tuple[str, dict]:
     out = [line, "", *results_table(summary), "",
            "Each cell is the median of the runs, with the spread (min–max) in brackets. "
            "Prompt-token shares come from vLLM's prefix_cache_hits (local) and "
-           "external_prefix_cache_hits (LMCache, so Valkey) counters, as shares of prompt_tokens.",
+           "external_prefix_cache_hits (LMCache: its L1 memory or Valkey) counters, as shares of "
+           "prompt_tokens. The Valkey table below splits LMCache's lookups into chunks found in L1 and "
+           "chunks loaded from Valkey.",
            ""]
     if vrows:
         out += ["### Valkey after each run", "", line, "", *valkey_table(vrows), "",
@@ -229,7 +233,8 @@ def render(run_dir: Path) -> tuple[str, dict]:
         if full:
             out += [f"Warning: Valkey rejected writes (OOM) in {', '.join(full)}. Those runs stored less KV "
                     "than the workload produced; raise VALKEY_MAXMEMORY or shrink the workload.", ""]
-    return "\n".join(out), {"metadata": meta, "results": summary, "valkey": vrows}
+    # One trailing newline (print adds it): markdownlint rejects blank runs.
+    return "\n".join(out).rstrip("\n"), {"metadata": meta, "results": summary, "valkey": vrows}
 
 
 def main() -> None:
