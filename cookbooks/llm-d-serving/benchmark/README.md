@@ -20,18 +20,79 @@ llm-d's [no-Kubernetes deployment guide](https://github.com/llm-d/llm-d/tree/mai
 
 ## Results
 
-No results have been published for this stack yet. Each published result
-will state the cloud, instance type, GPU, region and date it was measured
-on; `summarize.py` prints that line above every table.
+One set of results so far, measured on 2026-11-06 on an AWS `g6e.12xlarge`
+(4x NVIDIA L40S 48 GB, driver 595.112.07, 384 GiB RAM) in `ap-northeast-1`,
+provisioned with the [AWS Terraform](terraform/aws/). The software was
+Qwen3-8B, vLLM 0.30.0, lmcache 0.5.5 and `valkey-bundle` 9.1.2, at commit
+`1acc7860` of this repository. The default workload and settings were used:
+the five configurations, three runs each. The full tables, with the spread
+of the three runs for every number, plus `metadata.json`, are in
+[`published/2026-11-06-aws-g6e.12xlarge/`](published/2026-11-06-aws-g6e.12xlarge/).
 
-A note on what to expect. An earlier version of this benchmark
-([#107](https://github.com/valkey-io/valkey-developer-resources/pull/107))
-had no shared KV cache, and there precise routing's first-token times were
-well below random routing's. Here, a request that random routing sends to
-the wrong replica can still load the prefix from Valkey instead of
-recomputing it, so the gap between random and precise routing may be
-smaller. The `random-no-lmcache` baseline shows the combined effect
-of routing and the shared cache. The benchmark reports whatever it measures.
+Medians of three runs:
+
+| Configuration | Concurrency | TTFT p50 ms | TTFT p90 ms | TTFT p99 ms | Requests/s | From GPU prefix cache | From LMCache (L1 or Valkey) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| random-no-lmcache | 8 | 400 | 694 | 1,034 | 3.26 | 14% | 0% |
+| random | 8 | 441 | 581 | 951 | 3.93 | 15% | 81% |
+| approximate | 8 | 392 | 553 | 881 | 4.05 | 46% | 50% |
+| precise-memory | 8 | 389 | 544 | 790 | 4.04 | 63% | 33% |
+| precise-valkey | 8 | 382 | 558 | 816 | 4.02 | 63% | 33% |
+| random-no-lmcache | 16 | 407 | 785 | 1,447 | 5.08 | 15% | 0% |
+| random | 16 | 508 | 697 | 1,539 | 7.12 | 15% | 85% |
+| approximate | 16 | 498 | 701 | 1,560 | 7.25 | 46% | 54% |
+| precise-memory | 16 | 503 | 712 | 1,642 | 7.20 | 64% | 36% |
+| precise-valkey | 16 | 514 | 688 | 1,803 | 7.20 | 62% | 38% |
+| random-no-lmcache | 32 | 464 | 1,380 | 2,614 | 6.81 | 15% | 0% |
+| random | 32 | 1,040 | 2,673 | 3,895 | 9.93 | 15% | 83% |
+| approximate | 32 | 1,170 | 2,371 | 3,966 | 10.07 | 40% | 59% |
+| precise-memory | 32 | 1,140 | 2,387 | 3,964 | 10.14 | 62% | 37% |
+| precise-valkey | 32 | 1,099 | 2,543 | 3,894 | 10.09 | 63% | 37% |
+
+No request failed in any run. The spread between runs was small: the three
+runs of a configuration were within about 5% of each other on requests per second.
+
+What the numbers show:
+
+- The `random-no-lmcache` baseline matches #107's random routing on the same
+  instance type (median first-token time 400 ms against 409 ms at
+  concurrency 8), so the stack without LMCache behaves the same.
+- With LMCache and Valkey under the replicas, throughput went up for every
+  routing strategy: about 1.2 times the baseline's requests per second at
+  concurrency 8, 1.4 times at 16 and 1.5 times at 32. Most prompt tokens
+  that the GPU caches didn't have came from LMCache instead of being
+  recomputed.
+- First-token time improved at the p90 for concurrency 8 and 16, but got
+  worse at concurrency 32: the median rose from 464 ms to about 1.1 s.
+- Routing strategy made little difference once LMCache was in place.
+  Precise routing served 63% of prompt tokens from the GPU prefix cache,
+  against 15% for random routing, but at concurrency 8 its median
+  first-token time was only about 13% lower, and at 16 and 32 it was the
+  same within the spread. The cause is the lmcache 0.5.5 lookup described in
+  [LMCache policy](#lmcache-policy): every request waits for a prefetch of
+  its whole prompt, including the part the GPU already has. The median
+  prefetch took 224-235 ms in every LMCache configuration, and about two
+  thirds of the chunks it fetched came from Valkey, the rest from the
+  LMCache server's 64 GB L1. LMCache's fix (#5383) is not in a stable
+  release yet; a rerun on the release that has it is the next step.
+- Keeping the router's index in Valkey instead of the router's memory made
+  no measurable difference, as in #107. After each `precise-valkey` run,
+  Valkey database 1 held about 20,500 index keys.
+- Valkey held 150.0 GiB and 3,840 KV keys after every LMCache run, exactly
+  the estimate in [Sizing Valkey](#sizing-valkey), with no OOM rejections.
+
+Two things to know when reading these numbers:
+
+- With 8 I/O threads, only 2 of Valkey's threads were busy when sampled
+  during a `random` run, each at 100% CPU, sending about 3.1 GB/s in total.
+  Each connection is served by one I/O thread, so this suggests LMCache's
+  Valkey adapter put most of its reads on two connections, and that reads
+  from Valkey were limited by how the adapter uses connections rather than
+  by Valkey as a whole. This benchmark didn't tune that further.
+- One replica start failed with `cudaErrorMapBufferObjectFailed` while
+  sharing its KV cache with the LMCache server over CUDA IPC (1 of 64
+  replica starts). That run, `precise-valkey` run 3, was repeated with the
+  same settings; see `NOTES.txt` in the published folder.
 
 ## What it compares
 
@@ -126,18 +187,20 @@ workload and stack settings, and the git commit of this repository.
 `summary.md` has one row per configuration and concurrency level:
 
 - TTFT p50, p90 and p99, and requests per second, from inference-perf.
-- Prompt tokens from the GPU prefix cache and from Valkey, as shares of all
-  prompt tokens. These come from vLLM's counters on every replica, read
+- Prompt tokens from the GPU prefix cache and from LMCache, as shares of
+  all prompt tokens. These come from vLLM's counters on every replica, read
   just before and just after each stage: `vllm:prefix_cache_hits_total`
   (local hits), `vllm:external_prefix_cache_hits_total` (tokens LMCache
-  supplied, which it reads from Valkey) and `vllm:prompt_tokens_total`. The
-  recipe notebook tells local hits from Valkey hits with the same two
-  counters.
+  supplied, from its L1 memory or from Valkey) and
+  `vllm:prompt_tokens_total`. The recipe notebook uses the same two
+  counters; there, with `skip_l1`, every LMCache hit is a Valkey read.
 - Failed requests, summed over the runs.
 
 Each cell is the median of the runs, with the spread (minimum to maximum) in
 brackets. A second table lists Valkey's `used_memory`, `used_memory_peak`,
-key counts per database and OOM rejections for every run. Rerun
+key counts per database and OOM rejections for every run, and how many
+chunks LMCache's lookups found in its L1 and how many they loaded from
+Valkey, with the median prefetch time, from the LMCache server's log. Rerun
 `python3 scripts/summarize.py results/<run-id>` at any time to print the
 tables again.
 
@@ -310,6 +373,9 @@ you have measured your host.
   on what is in each replica's GPU cache, not on what is in Valkey.
 - Valkey runs as a single node without authentication, on a private Docker
   network, with persistence off.
+- lmcache 0.5.5 prefetches a request's whole prompt on lookup, including
+  what the GPU already holds (see [LMCache policy](#lmcache-policy)). That
+  adds a wait to every request and hides most of what precise routing gains.
 - Each stage runs as its own inference-perf process, so the warm-up and the
   first measured stage start at the same point in the prompt order. Results
   aren't directly comparable with #107's, which ran all stages in one
