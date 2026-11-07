@@ -1,0 +1,1 @@
+precise-valkey run 3 was rerun separately (same commit and stack, with PEAK_PREFILL_THROUGHPUT=11539 from this run's calibration) after vllm-0 failed to start with cudaErrorMapBufferObjectFailed (CUDA IPC).
