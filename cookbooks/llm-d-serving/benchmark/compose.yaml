@@ -1,0 +1,325 @@
+# Optional GPU benchmark for the llm-d serving recipe: llm-d's router in front
+# of four GPU vLLM replicas that share a KV cache through LMCache and Valkey.
+#
+# Same wiring as the recipe's CPU stack (../docker-compose.yml), scaled to
+# four GPUs:
+#
+#   valkey           one Valkey with two jobs: LMCache's KV store (L2, database
+#                    0) and the router's prefix-cache index (database 1)
+#   lmcache-server   standalone LMCache server (multi-process mode). Its L2 is
+#                    Valkey; the replicas hand it KV through LMCacheMPConnector
+#   vllm-0..vllm-3   four vLLM replicas, one GPU each. Each keeps its own GPU
+#                    prefix cache and publishes KV-cache events over ZMQ
+#   envoy, epp       llm-d's router: Envoy asks the Endpoint Picker (EPP)
+#                    which replica gets each request
+#   loadgen          inference-perf and the helper scripts (tools profile)
+#
+# Runs on any Linux host with four NVIDIA GPUs (24 GB or more each), Docker,
+# the Compose plugin and the NVIDIA Container Toolkit. Don't start this file by
+# hand: scripts/run-benchmark.sh builds the vLLM image, renders the router and
+# load-generator configs, and drives each configuration in turn.
+#
+# Every container sits on one bridge network with fixed addresses, because the
+# file-discovery plugin needs literal IPs and each vLLM replica binds the same
+# KV-event ports (5556, 5559) in its own network namespace:
+#
+#   172.16.90.5   valkey          172.16.90.10  envoy (the EPP shares it)
+#   172.16.90.6   lmcache-server  172.16.90.11  vllm-0 .. 172.16.90.14 vllm-3
+#
+# Images are fully qualified and pinned by digest, except valkey-bundle, which
+# is pinned by version tag to match the recipe and CI.
+
+name: llm-d-gpu-bench
+
+x-lmcache-env: &lmcache-env
+  # Required by LMCache to enable the v1 code paths (as in the CPU stack).
+  LMCACHE_USE_EXPERIMENTAL: "True"
+
+# vLLM 0.30.0 (CUDA 13.0, torch 2.13.0) with lmcache 0.5.5 and
+# valkey-glide-sync 2.5.2 added. vllm/Dockerfile pins the base image by digest
+# and fails the build if the installed lmcache version is not the one asked
+# for. One image serves the replicas, the LMCache server and the no-LMCache
+# baseline, so every configuration runs the same Python environment.
+# run-benchmark.sh builds it once (`docker compose build lmcache-server`).
+x-vllm-image: &vllm-image
+  image: localhost/llm-d-gpu-bench/vllm-lmcache:v0.30.0-lmcache0.5.5
+  build:
+    context: .
+    dockerfile: vllm/Dockerfile
+
+x-vllm: &vllm
+  <<: *vllm-image
+  entrypoint: ["/bin/bash", "/bench/serve-vllm.sh"]
+  # Shares the host's IPC namespace with the LMCache server. On CUDA, LMCache's
+  # "auto" transfer mode resolves to lmcache_driven: the server maps each
+  # replica's KV cache through CUDA IPC handles and copies chunks with its own
+  # kernels, with no copy through the replica process. That needs a shared IPC
+  # namespace. The host's /dev/shm also replaces the 64 MB container default
+  # that shm_size would otherwise raise.
+  ipc: host
+  environment: &vllm-env
+    <<: *lmcache-env
+    MODEL: ${MODEL:-Qwen/Qwen3-8B}
+    HF_HOME: /hf-cache
+    HF_TOKEN: ${HF_TOKEN:-}
+    DO_NOT_TRACK: "1"
+    GPU_MEMORY_UTILIZATION: ${GPU_MEMORY_UTILIZATION:-0.90}
+    MAX_MODEL_LEN: ${MAX_MODEL_LEN:-16384}
+    MAX_NUM_BATCHED_TOKENS: ${MAX_NUM_BATCHED_TOKENS:-8192}
+    # "half" on GPUs without bfloat16 support, such as the T4.
+    DTYPE: ${DTYPE:-auto}
+    # lmcache: replicas use LMCacheMPConnector (every configuration except
+    # the baseline). none: no --kv-transfer-config, so each replica has only
+    # its own GPU prefix cache. run-benchmark.sh recreates the replicas to
+    # switch.
+    KV_CONNECTOR: ${KV_CONNECTOR:-lmcache}
+    # Worker side of LMCache's transfer mode. auto picks lmcache_driven (CUDA
+    # IPC) on GPUs. Set engine_driven if CUDA IPC between containers fails;
+    # the server's default (auto) accepts both.
+    LMCACHE_MP_TRANSFER_MODE: ${LMCACHE_MP_TRANSFER_MODE:-auto}
+  volumes:
+    - ${HF_CACHE:-./.hf-cache}:/hf-cache
+    - ./vllm/serve-vllm.sh:/bench/serve-vllm.sh:ro,z
+  depends_on:
+    model-download:
+      condition: service_completed_successfully
+    lmcache-server:
+      condition: service_healthy
+  healthcheck:
+    test: ["CMD-SHELL", "python3 -c 'import urllib.request as u; u.urlopen(\"http://127.0.0.1:8000/health\", timeout=3)'"]
+    interval: 10s
+    timeout: 5s
+    retries: 30
+    start_period: 900s
+
+services:
+  # Downloads the model weights once into the shared cache, so the four
+  # replicas don't race each other for the same files. Uses the pinned base
+  # image (vllm/Dockerfile builds on it), which has huggingface_hub.
+  model-download:
+    image: docker.io/vllm/vllm-openai:v0.30.0@sha256:8a69ffad015f138d7170c4ddc429e230a3bc1c1719f67e14324749df200a4b90
+    entrypoint: ["python3", "-c", "import os; from huggingface_hub import snapshot_download; snapshot_download(os.environ['MODEL'])"]
+    environment:
+      MODEL: ${MODEL:-Qwen/Qwen3-8B}
+      HF_HOME: /hf-cache
+      HF_TOKEN: ${HF_TOKEN:-}
+    volumes:
+      - ${HF_CACHE:-./.hf-cache}:/hf-cache
+    networks: [bench]
+
+  valkey:
+    image: docker.io/valkey/valkey-bundle:9.1.2
+    # Persistence off: run-benchmark.sh empties the KV store before every run.
+    #
+    # maxmemory: Qwen3-8B's KV is 144 KiB per token, and LMCache writes it to
+    # Valkey in 256-token chunks of 36 MiB. The default workload stores about
+    # 150 GiB per run (README.md, "Sizing Valkey"); 192gb leaves room for
+    # chunk-boundary effects. Set VALKEY_MAXMEMORY in .env for other
+    # workloads; run-benchmark.sh refuses to start if the host doesn't have
+    # this much RAM plus room for the replicas and the LMCache server.
+    #
+    # noeviction: a full Valkey rejects new KV writes (LMCache logs them, and
+    # run-benchmark.sh records Valkey's OOM error count) instead of evicting.
+    # An LRU policy would evict across all databases, including the router's
+    # index in database 1.
+    #
+    # io-threads: every KV load is a 36 MiB GET. With one thread (Valkey's
+    # default), the first GPU runs had Valkey's main thread at 100% CPU,
+    # almost all of it in socket writes, at about 1.5 GB/s, which made a load
+    # from Valkey no faster than recomputing the prefill. Set
+    # VALKEY_IO_THREADS in .env.
+    command:
+      - valkey-server
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+      - --maxmemory
+      - ${VALKEY_MAXMEMORY:-192gb}
+      - --maxmemory-policy
+      - noeviction
+      - --io-threads
+      - ${VALKEY_IO_THREADS:-8}
+    networks: {bench: {ipv4_address: 172.16.90.5}}
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  # Standalone LMCache server, from the same image as the replicas. It gets all
+  # four GPUs and the host IPC namespace because in lmcache_driven mode it runs
+  # the copy kernels on the replicas' KV caches itself (CUDA IPC, matched by
+  # device UUID, so its GPU numbering need not match the replicas').
+  #
+  # Unlike the CPU stack (skip_l1), L1 is a cache here: chunks stay in host
+  # memory (LRU) and are also stored to Valkey, which is the shared tier
+  # behind it. With lmcache 0.5.5 every lookup prefetches the whole prompt's
+  # chunks into L1, including the part vLLM already has on the GPU, and the
+  # request waits for that. Under skip_l1 every lookup therefore read the full
+  # prefix from Valkey (230-370 ms per request in the first GPU runs). LMCache
+  # fixed this after 0.5.6 (LMCache/LMCache#5383). The 64 GB default is about
+  # half of the default workload's KV, so many lookups still go to Valkey.
+  # Override with LMCACHE_L1_SIZE_GB, LMCACHE_EVICTION_POLICY and
+  # LMCACHE_L2_STORE_POLICY in .env.
+  #
+  # --chunk-size 256 is LMCache's default, written out because it must be a
+  # multiple of vLLM's --block-size (64; LMCacheMPConnector checks this at
+  # startup). The workload's 4,096-token system prompts are exactly 16 chunks.
+  lmcache-server:
+    <<: *vllm-image
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        python3 -c 'import lmcache.v1.multiprocess.server, lmcache.v1.distributed.l2_adapters.valkey_l2_adapter, glide_sync' || {
+          echo "lmcache-server: lmcache or valkey-glide-sync failed to import; see the traceback above" >&2
+          exit 1
+        }
+        exec lmcache server \
+          --host 0.0.0.0 --port 5555 \
+          --chunk-size 256 \
+          --l1-size-gb "$$LMCACHE_L1_SIZE_GB" \
+          --eviction-policy "$$LMCACHE_EVICTION_POLICY" \
+          --l2-store-policy "$$LMCACHE_L2_STORE_POLICY" \
+          --supported-transfer-mode "$$LMCACHE_SERVER_TRANSFER_MODE" \
+          --max-gpu-workers "$$LMCACHE_MAX_GPU_WORKERS" \
+          --l2-adapter '{"type":"valkey","startup_nodes":"valkey:6379"}'
+    ipc: host
+    environment:
+      <<: *lmcache-env
+      LMCACHE_L1_SIZE_GB: ${LMCACHE_L1_SIZE_GB:-64}
+      LMCACHE_EVICTION_POLICY: ${LMCACHE_EVICTION_POLICY:-LRU}
+      LMCACHE_L2_STORE_POLICY: ${LMCACHE_L2_STORE_POLICY:-default}
+      # auto serves both lmcache_driven (CUDA IPC) and engine_driven workers.
+      LMCACHE_SERVER_TRANSFER_MODE: ${LMCACHE_SERVER_TRANSFER_MODE:-auto}
+      # Threads for KV stores and loads. Each replica's requests stay on one
+      # thread, and lmcache's default of 1 makes all four replicas share it.
+      LMCACHE_MAX_GPU_WORKERS: ${LMCACHE_MAX_GPU_WORKERS:-4}
+    networks: {bench: {ipv4_address: 172.16.90.6}}
+    depends_on:
+      valkey:
+        condition: service_healthy
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, device_ids: ["0", "1", "2", "3"], capabilities: [gpu]}]
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import socket; s=socket.socket(); s.settimeout(2); s.connect(('localhost',5555))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 300s
+
+  vllm-0:
+    <<: *vllm
+    environment: {<<: *vllm-env, POD_IP: 172.16.90.11}
+    networks: {bench: {ipv4_address: 172.16.90.11}}
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, device_ids: ["0"], capabilities: [gpu]}]
+
+  vllm-1:
+    <<: *vllm
+    environment: {<<: *vllm-env, POD_IP: 172.16.90.12}
+    networks: {bench: {ipv4_address: 172.16.90.12}}
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, device_ids: ["1"], capabilities: [gpu]}]
+
+  vllm-2:
+    <<: *vllm
+    environment: {<<: *vllm-env, POD_IP: 172.16.90.13}
+    networks: {bench: {ipv4_address: 172.16.90.13}}
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, device_ids: ["2"], capabilities: [gpu]}]
+
+  vllm-3:
+    <<: *vllm
+    environment: {<<: *vllm-env, POD_IP: 172.16.90.14}
+    networks: {bench: {ipv4_address: 172.16.90.14}}
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, device_ids: ["3"], capabilities: [gpu]}]
+
+  envoy:
+    image: docker.io/envoyproxy/envoy:distroless-v1.33.2@sha256:85500e28ed088ec39ff0adc1be3d358a8ad062926aaa62c36b28bde00919e4e8
+    command:
+      - --service-node
+      - envoy-proxy
+      - --log-level
+      - warn
+      - --concurrency
+      - "8"
+      - --drain-strategy
+      - immediate
+      - --drain-time-s
+      - "60"
+      - -c
+      - /etc/envoy/envoy.yaml
+    volumes:
+      - ./envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro,z
+    # Loopback only. On a remote host, reach these through an SSH or SSM tunnel.
+    ports:
+      - 127.0.0.1:8081:8081   # OpenAI-compatible API through the router
+      - 127.0.0.1:9090:9090   # EPP Prometheus metrics
+    networks: {bench: {ipv4_address: 172.16.90.10}}
+
+  # The Endpoint Picker. It shares Envoy's network namespace so Envoy reaches
+  # its ext_proc server on 127.0.0.1:9002, as in llm-d's no-Kubernetes guide.
+  # EPP_STRATEGY selects the rendered config (random, approximate,
+  # precise-memory, precise-valkey).
+  epp:
+    image: ghcr.io/llm-d/llm-d-router-endpoint-picker:v1.0.0@sha256:024188e998f516879f68532016ca24fabca00afbdcc2af9a61b17634e197df2c
+    network_mode: service:envoy
+    depends_on:
+      envoy:
+        condition: service_started
+      valkey:
+        condition: service_healthy
+    volumes:
+      - ./rendered/epp:/etc/epp:ro,z
+    command:
+      - --config-file=/etc/epp/${EPP_STRATEGY:-precise-valkey}.yaml
+      - --pool-name=file-discovery
+      - --pool-namespace=default
+      - --grpc-port=9002
+      - --grpc-health-port=9003
+      - --metrics-port=9090
+      - --secure-serving=false
+      - --health-checking=true
+      # No trace collector runs here; without this the EPP logs export errors.
+      - --tracing=false
+      - --v=2
+
+  # Load generator and helper scripts. Started on demand by run-benchmark.sh
+  # with `docker compose run`, so it runs inside the bench network.
+  loadgen:
+    image: quay.io/inference-perf/inference-perf:v0.7.0@sha256:d247e6ad725dc5bb56df71d115abc8ca455bba9f0ccd4110e14bbb56504250ec
+    profiles: [tools]
+    entrypoint: ["inference-perf"]
+    environment:
+      HF_HOME: /hf-cache
+      HF_TOKEN: ${HF_TOKEN:-}
+    volumes:
+      - ${HF_CACHE:-./.hf-cache}:/hf-cache
+      - ./rendered/loadgen:/etc/loadgen:ro,z
+      - ./scripts:/bench/scripts:ro,z
+      - ./results:/results:z
+    networks: [bench]
+
+networks:
+  bench:
+    ipam:
+      config:
+        # Outside the pools Docker (172.17-172.31.x.x, 192.168.x.x) and Podman
+        # (10.88-10.255.x.x) allocate by default, and next to the CPU stack's
+        # 172.16.89.0/24 so both can exist on one machine. If it clashes with
+        # a route on your host, change it together with every ipv4_address
+        # and POD_IP here, epp/endpoints.yaml, and the addresses in
+        # scripts/benchctl.py. `uv run pytest` checks that they agree.
+        - subnet: 172.16.90.0/24

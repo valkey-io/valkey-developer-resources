@@ -1,0 +1,145 @@
+{
+  "date_utc": "2026-11-06T20:03:31Z",
+  "run_id": "20261106T200023Z",
+  "cloud": "aws",
+  "instance_type": "g6e.12xlarge",
+  "region": "ap-northeast-1",
+  "gpu_model": "NVIDIA L40S",
+  "gpu_count": 4,
+  "gpu_memory_mib": 46068,
+  "gpu_driver": "595.112.07",
+  "gpus": [
+    {
+      "name": "NVIDIA L40S",
+      "memory_mib": 46068,
+      "driver": "595.112.07"
+    },
+    {
+      "name": "NVIDIA L40S",
+      "memory_mib": 46068,
+      "driver": "595.112.07"
+    },
+    {
+      "name": "NVIDIA L40S",
+      "memory_mib": 46068,
+      "driver": "595.112.07"
+    },
+    {
+      "name": "NVIDIA L40S",
+      "memory_mib": 46068,
+      "driver": "595.112.07"
+    }
+  ],
+  "host_ram_bytes": 400211722240,
+  "images": {
+    "valkey": {
+      "ref": "docker.io/valkey/valkey-bundle:9.1.2",
+      "id": "sha256:1c39295cd8e3a34fc33fb46de235cf5e7bad530525b1a697eaf9f49e1c42747c"
+    },
+    "lmcache-server": {
+      "ref": "localhost/llm-d-gpu-bench/vllm-lmcache:v0.30.0-lmcache0.5.5",
+      "id": "sha256:6b7e5a4b2fe97db8b127f11819658be1cd978e267e221c26ac7ca46e7269427b"
+    },
+    "vllm-0": {
+      "ref": "localhost/llm-d-gpu-bench/vllm-lmcache:v0.30.0-lmcache0.5.5",
+      "id": "sha256:6b7e5a4b2fe97db8b127f11819658be1cd978e267e221c26ac7ca46e7269427b"
+    },
+    "vllm-1": {
+      "ref": "localhost/llm-d-gpu-bench/vllm-lmcache:v0.30.0-lmcache0.5.5",
+      "id": "sha256:6b7e5a4b2fe97db8b127f11819658be1cd978e267e221c26ac7ca46e7269427b"
+    },
+    "vllm-2": {
+      "ref": "localhost/llm-d-gpu-bench/vllm-lmcache:v0.30.0-lmcache0.5.5",
+      "id": "sha256:6b7e5a4b2fe97db8b127f11819658be1cd978e267e221c26ac7ca46e7269427b"
+    },
+    "vllm-3": {
+      "ref": "localhost/llm-d-gpu-bench/vllm-lmcache:v0.30.0-lmcache0.5.5",
+      "id": "sha256:6b7e5a4b2fe97db8b127f11819658be1cd978e267e221c26ac7ca46e7269427b"
+    },
+    "envoy": {
+      "ref": "docker.io/envoyproxy/envoy:distroless-v1.33.2@sha256:85500e28ed088ec39ff0adc1be3d358a8ad062926aaa62c36b28bde00919e4e8",
+      "id": "sha256:85500e28ed088ec39ff0adc1be3d358a8ad062926aaa62c36b28bde00919e4e8"
+    },
+    "by_ref": {
+      "docker.io/envoyproxy/envoy:distroless-v1.33.2@sha256:85500e28ed088ec39ff0adc1be3d358a8ad062926aaa62c36b28bde00919e4e8": {
+        "id": "sha256:85500e28ed088ec39ff0adc1be3d358a8ad062926aaa62c36b28bde00919e4e8",
+        "repo_digests": [
+          "envoyproxy/envoy@sha256:85500e28ed088ec39ff0adc1be3d358a8ad062926aaa62c36b28bde00919e4e8"
+        ]
+      },
+      "docker.io/valkey/valkey-bundle:9.1.2": {
+        "id": "sha256:1c39295cd8e3a34fc33fb46de235cf5e7bad530525b1a697eaf9f49e1c42747c",
+        "repo_digests": [
+          "valkey/valkey-bundle@sha256:1c39295cd8e3a34fc33fb46de235cf5e7bad530525b1a697eaf9f49e1c42747c"
+        ]
+      },
+      "docker.io/vllm/vllm-openai:v0.30.0@sha256:8a69ffad015f138d7170c4ddc429e230a3bc1c1719f67e14324749df200a4b90": {
+        "id": "sha256:8a69ffad015f138d7170c4ddc429e230a3bc1c1719f67e14324749df200a4b90",
+        "repo_digests": [
+          "vllm/vllm-openai@sha256:8a69ffad015f138d7170c4ddc429e230a3bc1c1719f67e14324749df200a4b90"
+        ]
+      },
+      "ghcr.io/llm-d/llm-d-router-endpoint-picker:v1.0.0@sha256:024188e998f516879f68532016ca24fabca00afbdcc2af9a61b17634e197df2c": {
+        "id": "sha256:024188e998f516879f68532016ca24fabca00afbdcc2af9a61b17634e197df2c",
+        "repo_digests": [
+          "ghcr.io/llm-d/llm-d-router-endpoint-picker@sha256:024188e998f516879f68532016ca24fabca00afbdcc2af9a61b17634e197df2c"
+        ]
+      },
+      "localhost/llm-d-gpu-bench/vllm-lmcache:v0.30.0-lmcache0.5.5": {
+        "id": "sha256:6b7e5a4b2fe97db8b127f11819658be1cd978e267e221c26ac7ca46e7269427b",
+        "repo_digests": [
+          "localhost/llm-d-gpu-bench/vllm-lmcache@sha256:6b7e5a4b2fe97db8b127f11819658be1cd978e267e221c26ac7ca46e7269427b"
+        ]
+      },
+      "quay.io/inference-perf/inference-perf:v0.7.0@sha256:d247e6ad725dc5bb56df71d115abc8ca455bba9f0ccd4110e14bbb56504250ec": {
+        "id": "sha256:d247e6ad725dc5bb56df71d115abc8ca455bba9f0ccd4110e14bbb56504250ec",
+        "repo_digests": [
+          "quay.io/inference-perf/inference-perf@sha256:d247e6ad725dc5bb56df71d115abc8ca455bba9f0ccd4110e14bbb56504250ec"
+        ]
+      }
+    }
+  },
+  "lmcache_version": "0.5.5",
+  "valkey_glide_sync_version": "2.5.2",
+  "vllm_version": "0.30.0",
+  "lmcache_pip_changes": "base image lmcache: 0.5.5\n> valkey-glide-sync==2.5.2",
+  "model": "Qwen/Qwen3-8B",
+  "workload": {
+    "num_prefixes": "192",
+    "prompts_per_prefix": "4",
+    "system_prompt_len": "4096",
+    "question_len": "256",
+    "output_len": "64",
+    "seed": "42",
+    "warmup_requests": "384",
+    "stage_requests": "768",
+    "concurrency_levels": "8 16 32",
+    "strategies": "random-no-lmcache random approximate precise-memory precise-valkey",
+    "runs": "3"
+  },
+  "stack": {
+    "dtype": "auto",
+    "max_model_len": "16384",
+    "max_num_batched_tokens": "8192",
+    "gpu_memory_utilization": "0.90",
+    "peak_prefill_throughput": "11539",
+    "valkey_maxmemory": "192gb",
+    "valkey_io_threads": "8",
+    "lmcache_l1_size_gb": "64",
+    "lmcache_eviction_policy": "LRU",
+    "lmcache_l2_store_policy": "default",
+    "lmcache_max_gpu_workers": "4",
+    "lmcache_server_transfer_mode": "auto",
+    "lmcache_mp_transfer_mode": "auto",
+    "flush_router_index": "1",
+    "vllm_block_size": 64,
+    "router_block_size_tokens": 64,
+    "lmcache_chunk_size": 256,
+    "router_index": "redis://valkey:6379/1",
+    "lmcache_l2": "valkey:6379 database 0"
+  },
+  "git_commit": "1acc7860fa7e1ee9fb561b683c02db0d92122144",
+  "git_dirty": false,
+  "probe_errors": [],
+  "lmcache_version_in_replicas": "0.5.5"
+}
