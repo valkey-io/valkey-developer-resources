@@ -34,13 +34,15 @@ host.
   was measured.
 
 The default instance type is `g6e.12xlarge`: four NVIDIA L40S (48 GB each)
-and 384 GiB of RAM. The benchmark's default workload needs four GPUs and
-about 344 GiB of host RAM, most of it for Valkey and LMCache (see
+and 384 GiB of RAM. The benchmark's preflight check reserves 344 GiB of host
+RAM with the defaults, most of it for Valkey and LMCache (see
 [Sizing Valkey](../../README.md#sizing-valkey)). A `g6.12xlarge` (4x L4,
-24 GB, 192 GiB RAM) needs a smaller workload and `VALKEY_MAXMEMORY`. The
+24 GB, 192 GiB RAM) would need a smaller workload and `VALKEY_MAXMEMORY`;
+it hasn't been tested. The
 region is a variable (`region`); GPU capacity varies by region and zone. The
-default 200 GiB root volume holds the AMI, the images (the vLLM image alone
-is about 20 GiB unpacked), the model weights (about 16 GiB) and the results.
+default 200 GiB root volume was enough for the published run: the AMI used
+48 GiB at boot, the vLLM image is 8.1 GiB compressed (more unpacked), the
+model weights take 16 GB, and a full run's results about 3.5 GB.
 No Hugging Face token is needed for the default model, and the configuration
 holds no secrets.
 

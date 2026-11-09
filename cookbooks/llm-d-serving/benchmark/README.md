@@ -84,7 +84,8 @@ What the numbers show:
 Two things to know when reading these numbers:
 
 - With 8 I/O threads, only 2 of Valkey's threads were busy when sampled
-  during a `random` run, each at 100% CPU, sending about 3.1 GB/s in total.
+  during a `random` run, each at 100% CPU, sending about 3 GiB/s in total
+  (one `INFO stats` sample).
   Each connection is served by one I/O thread, so this suggests LMCache's
   Valkey adapter put most of its reads on two connections, and that reads
   from Valkey were limited by how the adapter uses connections rather than
@@ -123,15 +124,20 @@ start of each run is recorded in `valkey-before.json`.
 
 ## What you need
 
-- A Linux host with four NVIDIA GPUs, 24 GB or more each. The defaults are
-  sized for 48 GB GPUs such as the L40S; see [Workload](#workload) for
-  smaller ones.
-- Host RAM for Valkey's `maxmemory` plus the replicas and the LMCache
-  server: 344 GiB with the defaults (see [Sizing Valkey](#sizing-valkey)).
-  The script refuses to start on a host with less.
+- A Linux host with four NVIDIA GPUs. The defaults are sized for, and were
+  only tested on, 48 GB L40S GPUs. Qwen3-8B also fits on 24 GB GPUs such as
+  the L4, with much less room left for KV cache; that hasn't been tested,
+  and [Workload](#workload) says what to adjust.
+- Enough host RAM for the script's preflight check, which reserves 344 GiB
+  with the defaults: Valkey's `maxmemory` plus allowances for LMCache and
+  the replicas (see [Sizing Valkey](#sizing-valkey)). The script refuses to
+  start on a host with less. In the published run Valkey held 150 GiB.
 - Docker with the Compose plugin, the NVIDIA Container Toolkit, and
   `python3` on the host.
-- About 150 GB of free disk for images, model weights and logs.
+- Disk for the images, Qwen3-8B's weights (16 GB) and the results (about
+  3.5 GB for a full run, mostly inference-perf's per-request files). The
+  published run used a 200 GiB root volume, which was enough; its peak disk
+  use wasn't recorded.
 - Outbound internet access to pull images, Python packages and the model.
   The default model, `Qwen/Qwen3-8B`, is ungated, so no Hugging Face token
   is needed.
@@ -159,7 +165,8 @@ plus lmcache 0.5.5 and `valkey-glide-sync` 2.5.2, see
 [`vllm/Dockerfile`](vllm/Dockerfile)), downloads about 16 GB of weights, and
 waits a few minutes for the replicas to start. Each run then recreates the
 replicas and sends 2,688 requests. With five configurations, three runs
-each and the default workload, plan for several hours.
+each and the default workload, the published run took about 3 hours 40
+minutes on 4x L40S, after the image build and model download.
 
 Stop everything afterwards with `docker compose down`.
 
@@ -251,14 +258,17 @@ both modes.
 
 The CPU stack runs the LMCache server with `skip_l1`, which drops each
 chunk from the server's L1 memory once it is in Valkey, so every load comes
-from Valkey. This benchmark doesn't, for a reason measured on the first GPU
-runs. In lmcache 0.5.5, each lookup asks for the whole prompt, including the
-part vLLM already holds in its GPU prefix cache, and the server copies every
-chunk it finds into L1 before the request is scheduled. Under `skip_l1` that
-copy always came from Valkey: about 576 MiB, taking 230-370 ms, on every
-request, even when vLLM then used almost none of it. Median first-token time
-at concurrency 8 was about 500 ms for precise routing, against 123 ms
-without LMCache. LMCache fixed this after 0.5.6
+from Valkey. This benchmark doesn't, because of how lmcache 0.5.5 looks up
+KV. Each lookup asks for the whole prompt, including the part vLLM already
+holds in its GPU prefix cache, and the server copies every chunk it finds
+into L1 before the request is scheduled. Under `skip_l1` that copy always
+comes from Valkey: 16 chunks of 36 MiB, about 576 MiB, for a 4,096-token
+prefix, even when vLLM then uses almost none of it. In a short smoke run
+under `skip_l1` (24 shared prefixes, 96 requests at concurrency 8, one run;
+not published, and not comparable with the results above) these copies
+took 230-370 ms each, and median first-token time was about 500 ms for
+precise routing against 123 ms without LMCache. LMCache fixed this after
+0.5.6
 ([LMCache/LMCache#5383](https://github.com/LMCache/LMCache/pull/5383)).
 
 So L1 is a cache here: chunks stay in host memory (`LRU` eviction) and are
@@ -270,17 +280,25 @@ Valkey. To measure the CPU stack's policy instead, set
 `LMCACHE_L2_STORE_POLICY=skip_l1` and `LMCACHE_EVICTION_POLICY=noop`.
 
 Valkey runs with 8 I/O threads (`VALKEY_IO_THREADS`). Every KV load is a
-36 MiB GET. With Valkey's default of one thread, the first GPU runs had its
-main thread at 100% CPU in socket writes at about 1.5 GB/s, and a load from
-Valkey took about as long as recomputing the prefill.
+36 MiB GET. The first full run used Valkey's default of one thread and was
+stopped after two configurations, so it isn't published. In it, Valkey's
+main thread was at 100% CPU, mostly in kernel time, sending about
+1.5 GiB/s (one `INFO stats` sample). The median LMCache prefetch for
+`random` was about 380 ms, about what recomputing a 4,352-token prompt
+takes at the calibrated prefill rate (4,352 / 11,539 tokens/s is 377 ms),
+so loading from Valkey saved nothing.
 
 ### Workload
 
 192 shared system prompts of 4,096 tokens, four users per prompt, a
 256-token question and 64 output tokens. The shared prefixes add up to
-786,432 tokens, more than four 48 GB replicas can keep in GPU memory, so
-every strategy has to evict. Each run sends 384 warm-up requests at the first concurrency
-level, then 768 requests at each of 8, 16 and 32 concurrent users. The seed
+786,432 tokens. The workload is meant to be larger than the four replicas'
+combined GPU prefix cache, so every strategy has to evict; the published
+run didn't keep the `GPU KV cache size` line from `vllm-0.log` that would
+show the exact capacity, but random routing found only 15% of prompt
+tokens in a GPU cache. Each run sends 384 warm-up requests at the first
+concurrency level, then 768 requests at each of 8, 16 and 32 concurrent
+users. The seed
 is fixed, so every configuration and run sees the same prompts.
 
 Each stage is a separate inference-perf run, so the counters can be read
@@ -326,8 +344,10 @@ and the host's RAM have to be planned for the workload.
 The default `VALKEY_MAXMEMORY` is `192gb`. The extra 42 GiB covers prompts
 that tokenize a few tokens short of 4,352: their output tokens complete the
 17th chunk, and since outputs are sampled, that chunk differs per request.
-In the worst case that adds one chunk per request, up to 105 GiB, so check
-`used_memory` in `valkey.json` after your first run. Valkey runs with
+In the worst case that adds one chunk per request, up to 105 GiB. In the
+published run it didn't happen: every LMCache run stored exactly 3,840
+chunks (150.0 GiB). With another model or workload, check `used_memory` in
+`valkey.json` after your first run. Valkey runs with
 `noeviction`: when it is full it rejects new writes instead of evicting, and
 the summary flags any run with OOM rejections. An LRU policy would evict
 across all databases, the router's index in database 1 included.

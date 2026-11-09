@@ -14,7 +14,7 @@
 #                    which replica gets each request
 #   loadgen          inference-perf and the helper scripts (tools profile)
 #
-# Runs on any Linux host with four NVIDIA GPUs (24 GB or more each), Docker,
+# Runs on any Linux host with four NVIDIA GPUs (tested on 48 GB L40S), Docker,
 # the Compose plugin and the NVIDIA Container Toolkit. Don't start this file by
 # hand: scripts/run-benchmark.sh builds the vLLM image, renders the router and
 # load-generator configs, and drives each configuration in turn.
@@ -124,8 +124,8 @@ services:
     # index in database 1.
     #
     # io-threads: every KV load is a 36 MiB GET. With one thread (Valkey's
-    # default), the first GPU runs had Valkey's main thread at 100% CPU,
-    # almost all of it in socket writes, at about 1.5 GB/s, which made a load
+    # default), the first full GPU run had Valkey's main thread at 100% CPU,
+    # mostly kernel time, at about 1.5 GiB/s, which made a load
     # from Valkey no faster than recomputing the prefill. Set
     # VALKEY_IO_THREADS in .env.
     command:
@@ -157,7 +157,7 @@ services:
   # behind it. With lmcache 0.5.5 every lookup prefetches the whole prompt's
   # chunks into L1, including the part vLLM already has on the GPU, and the
   # request waits for that. Under skip_l1 every lookup therefore read the full
-  # prefix from Valkey (230-370 ms per request in the first GPU runs). LMCache
+  # prefix from Valkey (230-370 ms per request in a short smoke run). LMCache
   # fixed this after 0.5.6 (LMCache/LMCache#5383). The 64 GB default is about
   # half of the default workload's KV, so many lookups still go to Valkey.
   # Override with LMCACHE_L1_SIZE_GB, LMCACHE_EVICTION_POLICY and
