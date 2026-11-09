@@ -54,9 +54,9 @@ runs of a configuration were within about 5% of each other on requests per secon
 
 What the numbers show:
 
-- The `random-no-lmcache` baseline matches #107's random routing on the same
-  instance type (median first-token time 400 ms against 409 ms at
-  concurrency 8), so the stack without LMCache behaves the same.
+- `random-no-lmcache` is the reference point: random routing with no
+  shared KV cache, so a prefix that isn't in the chosen replica's GPU cache
+  is recomputed. Its median first-token time was 400 ms at concurrency 8.
 - With LMCache and Valkey under the replicas, throughput went up for every
   routing strategy: about 1.2 times the baseline's requests per second at
   concurrency 8, 1.4 times at 16 and 1.5 times at 32. Most prompt tokens
@@ -76,7 +76,7 @@ What the numbers show:
   LMCache server's 64 GB L1. LMCache's fix (#5383) is not in a stable
   release yet; a rerun on the release that has it is the next step.
 - Keeping the router's index in Valkey instead of the router's memory made
-  no measurable difference, as in #107. After each `precise-valkey` run,
+  no measurable difference. After each `precise-valkey` run,
   Valkey database 1 held about 20,500 index keys.
 - Valkey held 150.0 GiB and 3,840 KV keys after every LMCache run, exactly
   the estimate in [Sizing Valkey](#sizing-valkey), with no OOM rejections.
@@ -277,10 +277,9 @@ Valkey took about as long as recomputing the prefill.
 ### Workload
 
 192 shared system prompts of 4,096 tokens, four users per prompt, a
-256-token question and 64 output tokens: the "many prefixes competing for
-cache" workload from #107. The shared prefixes add up to 786,432 tokens,
-more than four 48 GB replicas can keep in GPU memory, so every strategy has
-to evict. Each run sends 384 warm-up requests at the first concurrency
+256-token question and 64 output tokens. The shared prefixes add up to
+786,432 tokens, more than four 48 GB replicas can keep in GPU memory, so
+every strategy has to evict. Each run sends 384 warm-up requests at the first concurrency
 level, then 768 requests at each of 8, 16 and 32 concurrent users. The seed
 is fixed, so every configuration and run sees the same prompts.
 
@@ -379,9 +378,7 @@ you have measured your host.
   what the GPU already holds (see [LMCache policy](#lmcache-policy)). That
   adds a wait to every request and hides most of what precise routing gains.
 - Each stage runs as its own inference-perf process, so the warm-up and the
-  first measured stage start at the same point in the prompt order. Results
-  aren't directly comparable with #107's, which ran all stages in one
-  process and had no shared KV cache.
+  first measured stage start at the same point in the prompt order.
 
 ## AWS host (optional, AWS-specific)
 
