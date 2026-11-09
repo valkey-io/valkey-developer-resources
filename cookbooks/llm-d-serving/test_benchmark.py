@@ -414,6 +414,12 @@ class TestValkeySizing:
         with pytest.raises(SystemExit, match="not enough memory"):
             check(256)
 
+    def test_render_failure_stops_the_run(self):
+        text = RUN_BENCHMARK.read_text()
+        assert "for stage in $(python3" not in text
+        assert re.search(r'local stage stages\n\s+stages="\$\(python3 scripts/render\.py loadgen', text)
+        assert re.search(r'if \[\[ -z "\$stages" \]\]; then\n.*\n\s+exit 1', text)
+
     def test_preflight_runs_before_anything_starts(self):
         text = RUN_BENCHMARK.read_text()
         assert text.index("host-ram-check") < text.index("docker compose build")
@@ -585,6 +591,34 @@ class TestSummarize:
         assert rows["2"]["index_keys_at_start"] is None
 
 
+    def test_truncated_files_are_skipped_not_fatal(self, run_dir):
+        run1 = run_dir / "precise-valkey" / "run-1"
+        report = next((run1 / "c8").rglob("stage_0_lifecycle_metrics.json"))
+        report.write_text(report.read_text()[:40])                     # truncated report
+        (run1 / "c16" / "counters-after.json").write_text('{"time": 0, "repl')  # truncated snapshot
+        (run_dir / "precise-valkey" / "run-2" / "valkey.json").write_text("{}")  # partial stats
+        text, data = summarize.render(run_dir)
+        c8, c16 = data["results"]["precise-valkey"][8], data["results"]["precise-valkey"][16]
+        assert c8["runs"] == 2                                   # run 1's c8 dropped, like a missing report
+        assert c16["runs"] == 3 and c16["local_share"]["n"] == 2  # report kept, no cache split for run 1
+        assert [r["run"] for r in data["valkey"]] == ["1", "3"]
+        assert len(data["skipped"]) == 3
+        assert "Warning: these files were skipped" in text
+        for name in ("stage_0_lifecycle_metrics.json", "counters-after.json", "valkey.json"):
+            assert name in text
+
+    def test_malformed_snapshot_gives_no_split(self, run_dir):
+        stage = run_dir / "precise-valkey" / "run-1" / "c8"
+        (stage / "counters-after.json").write_text(json.dumps({"time": 0, "replicas": {"vllm-0": {}}}))
+        (stage / "counters-before.json").write_text(json.dumps({"time": 0, "replicas": {}}))
+        row = summarize.stage_metrics(stage)
+        assert row["ttft_p50"] is not None and row["local_share"] is None and row["valkey_share"] is None
+
+    def test_clean_run_lists_nothing_skipped(self, run_dir):
+        text, data = summarize.render(run_dir)
+        assert data["skipped"] == [] and "skipped" not in text.lower()
+
+
 class TestMetadata:
     def test_required_fields(self):
         probes = {"gpus": metadata.parse_nvidia_smi("NVIDIA L40S, 46068, 580.95.05\n" * 4),
@@ -632,8 +666,27 @@ class TestTerraformLayout:
         assert re.search(r'variable "region" \{[^}]*type\s+= string', variables)
         root = re.search(r'variable "root_volume_gb" \{[^}]*default\s+= (\d+)', variables)
         assert int(root.group(1)) >= 150
+        # A full run takes about 3 h 40 min plus downloads; the timer counts from boot.
+        stop = int(re.search(r'variable "auto_stop_minutes" \{[^}]*default\s+= (\d+)', variables).group(1))
+        assert stop >= 480
+        example = (BENCH / "terraform" / "aws" / "terraform.tfvars.example").read_text()
+        assert re.search(rf"^auto_stop_minutes\s+= {stop}$", example, re.MULTILINE)
 
     def test_push_stack_sends_the_benchmark_dir(self):
         text = (BENCH / "terraform" / "aws" / "push-stack.sh").read_text()
         assert 'BENCH_DIR="$(cd ../.. && pwd)"' in text and '"$BENCH_DIR/compose.yaml"' in text
         assert "prompt-routing" not in text
+
+    def test_push_stack_leaves_out_env_files_and_local_state(self, tmp_path):
+        text = (BENCH / "terraform" / "aws" / "push-stack.sh").read_text()
+        selection = re.search(r'payload="\$\(cd "\$BENCH_DIR" && (find .*?-print0) \|', text, re.DOTALL)
+        assert selection, "push-stack.sh should pick files with find"
+        for path in ("compose.yaml", ".env.example", "scripts/run-benchmark.sh", ".env", ".env.local",
+                     ".env.bak", "scripts/.env.secret", "results/r/x.json", "rendered/epp/a.yaml",
+                     "terraform/aws/terraform.tfstate", ".hf-cache/m", "scripts/__pycache__/a.pyc"):
+            (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
+            (tmp_path / path).write_text("x")
+        out = subprocess.run(["bash", "-c", selection.group(1).replace("\\\n", " ")], cwd=tmp_path,
+                             capture_output=True, check=True).stdout
+        sent = sorted(p.decode() for p in out.split(b"\0") if p)
+        assert sent == ["./.env.example", "./compose.yaml", "./scripts/run-benchmark.sh"]

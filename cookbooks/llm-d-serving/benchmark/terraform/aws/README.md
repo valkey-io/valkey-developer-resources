@@ -24,7 +24,7 @@ host.
   24.04), which ships the NVIDIA driver, the NVIDIA Container Toolkit, Docker,
   and the SSM agent. IMDSv2 is required and the gp3 root volume is encrypted.
 - A systemd unit that shuts the host down `auto_stop_minutes` after every boot
-  (default 240). On-demand instances stop; Spot instances terminate.
+  (default 480). On-demand instances stop; Spot instances terminate.
 - On first boot, a clone of `repo_url` at `repo_ref` in `/opt/bench/repo`
   (defaults to this repository's `main` branch), and the Docker Compose plugin
   if the AMI lacks it.
@@ -144,3 +144,25 @@ terraform destroy
 
 The auto-stop timer is a backstop. A stopped instance still bills for its EBS
 volume, so destroy the stack rather than relying on the timer.
+
+The 480-minute default leaves room for a full run with the default
+workload: the published run took about 3 hours 40 minutes on 4x L40S, and a
+fresh host needs about 25 minutes more to pull and build the image and
+download the model. If you lower it, or change the workload, check that the
+run fits: the timer counts from boot, and a shutdown stops the run.
+
+If the host does stop mid-run, start it again (the timer re-arms on every
+boot) and finish the remaining configurations. Finished runs stay on the
+root volume under `results/<run-id>/`. The script always writes to a new
+run directory, so:
+
+```bash
+cd /opt/bench/stack
+STRATEGIES="precise-memory precise-valkey" bash scripts/run-benchmark.sh
+```
+
+Then move each finished `<configuration>/run-<n>` directory from the new run
+directory into the first one, and run
+`python3 scripts/summarize.py results/<first-run-id>` to summarise them
+together. Set `PEAK_PREFILL_THROUGHPUT` to the first run's value (in its
+`metadata.json`) so both use the same router calibration.

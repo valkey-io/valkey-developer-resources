@@ -32,11 +32,15 @@ dirty=clean
 [[ -n "$(git -C "$BENCH_DIR" status --porcelain -- . 2>/dev/null)" ]] && dirty=dirty
 printf '%s\n%s\n' "$commit" "$dirty" > "$BENCH_DIR/.stack-commit"
 
-# COPYFILE_DISABLE keeps macOS tar from adding ._ metadata files.
-payload="$(COPYFILE_DISABLE=1 tar --no-xattrs -C "$BENCH_DIR" \
-  --exclude ./terraform --exclude ./results --exclude ./rendered \
-  --exclude ./.hf-cache --exclude ./.env \
-  -czf - . | base64 | tr -d '\n')"
+# The payload lands in SSM's command history, so leave out every .env* file
+# (.env, .env.local, .env.bak, ...) at any depth except the .env.example
+# template, plus local state and caches. COPYFILE_DISABLE keeps macOS tar
+# from adding ._ metadata files.
+payload="$(cd "$BENCH_DIR" && find . -type f \
+    ! -path './terraform/*' ! -path './results/*' ! -path './rendered/*' \
+    ! -path './.hf-cache/*' ! -path '*/__pycache__/*' \
+    \( ! -name '.env*' -o -name '.env.example' \) -print0 |
+  COPYFILE_DISABLE=1 tar --no-xattrs --null -T - -czf - | base64 | tr -d '\n')"
 echo "Sending ${#payload} bytes (base64) to $INSTANCE_ID:$DEST"
 
 request="$(mktemp)"

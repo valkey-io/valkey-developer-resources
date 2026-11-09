@@ -44,9 +44,9 @@ variable "root_volume_gb" {
 }
 
 variable "auto_stop_minutes" {
-  description = "Shut the host down this many minutes after every boot, as a cost backstop. 0 disables it. This is not a substitute for terraform destroy."
+  description = "Shut the host down this many minutes after every boot, as a cost backstop. 0 disables it. This is not a substitute for terraform destroy. The default leaves room for a full benchmark run (about 3 h 40 min on 4x L40S, plus about 25 min on a fresh host for the image and model downloads)."
   type        = number
-  default     = 240
+  default     = 480
 
   validation {
     condition     = var.auto_stop_minutes >= 0 && floor(var.auto_stop_minutes) == var.auto_stop_minutes

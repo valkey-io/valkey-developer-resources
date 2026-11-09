@@ -39,17 +39,41 @@ from metadata import metadata_line
 METRICS = ("ttft_p50", "ttft_p90", "ttft_p99", "requests_per_s", "local_share", "valkey_share", "usage_cached_share")
 
 
-def counter_delta(before: dict, after: dict, name: str) -> float:
-    """Sum over replicas of (after - before) for one counter."""
-    return sum(after["replicas"][r].get(name, 0.0) - before["replicas"][r].get(name, 0.0)
-               for r in after["replicas"])
+# Files that couldn't be read or had the wrong shape. render() lists them
+# under the tables, so a partial run directory still gets a summary.
+SKIPPED: list[str] = []
+
+
+def read_json(path: Path, what: str) -> dict | None:
+    """Parse a JSON object, or record the file as skipped and return None."""
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        SKIPPED.append(f"{path} ({what}): {exc}")
+        return None
+    if not isinstance(data, dict):
+        SKIPPED.append(f"{path} ({what}): not a JSON object")
+        return None
+    return data
+
+
+def counter_delta(before: dict, after: dict, name: str) -> float | None:
+    """Sum over replicas of (after - before) for one counter; None if a
+    snapshot is malformed (e.g. a replica missing from one of them)."""
+    try:
+        return sum(after["replicas"][r].get(name, 0.0) - before["replicas"][r].get(name, 0.0)
+                   for r in after["replicas"])
+    except (KeyError, TypeError, AttributeError):
+        return None
 
 
 def stage_metrics(stage_dir: Path) -> dict | None:
     reports = list(stage_dir.rglob("stage_0_lifecycle_metrics.json"))
     if not reports:
         return None
-    report = json.loads(reports[0].read_text())
+    report = read_json(reports[0], "inference-perf report")
+    if report is None:
+        return None  # treated like a missing report
     ok = report.get("successes") or {}
     ttft = (ok.get("latency") or {}).get("time_to_first_token") or {}
     prompt = ok.get("prompt_tokens") or {}
@@ -68,11 +92,16 @@ def stage_metrics(stage_dir: Path) -> dict | None:
     }
     before, after = stage_dir / "counters-before.json", stage_dir / "counters-after.json"
     if before.exists() and after.exists():
-        b, a = json.loads(before.read_text()), json.loads(after.read_text())
-        prompt_tokens = counter_delta(b, a, "vllm:prompt_tokens_total")
-        if prompt_tokens > 0:
-            row["local_share"] = counter_delta(b, a, "vllm:prefix_cache_hits_total") / prompt_tokens
-            row["valkey_share"] = counter_delta(b, a, "vllm:external_prefix_cache_hits_total") / prompt_tokens
+        b, a = read_json(before, "counter snapshot"), read_json(after, "counter snapshot")
+        if b is not None and a is not None:
+            prompt_tokens = counter_delta(b, a, "vllm:prompt_tokens_total")
+            local = counter_delta(b, a, "vllm:prefix_cache_hits_total")
+            external = counter_delta(b, a, "vllm:external_prefix_cache_hits_total")
+            if None in (prompt_tokens, local, external):
+                SKIPPED.append(f"{stage_dir} (counter snapshots): malformed, no cache-hit split")
+            elif prompt_tokens > 0:
+                row["local_share"] = local / prompt_tokens
+                row["valkey_share"] = external / prompt_tokens
     return row
 
 
@@ -123,9 +152,13 @@ def valkey_runs(run_dir: Path) -> list[dict]:
             stats = run / "valkey.json"
             if not stats.exists():
                 continue
-            after = json.loads(stats.read_text())
+            after = read_json(stats, "Valkey stats")
+            if after is None or not isinstance(after.get("used_memory"), int | float):
+                if after is not None:
+                    SKIPPED.append(f"{stats} (Valkey stats): no used_memory")
+                continue
             start = run / "valkey-before.json"
-            before = json.loads(start.read_text()) if start.exists() else {}
+            before = (read_json(start, "Valkey stats") or {}) if start.exists() else {}
             # INFO keyspace omits empty databases, so a recorded snapshot
             # without db1 means the index was empty; no snapshot means unknown.
             rows.append({"config": config, "run": run.name.removeprefix("run-"), "after": after,
@@ -212,8 +245,9 @@ def valkey_table(rows: list[dict]) -> list[str]:
 
 
 def render(run_dir: Path) -> tuple[str, dict]:
+    SKIPPED.clear()
     meta_path = run_dir / "metadata.json"
-    meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
+    meta = (read_json(meta_path, "run metadata") or {}) if meta_path.exists() else {}
     line = metadata_line(meta) if meta else "Measured on an unknown host (no metadata.json)."
     summary = collect(run_dir)
     vrows = valkey_runs(run_dir)
@@ -233,8 +267,12 @@ def render(run_dir: Path) -> tuple[str, dict]:
         if full:
             out += [f"Warning: Valkey rejected writes (OOM) in {', '.join(full)}. Those runs stored less KV "
                     "than the workload produced; raise VALKEY_MAXMEMORY or shrink the workload.", ""]
+    if SKIPPED:
+        out += ["Warning: these files were skipped, so the tables above leave them out:", "",
+                *[f"- `{item}`" for item in SKIPPED], ""]
     # One trailing newline (print adds it): markdownlint rejects blank runs.
-    return "\n".join(out).rstrip("\n"), {"metadata": meta, "results": summary, "valkey": vrows}
+    return "\n".join(out).rstrip("\n"), {"metadata": meta, "results": summary, "valkey": vrows,
+                                           "skipped": list(SKIPPED)}
 
 
 def main() -> None:
