@@ -137,7 +137,9 @@ start of each run is recorded in `valkey-before.json`.
   is needed.
 
 To get such a host on AWS, see the optional [`terraform/aws/`](terraform/aws/).
-Any other host that meets the list above works the same way.
+Any other host that meets the list above works the same way: a GPU
+instance from another cloud provider, or an on-premises server. Only the
+Terraform is AWS-specific; the benchmark has no cloud-specific code.
 
 ## Run it
 
