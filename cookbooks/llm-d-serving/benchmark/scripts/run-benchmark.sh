@@ -44,7 +44,8 @@ export MAX_MODEL_LEN="${MAX_MODEL_LEN:-16384}"
 export GPU_MEMORY_UTILIZATION="${GPU_MEMORY_UTILIZATION:-0.90}"
 
 # Configurations (scripts/benchctl.py CONFIGS), runs and workload. The
-# workload is #107's "many prefixes competing for cache" case.
+# default workload has many shared prefixes competing for cache (README.md,
+# "Workload").
 export STRATEGIES="${STRATEGIES:-random-no-lmcache random approximate precise-memory precise-valkey}"
 export RUNS="${RUNS:-3}"
 export CONCURRENCY_LEVELS="${CONCURRENCY_LEVELS:-8 16 32}"
