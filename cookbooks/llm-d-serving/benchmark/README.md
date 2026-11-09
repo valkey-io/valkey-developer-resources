@@ -24,8 +24,10 @@ One set of results so far, measured on 2026-11-06 on an AWS `g6e.12xlarge`
 (4x NVIDIA L40S 48 GB, driver 595.112.07, 384 GiB RAM) in `ap-northeast-1`,
 provisioned with the [AWS Terraform](terraform/aws/). The software was
 Qwen3-8B, vLLM 0.30.0, lmcache 0.5.5 and `valkey-bundle` 9.1.2, at commit
-`1acc7860` of this repository. The default workload and settings were used:
-the five configurations, three runs each. The full tables, with the spread
+`1acc7860` of this repository, which `metadata.json` records. A later rebase
+renamed that commit `11daa2ed`; its benchmark files are identical. The
+default workload and settings were used: the five configurations, three
+runs each. The full tables, with the spread
 of the three runs for every number, plus `metadata.json`, are in
 [`published/2026-11-06-aws-g6e.12xlarge/`](published/2026-11-06-aws-g6e.12xlarge/).
 
