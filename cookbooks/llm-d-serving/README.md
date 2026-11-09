@@ -85,7 +85,7 @@ detail.
 - **Memory.** Give the container runtime 10 GiB (10240 MiB). The measured
   minimum is 8.5 GiB; see [Memory requirements](#memory-requirements) and
   [Running on a smaller machine](#running-on-a-smaller-machine).
-- **CPU.** 8 cores is comfortable; the typical timings quoted in the notebook
+- **CPU.** Tested with 8 cores; the typical timings quoted in the notebook
   were measured on an 8-CPU, 16 GiB Colima VM on an Apple M4 Pro.
 - **[uv](https://docs.astral.sh/uv/)** for Python dependency management:
 
@@ -152,9 +152,9 @@ cd valkey-developer-resources/cookbooks/llm-d-serving
 ```
 
 **2. Start the stack.** This checks that the runtime exposes enough memory,
-then blocks until the services with healthchecks are healthy. That takes about
-two minutes; the first start also downloads the images and the model, and took
-about three minutes in total in our test:
+then blocks until the services with healthchecks are healthy. That took about
+100 s in our test with the images already downloaded; the first start also
+downloads the images and the model, and took about three minutes in total:
 
 ```bash
 rt=""; mem_bytes=""
