@@ -25,6 +25,7 @@ Two tiers:
 
 from __future__ import annotations
 
+import contextlib
 import http.client
 import ipaddress
 import json
@@ -411,18 +412,61 @@ def _chat(base_url: str, messages: list, max_tokens: int = 8) -> dict:
     with urllib.request.urlopen(req, timeout=300) as resp:
         body = json.load(resp)
     answer = body["choices"][0]["message"]["content"]
-    deadline = time.monotonic() + 3
-    while True:
-        after = _counters()
-        moved = [n for n in after if after[n]["served"] > before[n]["served"]]
-        if moved or time.monotonic() > deadline:
-            break
-        time.sleep(0.05)
+    after = _counters_until(lambda c: any(c[n]["served"] > before[n]["served"] for n in c))
+    moved = [n for n in after if after[n]["served"] > before[n]["served"]]
     assert len(moved) == 1, f"could not tell which replica served the request: {moved}"
     name = moved[0]
     return {"replica": name, "answer": answer, "prompt": body["usage"]["prompt_tokens"],
             "local": after[name]["local"] - before[name]["local"],
             "valkey": after[name]["valkey"] - before[name]["valkey"]}
+
+
+def _counters_until(predicate, timeout_s: float = 3.0) -> dict:
+    """Replica counters once ``predicate(counters)`` holds, or after ``timeout_s``.
+
+    vLLM's Prometheus counters can lag behind the response that bumped them.
+    """
+    deadline = time.monotonic() + timeout_s
+    while True:
+        counters = _counters()
+        if predicate(counters) or time.monotonic() > deadline:
+            return counters
+        time.sleep(0.05)
+
+
+def _wait_until_replicas_idle(timeout_s: float = 120.0) -> None:
+    """Wait until no replica is running a request (e.g. long generations an
+    earlier test aborted, which vLLM may still be finishing)."""
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        running = {n: _metric(_scrape(f"{u}/metrics"), "vllm:num_requests_running")
+                   for n, u in REPLICA_URLS.items()}
+        if not any(running.values()):
+            return
+        time.sleep(0.5)
+    pytest.fail(f"replicas still running requests after {timeout_s:.0f} s: {running}")
+
+
+def _close_connections(connections: list) -> None:
+    """Close every connection, even if one fails. Closing the socket makes vLLM
+    abort a request it is still generating."""
+    for conn in connections:
+        if conn.sock is not None:
+            with contextlib.suppress(OSError):
+                conn.sock.shutdown(socket.SHUT_RDWR)
+        conn.close()
+
+
+def _remove_batch_jobs(valkey, job_ids, queue_name="request-sortedset", result_name="result-list",
+                       extra_keys=()) -> None:
+    """Remove these jobs' queue entries, results and state, keeping everyone else's."""
+    for raw in valkey.custom_command(["ZRANGE", queue_name, "0", "-1"]) or []:
+        if json.loads(raw)["data"]["id"] in job_ids:
+            valkey.custom_command(["ZREM", queue_name, raw])
+    for raw in valkey.custom_command(["LRANGE", result_name, "0", "-1"]) or []:
+        if json.loads(raw)["id"] in job_ids:
+            valkey.custom_command(["LREM", result_name, "1", raw])
+    valkey.delete([*extra_keys, *[f"request-active:{job_id}" for job_id in job_ids]])
 
 
 def _document(tag: str, clauses: int = 29) -> str:
@@ -505,10 +549,17 @@ def test_follow_up_routed_to_the_replica_with_the_conversation():
 @requires_stack
 def test_router_index_lives_in_valkey_database_1(valkey, router_index):
     _chat(ROUTER_URL, _conversation())
-    keys = _scan(router_index)
-    assert any(k.startswith("engine:") for k in keys)
-    block = next(k for k in keys if k.isdigit())
-    entry = json.loads(router_index.hkeys(block)[0])
+    # The router writes its index from vLLM's KV events, after the response.
+    deadline = time.monotonic() + 10
+    while True:
+        keys = _scan(router_index)
+        blocks = [k for k in keys if k.isdigit()]
+        if (blocks and any(k.startswith("engine:") for k in keys)) or time.monotonic() > deadline:
+            break
+        time.sleep(0.2)
+    assert any(k.startswith("engine:") for k in keys), "no engine:<hash> key in database 1 after 10 s"
+    assert blocks, "no block hash in database 1 after 10 s"
+    entry = json.loads(router_index.hkeys(blocks[0])[0])
     assert entry["PodIdentifier"].endswith(":8000")
     # Nothing of the router's lands in database 0 (walk every SCAN page: one
     # page can be empty while later ones still match).
@@ -543,17 +594,15 @@ def test_busy_replica_spills_over_to_its_neighbor(valkey):
     try:
         for job in range(2):
             conn = http.client.HTTPConnection("127.0.0.1", 8080, timeout=600)
+            connections.append(conn)  # tracked first, so a failed send is closed too
             body = {"model": MODEL, "prompt": f"{template}\nReport {job}:", "max_tokens": 1000,
                     "ignore_eos": True, "temperature": 0}
             conn.request("POST", "/v1/completions", json.dumps(body), {"Content-Type": "application/json"})
-            connections.append(conn)
             time.sleep(0.3)
         time.sleep(0.5)
         spilled = _chat(ROUTER_URL, messages)
     finally:
-        for conn in connections:
-            conn.sock.shutdown(socket.SHUT_RDWR)
-            conn.close()
+        _close_connections(connections)
     assert spilled["replica"] == "vllm-b"
     assert spilled["valkey"] >= 256, "the neighbor should load the conversation from Valkey"
 
@@ -606,22 +655,26 @@ def _submit_batch_job(valkey, job_id: str, userid: str | None = None):
 def test_batch_job_from_python_runs_through_the_router(valkey):
     job_id = f"test-{uuid.uuid4().hex}"
     before = _counters()
-    _submit_batch_job(valkey, job_id)
-    result = None
-    stop = time.monotonic() + 60
-    while result is None and time.monotonic() < stop:
-        for raw in valkey.custom_command(["LRANGE", "result-list", "0", "-1"]) or []:
-            parsed = json.loads(raw)
-            if parsed["id"] == job_id:
-                result = parsed
-                valkey.custom_command(["LREM", "result-list", "1", raw])
-        time.sleep(0.5)
-    assert result is not None, "the batch processor did not return a result"
-    assert result["status_code"] == 200
-    assert json.loads(result["payload"])["choices"]
-    after = _counters()
-    assert sum(after[n]["served"] - before[n]["served"] for n in after) >= 1
-    assert not valkey.exists([f"request-active:{job_id}"]), "processor cleans up the job state"
+    try:
+        _submit_batch_job(valkey, job_id)
+        result = None
+        stop = time.monotonic() + 60
+        while result is None and time.monotonic() < stop:
+            for raw in valkey.custom_command(["LRANGE", "result-list", "0", "-1"]) or []:
+                parsed = json.loads(raw)
+                if parsed["id"] == job_id:
+                    result = parsed
+                    valkey.custom_command(["LREM", "result-list", "1", raw])
+            time.sleep(0.5)
+        assert result is not None, "the batch processor did not return a result"
+        assert result["status_code"] == 200
+        assert json.loads(result["payload"])["choices"]
+        after = _counters_until(lambda c: sum(c[n]["served"] - before[n]["served"] for n in c) >= 1)
+        assert sum(after[n]["served"] - before[n]["served"] for n in after) >= 1
+        assert not valkey.exists([f"request-active:{job_id}"]), "processor cleans up the job state"
+    finally:
+        # On a timeout the job may still be queued, or its result may arrive later.
+        _remove_batch_jobs(valkey, {job_id})
 
 
 @requires_stack
@@ -646,10 +699,21 @@ def test_per_user_quota_holds_excess_batch_jobs_until_the_window_expires(valkey,
                 for raw in valkey.custom_command(["ZRANGE", queue["queue_name"], "0", "-1"]) or []
                 if (job_id := json.loads(raw)["data"]["id"]) in job_ids}
 
-    started = time.monotonic()
+    # Long generations an earlier test aborted may still be running, and would
+    # slow these jobs down enough to eat into the quota window.
+    _wait_until_replicas_idle()
     try:
         for job_id in sorted(job_ids):
             _submit_batch_job(valkey, job_id, userid=user)
+
+        # The window starts at the first admission, which is when the gate
+        # adds the first member to the quota sorted set.
+        stop = time.monotonic() + 60
+        while not valkey.zcard(quota_key):
+            if time.monotonic() > stop:
+                pytest.fail("the gate admitted no job within 60 s")
+            time.sleep(0.05)
+        started = time.monotonic()
 
         # Observe only this user's jobs, before any admission can age out.
         # Refused jobs are briefly dequeued on each poll, so retry snapshots
@@ -681,7 +745,8 @@ def test_per_user_quota_holds_excess_batch_jobs_until_the_window_expires(valkey,
         stop = started + 2 * window_s + 10
         while time.monotonic() < stop:
             completed = results()
-            if time.monotonic() - started < window_s:
+            # 1 s of slack: `started` is when polling saw the first admission.
+            if time.monotonic() - started < window_s - 1:
                 assert len(completed) <= limit, "the held job ran before the quota window expired"
             if completed.keys() == job_ids:
                 break
@@ -694,10 +759,5 @@ def test_per_user_quota_holds_excess_batch_jobs_until_the_window_expires(valkey,
         assert not valkey.exists([f"request-active:{job_id}" for job_id in job_ids])
     finally:
         # Preserve other users' queued jobs and results, including on failure.
-        for raw in valkey.custom_command(["ZRANGE", queue["queue_name"], "0", "-1"]) or []:
-            if json.loads(raw)["data"]["id"] in job_ids:
-                valkey.custom_command(["ZREM", queue["queue_name"], raw])
-        for raw in valkey.custom_command(["LRANGE", queue["result_queue_name"], "0", "-1"]) or []:
-            if json.loads(raw)["id"] in job_ids:
-                valkey.custom_command(["LREM", queue["result_queue_name"], "1", raw])
-        valkey.delete([quota_key, *[f"request-active:{job_id}" for job_id in job_ids]])
+        _remove_batch_jobs(valkey, job_ids, queue["queue_name"], queue["result_queue_name"],
+                           extra_keys=[quota_key])
