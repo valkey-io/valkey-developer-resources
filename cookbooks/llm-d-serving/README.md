@@ -294,7 +294,7 @@ the same checks apply.
 | [`async/`](async/) | llm-d-async's transport config and the dummy kubeconfig it needs off-cluster |
 | [`pyproject.toml`](pyproject.toml), [`uv.lock`](uv.lock) | Pinned Python dependencies for the notebook and tests |
 | [`test_llm_d_serving.py`](test_llm_d_serving.py) | Tests: config and compose wiring always; routing, KV reuse, the batch queue and per-user quotas when the stack is up |
-| [`.ci-structural-only`](.ci-structural-only) | Tells CI to skip notebook execution (the stack does not fit a hosted runner) |
+| [`.ci-structural-only`](.ci-structural-only) | Tells CI to skip notebook execution; its first line says why |
 
 ## Running the tests
 
