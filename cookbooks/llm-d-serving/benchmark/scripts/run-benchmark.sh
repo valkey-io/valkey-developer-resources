@@ -189,8 +189,15 @@ run_once() {
   benchctl wait-router --model "$MODEL"
   valkey_stats "$dir/valkey-before"
 
-  local stage
-  for stage in $(python3 scripts/render.py loadgen --config "$config" --run "$run"); do
+  # Declared separately so set -e sees render.py's exit status (local would
+  # mask it), and checked so a configuration can't silently drop out.
+  local stage stages
+  stages="$(python3 scripts/render.py loadgen --config "$config" --run "$run")"
+  if [[ -z "$stages" ]]; then
+    echo "render.py produced no loadgen stages for $config run $run" >&2
+    exit 1
+  fi
+  for stage in $stages; do
     mkdir -p "$dir/$stage"
     if [[ "$stage" != warmup ]]; then
       benchctl snapshot --out "/results/$RUN_ID/$config/run-$run/$stage/counters-before.json"
