@@ -23,8 +23,8 @@
 #
 # Resource note: measured on an 8-CPU Colima VM (Apple silicon), the
 # containers together peak at about 7.4 GiB during a notebook run (each vLLM
-# replica about 3.4 GiB, the LMCache server 0.6 GiB, Valkey 0.3 GiB and
-# growing by about 0.3 GiB per run, the router and batch processor under
+# replica about 3.7 to 3.8 GiB, the LMCache server 0.6 GiB, Valkey 0.4 GiB and
+# growing by about 0.4 GiB per run, the router and batch processor under
 # 0.1 GiB together). On x86-64 the containers peaked about 0.8 GiB higher.
 # Give the container runtime 10 GiB; 8.5 GiB is the measured minimum on
 # Apple silicon (README.md, "Memory requirements").
@@ -73,7 +73,7 @@ x-vllm-common: &vllm-common
       # joins late can catch up. The router identifies each replica by the
       # "<ip>:<port>" in the topic, so POD_IP must be this container's fixed
       # address on the compose network (and match epp/endpoints.yaml).
-      KV_EVENTS=$$(printf '{"enable_kv_cache_events":true,"publisher":"zmq","endpoint":"tcp://*:5556","replay_endpoint":"tcp://*:5559","topic":"kv@%s:8000@Qwen/Qwen2.5-0.5B-Instruct"}' "$$POD_IP")
+      KV_EVENTS=$$(printf '{"enable_kv_cache_events":true,"publisher":"zmq","endpoint":"tcp://*:5556","replay_endpoint":"tcp://*:5559","buffer_steps":%s,"topic":"kv@%s:8000@Qwen/Qwen2.5-0.5B-Instruct"}' "$$KV_REPLAY_BUFFER_STEPS" "$$POD_IP")
       # Flags that differ from the KV caching recipe:
       #
       # --enable-prefix-caching keeps vLLM's in-memory prefix cache on. That
@@ -83,8 +83,8 @@ x-vllm-common: &vllm-common
       #   the router recomputes vLLM's block hashes from the prompt tokens.
       # --kv-cache-memory-bytes 96M gives each replica 128 blocks of 64 tokens
       #   (8,192 tokens; one block is 0.75 MiB for this model in float16). The
-      #   notebook's 29-clause conversations start at roughly 950-1,150 tokens
-      #   (15-18 allocated blocks), depending on the tag, and grow on follow-ups.
+      #   notebook's 29-clause conversations start at roughly 1,000-1,150 tokens
+      #   (16-18 allocated blocks), depending on the tag, and grow on follow-ups.
       #   At most five are active at a time, so a replica keeps what the router
       #   sent it in memory and a local hit really is local. With 64M (85
       #   blocks) the random-routing section overflowed a replica and some
@@ -119,6 +119,16 @@ x-vllm-common: &vllm-common
     VLLM_USE_V2_MODEL_RUNNER: "0"
     VLLM_ENABLE_V1_MULTIPROCESSING: "0"
     HF_HUB_DISABLE_PROGRESS_BARS: "1"
+    # Size of vLLM's KV-event replay buffer (`buffer_steps` in
+    # --kv-events-config). vLLM keeps the last N event batches, one per engine
+    # step that stored or evicted blocks, and resends them to a router that
+    # connects to the replay endpoint (5559). A restarted router with its index
+    # in memory can rebuild only what is still in this buffer. vLLM's default is
+    # 10,000 batches; this recipe uses 32 so that the notebook's "The index
+    # outlives the router" section can push its warm conversations out of the
+    # buffer with a few dozen short prompts. That section depends on this
+    # value; the rest of the notebook does not.
+    KV_REPLAY_BUFFER_STEPS: "${KV_REPLAY_BUFFER_STEPS:-32}"
   volumes:
     - hf-cache:/root/.cache/huggingface
   shm_size: "2gb"
@@ -266,7 +276,8 @@ services:
       - ./epp:/etc/epp:ro,z
     command:
       # EPP_STRATEGY picks the routing config in ./epp: precise-valkey (the
-      # default; prefix-cache index in Valkey) or random (the baseline). The
+      # default; prefix-cache index in Valkey), precise-memory (the same config
+      # with the index in the router's memory) or random (the baseline). The
       # notebook switches between them with `docker compose up -d epp`.
       - --config-file=/etc/epp/${EPP_STRATEGY:-precise-valkey}.yaml
       # No Kubernetes: the pool flags only name the endpoint pool that the

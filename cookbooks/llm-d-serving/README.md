@@ -11,11 +11,21 @@ single Valkey server (one standalone node) for three things:
 - **Batch queue and per-user quotas:** Hold background jobs until they can run,
   and limit how many jobs each user has admitted within a time window.
 
-The first two work together. A server answers fastest when the prompt prefix is
-already in its own memory, so the router sends each request to that server when
-it can. When it can't, for example because that server is busy, the other
-server loads the prefix from Valkey. That is slower than a local hit, but
-several times faster than recomputing the prompt.
+The notebook follows one scenario: a contract-review assistant on two vLLM
+servers. Reviewers chat about long lease documents, and an analyst runs batch
+questions over the same leases. With two servers and nothing coordinating them,
+a reviewer's follow-up can land on the server that doesn't have the
+conversation, the server that has it can be busy while the other one idles, and
+the analyst's batch competes with the reviewers for the same servers. The
+router and Valkey handle each of these.
+
+The first two roles work together. A server answers fastest when the prompt
+prefix is already in its own memory, so the router sends each request to that
+server when it can. When it can't, for example because that server is busy, the
+other server loads the prefix from Valkey. That is slower than a local hit, but
+several times faster than recomputing the prompt. Keeping the index in Valkey
+rather than in the router's memory is about durability, not speed: the index
+survives a router restart.
 
 llm-d is an open-source, Kubernetes-native stack for distributed LLM inference
 that runs model servers such as vLLM and SGLang. Its router chooses a server
@@ -39,36 +49,27 @@ batch processor sends admitted jobs through the same router.
 ## What you'll have working at the end
 
 A seven-container stack and a notebook that walks through it on CPU. You'll
-measure the three ways a server can get a conversation's first token (recompute,
+measure the three ways a server can get a reviewer's first token (recompute,
 load from Valkey, local hit); see the router send every follow-up back to the
-server holding the conversation, compared with random routing; restart the
-router and watch routing stay correct; fill one server with long jobs and watch
-the router move a conversation to the other server, which loads it from Valkey;
-and submit batch jobs from Python into llm-d-async's Valkey queue, with a
-per-user rate limit holding some of them back.
+server holding the conversation, compared with random routing; fill one server
+with long jobs and watch the router move a conversation to the other server,
+which loads it from Valkey; restart the router with its index in memory and
+then in Valkey, and see that only the Valkey index still finds the warm
+conversations; and submit the analyst's batch jobs from Python into
+llm-d-async's Valkey queue, with a per-user rate limit holding some of them
+back.
 
 ## How it works
 
 The notebook drives seven containers (defined in
 [`docker-compose.yml`](docker-compose.yml)):
 
-```text
-  valkey           db 1: router index    db 0: LMCache KV chunks, batch queue, quotas
-  lmcache-server   standalone LMCache server; L2 -> Valkey (from the KV caching recipe)
-  vllm-a, vllm-b   CPU vLLM replicas; prefix cache on; publish KV events over ZMQ
-  envoy            the router's front door on localhost:8080
-  epp              llm-d Endpoint Picker: subscribes to KV events, keeps the index
-                   in Valkey, picks a replica for every request
-  async-processor  llm-d-async: pulls jobs from Valkey, applies quotas, sends them
-                   through Envoy
-
-  chat request -> envoy -> (epp picks) -> vllm-a | vllm-b <-> lmcache-server <-> valkey
-  batch job -> valkey queue -> async-processor -> envoy -> ...
-```
+![Architecture of the stack. A chat client sends requests to Envoy on localhost:8080, which asks the EPP (Endpoint Picker) which vLLM replica to use and forwards the request to vllm-a or vllm-b. Both replicas publish KV events over ZMQ to the EPP, which keeps its prefix-cache index in Valkey database 1. The replicas exchange KV chunks with the LMCache server, which stores them in Valkey database 0. Batch jobs submitted from Python go into a Valkey sorted set with per-user quota keys; llm-d-async admits them, sends them through Envoy like chat requests, and writes results to a Valkey list. A legend colours the three Valkey roles: index blue, KV cache green, queue and quotas orange.](images/02-architecture.svg)
 
 | File | What it configures |
 | --- | --- |
 | [`epp/precise-valkey.yaml`](epp/precise-valkey.yaml) | Default router config: precise prefix-cache routing, index in Valkey database 1, load settings retuned for CPU |
+| [`epp/precise-memory.yaml`](epp/precise-memory.yaml) | The same router config with the index in the router's memory (no `redisConfig`), for the notebook's restart comparison |
 | [`epp/random.yaml`](epp/random.yaml) | Baseline router config: random pick |
 | [`epp/endpoints.yaml`](epp/endpoints.yaml) | The two replicas the router may pick (file discovery instead of Kubernetes) |
 | [`envoy/envoy.yaml`](envoy/envoy.yaml) | Envoy config from llm-d's no-Kubernetes guide (Apache-2.0) |
@@ -78,8 +79,12 @@ The router index has a Valkey database of its own (`redis://valkey:6379/1`).
 When a replica restarts, the router forgets that replica's entries by scanning
 its whole database and reading each key as a hash. In a database shared with
 LMCache's string keys that scan fails with `WRONGTYPE` and leaves stale entries
-behind, so the index lives in database 1. The notebook explains this in more
-detail.
+behind, so the index lives in database 1. The notebook's "Notes on the router
+index" explains this in more detail.
+
+`EPP_STRATEGY` selects the router config the EPP loads: `precise-valkey`
+(default), `precise-memory` or `random`. The notebook switches between them
+itself.
 
 ## Prerequisites
 
@@ -109,9 +114,11 @@ detail.
   install at startup (about 0.4 GiB). Unpacked and installed, that takes about
   10 GB of disk. On x86-64 the images are about 0.85 GiB larger, mostly the vLLM
   CPU image (from the image manifests), and the stack took about 11 GB of disk
-  in WSL2. If you have run the
-  KV caching recipe, its vLLM and Valkey images are reused; the router, Envoy and
-  llm-d-async images and a second copy of the model are new.
+  in WSL2.
+
+  On either architecture, if you have run the KV caching recipe, its vLLM and
+  Valkey images are reused; the router, Envoy and llm-d-async images and a
+  second copy of the model are new.
 - **Free ports** on localhost: 6379 (Valkey), 8001 and 8002 (replicas), 8080
   (router), 9090 (router metrics), 9091 (llm-d-async metrics). The container
   names and ports overlap with the KV caching recipe, so stop that stack first
@@ -137,14 +144,18 @@ during startup and one full notebook run. The arm64 numbers come from a
 
 | Container | arm64 peak | x86-64 peak |
 | --- | --- | --- |
-| vllm-a | 3.5 GiB | 3.7 GiB |
-| vllm-b | 3.3 GiB | 4.1 GiB |
+| vllm-a | 3.8 GiB | 3.7 GiB |
+| vllm-b | 3.7 GiB | 4.1 GiB |
 | lmcache-server | 0.6 GiB | 0.8 GiB |
-| valkey | 0.3 GiB | 0.3 GiB |
+| valkey | 0.4 GiB | 0.3 GiB |
 | envoy, epp, async-processor | under 0.03 GiB each | under 0.1 GiB each |
 | **all containers (sampled together)** | **7.4 GiB** | **8.2 GiB** |
 
-Valkey grows by about 0.3 GiB each time you run the notebook, because LMCache
+The x86-64 column and the 8.5 GiB minimum were measured with an earlier
+version of the notebook, before the router-restart comparison was added. On
+arm64 the current notebook peaked at the same total, 7.4 GiB.
+
+Valkey grows by about 0.4 GiB each time you run the notebook, because LMCache
 keeps every 3 MiB KV chunk (no TTL in this demo) until you run
 `docker compose down`. The 10 GiB recommendation leaves room for that, so you
 can run the notebook again without restarting the stack.
@@ -224,7 +235,7 @@ measured minimum (see [Memory requirements](#memory-requirements)). On a
   KV caching recipe's stack.
 - Run `docker compose down` and then `docker compose up -d --wait` before each
   new notebook run. Valkey keeps every KV chunk until the stack is taken down,
-  so it grows by about 0.3 GiB per run.
+  so it grows by about 0.4 GiB per run.
 
 Both replicas have to run at once, because routing between them is what this
 recipe shows, so there is no one-replica mode like the KV caching recipe's.
@@ -304,8 +315,8 @@ from database 1. If the router's URL points at database 0 (shared with LMCache),
 this clear fails with `WRONGTYPE` in `docker compose logs epp`; keep the `/1`.
 If the replica restarted while the router was down, a fresh router has no way
 to tell, because it keeps the last sequence number only in memory, so the
-replica's old entries stay in database 1. The notebook's "Restarting the router"
-section explains this. To clear them, restart that replica again while the
+replica's old entries stay in database 1. The notebook's "Notes on the router
+index" section explains this. To clear them, restart that replica again while the
 router runs, or start from an empty index with `docker compose down` and `up`.
 
 **You restarted the LMCache server.** As in the KV caching recipe, restart the
@@ -323,7 +334,8 @@ the same checks apply.
 | --- | --- |
 | [`llm-d-serving-with-valkey.ipynb`](llm-d-serving-with-valkey.ipynb) | The recipe: run this |
 | [`docker-compose.yml`](docker-compose.yml) | Valkey, the LMCache server, two vLLM replicas, Envoy, the EPP and llm-d-async |
-| [`epp/`](epp/) | Router configs (precise-valkey, random) and the endpoint list |
+| [`epp/`](epp/) | Router configs (precise-valkey, precise-memory, random) and the endpoint list |
+| [`images/`](images/) | The notebook's and this README's diagrams (SVG); `render.sh` regenerates the two drawn with Mermaid from `images/src/`, and the others are hand-written SVG |
 | [`envoy/envoy.yaml`](envoy/envoy.yaml) | Envoy config, from llm-d's no-Kubernetes guide |
 | [`async/`](async/) | llm-d-async's transport config and the dummy kubeconfig it needs off-cluster |
 | [`pyproject.toml`](pyproject.toml), [`uv.lock`](uv.lock) | Pinned Python dependencies for the notebook and tests |

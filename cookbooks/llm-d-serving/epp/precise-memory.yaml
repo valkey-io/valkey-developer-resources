@@ -1,0 +1,100 @@
+# Precise prefix-cache routing with the index in the router's own memory.
+#
+# Identical to precise-valkey.yaml except that kvBlockIndexConfig has no
+# redisConfig, so the index lives in the router process and is lost when the
+# router restarts. A restarted router rebuilds it only from what the replicas
+# still hold in their KV-event replay buffers (KV_REPLAY_BUFFER_STEPS in
+# docker-compose.yml). The notebook's "The index outlives the router" section
+# restarts the router in both modes to compare them.
+apiVersion: llm-d.ai/v1
+kind: EndpointPickerConfig
+
+plugins:
+  - name: file-discovery
+    type: file-discovery
+    parameters:
+      path: /etc/epp/endpoints.yaml
+      watchFile: false
+
+  # Tokenizes prompts by calling /v1/completions/render and
+  # /v1/chat/completions/render on the vLLM replicas themselves, so the router
+  # needs no tokenizer of its own.
+  - type: token-producer
+    parameters:
+      modelName: Qwen/Qwen2.5-0.5B-Instruct
+      vllm:
+        endpointDiscovery:
+          attemptTimeout: 2s
+
+  - type: endpoint-notification-source
+
+  - type: precise-prefix-cache-producer
+    parameters:
+      tokenProcessorConfig:
+        # Must match vLLM's --block-size.
+        blockSizeTokens: 64
+        hashAlgorithm: xxh64
+      # After routing a request, record its prompt blocks against the chosen
+      # replica right away (for 2 s) instead of waiting for vLLM's events.
+      speculativeIndexing: true
+      indexerConfig:
+        kvBlockIndexConfig:
+          enableMetrics: true
+      kvEventsConfig:
+        engineType: vllm
+        topicFilter: "kv@"
+        concurrency: 8
+        # Subscribe to every endpoint the file-discovery plugin reports.
+        discoverPods: true
+        podDiscoveryConfig:
+          socketPort: 5556
+          replaySocketPort: 5559
+
+  - type: inflight-load-producer
+    parameters:
+      # CPU change 1. By default the router counts only the uncached prompt
+      # tokens of in-flight requests, and stops counting them once the first
+      # token streams back. A replica busy decoding long answers then looks
+      # idle. Counting each request's expected output tokens (its max_tokens,
+      # capped at 1,000) until it finishes makes decode work visible.
+      addEstimatedOutputTokens: true
+      prefixMatchInfoProducerName: precise-prefix-cache-producer
+
+  - type: prefix-cache-affinity-filter
+    parameters:
+      prefixMatchInfoProducerName: precise-prefix-cache-producer
+      # The router turns in-flight tokens into an estimated wait with this
+      # rate (tokens per second). One replica of this stack prefills roughly
+      # 700-1,100 tokens/s on an 8-core laptop CPU (the notebook measures
+      # yours). llm-d's default (15,928) is calibrated for Qwen 32B on two
+      # H100 80GB GPUs with vLLM 0.19; see the affinity filter's README in
+      # llm-d-router v1.0.0:
+      # https://github.com/llm-d/llm-d-router/blob/v1.0.0/pkg/epp/framework/plugins/scheduling/filter/prefixcacheaffinity/README.md#config
+      peakPrefillThroughput: 1000
+      # CPU change 2. Stay on the replica that has the prefix unless its
+      # estimated wait is this much longer than the least-loaded other
+      # replica's. llm-d's default is 18,000 ms, tuned for GPUs. With the
+      # rate above, 1,500 ms means "move once the replica with the prefix has
+      # 1,500 more in-flight tokens than another replica". The notebook's
+      # busy-replica example puts about 1,000 tokens on it with one long job
+      # (stays) and about 2,000 with two (moves).
+      maxTTFTPenaltyMs: 1500
+
+  # Among the replicas the filter keeps, prefer the one with the fewest
+  # uncached in-flight tokens (counting this request's uncached tokens).
+  - type: token-load-scorer
+
+dataLayer:
+  discovery:
+    endpoints:
+      pluginRef: file-discovery
+  sources:
+    - pluginRef: endpoint-notification-source
+      extractors:
+        - pluginRef: precise-prefix-cache-producer
+
+schedulingProfiles:
+  - name: default
+    plugins:
+      - pluginRef: prefix-cache-affinity-filter
+      - pluginRef: token-load-scorer

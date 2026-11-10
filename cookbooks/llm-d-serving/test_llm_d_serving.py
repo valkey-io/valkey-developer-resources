@@ -43,11 +43,14 @@ import pytest
 HERE = Path(__file__).parent
 COMPOSE_PATH = HERE / "docker-compose.yml"
 PRECISE_PATH = HERE / "epp" / "precise-valkey.yaml"
+MEMORY_PATH = HERE / "epp" / "precise-memory.yaml"
 RANDOM_PATH = HERE / "epp" / "random.yaml"
 ENDPOINTS_PATH = HERE / "epp" / "endpoints.yaml"
 ENVOY_PATH = HERE / "envoy" / "envoy.yaml"
 TRANSPORT_PATH = HERE / "async" / "transport-config.json"
 NOTEBOOK_PATH = HERE / "llm-d-serving-with-valkey.ipynb"
+README_PATH = HERE / "README.md"
+IMAGES_DIR = HERE / "images"
 
 MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
 REPLICAS = ("vllm-a", "vllm-b")
@@ -294,9 +297,74 @@ class TestRouterConfig:
         assert epp["network_mode"] == "service:envoy"
         text = _command_text(epp)
         assert "--config-file=/etc/epp/${EPP_STRATEGY:-precise-valkey}.yaml" in text
-        for strategy in ("precise-valkey", "random"):
+        for strategy in ("precise-valkey", "precise-memory", "random"):
             assert (HERE / "epp" / f"{strategy}.yaml").exists()
         assert "--pool-name=file-discovery" in text
+
+
+    def test_in_memory_config_differs_only_by_the_valkey_index(self, precise):
+        # The notebook's restart comparison is fair only if the two configs
+        # route identically while the router runs: precise-memory.yaml must be
+        # precise-valkey.yaml with the redisConfig block removed.
+        memory = _yaml(MEMORY_PATH)
+        expected = json.loads(json.dumps(precise))
+        index = _plugin(expected, "precise-prefix-cache-producer")["parameters"]["indexerConfig"]
+        assert "redisConfig" in index["kvBlockIndexConfig"]
+        del index["kvBlockIndexConfig"]["redisConfig"]
+        if not index["kvBlockIndexConfig"]:
+            del index["kvBlockIndexConfig"]
+        assert memory == expected
+
+
+class TestReplayBuffer:
+    """The restart section needs a short vLLM replay buffer (buffer_steps)."""
+
+    @pytest.mark.parametrize("svc", REPLICAS)
+    def test_kv_events_config_takes_buffer_steps_from_the_env(self, compose, svc):
+        service = compose["services"][svc]
+        text = _command_text(service)
+        match = re.search(r"KV_EVENTS=\$\$\(printf '([^']+)' ((?:\"\$\$\w+\" ?)+)\)", text)
+        assert match, "KV_EVENTS should be built with printf from env vars"
+        template, args = match.group(1), re.findall(r'"\$\$(\w+)"', match.group(2))
+        assert args == ["KV_REPLAY_BUFFER_STEPS", "POD_IP"]
+        # Render it the way the shell would, with the compose default.
+        default = re.fullmatch(r"\$\{KV_REPLAY_BUFFER_STEPS:-(\d+)\}",
+                               service["environment"]["KV_REPLAY_BUFFER_STEPS"])
+        assert default, "KV_REPLAY_BUFFER_STEPS should default in docker-compose.yml"
+        rendered = json.loads(template % (default.group(1), service["environment"]["POD_IP"]))
+        assert rendered["buffer_steps"] == 32
+
+    def test_restart_filler_outruns_the_replay_buffer(self, compose):
+        # The notebook sends FILLER_PER_REPLICA one-block prompts to each
+        # replica: more than the buffer holds, so the warm conversations fall
+        # out of it. Filler plus the warm conversations must fit in a replica's
+        # 128 blocks even if every conversation landed on the same replica, or
+        # vLLM would evict some of them. A turn-1 prompt is at most about 1,150
+        # tokens plus 16 output tokens: 18 full 64-token blocks.
+        code = "\n".join("".join(c["source"]) for c in json.loads(NOTEBOOK_PATH.read_text())["cells"]
+                         if c["cell_type"] == "code")
+        filler = int(re.search(r"^FILLER_PER_REPLICA = (\d+)", code, re.M).group(1))
+        conversations = int(re.search(r"^RESTART_CONVERSATIONS = (\d+)", code, re.M).group(1))
+        default = int(re.search(r":-(\d+)\}", compose["services"]["vllm-a"]["environment"]
+                                ["KV_REPLAY_BUFFER_STEPS"]).group(1))
+        blocks = 96 * 2**20 // (64 * 12 * 1024)  # 96 MiB / 0.75 MiB per 64-token block
+        assert default < filler
+        assert conversations * 18 + filler <= blocks
+
+
+class TestDocsImages:
+    def test_every_referenced_image_exists(self):
+        if not IMAGES_DIR.is_dir():
+            pytest.skip("images/ is missing; the diagrams have not been added yet")
+        markdown = "\n".join("".join(c["source"]) for c in json.loads(NOTEBOOK_PATH.read_text())["cells"]
+                             if c["cell_type"] == "markdown")
+        for name, text in (("notebook", markdown), ("README", README_PATH.read_text())):
+            refs = re.findall(r"!\[[^\]]*\]\(([^)\s]+)\)", text)
+            refs += re.findall(r'<img[^>]+src="([^"]+)"', text)
+            assert refs, f"the {name} should embed at least one image"
+            for ref in refs:
+                assert ref.startswith("images/"), (name, ref)
+                assert (HERE / ref).is_file(), (name, ref)
 
 
 class TestEnvoy:

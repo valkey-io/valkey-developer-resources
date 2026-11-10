@@ -1,0 +1,28 @@
+%% Section 9, "When the best server is busy": the router overrides prefix
+%% affinity (load_override) and the idle replica loads the prefix from Valkey.
+sequenceDiagram
+  participant C as Chat client
+  participant R as Router (Envoy + EPP)
+  participant A as vllm-a
+  participant B as vllm-b
+  box rgb(220, 252, 231) KV cache
+    participant L as LMCache server
+    participant V as Valkey db 0 (KV chunks)
+  end
+
+  Note over A: holds the conversation's prefix
+  R->>A: long job 1 (1,000 output tokens), sticky
+  R->>A: long job 2 (1,000 output tokens), sticky
+  Note over A: both slots busy, about 2,000 in-flight tokens
+  Note over B: idle, 0 in-flight tokens
+  C->>R: next turn of the conversation
+  Note over R: A's estimated wait is too long: load_override
+  R->>B: send the turn to vllm-b
+  rect rgb(220, 252, 231)
+    B->>L: load the prefix
+    L->>V: read KV chunks
+    V-->>L: most of the prefix
+    L-->>B: KV for the prefix
+  end
+  Note over B: computes only the rest
+  B-->>C: first token
