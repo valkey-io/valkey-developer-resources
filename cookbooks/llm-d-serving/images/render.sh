@@ -3,8 +3,8 @@
 # with a pinned mermaid-cli image. Run from anywhere: ./images/render.sh
 #
 # Only 01-without-coordination and 04-busy-server come from Mermaid. The
-# other four (02-architecture, 03-request-path, 05-router-restart,
-# 06-batch-path) are hand-written SVG, because Mermaid's automatic layout
+# other five (02-architecture, 03-request-path, 05-router-restart,
+# 06-batch-path, 07-gpu-benchmark) are hand-written SVG, because Mermaid's automatic layout
 # crossed their edges or shrank their text below readable size at the
 # ~800 px GitHub shows. Each of those .svg files is its own source: edit it
 # directly, and this script leaves it alone.
