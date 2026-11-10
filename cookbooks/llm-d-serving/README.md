@@ -1,9 +1,9 @@
 # llm-d Serving with Valkey
 
-Put [llm-d](https://llm-d.ai)'s router in front of two vLLM servers and use one
-Valkey for three things:
+Put [llm-d](https://llm-d.ai)'s router in front of two vLLM servers and use a
+single Valkey server (one standalone node) for three things:
 
-- **Routing index:** Track which server has each prompt prefix cached, so
+- **Prefix-cache index:** Track which server has the prompt prefix cached, so
   follow-up requests go to a server that can start answering sooner.
 - **Shared KV cache:** Store the model's computed attention state through
   LMCache. When a conversation moves to another server, that server can reuse
@@ -11,12 +11,19 @@ Valkey for three things:
 - **Batch queue and per-user quotas:** Hold background jobs until they can run,
   and limit how many jobs each user has admitted within a time window.
 
-llm-d is an open-source framework for serving LLMs across several vLLM servers.
-Its router chooses a server based on what it already has cached and how busy
-it is.
+The first two work together. A server answers fastest when the prompt prefix is
+already in its own memory, so the router sends each request to that server when
+it can. When it can't, for example because that server is busy, the other
+server loads the prefix from Valkey. That is slower than a local hit, but
+several times faster than recomputing the prompt.
+
+llm-d is an open-source, Kubernetes-native stack for distributed LLM inference
+that runs model servers such as vLLM and SGLang. Its router chooses a server
+based on what it already has cached and how busy it is.
 
 **Why CPU here?** This recipe runs on CPU so readers can try it locally without
-GPU hardware. llm-d also supports GPU deployments; its
+GPU hardware. llm-d is validated in production on GPUs and TPUs and also
+supports CPU; its
 [upstream routing guide](https://github.com/llm-d/llm-d/tree/v1.0.0/guides/precise-prefix-cache-routing)
 defaults to NVIDIA GPUs. The three Valkey roles are useful in either setup.
 This Compose stack and the timings shown here were tested only on CPU. A GPU
@@ -24,12 +31,10 @@ version would need an appropriate vLLM image, GPU device configuration, and
 router load settings calibrated for that hardware.
 
 This recipe builds on the [KV caching recipe](../kv-caching/), which shares one
-KV cache between two vLLM servers through Valkey. Here, llm-d's router (Envoy
-plus its Endpoint Picker) runs without Kubernetes, and llm-d's batch processor
-sends admitted jobs through the same router.
-
-Every component here is an unmodified upstream image, pointed at Valkey by
-configuration.
+KV cache between two vLLM servers through Valkey. You don't need to run that
+recipe first: this stack starts its own copy of those servers. Here, llm-d's
+router (Envoy plus its Endpoint Picker) runs without Kubernetes, and llm-d's
+batch processor sends admitted jobs through the same router.
 
 ## What you'll have working at the end
 
@@ -78,12 +83,16 @@ detail.
 
 ## Prerequisites
 
-- **A container runtime with Compose** (Docker Compose or compatible). Tested
-  with Colima (Docker Engine 29.5) on Apple silicon (arm64). Not yet tested on
-  x86-64 (amd64) hosts, on Docker Desktop, or on Podman. The commands should
-  work the same with `podman compose`.
-- **Memory.** Give the container runtime 10 GiB (10240 MiB). The measured
-  minimum is 8.5 GiB; see [Memory requirements](#memory-requirements) and
+- **A container runtime with Compose.** Tested with:
+  - macOS on Apple silicon (arm64): Colima (Docker Engine 29.5), and Podman 6.1
+    (`podman compose`, with Docker Compose 5.7 as its provider);
+  - Windows on x86-64, under WSL2: Docker Engine 29.9 installed in Ubuntu, and
+    Podman 6.1 for Windows. See [Running on Windows](#running-on-windows).
+
+  Not tested: Docker Desktop, Rancher Desktop, and Linux hosts outside WSL2.
+- **Memory.** Give the container runtime 10 GiB (10240 MiB). On Apple silicon
+  the measured minimum is 8.5 GiB; on x86-64 only 10 GiB was tested. See
+  [Memory requirements](#memory-requirements) and
   [Running on a smaller machine](#running-on-a-smaller-machine).
 - **CPU.** Tested with 8 cores; the typical timings quoted in the notebook
   were measured on an 8-CPU, 16 GiB Colima VM on an Apple M4 Pro.
@@ -99,7 +108,8 @@ detail.
   1 GiB), the model (about 1 GiB), and the packages the LMCache containers
   install at startup (about 0.4 GiB). Unpacked and installed, that takes about
   10 GB of disk. On x86-64 the images are about 0.85 GiB larger, mostly the vLLM
-  CPU image (from the image manifests; not run on x86-64). If you have run the
+  CPU image (from the image manifests), and the stack took about 11 GB of disk
+  in WSL2. If you have run the
   KV caching recipe, its vLLM and Valkey images are reused; the router, Envoy and
   llm-d-async images and a second copy of the model are new.
 - **Free ports** on localhost: 6379 (Valkey), 8001 and 8002 (replicas), 8080
@@ -121,26 +131,27 @@ passed twice in a row, and every service still answered afterwards. Two runs at
 during the live tests.
 
 Peak memory per container, measured with `docker stats` every few seconds
-during startup and a full notebook run (arm64, 15.6 GiB VM):
+during startup and one full notebook run. The arm64 numbers come from a
+15.6 GiB Colima VM on an Apple M4 Pro. The x86-64 numbers come from WSL2 with
+10 GiB (Docker Engine in Ubuntu) on an 8-vCPU Intel Xeon 6975P-C:
 
-| Container | Peak |
-| --- | --- |
-| vllm-a | 3.5 GiB |
-| vllm-b | 3.3 GiB |
-| lmcache-server | 0.6 GiB |
-| valkey | 0.3 GiB |
-| envoy, epp, async-processor | under 0.03 GiB each |
-| **all containers (sampled together)** | **7.4 GiB** |
+| Container | arm64 peak | x86-64 peak |
+| --- | --- | --- |
+| vllm-a | 3.5 GiB | 3.7 GiB |
+| vllm-b | 3.3 GiB | 4.1 GiB |
+| lmcache-server | 0.6 GiB | 0.8 GiB |
+| valkey | 0.3 GiB | 0.3 GiB |
+| envoy, epp, async-processor | under 0.03 GiB each | under 0.1 GiB each |
+| **all containers (sampled together)** | **7.4 GiB** | **8.2 GiB** |
 
 Valkey grows by about 0.3 GiB each time you run the notebook, because LMCache
 keeps every 3 MiB KV chunk (no TTL in this demo) until you run
 `docker compose down`. The 10 GiB recommendation leaves room for that, so you
 can run the notebook again without restarting the stack.
 
-x86-64 has not been tested. The
-[KV caching recipe](../kv-caching/README.md#memory-requirements) measured its
-two replicas on both architectures, and x86-64 needed 0.75 GiB less than arm64,
-so the arm64 numbers here should be enough on x86-64 too.
+On x86-64 the containers peaked about 0.8 GiB higher than on arm64. Every run
+there passed at 10 GiB, which the runtime reports as 9.7 GiB. The minimum on
+x86-64 wasn't measured, so give the runtime the full 10 GiB.
 
 ## Getting started
 
@@ -151,36 +162,22 @@ git clone https://github.com/valkey-io/valkey-developer-resources.git
 cd valkey-developer-resources/cookbooks/llm-d-serving
 ```
 
-**2. Start the stack.** This checks that the runtime exposes enough memory,
-then blocks until the services with healthchecks are healthy. That took about
-100 s in our test with the images already downloaded; the first start also
-downloads the images and the model, and took about three minutes in total:
+**2. Start the stack** with the script in this folder. It checks that the
+container runtime exposes enough memory, runs `docker compose up -d --wait` (or
+`podman compose` if Docker isn't available), then shows each service's status.
+`compose up` blocks until the services with healthchecks are healthy. With the
+images already downloaded, that took about 100 s on the Mac and about 200 s on
+the x86-64 Windows host. A first start also downloads the images and the model;
+it took three to four minutes in our tests, and about seven with Podman on
+Windows:
 
 ```bash
-rt=""; mem_bytes=""
-for candidate in docker podman; do
-  case "$(command -v "$candidate" 2>/dev/null)" in /*) ;; *) continue ;; esac
-  mem_bytes="$("$candidate" info --format '{{.MemTotal}}' 2>/dev/null)" ||
-    mem_bytes="$("$candidate" info --format '{{.Host.MemTotal}}' 2>/dev/null)"
-  if [ -n "$mem_bytes" ] && [ "$mem_bytes" -ge 0 ] 2>/dev/null; then
-    rt="$candidate"; break
-  fi
-  mem_bytes=""
-done
-if [ -z "$rt" ]; then
-  echo "Could not read the container runtime's memory from 'docker info' or 'podman info'. Is the runtime running?"
-elif [ "$mem_bytes" -lt 8589934592 ]; then
-  tenths=$(( mem_bytes * 10 / 1073741824 ))
-  echo "Not enough memory: $rt reports $(( tenths / 10 )).$(( tenths % 10 )) GiB; this recipe needs at least 8.5 GiB (10 GiB recommended), which this check sees as at least 8.0 GiB. Raise the limit (Docker Desktop: Settings > Resources; Podman: podman machine stop, then podman machine set --memory 10240, then podman machine start) and retry."
-else
-  if [ "$mem_bytes" -lt 10200547328 ]; then
-    tenths=$(( mem_bytes * 10 / 1073741824 ))
-    echo "Note: $rt reports $(( tenths / 10 )).$(( tenths % 10 )) GiB, below the recommended 10 GiB. See 'Running on a smaller machine' in the README."
-  fi
-  "$rt" compose up -d --wait
-  "$rt" compose ps -a
-fi
+./start.sh
 ```
+
+If both Docker and Podman are installed, the script uses Docker. To use Podman,
+run `CONTAINER_ENGINE=podman ./start.sh`. The notebook honours the same
+variable.
 
 > ⚠ **Security:** These examples use no authentication or TLS for simplicity.
 > For any non-localhost deployment, enable authentication and TLS.
@@ -219,9 +216,9 @@ The model weights stay in the `hf-cache` volume for the next run
 
 ## Running on a smaller machine
 
-The stack runs with 8.5 GiB for the container runtime, the measured minimum
-(see [Memory requirements](#memory-requirements)). On a 16 GiB laptop that
-leaves room for the host. At that size:
+On Apple silicon the stack runs with 8.5 GiB for the container runtime, the
+measured minimum (see [Memory requirements](#memory-requirements)). On a
+16 GiB laptop that leaves room for the host. At that size:
 
 - Stop anything else running in the container runtime first, including the
   KV caching recipe's stack.
@@ -233,6 +230,43 @@ Both replicas have to run at once, because routing between them is what this
 recipe shows, so there is no one-replica mode like the KV caching recipe's.
 Lowering `--kv-cache-memory-bytes` doesn't help much either: it is only 96 MiB
 per replica, and the model and runtime take the rest (about 3 GiB per replica).
+
+## Running on Windows
+
+Tested on Windows Server 2025 (x86-64, 8 vCPU) with WSL2 and Ubuntu. Run
+everything from the WSL2 shell, the notebook included. The Valkey GLIDE Python
+client that the notebook uses publishes no Windows packages, so `uv sync` in a
+Windows shell tries to build it from source and fails without a Rust toolchain.
+
+- **Container runtime.** Install Docker Engine inside the WSL2 distribution, or
+  use Podman for Windows, whose machine runs as a WSL2 distribution of its own.
+  With Podman, install the distribution's `podman` package and Docker Compose
+  (for example Docker's `docker-compose-plugin` package) in your distribution,
+  and point the client at the machine's socket before running `./start.sh`:
+
+  ```bash
+  export CONTAINER_HOST=unix:///mnt/wsl/podman-sockets/podman-machine-default/podman-user.sock
+  ```
+
+- **Memory.** WSL2 sets one memory limit for all distributions, Podman's
+  machine included, so `podman machine set --memory` has no effect there. Put
+  this in `%UserProfile%\.wslconfig`, then run `wsl --shutdown`:
+
+  ```ini
+  [wsl2]
+  memory=10GB
+  ```
+
+  With that setting the runtime reports 9.7 GiB.
+- **Where to clone.** Clone inside the WSL2 file system, for example under
+  `~`. A clone under `/mnt/c` works too, but `uv sync` took 137 s there in our
+  test. A clone made with Git for Windows also works: `.gitattributes` keeps
+  `start.sh` on LF line endings, and the other files work with CRLF.
+- **Use one side throughout.** Start the stack and run the notebook from the
+  same shell. Compose records the paths it mounted, so a stack started from
+  Windows paths and then changed from WSL paths makes Compose recreate
+  containers, which Podman refuses while other containers depend on them. For
+  the same reason, don't share one `.venv` between Windows and WSL2.
 
 ## Troubleshooting
 
@@ -293,6 +327,7 @@ the same checks apply.
 | [`envoy/envoy.yaml`](envoy/envoy.yaml) | Envoy config, from llm-d's no-Kubernetes guide |
 | [`async/`](async/) | llm-d-async's transport config and the dummy kubeconfig it needs off-cluster |
 | [`pyproject.toml`](pyproject.toml), [`uv.lock`](uv.lock) | Pinned Python dependencies for the notebook and tests |
+| [`start.sh`](start.sh) | Memory check, then `compose up -d --wait` and the services' status |
 | [`test_llm_d_serving.py`](test_llm_d_serving.py) | Tests: config and compose wiring always; routing, KV reuse, the batch queue and per-user quotas when the stack is up |
 | [`.ci-structural-only`](.ci-structural-only) | Tells CI to skip notebook execution; its first line says why |
 

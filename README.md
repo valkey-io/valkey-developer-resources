@@ -17,4 +17,4 @@ Cache the attention KV an LLM computes for a shared prompt prefix so it is reuse
 
 Route requests across several vLLM servers by what each one has cached, and queue batch work, with Valkey holding the shared state.
 
-- **llm-d** — [llm-d serving with Valkey](cookbooks/llm-d-serving/): put llm-d's router in front of the KV caching recipe's two CPU vLLM servers and use one Valkey for the router's prefix-cache index, the shared KV cache, and llm-d-async's batch queue and per-user quotas. Start with the recipe README, then run the notebook.
+- **llm-d** — [llm-d serving with Valkey](cookbooks/llm-d-serving/): put llm-d's router in front of the KV caching recipe's two CPU vLLM servers and use a single Valkey server for the router's prefix-cache index, the shared KV cache, and llm-d-async's batch queue and per-user quotas. Start with the recipe README, then run the notebook.

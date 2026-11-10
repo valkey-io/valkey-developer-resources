@@ -184,16 +184,42 @@ class TestReplicaAddressing:
         for endpoint in endpoints:
             assert endpoint["address"] not in code, endpoint["name"]
 
-    def test_notebook_memory_preflight_matches_readme(self):
-        # The notebook's preflight and the README's startup check use the same
-        # minimum (stop) and recommended (warn) memory thresholds.
+    def test_notebook_memory_preflight_matches_start_script(self):
+        # The notebook's preflight and start.sh use the same minimum (stop) and
+        # recommended (warn) memory thresholds.
         code = "\n".join("".join(c["source"]) for c in json.loads(NOTEBOOK_PATH.read_text())["cells"]
                          if c["cell_type"] == "code")
-        readme = (HERE / "README.md").read_text()
+        script = (HERE / "start.sh").read_text()
         for name in ("MIN_RUNTIME_MEMORY", "RECOMMENDED_RUNTIME_MEMORY"):
             cutoff = re.search(rf"\b{name} = ([0-9_]+)", code)
             assert cutoff, f"the setup cell should define {name}"
-            assert f'-lt {int(cutoff.group(1).replace("_", ""))} ]' in readme, name
+            assert re.search(rf"^{name}={int(cutoff.group(1).replace('_', ''))}\b", script, re.M), name
+            assert f'-lt "${name}" ]' in script, f"start.sh should compare against {name}"
+
+    def test_start_script_is_executable_and_changes_to_its_directory(self):
+        # The README tells readers to run ./start.sh; it has to be executable
+        # and run compose from the recipe folder wherever it is started from.
+        script = HERE / "start.sh"
+        assert os.access(script, os.X_OK)
+        assert 'cd "$(dirname "$0")"' in script.read_text()
+
+    def test_start_script_and_notebook_honour_container_engine(self):
+        # Readers with both Docker and Podman pick one with CONTAINER_ENGINE.
+        script = (HERE / "start.sh").read_text()
+        assert 'candidates="${CONTAINER_ENGINE:-docker podman}"' in script
+        code = "\n".join("".join(c["source"]) for c in json.loads(NOTEBOOK_PATH.read_text())["cells"]
+                         if c["cell_type"] == "code")
+        assert 'os.environ.get("CONTAINER_ENGINE")' in code
+        assert "CONTAINER_ENGINE=podman" in (HERE / "README.md").read_text()
+        assert "./start.sh" in (HERE / "README.md").read_text()
+
+    def test_shell_scripts_keep_lf_line_endings(self):
+        # Git for Windows checks out text files with CRLF by default, and a
+        # CRLF start.sh fails with "/bin/sh^M: bad interpreter".
+        rules = [line.split() for line in (HERE / ".gitattributes").read_text().splitlines()
+                 if line.strip() and not line.startswith("#")]
+        assert ["*.sh", "text", "eol=lf"] in rules
+        assert b"\r\n" not in (HERE / "start.sh").read_bytes()
 
     def test_every_fixed_address_is_unique_and_in_subnet(self, compose):
         subnet = ipaddress.ip_network(compose["networks"]["serving"]["ipam"]["config"][0]["subnet"])

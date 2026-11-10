@@ -1,8 +1,8 @@
 # llm-d serving with Valkey: the full stack the notebook drives.
 #
-#   valkey           one Valkey with three jobs: the router's prefix-cache
-#                    index, LMCache's KV-cache store (L2), and the batch job
-#                    queue plus per-user quota
+#   valkey           a single Valkey server with three jobs: the router's
+#                    prefix-cache index, LMCache's KV-cache store (L2), and the
+#                    batch job queue plus per-user quota
 #   lmcache-server   standalone LMCache server: L1 in its own memory, L2 -> Valkey
 #   vllm-a, vllm-b   two CPU vLLM replicas. Each keeps its own in-memory prefix
 #                    cache, hands KV to the LMCache server, and publishes
@@ -25,8 +25,9 @@
 # containers together peak at about 7.4 GiB during a notebook run (each vLLM
 # replica about 3.4 GiB, the LMCache server 0.6 GiB, Valkey 0.3 GiB and
 # growing by about 0.3 GiB per run, the router and batch processor under
-# 0.1 GiB together). Give the container runtime 10 GiB; 8.5 GiB is the
-# measured minimum (README.md, "Memory requirements").
+# 0.1 GiB together). On x86-64 the containers peaked about 0.8 GiB higher.
+# Give the container runtime 10 GiB; 8.5 GiB is the measured minimum on
+# Apple silicon (README.md, "Memory requirements").
 #
 # Images are written fully qualified (docker.io/..., ghcr.io/...). Docker treats
 # a short name as docker.io anyway; Podman resolves short names through

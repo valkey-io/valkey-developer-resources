@@ -1,0 +1,4 @@
+# Shell scripts must keep LF line endings, even in a Git for Windows clone
+# (core.autocrlf=true by default): with CRLF, ./start.sh fails with
+# "/bin/sh^M: bad interpreter".
+*.sh text eol=lf
