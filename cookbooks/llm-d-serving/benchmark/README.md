@@ -76,8 +76,9 @@ What the numbers show:
   its whole prompt, including the part the GPU already has. The median
   prefetch took 224-235 ms in every LMCache configuration, and about two
   thirds of the chunks it fetched came from Valkey, the rest from the
-  LMCache server's 64 GB L1. LMCache's fix (#5383) is not in a stable
-  release yet; a rerun on the release that has it is the next step.
+  LMCache server's 64 GB L1. LMCache's fix (LMCache/LMCache#5383) is in
+  v0.5.7; this benchmark has not been re-run with it, and a rerun on that
+  release is the next step.
 - Keeping the router's index in Valkey instead of the router's memory made
   no measurable difference. After each `precise-valkey` run,
   Valkey database 1 held about 20,500 index keys.
@@ -270,8 +271,8 @@ prefix, even when vLLM then uses almost none of it. In a short smoke run
 under `skip_l1` (24 shared prefixes, 96 requests at concurrency 8, one run;
 not published, and not comparable with the results above) these copies
 took 230-370 ms each, and median first-token time was about 500 ms for
-precise routing against 123 ms without LMCache. LMCache fixed this after
-0.5.6
+precise routing against 123 ms without LMCache. LMCache fixed this in
+v0.5.7
 ([LMCache/LMCache#5383](https://github.com/LMCache/LMCache/pull/5383)).
 
 So L1 is a cache here: chunks stay in host memory (`LRU` eviction) and are
