@@ -1,3 +1,3 @@
 precise-valkey run 3 was rerun separately (same commit and stack, with PEAK_PREFILL_THROUGHPUT=11539 from this run's calibration) after vllm-0 failed to start with cudaErrorMapBufferObjectFailed (CUDA IPC).
 
-metadata.json records commit 1acc7860. A later rebase of the branch renamed it 11daa2ed; the benchmark files at both commits are identical.
+metadata.json records commit 1acc7860. Rebases of the branch have since renamed it; it is the commit titled "perf(llm-d-serving): run Valkey with I/O threads in the GPU benchmark", and its benchmark files are unchanged.
