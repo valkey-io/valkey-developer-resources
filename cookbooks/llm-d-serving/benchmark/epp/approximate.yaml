@@ -1,7 +1,10 @@
 # Approximate prefix-aware routing: llm-d's optimized-baseline scorer set,
-# as shipped in guides/no-kubernetes-deployment/router/epp/config.yaml. The
-# router guesses cache contents from the requests it has routed; it reads no
-# KV events and uses no Valkey index (the replicas still share KV through
+# as shipped in guides/no-kubernetes-deployment/router/epp/config.yaml at
+# commit 188e66d9, licensed under the Apache License 2.0:
+# https://github.com/llm-d/llm-d/blob/main/LICENSE
+#
+# The router guesses cache contents from the requests it has routed; it reads
+# no KV events and uses no Valkey index (the replicas still share KV through
 # LMCache and Valkey). Included to show what the precise path adds on top.
 apiVersion: llm-d.ai/v1
 kind: EndpointPickerConfig
