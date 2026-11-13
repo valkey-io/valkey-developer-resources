@@ -38,7 +38,8 @@ supports CPU; its
 defaults to NVIDIA GPUs. The three Valkey roles are useful in either setup.
 This Compose stack and the timings shown here were tested only on CPU. A GPU
 version would need an appropriate vLLM image, GPU device configuration, and
-router load settings calibrated for that hardware.
+router load settings calibrated for that hardware. An optional GPU-only
+benchmark of the same stack on four GPUs is in [`benchmark/`](benchmark/).
 
 This recipe builds on the [KV caching recipe](../kv-caching/), which shares one
 KV cache between two vLLM servers through Valkey. You don't need to run that
@@ -347,6 +348,7 @@ the same checks apply.
 | [`start.sh`](start.sh) | Memory check, then `compose up -d --wait` and the services' status |
 | [`helpers.py`](helpers.py) | Helpers the notebook and tests share: metrics scraping, Valkey waits, the sample lease, and the batch-job submitter (with llm-d-async's Lua script) |
 | [`test_llm_d_serving.py`](test_llm_d_serving.py) | Tests: config and compose wiring always; routing, KV reuse, the batch queue and per-user quotas when the stack is up |
+| [`benchmark/`](benchmark/), [`test_benchmark.py`](test_benchmark.py) | Optional GPU benchmark, and its structural tests (no GPU needed) |
 | [`.ci-structural-only`](.ci-structural-only) | Tells CI to skip notebook execution; its first line says why |
 
 ## Running the tests

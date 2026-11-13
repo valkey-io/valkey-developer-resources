@@ -1,0 +1,56 @@
+# inference-perf workload for the llm-d serving GPU benchmark.
+#
+# Many users share a few long system prompts. If every request for a given
+# system prompt lands on the replica that already cached it, that replica
+# prefills only the short question. Random routing scatters each prefix
+# across all replicas. With LMCache, a replica that misses in its GPU prefix
+# cache can still load the prefix from Valkey if another replica computed it.
+#
+# Default sizing (run-benchmark.sh): 192 system prompts x 4,096 tokens, four
+# users each, a 256-token question and 64 output tokens. The shared prefixes
+# add up to 786,432 tokens, more than four 48 GB replicas can hold in GPU KV
+# cache with Qwen3-8B, so every strategy has to evict. Check "GPU KV cache
+# size" in results/<run>/vllm-0.log and resize if your GPUs differ.
+#
+# inference-perf builds NUM_PREFIXES x PROMPTS_PER_PREFIX prompts (768 by
+# default) from the seed, shuffles them with the same seed, and sends them
+# in that order, cycling. Every configuration and run sees the same prompts. run-benchmark.sh runs each stage (warm-up, then one per
+# concurrency level) as its own inference-perf invocation, so vLLM's
+# cache-hit counters can be read between stages.
+#
+# Rendered by scripts/render.py, one file per stage; the placeholders are
+# filled from run-benchmark.sh.
+load:
+  type: concurrent
+  stages:
+    - {num_requests: ${NUM_REQUESTS}, concurrency_level: ${CONCURRENCY}}
+api:
+  type: completion
+  # Streaming is required for time-to-first-token.
+  streaming: true
+server:
+  type: vllm
+  model_name: ${MODEL}
+  # Envoy, which asks the EPP where to send each request.
+  base_url: http://172.16.90.10:8081
+  ignore_eos: true
+tokenizer:
+  pretrained_model_name_or_path: ${MODEL}
+data:
+  type: shared_prefix
+  shared_prefix:
+    num_unique_system_prompts: ${NUM_PREFIXES}
+    num_users_per_system_prompt: ${PROMPTS_PER_PREFIX}
+    system_prompt_len: ${SYSTEM_PROMPT_LEN}
+    question_len: ${QUESTION_LEN}
+    output_len: ${OUTPUT_LEN}
+    seed: ${SEED}
+report:
+  request_lifecycle:
+    summary: true
+    per_stage: true
+    per_request: true
+    percentiles: [50, 90, 99]
+storage:
+  local_storage:
+    path: ${OUTPUT_DIR}
