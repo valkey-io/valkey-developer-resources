@@ -93,6 +93,11 @@ itself.
     (`podman compose`, with Docker Compose 5.7 as its provider);
   - Windows on x86-64, under WSL2: Docker Engine 29.9 installed in Ubuntu, and
     Podman 6.1 for Windows. See [Running on Windows](#running-on-windows).
+    In one of three notebook runs on Podman for Windows, the busy-server
+    section failed with Envoy's `upstream connect error ... connection
+    termination`. No container restarted and the logs showed nothing. Running
+    the notebook again on the same stack passed. If you see it, re-run the
+    notebook (or that section); it doesn't mean your setup is wrong.
 
   Not tested: Docker Desktop, Rancher Desktop, and Linux hosts outside WSL2.
 - **Memory.** Give the container runtime 10 GiB (10240 MiB). On Apple silicon
