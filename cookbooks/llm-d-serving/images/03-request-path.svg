@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="560" viewBox="0 0 860 560" role="img" aria-labelledby="title desc" font-family="Arial, Helvetica, sans-serif">
+<title id="title">How the router picks a replica for one chat request</title>
+<desc id="desc">Envoy hands the request to the EPP over ext_proc. The EPP tokenizes the prompt through the replicas&#x27; /render endpoint, hashes it into 64-token blocks, looks the block hashes up in Valkey db 1, scores the replicas by longest cached prefix and in-flight load, and picks one. Envoy forwards the request to that replica.</desc>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="11" markerHeight="11" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/></marker>
+</defs>
+<rect width="860" height="560" fill="#ffffff"/>
+<rect x="40" y="30" width="170" height="44" rx="6" fill="#f8fafc" stroke="#475569" stroke-width="1.5"/>
+<text x="125.0" y="57.2" font-size="15" text-anchor="middle" font-weight="normal" fill="#0f172a">Chat request</text>
+<rect x="40" y="120" width="170" height="52" rx="6" fill="#f8fafc" stroke="#475569" stroke-width="1.5"/>
+<text x="125.0" y="141.5" font-size="15" text-anchor="middle" font-weight="bold" fill="#0f172a">Envoy</text>
+<text x="125.0" y="161.0" font-size="15" text-anchor="middle" font-weight="normal" fill="#0f172a">localhost:8080</text>
+<path d="M 125 74 L 125 120" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="290" y="20" width="340" height="400" rx="8" fill="#ffffff" stroke="#475569" stroke-width="2"/>
+<text x="460" y="44" font-size="15" text-anchor="middle" font-weight="bold" fill="#0f172a">EPP (Endpoint Picker)</text>
+<rect x="310" y="60" width="300" height="54" rx="6" fill="#f8fafc" stroke="#475569" stroke-width="1.5"/>
+<text x="460.0" y="82.8" font-size="14" text-anchor="middle" font-weight="normal" fill="#0f172a">1. Tokenize the prompt</text>
+<text x="460.0" y="101.0" font-size="14" text-anchor="middle" font-weight="normal" fill="#0f172a">(via the replicas&#x27; /render endpoint)</text>
+<rect x="310" y="132" width="300" height="54" rx="6" fill="#f8fafc" stroke="#475569" stroke-width="1.5"/>
+<text x="460.0" y="154.8" font-size="14" text-anchor="middle" font-weight="normal" fill="#0f172a">2. Hash the tokens into</text>
+<text x="460.0" y="173.0" font-size="14" text-anchor="middle" font-weight="normal" fill="#0f172a">64-token blocks</text>
+<path d="M 460 114 L 460 132" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="310" y="204" width="300" height="54" rx="6" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/>
+<text x="460.0" y="226.8" font-size="14" text-anchor="middle" font-weight="normal" fill="#0f172a">3. Look up the block hashes</text>
+<text x="460.0" y="245.0" font-size="14" text-anchor="middle" font-weight="normal" fill="#0f172a">in Valkey db 1</text>
+<path d="M 460 186 L 460 204" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="310" y="276" width="300" height="54" rx="6" fill="#f8fafc" stroke="#475569" stroke-width="1.5"/>
+<text x="460.0" y="298.8" font-size="14" text-anchor="middle" font-weight="normal" fill="#0f172a">4. Score replicas: longest cached</text>
+<text x="460.0" y="317.0" font-size="14" text-anchor="middle" font-weight="normal" fill="#0f172a">prefix and in-flight load</text>
+<path d="M 460 258 L 460 276" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="310" y="348" width="300" height="54" rx="6" fill="#f8fafc" stroke="#475569" stroke-width="1.5"/>
+<text x="460.0" y="379.9" font-size="14" text-anchor="middle" font-weight="normal" fill="#0f172a">5. Pick one replica</text>
+<path d="M 460 330 L 460 348" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M 210 146 L 250 146 L 250 87 L 310 87" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="214.8" y="99.5" width="70.4" height="20.9" fill="#ffffff"/>
+<text x="250" y="114.5" font-size="13" text-anchor="middle" font-weight="normal" fill="#0f172a">ext_proc</text>
+<rect x="680" y="206" width="150" height="50" rx="6" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/>
+<text x="755.0" y="226.8" font-size="14" text-anchor="middle" font-weight="bold" fill="#0f172a">Valkey db 1</text>
+<text x="755.0" y="245.0" font-size="14" text-anchor="middle" font-weight="normal" fill="#0f172a">prefix-cache index</text>
+<path d="M 610 231 L 680 231" fill="none" stroke="#475569" stroke-width="1.5" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+<path d="M 310 375 L 165 375 L 165 172" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="169.4" y="364.6" width="117.2" height="20.9" fill="#ffffff"/>
+<text x="228" y="379.6" font-size="13" text-anchor="middle" font-weight="normal" fill="#0f172a">chosen replica</text>
+<rect x="40" y="470" width="170" height="52" rx="6" fill="#f8fafc" stroke="#475569" stroke-width="1.5"/>
+<text x="125.0" y="491.5" font-size="15" text-anchor="middle" font-weight="bold" fill="#0f172a">vllm-a</text>
+<text x="125.0" y="511.0" font-size="15" text-anchor="middle" font-weight="normal" fill="#0f172a">holds the prefix</text>
+<rect x="250" y="470" width="170" height="52" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="335.0" y="491.5" font-size="15" text-anchor="middle" font-weight="bold" fill="#475569">vllm-b</text>
+<text x="335.0" y="511.0" font-size="15" text-anchor="middle" font-weight="normal" fill="#475569">not chosen</text>
+<path d="M 85 172 L 85 470" fill="none" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+<rect x="92.0" y="434.6" width="210.8" height="20.9" fill="#ffffff"/>
+<text x="96" y="449.6" font-size="13" text-anchor="start" font-weight="normal" fill="#0f172a">Envoy forwards the request</text>
+</svg>

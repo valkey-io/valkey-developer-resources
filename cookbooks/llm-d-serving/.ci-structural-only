@@ -1,0 +1,1 @@
+Not executed in CI: the stack (two vLLM CPU replicas, LMCache, llm-d's router and llm-d-async) needs at least 8.5 GiB of container memory, about 10 GB of disk and a 2.3 GiB image download, and has not been run on a GitHub-hosted runner (4 vCPUs, 16 GB RAM, about 14 GB of disk). Lint and the test_llm_d_serving.py structural tests still run.
