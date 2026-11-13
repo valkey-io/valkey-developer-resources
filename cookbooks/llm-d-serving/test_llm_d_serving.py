@@ -9,7 +9,9 @@ Two tiers:
    each replica's fixed address matches its ``POD_IP`` and the router's endpoint
    file (which the notebook reads instead of hardcoding addresses), batch jobs
    go through Envoy, and the busy-replica example's token
-   arithmetic holds. These catch drift in the files a reader edits without
+   arithmetic holds. The notebook and these tests share ``helpers.py``, and the
+   batch submitter's Lua script and envelope match llm-d-async v1.0.0's Go
+   producer. These catch drift in the files a reader edits without
    booting a seven-container stack.
 
 2. **Run only when the stack is up** (``docker compose up -d --wait``). These
@@ -25,13 +27,12 @@ Two tiers:
 
 from __future__ import annotations
 
-import contextlib
+import hashlib
 import http.client
 import ipaddress
 import json
 import os
 import re
-import secrets
 import socket
 import time
 import urllib.request
@@ -39,6 +40,18 @@ import uuid
 from pathlib import Path
 
 import pytest
+
+from helpers import (
+    SUBMIT_REQUEST_LUA,
+    close_connections,
+    connect,
+    document,
+    job_envelope,
+    metric,
+    scrape,
+    settled_dbsize,
+    submit_job,
+)
 
 HERE = Path(__file__).parent
 COMPOSE_PATH = HERE / "docker-compose.yml"
@@ -411,17 +424,58 @@ class TestBatchProcessor:
         assert _flag(text, "--health-port") != "8081"
 
 
+class TestSharedHelpers:
+    """The notebook and these tests share helpers.py, so the live tests run the
+    code readers run. These checks keep it that way."""
+
+    # Shared helpers the notebook must import rather than define again.
+    SHARED = ("connect", "settled_dbsize", "scrape", "metric", "document",
+              "close_connections", "go_json", "job_envelope", "submit_job")
+    # sha256 of submitRequestScript in llm-d-async v1.0.0
+    # (producer/redis_sortedset_producer.go), stripped of surrounding blank lines.
+    UPSTREAM_SCRIPT_SHA256 = "ec5f9ce2c0a5784013618def405165b408471d84a7b6b72ef93247ca31d281fe"
+
+    @pytest.fixture(scope="class")
+    def notebook_code(self):
+        notebook = json.loads(NOTEBOOK_PATH.read_text())
+        return "\n".join("".join(c["source"]) for c in notebook["cells"] if c["cell_type"] == "code")
+
+    def test_notebook_imports_the_shared_helpers(self, notebook_code):
+        assert re.search(r"^from helpers import", notebook_code, re.M)
+        redefined = [name for name in self.SHARED
+                     if re.search(rf"^def {name}\(", notebook_code, re.M)]
+        assert not redefined, f"the notebook defines its own copy of {redefined}; use helpers.py"
+        assert "redis.call(" not in notebook_code, "the Lua script belongs in helpers.py only"
+
+    def test_submit_script_is_llm_d_async_v1_0_0(self):
+        digest = hashlib.sha256(SUBMIT_REQUEST_LUA.strip().encode()).hexdigest()
+        assert digest == self.UPSTREAM_SCRIPT_SHA256, (
+            "SUBMIT_REQUEST_LUA no longer matches llm-d-async v1.0.0's submitRequestScript; "
+            "re-copy it and update the hash (and the version in its attribution) together")
+
+    def test_job_envelope_matches_the_go_producer(self):
+        envelope = job_envelope("job-1", "a <b> & c", model=MODEL, token="t", created=1,
+                                deadline=2, userid="u")
+        parsed = json.loads(envelope)
+        # Field order of api.InternalRouting / api.RequestMessage.
+        assert list(parsed) == ["internal", "request_kind", "data"]
+        assert list(parsed["data"]) == ["id", "created", "deadline", "payload", "metadata",
+                                        "endpoint", "model"]
+        # Go's encoding/json: compact, and <, >, & escaped.
+        assert ": " not in envelope and ", " not in envelope.replace("a <b> & c", "")
+        assert "\\u003cb\\u003e \\u0026 c" in envelope
+        # The Lua script splices the sequence number in at this placeholder.
+        assert envelope.count('"enqueue_seq":-1') == 1
+
+    def test_job_envelope_omits_empty_metadata(self):
+        parsed = json.loads(job_envelope("job-1", "p", model=MODEL, token="t", created=1,
+                                         deadline=2))
+        assert "metadata" not in parsed["data"], "Go's omitempty drops an empty metadata map"
+
+
 # ---------------------------------------------------------------------------
 # Tier 2: live stack (skipped unless the stack is up)
 # ---------------------------------------------------------------------------
-def _connect_valkey(database_id=0):
-    from glide_sync import GlideClient, GlideClientConfiguration, NodeAddress
-
-    return GlideClient.create(GlideClientConfiguration(
-        addresses=[NodeAddress(VALKEY_HOST, VALKEY_PORT)], database_id=database_id,
-        request_timeout=5000))
-
-
 def _http_ok(url: str) -> bool:
     try:
         with urllib.request.urlopen(url, timeout=5) as resp:
@@ -473,27 +527,13 @@ requires_stack = pytest.mark.skipif(
 )
 
 
-def _scrape(url: str) -> str:
-    with urllib.request.urlopen(url, timeout=5) as resp:
-        return resp.read().decode()
-
-
-def _metric(text: str, name: str, **labels) -> float:
-    total = 0.0
-    for match in re.finditer(rf"^{re.escape(name)}(?:\{{([^}}]*)\}})? (\S+)$", text, re.M):
-        found = dict(re.findall(r'(\w+)="([^"]*)"', match.group(1) or ""))
-        if all(found.get(k) == v for k, v in labels.items()):
-            total += float(match.group(2))
-    return total
-
-
 def _counters() -> dict:
     out = {}
     for name, url in REPLICA_URLS.items():
-        text = _scrape(f"{url}/metrics")
-        out[name] = {"served": _metric(text, "vllm:request_success_total"),
-                     "local": _metric(text, "vllm:prefix_cache_hits_total"),
-                     "valkey": _metric(text, "vllm:external_prefix_cache_hits_total")}
+        text = scrape(f"{url}/metrics")
+        out[name] = {"served": metric(text, "vllm:request_success_total"),
+                     "local": metric(text, "vllm:prefix_cache_hits_total"),
+                     "valkey": metric(text, "vllm:external_prefix_cache_hits_total")}
     return out
 
 
@@ -533,22 +573,12 @@ def _wait_until_replicas_idle(timeout_s: float = 120.0) -> None:
     earlier test aborted, which vLLM may still be finishing)."""
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
-        running = {n: _metric(_scrape(f"{u}/metrics"), "vllm:num_requests_running")
+        running = {n: metric(scrape(f"{u}/metrics"), "vllm:num_requests_running")
                    for n, u in REPLICA_URLS.items()}
         if not any(running.values()):
             return
         time.sleep(0.5)
     pytest.fail(f"replicas still running requests after {timeout_s:.0f} s: {running}")
-
-
-def _close_connections(connections: list) -> None:
-    """Close every connection, even if one fails. Closing the socket makes vLLM
-    abort a request it is still generating."""
-    for conn in connections:
-        if conn.sock is not None:
-            with contextlib.suppress(OSError):
-                conn.sock.shutdown(socket.SHUT_RDWR)
-        conn.close()
 
 
 def _remove_batch_jobs(valkey, job_ids, queue_name="request-sortedset", result_name="result-list",
@@ -563,18 +593,12 @@ def _remove_batch_jobs(valkey, job_ids, queue_name="request-sortedset", result_n
     valkey.delete([*extra_keys, *[f"request-active:{job_id}" for job_id in job_ids]])
 
 
-def _document(tag: str, clauses: int = 29) -> str:
-    return f"[document {tag}] " + " ".join(
-        f"Clause {i}: the tenant of unit {tag} shall keep fixture {i * 7 % 13} in good "
-        f"repair and report any fault within {i % 5 + 1} days." for i in range(clauses))
-
-
 def _conversation() -> list:
     # Random hex tokenizes into a variable number of tokens, and the tag appears
     # in every clause, so the prompt length varies by ~180 tokens. With 36
     # clauses it measured 1,105-1,290 tokens over 500 tags (17-20 full 64-token
     # blocks); with 29 it was 923-1,043, often only 14 or 15 blocks.
-    return [{"role": "system", "content": _document(uuid.uuid4().hex[:8], clauses=36)},
+    return [{"role": "system", "content": document(uuid.uuid4().hex[:8], clauses=36)},
             {"role": "user", "content": "Summarise clause 3."}]
 
 
@@ -588,30 +612,10 @@ def _scan(client, match: str | None = None) -> list[str]:
             return keys
 
 
-def _settled_dbsize(client, quiet_s: float = 1.0, timeout_s: float = 15.0) -> int:
-    """``DBSIZE`` once it has stopped changing for ``quiet_s`` seconds.
-
-    The LMCache server writes KV through to Valkey asynchronously
-    (``--l2-store-policy skip_l1``), so a replica that asks for a prefix right
-    after another replica computed it can find chunks that are not stored yet.
-    Same approach as the KV caching recipe's tests.
-    """
-    deadline = time.monotonic() + timeout_s
-    last, since = int(client.custom_command(["DBSIZE"])), time.monotonic()
-    while time.monotonic() < deadline:
-        time.sleep(0.1)
-        current = int(client.custom_command(["DBSIZE"]))
-        if current != last:
-            last, since = current, time.monotonic()
-        elif time.monotonic() - since >= quiet_s:
-            break
-    return last
-
-
 @pytest.fixture(scope="module")
 def valkey():
     pytest.importorskip("glide_sync")
-    client = _connect_valkey(0)
+    client = connect(VALKEY_HOST, VALKEY_PORT, 0)
     yield client
     client.close()
 
@@ -619,7 +623,7 @@ def valkey():
 @pytest.fixture(scope="module")
 def router_index():
     pytest.importorskip("glide_sync")
-    client = _connect_valkey(1)
+    client = connect(VALKEY_HOST, VALKEY_PORT, 1)
     yield client
     client.close()
 
@@ -665,7 +669,7 @@ def test_neighbor_loads_kv_from_valkey(valkey):
     messages = _conversation()
     cold = _chat(REPLICA_URLS["vllm-a"], messages, max_tokens=1)
     assert cold["local"] == 0 and cold["valkey"] == 0
-    _settled_dbsize(valkey)  # wait for A's KV to be written through to Valkey
+    settled_dbsize(valkey)  # wait for A's KV to be written through to Valkey
     neighbor = _chat(REPLICA_URLS["vllm-b"], messages, max_tokens=1)
     assert neighbor["valkey"] >= 256, "replica B should load replica A's KV from Valkey"
 
@@ -673,7 +677,7 @@ def test_neighbor_loads_kv_from_valkey(valkey):
 @requires_stack
 def test_busy_replica_spills_over_to_its_neighbor(valkey):
     tag = uuid.uuid4().hex[:8]
-    template = f"[report template {tag}] " + _document(f"template-{tag}", clauses=26)
+    template = f"[report template {tag}] " + document(f"template-{tag}", clauses=26)
     # Warm the template on replica A as the same raw completion prompt prefix.
     warm = {"model": MODEL, "prompt": template, "max_tokens": 1}
     urllib.request.urlopen(urllib.request.Request(
@@ -683,7 +687,7 @@ def test_busy_replica_spills_over_to_its_neighbor(valkey):
     turn1 = _chat(REPLICA_URLS["vllm-a"], messages)
     messages += [{"role": "assistant", "content": turn1["answer"]},
                  {"role": "user", "content": "And clause 9?"}]
-    _settled_dbsize(valkey)  # the conversation's KV is in Valkey before B needs it
+    settled_dbsize(valkey)  # the conversation's KV is in Valkey before B needs it
     connections = []
     try:
         for job in range(2):
@@ -696,53 +700,15 @@ def test_busy_replica_spills_over_to_its_neighbor(valkey):
         time.sleep(0.5)
         spilled = _chat(ROUTER_URL, messages)
     finally:
-        _close_connections(connections)
+        close_connections(connections)
     assert spilled["replica"] == "vllm-b"
     assert spilled["valkey"] >= 256, "the neighbor should load the conversation from Valkey"
 
 
-# submitRequestScript from llm-d-async v1.0.0 producer/redis_sortedset_producer.go
-SUBMIT_REQUEST = """
-local seq = redis.call("INCR", KEYS[1])
-redis.call("EXPIREAT", KEYS[1], ARGV[3])
-redis.call("DEL", KEYS[2])
-redis.call("SET", KEYS[3], ARGV[1], "PX", ARGV[2])
-local score = tonumber(ARGV[6]) + math.min(seq, 2097151) / 2097152
-redis.call("ZADD", KEYS[4], string.format("%.17g", score), ARGV[4] .. seq .. ARGV[5])
-if KEYS[5] then
-  redis.call("SET", KEYS[5], ARGV[7], "PX", ARGV[8])
-end
-return seq
-"""
-
-
 def _submit_batch_job(valkey, job_id: str, userid: str | None = None):
-    """Submit a short job, optionally subject to the configured per-user gate."""
-    from glide_sync import Script
-
-    created = int(time.time())
-    deadline = created + 120
-    token = secrets.token_hex(16)
-    data = {
-        "id": job_id, "created": created, "deadline": deadline,
-        "payload": {"model": MODEL, "prompt": "Say hello.", "max_tokens": 4},
-        "endpoint": "/v1/completions", "model": MODEL,
-    }
-    if userid is not None:
-        data["metadata"] = {"userid": userid}
-    envelope = json.dumps({
-        "internal": {"request_token": token, "request_queue_name": "request-sortedset",
-                     "result_queue_name": "result-list", "enqueue_seq": -1},
-        "request_kind": "plain",
-        "data": data,
-    }, separators=(",", ":"))
-    head, tail = envelope.split('"enqueue_seq":-1', 1)
-    valkey.invoke_script(
-        Script(SUBMIT_REQUEST),
-        keys=[f"request-seq:request-sortedset:{deadline}", f"request-cancel:{job_id}",
-              f"request-active:{job_id}", "request-sortedset"],
-        args=[token, str((deadline - created) * 1000), str(deadline + 3600),
-              head + '"enqueue_seq":', tail, str(deadline)])
+    """Submit a short job with the notebook's submitter, optionally subject to
+    the configured per-user gate."""
+    submit_job(valkey, job_id, "Say hello.", model=MODEL, userid=userid, max_tokens=4, ttl_s=120)
 
 
 @requires_stack

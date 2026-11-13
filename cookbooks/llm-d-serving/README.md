@@ -345,6 +345,7 @@ the same checks apply.
 | [`async/`](async/) | llm-d-async's transport config and the dummy kubeconfig it needs off-cluster |
 | [`pyproject.toml`](pyproject.toml), [`uv.lock`](uv.lock) | Pinned Python dependencies for the notebook and tests |
 | [`start.sh`](start.sh) | Memory check, then `compose up -d --wait` and the services' status |
+| [`helpers.py`](helpers.py) | Helpers the notebook and tests share: metrics scraping, Valkey waits, the sample lease, and the batch-job submitter (with llm-d-async's Lua script) |
 | [`test_llm_d_serving.py`](test_llm_d_serving.py) | Tests: config and compose wiring always; routing, KV reuse, the batch queue and per-user quotas when the stack is up |
 | [`.ci-structural-only`](.ci-structural-only) | Tells CI to skip notebook execution; its first line says why |
 
