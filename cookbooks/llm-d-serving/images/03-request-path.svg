@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="860" height="560" viewBox="0 0 860 560" role="img" aria-labelledby="title desc" font-family="Arial, Helvetica, sans-serif">
 <title id="title">How the router picks a replica for one chat request</title>
-<desc id="desc">Envoy hands the request to the EPP over ext_proc. The EPP tokenizes the prompt through the replicas&#x27; /render endpoint, hashes it into 64-token blocks, looks the block hashes up in Valkey db 1, scores the replicas by longest cached prefix and in-flight load, and picks one. Envoy forwards the request to that replica.</desc>
+<desc id="desc">The router is Envoy plus the EPP. Envoy hands the request to the EPP over ext_proc. The EPP tokenizes the prompt through the replicas&#x27; /render endpoint, hashes it into 64-token blocks, looks the block hashes up in Valkey db 1, scores the replicas by longest cached prefix and in-flight load, and picks one. Envoy forwards the request to that replica.</desc>
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="11" markerHeight="11" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/></marker>
 </defs>
@@ -50,4 +50,6 @@
 <path d="M 85 172 L 85 470" fill="none" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
 <rect x="92.0" y="434.6" width="210.8" height="20.9" fill="#ffffff"/>
 <text x="96" y="449.6" font-size="13" text-anchor="start" font-weight="normal" fill="#0f172a">Envoy forwards the request</text>
+<text x="455" y="488" font-size="13" text-anchor="start" font-weight="bold" fill="#0f172a">The router is Envoy plus the EPP.</text>
+<text x="455" y="508" font-size="13" text-anchor="start" font-weight="normal" fill="#0f172a">Envoy forwards; the EPP picks the replica.</text>
 </svg>

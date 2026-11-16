@@ -1,10 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="920" height="640" viewBox="0 0 920 640" role="img" aria-labelledby="title desc" font-family="Arial, Helvetica, sans-serif">
 <title id="title">llm-d serving with Valkey: architecture</title>
-<desc id="desc">Chat requests go through Envoy, which asks the EPP which vLLM replica to use. The replicas publish KV events to the EPP and share KV through the LMCache server. One Valkey server holds the router&#x27;s prefix-cache index (db 1), LMCache&#x27;s KV chunks (db 0) and the batch queue and quotas (db 0) used by llm-d-async.</desc>
+<desc id="desc">Chat requests go through the router, which is Envoy plus the EPP: Envoy asks the EPP which vLLM replica to use and forwards the request. The replicas publish KV events to the EPP and share KV through the LMCache server. One Valkey server holds the router&#x27;s prefix-cache index (db 1), LMCache&#x27;s KV chunks (db 0) and the batch queue and quotas (db 0) used by llm-d-async.</desc>
 <defs>
 <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="11" markerHeight="11" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/></marker>
 </defs>
 <rect width="920" height="640" fill="#ffffff"/>
+<rect x="30" y="108" width="500" height="80" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4 3"/>
+<rect x="205" y="100" width="130" height="16" fill="#ffffff"/>
+<text x="270" y="112" font-size="12" text-anchor="middle" font-weight="normal" fill="#475569">Router: Envoy + EPP</text>
 <rect x="40" y="24" width="160" height="44" rx="6" fill="#f8fafc" stroke="#475569" stroke-width="1.5"/>
 <text x="120.0" y="51.2" font-size="15" text-anchor="middle" font-weight="normal" fill="#0f172a">Chat client</text>
 <rect x="40" y="120" width="160" height="52" rx="6" fill="#f8fafc" stroke="#475569" stroke-width="1.5"/>

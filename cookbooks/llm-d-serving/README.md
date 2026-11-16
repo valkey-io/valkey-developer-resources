@@ -64,7 +64,10 @@ back.
 The notebook drives seven containers (defined in
 [`docker-compose.yml`](docker-compose.yml)):
 
-![Architecture of the stack. A chat client sends requests to Envoy on localhost:8080, which asks the EPP (Endpoint Picker) which vLLM replica to use and forwards the request to vllm-a or vllm-b. Both replicas publish KV events over ZMQ to the EPP, which keeps its prefix-cache index in Valkey database 1. The replicas exchange KV chunks with the LMCache server, which stores them in Valkey database 0. Batch jobs submitted from Python go into a Valkey sorted set with per-user quota keys; llm-d-async admits them, sends them through Envoy like chat requests, and writes results to a Valkey list. A legend colours the three Valkey roles: index blue, KV cache green, queue and quotas orange.](images/02-architecture.svg)
+![Architecture of the stack. A chat client sends requests to the router, which is Envoy (on localhost:8080) plus the EPP (Endpoint Picker): Envoy asks the EPP which vLLM replica to use and forwards the request to vllm-a or vllm-b. Both replicas publish KV events over ZMQ to the EPP, which keeps its prefix-cache index in Valkey database 1. The replicas exchange KV chunks with the LMCache server, which stores them in Valkey database 0. Batch jobs submitted from Python go into a Valkey sorted set with per-user quota keys; llm-d-async admits them, sends them through Envoy like chat requests, and writes results to a Valkey list. A legend colours the three Valkey roles: index blue, KV cache green, queue and quotas orange.](images/02-architecture.svg)
+
+The router is Envoy plus the EPP: Envoy is the front door and forwards each
+request, and the EPP decides which replica gets it.
 
 | File | What it configures |
 | --- | --- |
