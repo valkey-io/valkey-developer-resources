@@ -1,7 +1,8 @@
 # llm-d Serving with Valkey
 
-Put [llm-d](https://llm-d.ai)'s router in front of two vLLM servers and use a
-single Valkey server (one standalone node) for three things:
+This recipe adds an llm-d router in front of two vLLM servers. llm-d is an open-source, Kubernetes-native stack for distributed LLM inference. We still use valkey for kv-caching as per the KV-caching recipe, but we also add storing the prefix-cache index in valkey as well. The prefix-cache index stores which servers contain which 64-token blocks of the request in their own prefix cache. This information let's the router point the request to the server that has the most 64-token blocks of the request in its prefix cache. The more blocks in the cache the less new processing is required for the given request. Valkey adds the advantage of surviving router restarts.
+
+This recipe configures an llm-d router (Envoy + EPP) in front of two vllm instances and uses Valkey for three things:
 
 - **Prefix-cache index:** Track which server has the prompt prefix cached, so
   follow-up requests go to a server that can start answering sooner.
@@ -26,10 +27,6 @@ other server loads the prefix from Valkey. That is slower than a local hit, but
 several times faster than recomputing the prompt. Keeping the index in Valkey
 rather than in the router's memory is about durability, not speed: the index
 survives a router restart.
-
-llm-d is an open-source, Kubernetes-native stack for distributed LLM inference
-that runs model servers such as vLLM and SGLang. Its router chooses a server
-based on what it already has cached and how busy it is.
 
 **Why CPU here?** This recipe runs on CPU so readers can try it locally without
 GPU hardware. llm-d is validated in production on GPUs and TPUs and also
