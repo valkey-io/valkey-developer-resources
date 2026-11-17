@@ -262,6 +262,12 @@ class TestBenchmarkRouter:
         assert "./rendered/epp:/etc/epp:ro,z" in epp["volumes"]
         assert "--config-file=/etc/epp/${EPP_STRATEGY:-precise-valkey}.yaml" in epp["command"]
 
+    def test_envoy_config_matches_the_cpu_recipes(self):
+        # The benchmark keeps its own copy so it stays self-contained. Only the
+        # header comments differ, so compare the parsed documents: a router-wiring
+        # fix made in one copy fails here until the other copy gets it too.
+        assert _yaml(BENCH / "envoy" / "envoy.yaml") == _yaml(HERE / "envoy" / "envoy.yaml")
+
 
 # ---------------------------------------------------------------------------
 # Configurations and rendering
