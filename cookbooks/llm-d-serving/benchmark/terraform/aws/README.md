@@ -146,8 +146,8 @@ The auto-stop timer is a backstop. A stopped instance still bills for its EBS
 volume, so destroy the stack rather than relying on the timer.
 
 The 480-minute default leaves room for a full run with the default
-workload: the published run took about 3 hours 40 minutes on 4x L40S, and a
-fresh host needs about 25 minutes more to pull and build the image and
+workload: the published run took about 3 hours 20 minutes on 4x L40S, and a
+fresh host needs about 20 minutes more to pull and build the image and
 download the model. If you lower it, or change the workload, check that the
 run fits: the timer counts from boot, and a shutdown stops the run.
 

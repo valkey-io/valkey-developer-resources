@@ -1,6 +1,6 @@
 {
-  "date_utc": "2026-11-06T20:03:31Z",
-  "run_id": "20261106T200023Z",
+  "date_utc": "2026-11-18T14:26:34Z",
+  "run_id": "20261118T142331Z",
   "cloud": "aws",
   "instance_type": "g6e.12xlarge",
   "region": "ap-northeast-1",
@@ -30,31 +30,31 @@
       "driver": "595.112.07"
     }
   ],
-  "host_ram_bytes": 400211722240,
+  "host_ram_bytes": 400211705856,
   "images": {
     "valkey": {
       "ref": "docker.io/valkey/valkey-bundle:9.1.2",
       "id": "sha256:1c39295cd8e3a34fc33fb46de235cf5e7bad530525b1a697eaf9f49e1c42747c"
     },
     "lmcache-server": {
-      "ref": "localhost/llm-d-gpu-bench/vllm-lmcache:v0.30.0-lmcache0.5.5",
-      "id": "sha256:6b7e5a4b2fe97db8b127f11819658be1cd978e267e221c26ac7ca46e7269427b"
+      "ref": "localhost/llm-d-gpu-bench/vllm-lmcache:v0.33.0-lmcache0.5.7.post1",
+      "id": "sha256:a2f3693c15598fbfe0f1dd09d44d2509536a2d8872cb7eb96cea12b815e22482"
     },
     "vllm-0": {
-      "ref": "localhost/llm-d-gpu-bench/vllm-lmcache:v0.30.0-lmcache0.5.5",
-      "id": "sha256:6b7e5a4b2fe97db8b127f11819658be1cd978e267e221c26ac7ca46e7269427b"
+      "ref": "localhost/llm-d-gpu-bench/vllm-lmcache:v0.33.0-lmcache0.5.7.post1",
+      "id": "sha256:a2f3693c15598fbfe0f1dd09d44d2509536a2d8872cb7eb96cea12b815e22482"
     },
     "vllm-1": {
-      "ref": "localhost/llm-d-gpu-bench/vllm-lmcache:v0.30.0-lmcache0.5.5",
-      "id": "sha256:6b7e5a4b2fe97db8b127f11819658be1cd978e267e221c26ac7ca46e7269427b"
+      "ref": "localhost/llm-d-gpu-bench/vllm-lmcache:v0.33.0-lmcache0.5.7.post1",
+      "id": "sha256:a2f3693c15598fbfe0f1dd09d44d2509536a2d8872cb7eb96cea12b815e22482"
     },
     "vllm-2": {
-      "ref": "localhost/llm-d-gpu-bench/vllm-lmcache:v0.30.0-lmcache0.5.5",
-      "id": "sha256:6b7e5a4b2fe97db8b127f11819658be1cd978e267e221c26ac7ca46e7269427b"
+      "ref": "localhost/llm-d-gpu-bench/vllm-lmcache:v0.33.0-lmcache0.5.7.post1",
+      "id": "sha256:a2f3693c15598fbfe0f1dd09d44d2509536a2d8872cb7eb96cea12b815e22482"
     },
     "vllm-3": {
-      "ref": "localhost/llm-d-gpu-bench/vllm-lmcache:v0.30.0-lmcache0.5.5",
-      "id": "sha256:6b7e5a4b2fe97db8b127f11819658be1cd978e267e221c26ac7ca46e7269427b"
+      "ref": "localhost/llm-d-gpu-bench/vllm-lmcache:v0.33.0-lmcache0.5.7.post1",
+      "id": "sha256:a2f3693c15598fbfe0f1dd09d44d2509536a2d8872cb7eb96cea12b815e22482"
     },
     "envoy": {
       "ref": "docker.io/envoyproxy/envoy:distroless-v1.33.2@sha256:85500e28ed088ec39ff0adc1be3d358a8ad062926aaa62c36b28bde00919e4e8",
@@ -73,22 +73,16 @@
           "valkey/valkey-bundle@sha256:1c39295cd8e3a34fc33fb46de235cf5e7bad530525b1a697eaf9f49e1c42747c"
         ]
       },
-      "docker.io/vllm/vllm-openai:v0.30.0@sha256:8a69ffad015f138d7170c4ddc429e230a3bc1c1719f67e14324749df200a4b90": {
-        "id": "sha256:8a69ffad015f138d7170c4ddc429e230a3bc1c1719f67e14324749df200a4b90",
-        "repo_digests": [
-          "vllm/vllm-openai@sha256:8a69ffad015f138d7170c4ddc429e230a3bc1c1719f67e14324749df200a4b90"
-        ]
-      },
       "ghcr.io/llm-d/llm-d-router-endpoint-picker:v1.0.0@sha256:024188e998f516879f68532016ca24fabca00afbdcc2af9a61b17634e197df2c": {
         "id": "sha256:024188e998f516879f68532016ca24fabca00afbdcc2af9a61b17634e197df2c",
         "repo_digests": [
           "ghcr.io/llm-d/llm-d-router-endpoint-picker@sha256:024188e998f516879f68532016ca24fabca00afbdcc2af9a61b17634e197df2c"
         ]
       },
-      "localhost/llm-d-gpu-bench/vllm-lmcache:v0.30.0-lmcache0.5.5": {
-        "id": "sha256:6b7e5a4b2fe97db8b127f11819658be1cd978e267e221c26ac7ca46e7269427b",
+      "localhost/llm-d-gpu-bench/vllm-lmcache:v0.33.0-lmcache0.5.7.post1": {
+        "id": "sha256:a2f3693c15598fbfe0f1dd09d44d2509536a2d8872cb7eb96cea12b815e22482",
         "repo_digests": [
-          "localhost/llm-d-gpu-bench/vllm-lmcache@sha256:6b7e5a4b2fe97db8b127f11819658be1cd978e267e221c26ac7ca46e7269427b"
+          "localhost/llm-d-gpu-bench/vllm-lmcache@sha256:a2f3693c15598fbfe0f1dd09d44d2509536a2d8872cb7eb96cea12b815e22482"
         ]
       },
       "quay.io/inference-perf/inference-perf:v0.7.0@sha256:d247e6ad725dc5bb56df71d115abc8ca455bba9f0ccd4110e14bbb56504250ec": {
@@ -99,10 +93,10 @@
       }
     }
   },
-  "lmcache_version": "0.5.5",
+  "lmcache_version": "0.5.7.post1",
   "valkey_glide_sync_version": "2.5.2",
-  "vllm_version": "0.30.0",
-  "lmcache_pip_changes": "base image lmcache: 0.5.5\n> valkey-glide-sync==2.5.2",
+  "vllm_version": "0.33.0",
+  "lmcache_pip_changes": "base image lmcache: 0.5.6\n< lmcache==0.5.6\n> lmcache==0.5.7.post1\n> valkey-glide-sync==2.5.2",
   "model": "Qwen/Qwen3-8B",
   "workload": {
     "num_prefixes": "192",
@@ -122,7 +116,7 @@
     "max_model_len": "16384",
     "max_num_batched_tokens": "8192",
     "gpu_memory_utilization": "0.90",
-    "peak_prefill_throughput": "11539",
+    "peak_prefill_throughput": "11151",
     "valkey_maxmemory": "192gb",
     "valkey_io_threads": "8",
     "lmcache_l1_size_gb": "64",
@@ -138,8 +132,8 @@
     "router_index": "redis://valkey:6379/1",
     "lmcache_l2": "valkey:6379 database 0"
   },
-  "git_commit": "1acc7860fa7e1ee9fb561b683c02db0d92122144",
+  "git_commit": "1acb113629e0eb4e474afaaa35c0df201a7a8e9f",
   "git_dirty": false,
   "probe_errors": [],
-  "lmcache_version_in_replicas": "0.5.5"
+  "lmcache_version_in_replicas": "0.5.7.post1"
 }
