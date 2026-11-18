@@ -50,7 +50,7 @@ REPLICA_URLS = {
 }
 ROUTER_URL = "http://172.16.90.10:8081"
 
-# vLLM Prometheus counters (vllm/v1/metrics/loggers.py in v0.30.0; the
+# vLLM Prometheus counters (vllm/v1/metrics/loggers.py in v0.33.0; the
 # Prometheus client adds _total). The recipe notebook reads the same two hit
 # counters to tell local hits from Valkey hits:
 #   prefix_cache_hits      prompt tokens found in the replica's GPU prefix cache

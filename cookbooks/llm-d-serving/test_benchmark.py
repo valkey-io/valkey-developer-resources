@@ -113,16 +113,17 @@ class TestBenchmarkCompose:
     def test_replicas_and_server_share_the_pinned_image(self, compose):
         dockerfile = DOCKERFILE.read_text()
         base = re.search(r"^ARG VLLM_BASE_IMAGE=(\S+)$", dockerfile, re.M).group(1)
-        assert re.fullmatch(r"docker\.io/vllm/vllm-openai:v0\.30\.0@sha256:[0-9a-f]{64}", base)
+        assert re.fullmatch(r"docker\.io/vllm/vllm-openai:v0\.33\.0@sha256:[0-9a-f]{64}", base)
         assert "FROM ${VLLM_BASE_IMAGE}" in dockerfile
-        assert re.search(r"^ARG LMCACHE_VERSION=0\.5\.5$", dockerfile, re.M)
+        assert re.search(r"^ARG LMCACHE_VERSION=0\.5\.7\.post1$", dockerfile, re.M)
         assert re.search(r"^ARG VALKEY_GLIDE_SYNC_VERSION=2\.5\.2$", dockerfile, re.M)
         built = {compose["services"][s]["image"] for s in ("lmcache-server", *REPLICAS)}
         assert len(built) == 1
         for name in ("lmcache-server", *REPLICAS):
             assert compose["services"][name]["build"]["dockerfile"] == "vllm/Dockerfile", name
-        # The model download uses the base image the build starts from.
-        assert compose["services"]["model-download"]["image"] == base
+        # The model download uses the image the build produces, so the host
+        # doesn't pull the base image a second time.
+        assert compose["services"]["model-download"]["image"] in built
 
     def test_images_qualified_and_pinned(self, compose, cpu_compose):
         for name, svc in compose["services"].items():
@@ -492,7 +493,7 @@ def _write_stage(stage_dir: Path, p50: float, rps: float, local: float, valkey: 
 META = {
     "date_utc": "2026-11-20T10:00:00Z", "cloud": "aws", "instance_type": "g6e.12xlarge", "region": "ap-northeast-1",
     "gpu_model": "NVIDIA L40S", "gpu_count": 4, "gpu_memory_mib": 46068, "gpu_driver": "580.95.05",
-    "model": "Qwen/Qwen3-8B", "vllm_version": "0.30.0", "lmcache_version": "0.5.5",
+    "model": "Qwen/Qwen3-8B", "vllm_version": "0.33.0", "lmcache_version": "0.5.7.post1",
     "git_commit": "0123456789abcdef", "git_dirty": False,
 }
 
@@ -558,7 +559,7 @@ class TestSummarize:
         text, _ = summarize.render(run_dir)
         line = metadata.metadata_line(META)
         assert "aws g6e.12xlarge in ap-northeast-1" in line and "4x NVIDIA L40S 45 GiB" in line
-        assert "2026-11-20T10:00:00Z" in line and "lmcache 0.5.5" in line
+        assert "2026-11-20T10:00:00Z" in line and "lmcache 0.5.7.post1" in line
         lines = text.splitlines()
         # The metadata line sits directly above (one blank line) every table.
         headers = [i for i, row in enumerate(lines) if row.startswith("| Configuration |")]
@@ -630,7 +631,7 @@ class TestMetadata:
         probes = {"gpus": metadata.parse_nvidia_smi("NVIDIA L40S, 46068, 580.95.05\n" * 4),
                   "host_ram_bytes": 384 * benchctl.GIB,
                   "images": {"vllm-0": {"ref": "x", "id": "sha256:1"}},
-                  "versions": {"lmcache": "0.5.5", "valkey_glide_sync": "2.5.2", "vllm": "0.30.0"},
+                  "versions": {"lmcache": "0.5.7.post1", "valkey_glide_sync": "2.5.2", "vllm": "0.33.0"},
                   "git_commit": "abc", "git_dirty": False}
         env = {"BENCH_CLOUD": "aws", "BENCH_INSTANCE_TYPE": "g6e.12xlarge", "BENCH_REGION": "ap-northeast-1",
                "MODEL": "Qwen/Qwen3-8B", **{k: "1" for k in metadata.WORKLOAD_VARS}}

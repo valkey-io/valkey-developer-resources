@@ -35,14 +35,14 @@ x-lmcache-env: &lmcache-env
   # Required by LMCache to enable the v1 code paths (as in the CPU stack).
   LMCACHE_USE_EXPERIMENTAL: "True"
 
-# vLLM 0.30.0 (CUDA 13.0, torch 2.13.0) with lmcache 0.5.5 and
+# vLLM 0.33.0 (CUDA 13.0, torch 2.14.0) with lmcache 0.5.7.post1 and
 # valkey-glide-sync 2.5.2 added. vllm/Dockerfile pins the base image by digest
 # and fails the build if the installed lmcache version is not the one asked
 # for. One image serves the replicas, the LMCache server and the no-LMCache
 # baseline, so every configuration runs the same Python environment.
 # run-benchmark.sh builds it once (`docker compose build lmcache-server`).
 x-vllm-image: &vllm-image
-  image: localhost/llm-d-gpu-bench/vllm-lmcache:v0.30.0-lmcache0.5.5
+  image: localhost/llm-d-gpu-bench/vllm-lmcache:v0.33.0-lmcache0.5.7.post1
   build:
     context: .
     dockerfile: vllm/Dockerfile
@@ -94,10 +94,11 @@ x-vllm: &vllm
 
 services:
   # Downloads the model weights once into the shared cache, so the four
-  # replicas don't race each other for the same files. Uses the pinned base
-  # image (vllm/Dockerfile builds on it), which has huggingface_hub.
+  # replicas don't race each other for the same files. Uses the image built
+  # from vllm/Dockerfile (run-benchmark.sh builds it first), which has
+  # huggingface_hub, so the host doesn't pull a second copy of the base image.
   model-download:
-    image: docker.io/vllm/vllm-openai:v0.30.0@sha256:8a69ffad015f138d7170c4ddc429e230a3bc1c1719f67e14324749df200a4b90
+    <<: *vllm-image
     entrypoint: ["python3", "-c", "import os; from huggingface_hub import snapshot_download; snapshot_download(os.environ['MODEL'])"]
     environment:
       MODEL: ${MODEL:-Qwen/Qwen3-8B}

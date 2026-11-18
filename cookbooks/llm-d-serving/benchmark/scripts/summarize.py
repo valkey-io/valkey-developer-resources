@@ -167,7 +167,7 @@ def valkey_runs(run_dir: Path) -> list[dict]:
     return rows
 
 
-# lmcache 0.5.5 logs one line per lookup prefetch, e.g.
+# lmcache 0.5.5 to 0.5.7.post1 log one line per lookup prefetch, e.g.
 #   Prefetch request completed (L1+L2): 16/17 retained keys (0 L1, 16 L2) in 239.4 ms
 _PREFETCH = re.compile(r"Prefetch request completed \(L1\+L2\): \d+/\d+ retained keys "
                        r"\((\d+) L1, (\d+) L2\) in ([0-9.]+) ms")
