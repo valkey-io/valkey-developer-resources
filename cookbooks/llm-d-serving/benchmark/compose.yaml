@@ -155,12 +155,10 @@ services:
   #
   # Unlike the CPU stack (skip_l1), L1 is a cache here: chunks stay in host
   # memory (LRU) and are also stored to Valkey, which is the shared tier
-  # behind it. With lmcache 0.5.5 every lookup prefetches the whole prompt's
-  # chunks into L1, including the part vLLM already has on the GPU, and the
-  # request waits for that. Under skip_l1 every lookup therefore read the full
-  # prefix from Valkey (230-370 ms per request in a short smoke run). LMCache
-  # fixed this after 0.5.6 (LMCache/LMCache#5383). The 64 GB default is about
-  # half of the default workload's KV, so many lookups still go to Valkey.
+  # behind it. The 64 GB default is about half of the default workload's KV,
+  # so many lookups still go to Valkey. lmcache 0.5.7 and later skip the
+  # lookup and prefetch of the part of a prompt vLLM already has on the GPU
+  # (LMCache/LMCache#5383); earlier releases fetched the whole prompt first.
   # Override with LMCACHE_L1_SIZE_GB, LMCACHE_EVICTION_POLICY and
   # LMCACHE_L2_STORE_POLICY in .env.
   #

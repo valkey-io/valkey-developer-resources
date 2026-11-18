@@ -164,8 +164,8 @@ Edit `.env` first to set `BENCH_CLOUD`, `BENCH_INSTANCE_TYPE` and
 or to change the model or workload. If your user is not in the `docker`
 group, run the script with `sudo`; settings in `.env` still apply.
 
-The first run builds the vLLM image (the pinned `vllm/vllm-openai:v0.30.0`
-plus lmcache 0.5.5 and `valkey-glide-sync` 2.5.2, see
+The first run builds the vLLM image (the pinned `vllm/vllm-openai:v0.33.0`
+plus lmcache 0.5.7.post1 and `valkey-glide-sync` 2.5.2, see
 [`vllm/Dockerfile`](vllm/Dockerfile)), downloads about 16 GB of weights, and
 waits a few minutes for the replicas to start. Each run then recreates the
 replicas and sends 2,688 requests. With five configurations, three runs
@@ -233,7 +233,7 @@ vllm-0 .. vllm-3  ------------+-------- LMCacheMPConnector --> lmcache-server
 | File | Purpose |
 | --- | --- |
 | `compose.yaml` | All services on one bridge network with fixed addresses |
-| `vllm/Dockerfile`, `vllm/install-lmcache.sh` | The vLLM image with lmcache 0.5.5 and `valkey-glide-sync` 2.5.2 |
+| `vllm/Dockerfile`, `vllm/install-lmcache.sh` | The vLLM image with lmcache 0.5.7.post1 and `valkey-glide-sync` 2.5.2 |
 | `vllm/serve-vllm.sh` | vLLM flags: block size 64, prefix caching, KV events, render endpoints, the LMCache connector (or none) |
 | `epp/*.yaml` | Router config for each strategy, plus `endpoints.yaml` for file discovery |
 | `envoy/envoy.yaml` | Envoy config, copied from llm-d's no-Kubernetes guide |
@@ -262,25 +262,19 @@ both modes.
 
 The CPU stack runs the LMCache server with `skip_l1`, which drops each
 chunk from the server's L1 memory once it is in Valkey, so every load comes
-from Valkey. This benchmark doesn't, because of how lmcache 0.5.5 looks up
-KV. Each lookup asks for the whole prompt, including the part vLLM already
-holds in its GPU prefix cache, and the server copies every chunk it finds
-into L1 before the request is scheduled. Under `skip_l1` that copy always
-comes from Valkey: 16 chunks of 36 MiB, about 576 MiB, for a 4,096-token
-prefix, even when vLLM then uses almost none of it. In a short smoke run
-under `skip_l1` (24 shared prefixes, 96 requests at concurrency 8, one run;
-not published, and not comparable with the results above) these copies
-took 230-370 ms each, and median first-token time was about 500 ms for
-precise routing against 123 ms without LMCache. LMCache fixed this in
-v0.5.7
-([LMCache/LMCache#5383](https://github.com/LMCache/LMCache/pull/5383)).
+from Valkey. This benchmark keeps L1 as a cache instead: chunks stay in
+host memory (`LRU` eviction) and are also stored to Valkey, which is the
+shared tier behind it. L1 defaults to 64 GB (`LMCACHE_L1_SIZE_GB`), about
+half of the default workload's KV, so many lookups still have to load from
+Valkey. The summary reports, for each run, how many chunks lookups found in
+L1 and how many they loaded from Valkey.
 
-So L1 is a cache here: chunks stay in host memory (`LRU` eviction) and are
-also stored to Valkey, which is the shared tier behind it. L1 defaults to
-64 GB (`LMCACHE_L1_SIZE_GB`), about half of the default workload's KV, so
-many lookups still have to load from Valkey. The summary reports, for each
-run, how many chunks lookups found in L1 and how many they loaded from
-Valkey. To measure the CPU stack's policy instead, set
+Each lookup asks LMCache for the whole prompt. From lmcache 0.5.7 the
+connector also passes the tokens vLLM already has in its GPU prefix cache,
+so the server doesn't fetch that part
+([LMCache/LMCache#5383](https://github.com/LMCache/LMCache/pull/5383)).
+This benchmark was not run with `skip_l1`, so its results don't say how the
+two policies compare. To measure the CPU stack's policy, set
 `LMCACHE_L2_STORE_POLICY=skip_l1` and `LMCACHE_EVICTION_POLICY=noop`.
 
 Valkey runs with 8 I/O threads (`VALKEY_IO_THREADS`). Every KV load is a
@@ -379,13 +373,22 @@ you have measured your host.
 
 | Component | Version |
 | --- | --- |
-| vLLM | `docker.io/vllm/vllm-openai:v0.30.0`, pinned by digest in `vllm/Dockerfile` |
-| LMCache | 0.5.5, installed by `vllm/Dockerfile` |
+| vLLM | `docker.io/vllm/vllm-openai:v0.33.0`, pinned by digest in `vllm/Dockerfile` |
+| LMCache | 0.5.7.post1, installed by `vllm/Dockerfile` |
 | Valkey GLIDE (sync) | 2.5.2, used by LMCache's Valkey adapter |
 | Valkey | `docker.io/valkey/valkey-bundle:9.1.2` (same as the recipe and CI) |
 | llm-d router (EPP) | `ghcr.io/llm-d/llm-d-router-endpoint-picker:v1.0.0`, pinned by digest |
 | Envoy | `docker.io/envoyproxy/envoy:distroless-v1.33.2`, pinned by digest |
 | inference-perf | `quay.io/inference-perf/inference-perf:v0.7.0`, pinned by digest (amd64 only) |
+
+This benchmark uses a later vLLM and lmcache than the
+[KV caching recipe](../../kv-caching/) and this recipe's CPU stack, which
+run vLLM 0.28.0 and lmcache 0.5.4. Earlier lmcache releases fetched a
+request's whole prompt on lookup, including the part vLLM already had in
+GPU memory, which hurt performance on GPUs
+([LMCache/LMCache#5383](https://github.com/LMCache/LMCache/pull/5383),
+fixed in 0.5.7). The CPU recipes stay on the earlier versions, where
+prefill is slow enough that the extra wait matters much less.
 
 ## Limits
 
