@@ -1,0 +1,823 @@
+"""CI tests for the "llm-d serving with Valkey" recipe.
+
+Two tiers:
+
+1. **Always run, no stack needed.** The router configs, the batch processor's
+   transport config, the Envoy config and ``docker-compose.yml`` agree with each
+   other the way the notebook relies on: the router index points at its own
+   Valkey database, vLLM's block size and KV-event ports match the router's,
+   each replica's fixed address matches its ``POD_IP`` and the router's endpoint
+   file (which the notebook reads instead of hardcoding addresses), batch jobs
+   go through Envoy, and the busy-replica example's token
+   arithmetic holds. The notebook and these tests share ``helpers.py``, and the
+   batch submitter's Lua script and envelope match llm-d-async v1.0.0's Go
+   producer. These catch drift in the files a reader edits without
+   booting a seven-container stack.
+
+2. **Run only when the stack is up** (``docker compose up -d --wait``). These
+   drive the signals the notebook shows: follow-ups routed back to the replica
+   that holds the conversation, the router index in Valkey database 1, a
+   replica loading another replica's KV from Valkey, a busy replica spilling a
+   conversation over to its neighbor, and a batch job submitted from Python in
+   llm-d-async's wire format coming back through the router, with excess jobs
+   held by the per-user quota until its window expires. They read Valkey
+   with the Valkey GLIDE client, like the notebook, and ``skip`` when the stack
+   isn't running so the first tier still passes in a bare CI job.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import http.client
+import ipaddress
+import json
+import os
+import re
+import socket
+import time
+import urllib.request
+import uuid
+from pathlib import Path
+
+import pytest
+
+from helpers import (
+    SUBMIT_REQUEST_LUA,
+    close_connections,
+    connect,
+    document,
+    job_envelope,
+    metric,
+    scrape,
+    settled_dbsize,
+    submit_job,
+)
+
+HERE = Path(__file__).parent
+COMPOSE_PATH = HERE / "docker-compose.yml"
+PRECISE_PATH = HERE / "epp" / "precise-valkey.yaml"
+MEMORY_PATH = HERE / "epp" / "precise-memory.yaml"
+RANDOM_PATH = HERE / "epp" / "random.yaml"
+ENDPOINTS_PATH = HERE / "epp" / "endpoints.yaml"
+ENVOY_PATH = HERE / "envoy" / "envoy.yaml"
+TRANSPORT_PATH = HERE / "async" / "transport-config.json"
+NOTEBOOK_PATH = HERE / "llm-d-serving-with-valkey.ipynb"
+README_PATH = HERE / "README.md"
+IMAGES_DIR = HERE / "images"
+
+MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
+REPLICAS = ("vllm-a", "vllm-b")
+ROUTER_URL = "http://127.0.0.1:8080"
+REPLICA_URLS = {"vllm-a": "http://127.0.0.1:8001", "vllm-b": "http://127.0.0.1:8002"}
+EPP_METRICS = "http://127.0.0.1:9090/metrics"
+VALKEY_HOST = os.environ.get("VALKEY_HOST", "127.0.0.1")
+VALKEY_PORT = int(os.environ.get("VALKEY_PORT", "6379"))
+# Distroless images: no shell or HTTP client for a container healthcheck.
+NO_HEALTHCHECK = {"envoy", "epp", "async-processor"}
+
+
+def _yaml(path: Path):
+    yaml = pytest.importorskip("yaml")
+    return yaml.safe_load(path.read_text())
+
+
+def _command_text(service: dict) -> str:
+    command = service["command"]
+    return " ".join(command) if isinstance(command, list) else command
+
+
+def _plugin(config: dict, plugin_type: str) -> dict:
+    return next(p for p in config["plugins"] if p["type"] == plugin_type)
+
+
+def _flag(text: str, name: str) -> str:
+    match = re.search(rf"{re.escape(name)}[ =](\S+)", text)
+    assert match, f"{name} missing"
+    return match.group(1)
+
+
+# ---------------------------------------------------------------------------
+# Tier 1: config + compose wiring (no stack required)
+# ---------------------------------------------------------------------------
+@pytest.fixture(scope="module")
+def compose():
+    return _yaml(COMPOSE_PATH)
+
+
+@pytest.fixture(scope="module")
+def precise():
+    return _yaml(PRECISE_PATH)
+
+
+@pytest.fixture(scope="module")
+def endpoints():
+    return _yaml(ENDPOINTS_PATH)["endpoints"]
+
+
+@pytest.fixture(scope="module")
+def transport():
+    return json.loads(TRANSPORT_PATH.read_text())
+
+
+class TestComposeWiring:
+    def test_seven_services(self, compose):
+        assert set(compose["services"]) == {
+            "valkey", "lmcache-server", "vllm-a", "vllm-b", "envoy", "epp", "async-processor",
+        }
+
+    def test_images_qualified_and_pinned(self, compose):
+        for name, svc in compose["services"].items():
+            image = svc["image"]
+            assert image.split("/")[0] in ("docker.io", "ghcr.io"), name
+            assert ":latest" not in image and ":" in image.split("/")[-1], name
+            if name != "valkey":  # valkey-bundle is pinned by version tag, as in kv-caching
+                assert "@sha256:" in image, name
+        assert compose["services"]["valkey"]["image"].startswith("docker.io/valkey/valkey-bundle:")
+
+    def test_healthchecks_survive_every_runtime(self, compose):
+        # Same rule as the KV caching recipe: one CMD-SHELL string, or a CMD
+        # whose arguments have no whitespace (Podman splits on whitespace).
+        for name, svc in compose["services"].items():
+            if name in NO_HEALTHCHECK:
+                assert "healthcheck" not in svc, name
+                continue
+            test = svc["healthcheck"]["test"]
+            if test[0] == "CMD-SHELL":
+                assert len(test) == 2 and "\n" not in test[1], name
+            else:
+                assert test[0] == "CMD", name
+                assert not any(any(ch.isspace() for ch in arg) for arg in test[1:]), name
+
+    def test_ports_bound_to_localhost(self, compose):
+        for name, svc in compose["services"].items():
+            for mapping in svc.get("ports", []):
+                assert str(mapping).startswith("127.0.0.1:"), (name, mapping)
+
+    def test_bind_mounts_read_only_and_selinux_relabelled(self, compose):
+        for name, svc in compose["services"].items():
+            for mount in svc.get("volumes", []):
+                if mount.startswith("./"):
+                    assert mount.endswith(":ro,z"), (name, mount)
+
+    def test_lmcache_installs_are_fully_constrained(self, compose):
+        for svc in ("lmcache-server", *REPLICAS):
+            service = compose["services"][svc]
+            pins = service["environment"]["LMCACHE_PIP_CONSTRAINTS"].split()
+            assert all("==" in p for p in pins), svc
+            text = _command_text(service)
+            assert "-c /tmp/lmcache-constraints.txt" in text, svc
+            for word in text.split():
+                if word.startswith(("lmcache==", "valkey-glide-sync==")):
+                    assert word in pins, (svc, word)
+
+    def test_lmcache_server_uses_valkey(self, compose):
+        text = _command_text(compose["services"]["lmcache-server"]).replace(" ", "")
+        assert '"type":"valkey"' in text and '"startup_nodes":"valkey:6379"' in text
+        assert "--l2-store-policyskip_l1" in text
+
+
+class TestReplicaAddressing:
+    """File discovery needs each replica's literal IPv4, in four places."""
+
+    def test_addresses_agree(self, compose, endpoints):
+        subnet = ipaddress.ip_network(compose["networks"]["serving"]["ipam"]["config"][0]["subnet"])
+        by_name = {e["name"]: e for e in endpoints}
+        assert set(by_name) == set(REPLICAS)
+        for name in REPLICAS:
+            svc = compose["services"][name]
+            address = svc["networks"]["serving"]["ipv4_address"]
+            assert ipaddress.ip_address(address) in subnet, name
+            assert svc["environment"]["POD_IP"] == address, name
+            assert by_name[name]["address"] == address, name
+            assert by_name[name]["port"] == "8000", name
+
+    def test_notebook_reads_replica_addresses_from_endpoint_file(self, endpoints):
+        # The notebook maps the router's "<ip>:<port>" names to replica names
+        # from epp/endpoints.yaml, so a subnet change needs no notebook edit.
+        code = "\n".join("".join(c["source"]) for c in json.loads(NOTEBOOK_PATH.read_text())["cells"]
+                         if c["cell_type"] == "code")
+        assert "epp/endpoints.yaml" in code
+        for endpoint in endpoints:
+            assert endpoint["address"] not in code, endpoint["name"]
+
+    def test_notebook_memory_preflight_matches_start_script(self):
+        # The notebook's preflight and start.sh use the same minimum (stop) and
+        # recommended (warn) memory thresholds.
+        code = "\n".join("".join(c["source"]) for c in json.loads(NOTEBOOK_PATH.read_text())["cells"]
+                         if c["cell_type"] == "code")
+        script = (HERE / "start.sh").read_text()
+        for name in ("MIN_RUNTIME_MEMORY", "RECOMMENDED_RUNTIME_MEMORY"):
+            cutoff = re.search(rf"\b{name} = ([0-9_]+)", code)
+            assert cutoff, f"the setup cell should define {name}"
+            assert re.search(rf"^{name}={int(cutoff.group(1).replace('_', ''))}\b", script, re.M), name
+            assert f'-lt "${name}" ]' in script, f"start.sh should compare against {name}"
+
+    def test_start_script_is_executable_and_changes_to_its_directory(self):
+        # The README tells readers to run ./start.sh; it has to be executable
+        # and run compose from the recipe folder wherever it is started from.
+        script = HERE / "start.sh"
+        assert os.access(script, os.X_OK)
+        assert 'cd "$(dirname "$0")"' in script.read_text()
+
+    def test_start_script_and_notebook_honour_container_engine(self):
+        # Readers with both Docker and Podman pick one with CONTAINER_ENGINE.
+        script = (HERE / "start.sh").read_text()
+        assert 'candidates="${CONTAINER_ENGINE:-docker podman}"' in script
+        code = "\n".join("".join(c["source"]) for c in json.loads(NOTEBOOK_PATH.read_text())["cells"]
+                         if c["cell_type"] == "code")
+        assert 'os.environ.get("CONTAINER_ENGINE")' in code
+        assert "CONTAINER_ENGINE=podman" in (HERE / "README.md").read_text()
+        assert "./start.sh" in (HERE / "README.md").read_text()
+
+    def test_shell_scripts_keep_lf_line_endings(self):
+        # Git for Windows checks out text files with CRLF by default, and a
+        # CRLF start.sh fails with "/bin/sh^M: bad interpreter".
+        rules = [line.split() for line in (HERE / ".gitattributes").read_text().splitlines()
+                 if line.strip() and not line.startswith("#")]
+        assert ["*.sh", "text", "eol=lf"] in rules
+        assert b"\r\n" not in (HERE / "start.sh").read_bytes()
+
+    def test_every_fixed_address_is_unique_and_in_subnet(self, compose):
+        subnet = ipaddress.ip_network(compose["networks"]["serving"]["ipam"]["config"][0]["subnet"])
+        addresses = [svc["networks"]["serving"]["ipv4_address"]
+                     for svc in compose["services"].values() if "networks" in svc]
+        assert len(addresses) == len(set(addresses))
+        assert all(ipaddress.ip_address(a) in subnet for a in addresses)
+
+
+class TestRouterMatchesVllm:
+    @pytest.mark.parametrize("svc", REPLICAS)
+    def test_vllm_flags_the_router_needs(self, compose, precise, svc):
+        text = _command_text(compose["services"][svc])
+        producer = _plugin(precise, "precise-prefix-cache-producer")["parameters"]
+        assert "--enable-prefix-caching" in text
+        assert "--no-enable-prefix-caching" not in text
+        assert "--enable-prompt-tokens-details" in text
+        assert int(_flag(text, "--block-size")) == producer["tokenProcessorConfig"]["blockSizeTokens"]
+        discovery = producer["kvEventsConfig"]["podDiscoveryConfig"]
+        assert f'"endpoint":"tcp://*:{discovery["socketPort"]}"' in text
+        assert f'"replay_endpoint":"tcp://*:{discovery["replaySocketPort"]}"' in text
+        # Topic "kv@<POD_IP>:8000@<model>" must start with the router's filter.
+        topic = re.search(r'"topic":"([^"]+)"', text).group(1)
+        assert topic.startswith(producer["kvEventsConfig"]["topicFilter"])
+        assert topic.endswith(f":8000@{MODEL}")
+        assert "LMCacheMPConnector" in text and "tcp://lmcache-server" in text
+
+    def test_token_producer_model_matches(self, precise, compose):
+        assert _plugin(precise, "token-producer")["parameters"]["modelName"] == MODEL
+        assert f"--model {MODEL}" in _command_text(compose["services"]["vllm-a"])
+
+
+class TestRouterConfig:
+    def test_index_in_its_own_valkey_database(self, precise):
+        # RedisIndex.Clear SCANs its whole database and HKEYS every non-engine
+        # key; LMCache's string keys there would make it fail with WRONGTYPE.
+        producer = _plugin(precise, "precise-prefix-cache-producer")["parameters"]
+        address = producer["indexerConfig"]["kvBlockIndexConfig"]["redisConfig"]["address"]
+        match = re.fullmatch(r"redis://valkey:6379/(\d+)", address)
+        assert match and int(match.group(1)) != 0
+
+    def test_cpu_load_settings(self, precise):
+        load = _plugin(precise, "inflight-load-producer")["parameters"]
+        assert load["addEstimatedOutputTokens"] is True
+        affinity = _plugin(precise, "prefix-cache-affinity-filter")["parameters"]
+        assert affinity["maxTTFTPenaltyMs"] < 18000
+        assert affinity["peakPrefillThroughput"] < 15928
+
+    def test_busy_example_arithmetic(self, precise, compose):
+        # The notebook's busy-replica example sends two long requests (1,000
+        # output tokens each, plus at most one uncached 64-token block) to the
+        # sticky replica. The first must not break stickiness for the second,
+        # and two of them must break it for the conversation. Tokens over which
+        # the router leaves the sticky replica: penalty_ms * tokens_per_s / 1000.
+        affinity = _plugin(precise, "prefix-cache-affinity-filter")["parameters"]
+        threshold = affinity["maxTTFTPenaltyMs"] * affinity["peakPrefillThroughput"] / 1000
+        one_request = 1000 + 64
+        assert one_request < threshold < 2 * 1000
+        # Two long requests must fill a replica, so staying would really wait.
+        assert int(_flag(_command_text(compose["services"]["vllm-a"]), "--max-num-seqs")) == 2
+
+    def test_scheduling_profile(self, precise):
+        refs = [p["pluginRef"] for p in precise["schedulingProfiles"][0]["plugins"]]
+        assert refs == ["prefix-cache-affinity-filter", "token-load-scorer"]
+
+    def test_random_baseline(self):
+        config = _yaml(RANDOM_PATH)
+        assert [p["type"] for p in config["plugins"]] == ["file-discovery", "random-picker"]
+
+    def test_epp_runs_in_envoy_namespace(self, compose):
+        epp = compose["services"]["epp"]
+        assert epp["network_mode"] == "service:envoy"
+        text = _command_text(epp)
+        assert "--config-file=/etc/epp/${EPP_STRATEGY:-precise-valkey}.yaml" in text
+        for strategy in ("precise-valkey", "precise-memory", "random"):
+            assert (HERE / "epp" / f"{strategy}.yaml").exists()
+        assert "--pool-name=file-discovery" in text
+
+
+    def test_in_memory_config_differs_only_by_the_valkey_index(self, precise):
+        # The notebook's restart comparison is fair only if the two configs
+        # route identically while the router runs: precise-memory.yaml must be
+        # precise-valkey.yaml with the redisConfig block removed.
+        memory = _yaml(MEMORY_PATH)
+        expected = json.loads(json.dumps(precise))
+        index = _plugin(expected, "precise-prefix-cache-producer")["parameters"]["indexerConfig"]
+        assert "redisConfig" in index["kvBlockIndexConfig"]
+        del index["kvBlockIndexConfig"]["redisConfig"]
+        if not index["kvBlockIndexConfig"]:
+            del index["kvBlockIndexConfig"]
+        assert memory == expected
+
+
+class TestReplayBuffer:
+    """The restart section needs a short vLLM replay buffer (buffer_steps)."""
+
+    @pytest.mark.parametrize("svc", REPLICAS)
+    def test_kv_events_config_takes_buffer_steps_from_the_env(self, compose, svc):
+        service = compose["services"][svc]
+        text = _command_text(service)
+        match = re.search(r"KV_EVENTS=\$\$\(printf '([^']+)' ((?:\"\$\$\w+\" ?)+)\)", text)
+        assert match, "KV_EVENTS should be built with printf from env vars"
+        template, args = match.group(1), re.findall(r'"\$\$(\w+)"', match.group(2))
+        assert args == ["KV_REPLAY_BUFFER_STEPS", "POD_IP"]
+        # Render it the way the shell would, with the compose default.
+        default = re.fullmatch(r"\$\{KV_REPLAY_BUFFER_STEPS:-(\d+)\}",
+                               service["environment"]["KV_REPLAY_BUFFER_STEPS"])
+        assert default, "KV_REPLAY_BUFFER_STEPS should default in docker-compose.yml"
+        rendered = json.loads(template % (default.group(1), service["environment"]["POD_IP"]))
+        assert rendered["buffer_steps"] == 32
+
+    def test_restart_filler_outruns_the_replay_buffer(self, compose):
+        # The notebook sends FILLER_PER_REPLICA one-block prompts to each
+        # replica: more than the buffer holds, so the warm conversations fall
+        # out of it. Filler plus the warm conversations must fit in a replica's
+        # 128 blocks even if every conversation landed on the same replica, or
+        # vLLM would evict some of them. A turn-1 prompt is at most about 1,150
+        # tokens plus 16 output tokens: 18 full 64-token blocks.
+        code = "\n".join("".join(c["source"]) for c in json.loads(NOTEBOOK_PATH.read_text())["cells"]
+                         if c["cell_type"] == "code")
+        filler = int(re.search(r"^FILLER_PER_REPLICA = (\d+)", code, re.M).group(1))
+        conversations = int(re.search(r"^RESTART_CONVERSATIONS = (\d+)", code, re.M).group(1))
+        default = int(re.search(r":-(\d+)\}", compose["services"]["vllm-a"]["environment"]
+                                ["KV_REPLAY_BUFFER_STEPS"]).group(1))
+        blocks = 96 * 2**20 // (64 * 12 * 1024)  # 96 MiB / 0.75 MiB per 64-token block
+        assert default < filler
+        assert conversations * 18 + filler <= blocks
+
+
+class TestDocsImages:
+    def test_every_referenced_image_exists(self):
+        if not IMAGES_DIR.is_dir():
+            pytest.skip("images/ is missing; the diagrams have not been added yet")
+        markdown = "\n".join("".join(c["source"]) for c in json.loads(NOTEBOOK_PATH.read_text())["cells"]
+                             if c["cell_type"] == "markdown")
+        for name, text in (("notebook", markdown), ("README", README_PATH.read_text())):
+            refs = re.findall(r"!\[[^\]]*\]\(([^)\s]+)\)", text)
+            refs += re.findall(r'<img[^>]+src="([^"]+)"', text)
+            assert refs, f"the {name} should embed at least one image"
+            for ref in refs:
+                assert ref.startswith("images/"), (name, ref)
+                assert (HERE / ref).is_file(), (name, ref)
+
+
+class TestEnvoy:
+    def test_attribution_header(self):
+        head = ENVOY_PATH.read_text().split("\nadmin:")[0]
+        assert "licensed under the Apache License 2.0" in head
+        assert "guides/no-kubernetes-deployment/router/envoy/envoy.yaml" in head
+
+    def test_ext_proc_and_listener_match_compose(self, compose):
+        envoy = _yaml(ENVOY_PATH)
+        listener_port = envoy["static_resources"]["listeners"][0]["address"]["socket_address"]["port_value"]
+        assert "127.0.0.1:8080:" + str(listener_port) in compose["services"]["envoy"]["ports"]
+        ext_proc = next(c for c in envoy["static_resources"]["clusters"] if c["name"] == "ext_proc")
+        sock = ext_proc["load_assignment"]["endpoints"][0]["lb_endpoints"][0]["endpoint"]["address"]["socket_address"]
+        assert sock["address"] == "127.0.0.1"
+        assert f"--grpc-port={sock['port_value']}" in _command_text(compose["services"]["epp"])
+
+
+class TestBatchProcessor:
+    def test_queue_and_quota_in_valkey(self, transport):
+        assert transport["url"] == "redis://valkey:6379"
+        (queue,) = transport["queues"]
+        assert queue["queue_name"] == "request-sortedset"
+        assert queue["result_queue_name"] == "result-list"
+        assert queue["gate_type"] == "redis-quota"
+        params = queue["gate_params"]
+        assert params["address"] == "valkey:6379"
+        assert params["attribute"] == "userid" and params["mode"] == "rate-limit"
+        assert isinstance(params["limit"], int) and params["limit"] > 0
+
+    def test_jobs_go_through_the_router(self, transport):
+        envoy = _yaml(ENVOY_PATH)
+        listener_port = envoy["static_resources"]["listeners"][0]["address"]["socket_address"]["port_value"]
+        assert transport["queues"][0]["igw_base_url"] == f"http://envoy:{listener_port}"
+
+    def test_processor_wiring(self, compose):
+        proc = compose["services"]["async-processor"]
+        text = _command_text(proc)
+        assert "--transport=redis-sortedset" in text
+        assert "--transport-config-file=/etc/ap/transport-config.json" in text
+        mounts = " ".join(proc["volumes"])
+        assert "transport-config.json" in mounts and "kubeconfig-dummy.yaml" in mounts
+        assert proc["environment"]["KUBECONFIG"] == "/etc/ap/kubeconfig.yaml"
+        assert _flag(text, "--health-port") != "8081"
+
+
+class TestSharedHelpers:
+    """The notebook and these tests share helpers.py, so the live tests run the
+    code readers run. These checks keep it that way."""
+
+    # Shared helpers the notebook must import rather than define again.
+    SHARED = ("connect", "settled_dbsize", "scrape", "metric", "document",
+              "close_connections", "go_json", "job_envelope", "submit_job")
+    # sha256 of submitRequestScript in llm-d-async v1.0.0
+    # (producer/redis_sortedset_producer.go), stripped of surrounding blank lines.
+    UPSTREAM_SCRIPT_SHA256 = "ec5f9ce2c0a5784013618def405165b408471d84a7b6b72ef93247ca31d281fe"
+
+    @pytest.fixture(scope="class")
+    def notebook_code(self):
+        notebook = json.loads(NOTEBOOK_PATH.read_text())
+        return "\n".join("".join(c["source"]) for c in notebook["cells"] if c["cell_type"] == "code")
+
+    def test_notebook_imports_the_shared_helpers(self, notebook_code):
+        assert re.search(r"^from helpers import", notebook_code, re.M)
+        redefined = [name for name in self.SHARED
+                     if re.search(rf"^def {name}\(", notebook_code, re.M)]
+        assert not redefined, f"the notebook defines its own copy of {redefined}; use helpers.py"
+        assert "redis.call(" not in notebook_code, "the Lua script belongs in helpers.py only"
+
+    def test_submit_script_is_llm_d_async_v1_0_0(self):
+        digest = hashlib.sha256(SUBMIT_REQUEST_LUA.strip().encode()).hexdigest()
+        assert digest == self.UPSTREAM_SCRIPT_SHA256, (
+            "SUBMIT_REQUEST_LUA no longer matches llm-d-async v1.0.0's submitRequestScript; "
+            "re-copy it and update the hash (and the version in its attribution) together")
+
+    def test_job_envelope_matches_the_go_producer(self):
+        envelope = job_envelope("job-1", "a <b> & c", model=MODEL, token="t", created=1,
+                                deadline=2, userid="u")
+        parsed = json.loads(envelope)
+        # Field order of api.InternalRouting / api.RequestMessage.
+        assert list(parsed) == ["internal", "request_kind", "data"]
+        assert list(parsed["data"]) == ["id", "created", "deadline", "payload", "metadata",
+                                        "endpoint", "model"]
+        # Go's encoding/json: compact, and <, >, & escaped.
+        assert ": " not in envelope and ", " not in envelope.replace("a <b> & c", "")
+        assert "\\u003cb\\u003e \\u0026 c" in envelope
+        # The Lua script splices the sequence number in at this placeholder.
+        assert envelope.count('"enqueue_seq":-1') == 1
+
+    def test_job_envelope_omits_empty_metadata(self):
+        parsed = json.loads(job_envelope("job-1", "p", model=MODEL, token="t", created=1,
+                                         deadline=2))
+        assert "metadata" not in parsed["data"], "Go's omitempty drops an empty metadata map"
+
+
+# ---------------------------------------------------------------------------
+# Tier 2: live stack (skipped unless the stack is up)
+# ---------------------------------------------------------------------------
+def _http_ok(url: str) -> bool:
+    try:
+        with urllib.request.urlopen(url, timeout=5) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
+
+
+def _affinity_metric_present() -> bool:
+    try:
+        with urllib.request.urlopen(EPP_METRICS, timeout=5) as resp:
+            return b"llm_d_epp_prefix_cache_affinity_filter" in resp.read()
+    except Exception:
+        return False
+
+
+def _stack_up() -> bool:
+    try:
+        socket.create_connection((VALKEY_HOST, VALKEY_PORT), timeout=2).close()
+    except OSError:
+        return False
+    if not all(_http_ok(f"{u}/health") for u in REPLICA_URLS.values()):
+        return False
+    # The affinity filter's metric exists only with epp/precise-valkey.yaml, and
+    # only after the filter has made a decision: on a fresh stack, send one
+    # one-token request through the router first (as the notebook's
+    # wait_for_router() does), retrying while the EPP starts.
+    if _affinity_metric_present():
+        return True
+    body = json.dumps({"model": MODEL, "prompt": "ping", "max_tokens": 1}).encode()
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        try:
+            urllib.request.urlopen(urllib.request.Request(
+                f"{ROUTER_URL}/v1/completions", body, {"Content-Type": "application/json"}),
+                timeout=10).read()
+            break
+        except Exception:
+            time.sleep(1)
+    else:
+        return False
+    return _affinity_metric_present()
+
+
+requires_stack = pytest.mark.skipif(
+    not _stack_up(),
+    reason="full stack (with the precise-valkey router) not running; "
+           "`docker compose up -d --wait` to run live tests",
+)
+
+
+def _counters() -> dict:
+    out = {}
+    for name, url in REPLICA_URLS.items():
+        text = scrape(f"{url}/metrics")
+        out[name] = {"served": metric(text, "vllm:request_success_total"),
+                     "local": metric(text, "vllm:prefix_cache_hits_total"),
+                     "valkey": metric(text, "vllm:external_prefix_cache_hits_total")}
+    return out
+
+
+def _chat(base_url: str, messages: list, max_tokens: int = 8) -> dict:
+    """Non-streaming chat request; returns the replica that served it and its hits."""
+    before = _counters()
+    body = {"model": MODEL, "messages": messages, "max_tokens": max_tokens, "temperature": 0}
+    req = urllib.request.Request(f"{base_url}/v1/chat/completions", json.dumps(body).encode(),
+                                 {"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=300) as resp:
+        body = json.load(resp)
+    answer = body["choices"][0]["message"]["content"]
+    after = _counters_until(lambda c: any(c[n]["served"] > before[n]["served"] for n in c))
+    moved = [n for n in after if after[n]["served"] > before[n]["served"]]
+    assert len(moved) == 1, f"could not tell which replica served the request: {moved}"
+    name = moved[0]
+    return {"replica": name, "answer": answer, "prompt": body["usage"]["prompt_tokens"],
+            "local": after[name]["local"] - before[name]["local"],
+            "valkey": after[name]["valkey"] - before[name]["valkey"]}
+
+
+def _counters_until(predicate, timeout_s: float = 3.0) -> dict:
+    """Replica counters once ``predicate(counters)`` holds, or after ``timeout_s``.
+
+    vLLM's Prometheus counters can lag behind the response that bumped them.
+    """
+    deadline = time.monotonic() + timeout_s
+    while True:
+        counters = _counters()
+        if predicate(counters) or time.monotonic() > deadline:
+            return counters
+        time.sleep(0.05)
+
+
+def _wait_until_replicas_idle(timeout_s: float = 120.0) -> None:
+    """Wait until no replica is running a request (e.g. long generations an
+    earlier test aborted, which vLLM may still be finishing)."""
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        running = {n: metric(scrape(f"{u}/metrics"), "vllm:num_requests_running")
+                   for n, u in REPLICA_URLS.items()}
+        if not any(running.values()):
+            return
+        time.sleep(0.5)
+    pytest.fail(f"replicas still running requests after {timeout_s:.0f} s: {running}")
+
+
+def _remove_batch_jobs(valkey, job_ids, queue_name="request-sortedset", result_name="result-list",
+                       extra_keys=()) -> None:
+    """Remove these jobs' queue entries, results and state, keeping everyone else's."""
+    for raw in valkey.custom_command(["ZRANGE", queue_name, "0", "-1"]) or []:
+        if json.loads(raw)["data"]["id"] in job_ids:
+            valkey.custom_command(["ZREM", queue_name, raw])
+    for raw in valkey.custom_command(["LRANGE", result_name, "0", "-1"]) or []:
+        if json.loads(raw)["id"] in job_ids:
+            valkey.custom_command(["LREM", result_name, "1", raw])
+    valkey.delete([*extra_keys, *[f"request-active:{job_id}" for job_id in job_ids]])
+
+
+def _conversation() -> list:
+    # Random hex tokenizes into a variable number of tokens, and the tag appears
+    # in every clause, so the prompt length varies by ~180 tokens. With 36
+    # clauses it measured 1,105-1,290 tokens over 500 tags (17-20 full 64-token
+    # blocks); with 29 it was 923-1,043, often only 14 or 15 blocks.
+    return [{"role": "system", "content": document(uuid.uuid4().hex[:8], clauses=36)},
+            {"role": "user", "content": "Summarise clause 3."}]
+
+
+def _scan(client, match: str | None = None) -> list[str]:
+    """Every key in the client's database, following the SCAN cursor to the end."""
+    cursor, keys = b"0", []
+    while True:
+        cursor, batch = client.scan(cursor, match=match, count=1000)
+        keys += [k.decode() for k in batch]
+        if cursor in (b"0", "0"):
+            return keys
+
+
+@pytest.fixture(scope="module")
+def valkey():
+    pytest.importorskip("glide_sync")
+    client = connect(VALKEY_HOST, VALKEY_PORT, 0)
+    yield client
+    client.close()
+
+
+@pytest.fixture(scope="module")
+def router_index():
+    pytest.importorskip("glide_sync")
+    client = connect(VALKEY_HOST, VALKEY_PORT, 1)
+    yield client
+    client.close()
+
+
+@requires_stack
+def test_follow_up_routed_to_the_replica_with_the_conversation():
+    messages = _conversation()
+    first = _chat(ROUTER_URL, messages)
+    messages += [{"role": "assistant", "content": first["answer"]},
+                 {"role": "user", "content": "And clause 9?"}]
+    second = _chat(ROUTER_URL, messages)
+    assert second["replica"] == first["replica"]
+    # Turn 1's prompt is a prefix of turn 2's, so every full 64-token block of
+    # it should be found in the replica's own memory, and none in Valkey.
+    full_blocks = 64 * (first["prompt"] // 64)
+    assert full_blocks >= 1024, f"conversation too short to be meaningful: {first['prompt']} tokens"
+    assert second["local"] >= full_blocks, "follow-up should be a local prefix-cache hit"
+    assert second["valkey"] == 0
+
+
+@requires_stack
+def test_router_index_lives_in_valkey_database_1(valkey, router_index):
+    _chat(ROUTER_URL, _conversation())
+    # The router writes its index from vLLM's KV events, after the response.
+    deadline = time.monotonic() + 10
+    while True:
+        keys = _scan(router_index)
+        blocks = [k for k in keys if k.isdigit()]
+        if (blocks and any(k.startswith("engine:") for k in keys)) or time.monotonic() > deadline:
+            break
+        time.sleep(0.2)
+    assert any(k.startswith("engine:") for k in keys), "no engine:<hash> key in database 1 after 10 s"
+    assert blocks, "no block hash in database 1 after 10 s"
+    entry = json.loads(router_index.hkeys(blocks[0])[0])
+    assert entry["PodIdentifier"].endswith(":8000")
+    # Nothing of the router's lands in database 0 (walk every SCAN page: one
+    # page can be empty while later ones still match).
+    assert not _scan(valkey, match="engine:*")
+
+
+@requires_stack
+def test_neighbor_loads_kv_from_valkey(valkey):
+    messages = _conversation()
+    cold = _chat(REPLICA_URLS["vllm-a"], messages, max_tokens=1)
+    assert cold["local"] == 0 and cold["valkey"] == 0
+    settled_dbsize(valkey)  # wait for A's KV to be written through to Valkey
+    neighbor = _chat(REPLICA_URLS["vllm-b"], messages, max_tokens=1)
+    assert neighbor["valkey"] >= 256, "replica B should load replica A's KV from Valkey"
+
+
+@requires_stack
+def test_busy_replica_spills_over_to_its_neighbor(valkey):
+    tag = uuid.uuid4().hex[:8]
+    template = f"[report template {tag}] " + document(f"template-{tag}", clauses=26)
+    # Warm the template on replica A as the same raw completion prompt prefix.
+    warm = {"model": MODEL, "prompt": template, "max_tokens": 1}
+    urllib.request.urlopen(urllib.request.Request(
+        f"{REPLICA_URLS['vllm-a']}/v1/completions", json.dumps(warm).encode(),
+        {"Content-Type": "application/json"}), timeout=120).read()
+    messages = _conversation()
+    turn1 = _chat(REPLICA_URLS["vllm-a"], messages)
+    messages += [{"role": "assistant", "content": turn1["answer"]},
+                 {"role": "user", "content": "And clause 9?"}]
+    settled_dbsize(valkey)  # the conversation's KV is in Valkey before B needs it
+    connections = []
+    try:
+        for job in range(2):
+            conn = http.client.HTTPConnection("127.0.0.1", 8080, timeout=600)
+            connections.append(conn)  # tracked first, so a failed send is closed too
+            body = {"model": MODEL, "prompt": f"{template}\nReport {job}:", "max_tokens": 1000,
+                    "ignore_eos": True, "temperature": 0}
+            conn.request("POST", "/v1/completions", json.dumps(body), {"Content-Type": "application/json"})
+            time.sleep(0.3)
+        time.sleep(0.5)
+        spilled = _chat(ROUTER_URL, messages)
+    finally:
+        close_connections(connections)
+    assert spilled["replica"] == "vllm-b"
+    assert spilled["valkey"] >= 256, "the neighbor should load the conversation from Valkey"
+
+
+def _submit_batch_job(valkey, job_id: str, userid: str | None = None):
+    """Submit a short job with the notebook's submitter, optionally subject to
+    the configured per-user gate."""
+    submit_job(valkey, job_id, "Say hello.", model=MODEL, userid=userid, max_tokens=4, ttl_s=120)
+
+
+@requires_stack
+def test_batch_job_from_python_runs_through_the_router(valkey):
+    job_id = f"test-{uuid.uuid4().hex}"
+    before = _counters()
+    try:
+        _submit_batch_job(valkey, job_id)
+        result = None
+        stop = time.monotonic() + 60
+        while result is None and time.monotonic() < stop:
+            for raw in valkey.custom_command(["LRANGE", "result-list", "0", "-1"]) or []:
+                parsed = json.loads(raw)
+                if parsed["id"] == job_id:
+                    result = parsed
+                    valkey.custom_command(["LREM", "result-list", "1", raw])
+            time.sleep(0.5)
+        assert result is not None, "the batch processor did not return a result"
+        assert result["status_code"] == 200
+        assert json.loads(result["payload"])["choices"]
+        after = _counters_until(lambda c: sum(c[n]["served"] - before[n]["served"] for n in c) >= 1)
+        assert sum(after[n]["served"] - before[n]["served"] for n in after) >= 1
+        assert not valkey.exists([f"request-active:{job_id}"]), "processor cleans up the job state"
+    finally:
+        # On a timeout the job may still be queued, or its result may arrive later.
+        _remove_batch_jobs(valkey, {job_id})
+
+
+@requires_stack
+def test_per_user_quota_holds_excess_batch_jobs_until_the_window_expires(valkey, transport):
+    queue = transport["queues"][0]
+    gate = queue["gate_params"]
+    limit = gate["limit"]
+    window = re.fullmatch(r"(\d+)s", gate["window"])
+    assert window, "this test expects a quota window expressed in seconds"
+    window_s = int(window.group(1))
+    user = f"test-quota-{uuid.uuid4().hex}"
+    quota_key = f"{gate['prefix']}{gate['attribute']}:{user}"
+    job_ids = {f"{user}-{i}" for i in range(limit + 1)}
+
+    def results():
+        return {result["id"]: result
+                for raw in valkey.custom_command(["LRANGE", queue["result_queue_name"], "0", "-1"]) or []
+                if (result := json.loads(raw))["id"] in job_ids}
+
+    def queued_jobs():
+        return {job_id
+                for raw in valkey.custom_command(["ZRANGE", queue["queue_name"], "0", "-1"]) or []
+                if (job_id := json.loads(raw)["data"]["id"]) in job_ids}
+
+    # Long generations an earlier test aborted may still be running, and would
+    # slow these jobs down enough to eat into the quota window.
+    _wait_until_replicas_idle()
+    try:
+        for job_id in sorted(job_ids):
+            _submit_batch_job(valkey, job_id, userid=user)
+
+        # The window starts at the first admission, which is when the gate
+        # adds the first member to the quota sorted set.
+        stop = time.monotonic() + 60
+        while not valkey.zcard(quota_key):
+            if time.monotonic() > stop:
+                pytest.fail("the gate admitted no job within 60 s")
+            time.sleep(0.05)
+        started = time.monotonic()
+
+        # Observe only this user's jobs, before any admission can age out.
+        # Refused jobs are briefly dequeued on each poll, so retry snapshots
+        # until the excess job is back in the sorted set.
+        stop = started + window_s - 2
+        held_since = None
+        while time.monotonic() < stop:
+            admitted = results()
+            assert len(admitted) <= limit, "the quota admitted too many jobs in one window"
+            if (len(admitted) == limit
+                    and queued_jobs() == job_ids - admitted.keys()
+                    and valkey.zcard(quota_key) == limit):
+                held_since = held_since or time.monotonic()
+                # Wait through at least two processor polls to catch a gate
+                # that records admissions but does not actually hold jobs.
+                if time.monotonic() - held_since >= 1:
+                    break
+            time.sleep(0.1)
+        else:
+            pytest.fail("did not observe the admitted jobs and excess queued job before quota expiry")
+
+        assert all(result["status_code"] == 200 for result in admitted.values())
+        assert valkey.exists([quota_key]), "the per-user quota should live in database 0"
+        assert valkey.custom_command(["TYPE", quota_key]) == b"zset"
+        assert valkey.ttl(quota_key) > 0
+
+        # The held job must eventually run when the sliding window frees a
+        # slot; a job permanently stuck in the queue is not a passing gate.
+        stop = started + 2 * window_s + 10
+        while time.monotonic() < stop:
+            completed = results()
+            # 1 s of slack: `started` is when polling saw the first admission.
+            if time.monotonic() - started < window_s - 1:
+                assert len(completed) <= limit, "the held job ran before the quota window expired"
+            if completed.keys() == job_ids:
+                break
+            time.sleep(0.2)
+        else:
+            pytest.fail("the held batch job did not finish after the quota window expired")
+        assert all(result["status_code"] == 200 for result in completed.values())
+        assert all(json.loads(result["payload"])["choices"] for result in completed.values())
+        assert not queued_jobs()
+        assert not valkey.exists([f"request-active:{job_id}" for job_id in job_ids])
+    finally:
+        # Preserve other users' queued jobs and results, including on failure.
+        _remove_batch_jobs(valkey, job_ids, queue["queue_name"], queue["result_queue_name"],
+                           extra_keys=[quota_key])

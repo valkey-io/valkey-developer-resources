@@ -1,0 +1,37 @@
+[project]
+name = "llm-d-serving-with-valkey"
+version = "0.1.0"
+description = "Notebook client for the 'llm-d serving with Valkey' recipe"
+readme = "README.md"
+# The notebook is written and tested against Python 3.12. Pinning the range
+# here (rather than only pinning packages) is what lets `uv` reproduce the
+# interpreter as well as the dependency set.
+requires-python = ">=3.12,<3.13"
+
+# Runtime dependencies for the notebook. It talks to the router and to each
+# vLLM replica over their OpenAI-compatible HTTP APIs, reads Prometheus
+# metrics over plain HTTP (standard library), and reads Valkey with the Valkey
+# GLIDE client. It does not import vLLM, LMCache or llm-d: those run inside
+# the containers from docker-compose.yml.
+dependencies = [
+    # Same pin as the KV caching recipe; used for streaming chat requests so
+    # the notebook can time the first token.
+    "openai==1.109.1",
+    # Valkey GLIDE client (the sync build). The notebook reads the router
+    # index, LMCache's chunks and the batch queue with it, and submits batch
+    # jobs with the same Lua script llm-d-async's Go producer runs.
+    "valkey-glide-sync==2.5.3",
+    # The notebook reads the replica addresses from epp/endpoints.yaml, and
+    # the config + compose-wiring tests parse the YAML files with it.
+    "pyyaml==6.0.2",
+    # Notebook tooling.
+    "jupyterlab==4.4.5",
+    "ipykernel==6.30.0",
+]
+
+# Test tooling, installed by `uv sync` but kept out of the notebook's runtime
+# dependency set.
+[dependency-groups]
+dev = [
+    "pytest==8.3.5",
+]

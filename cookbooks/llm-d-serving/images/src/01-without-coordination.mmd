@@ -1,0 +1,12 @@
+%% Section 2, "The problem": two vLLM servers and nothing that decides which
+%% one gets each request, so requests are spread at random.
+flowchart LR
+  classDef neutral fill:#f8fafc,stroke:#475569,color:#0f172a,stroke-width:1.5px
+  classDef miss fill:#f8fafc,stroke:#475569,color:#0f172a,stroke-width:1.5px,stroke-dasharray:6 4
+
+  client["Chat client<br/>one conversation"]:::neutral
+  A["vllm-a<br/>turn 1 computed here:<br/>prefix now cached"]:::neutral
+  B["vllm-b<br/>turn 2 lands here:<br/>recompute the whole prompt<br/>(or reload it from a shared cache)"]:::miss
+
+  client -->|"turn 1 (random pick)"| A
+  client -->|"turn 2, same conversation<br/>(random pick)"| B
