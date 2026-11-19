@@ -1,7 +1,8 @@
 # GPU benchmark for the llm-d serving recipe
 
-> Optional and GPU-only. The [recipe notebook](../llm-d-serving-with-valkey.ipynb)
-> runs on CPU and is the main path; you don't need this benchmark to follow it.
+> Optional and GPU-only. The
+> [recipe notebook](../llm-d-serving-with-valkey.ipynb) runs on CPU and is
+> the main path; you don't need this benchmark to follow it.
 
 The notebook shows how the stack works: Valkey holds the router's
 prefix-cache index and the KV cache that LMCache shares between vLLM
@@ -11,23 +12,27 @@ benchmark runs the same stack on four GPUs, where prefill is expensive, and
 measures first-token time, throughput, and where the cached prompt tokens
 came from.
 
-It is the same wiring as the recipe's [`docker-compose.yml`](../docker-compose.yml),
-scaled up: four vLLM replicas with `LMCacheMPConnector`, a standalone LMCache
-server whose store is Valkey, and llm-d's router (Envoy and the Endpoint
-Picker v1.0.0) with its index in Valkey database 1. No Kubernetes is
-involved; the router reads its list of replicas from a file, following
-llm-d's [no-Kubernetes deployment guide](https://github.com/llm-d/llm-d/tree/main/guides/no-kubernetes-deployment).
+It is the same wiring as the recipe's
+[`docker-compose.yml`](../docker-compose.yml), scaled up: four vLLM replicas
+with `LMCacheMPConnector`, a standalone LMCache server whose store is
+Valkey, and llm-d's router (Envoy and the Endpoint Picker v1.0.0) with its
+index in Valkey database 1. No Kubernetes is involved; the router reads its
+list of replicas from a file, following llm-d's
+[no-Kubernetes deployment guide](https://github.com/llm-d/llm-d/tree/main/guides/no-kubernetes-deployment).
 
 ## Results
 
 One set of results, measured on 2026-11-18 on an AWS `g6e.12xlarge`
-(4x NVIDIA L40S 48 GB, driver 595.112.07, 384 GiB RAM) in `ap-northeast-1`,
-provisioned with the [AWS Terraform](terraform/aws/). The software was
-Qwen3-8B, vLLM 0.33.0, lmcache 0.5.7.post1 and `valkey-bundle` 9.1.2, at
-commit `1acb1136` of this repository, which `metadata.json` records. The
-default workload and settings were used: the five configurations, three
-runs each. The full tables, with the spread of the three runs for every
-number, plus `metadata.json`, are in
+(4x NVIDIA L40S, which `nvidia-smi` reports as 46,068 MiB each, driver
+595.112.07, 373 GiB of host RAM) in `ap-northeast-1`, provisioned with the
+[AWS Terraform](terraform/aws/). The software was Qwen3-8B, vLLM 0.33.0,
+lmcache 0.5.7.post1 and `valkey-bundle` 9.1.2, at commit `1acb1136` of this
+repository, which `metadata.json` records. Rebases have since renamed that
+commit. It is the one titled "docs(llm-d-serving): describe the LMCache
+policy without the 0.5.5 smoke-run numbers", and its benchmark files are
+unchanged. The default workload and settings were used: the five
+configurations, three runs each. The full tables, with the spread of the
+three runs for every number, plus `metadata.json`, are in
 [`published/2026-11-18-aws-g6e.12xlarge/`](published/2026-11-18-aws-g6e.12xlarge/).
 
 Medians of three runs:
@@ -61,11 +66,15 @@ What the numbers show:
   is recomputed. Its median first-token time was 411 ms at concurrency 8
   and 512 ms at 32.
 - With LMCache and Valkey under the replicas, throughput went up for every
-  routing strategy, and by more as concurrency rose. Against the baseline's
-  requests per second, `random` reached 1.25 times at concurrency 8, 1.5
-  times at 16 and 1.5 times at 32; `precise-valkey` reached 1.3, 1.6 and 2.0
-  times. Most prompt tokens that the GPU caches didn't have came from
-  LMCache instead of being recomputed.
+  routing strategy. Against the baseline's requests per second, `random`
+  reached 1.25 times at concurrency 8, 1.50 times at 16 and 1.52 times at 32;
+  `precise-valkey` reached 1.32, 1.59 and 2.00 times. Against `random`, which
+  also has LMCache, `precise-valkey` reached 1.05, 1.06 and 1.32 times. The
+  gain was larger at higher concurrency, but the three levels are not a clean
+  comparison of concurrency: each stage replays the same prompts, so by
+  concurrency 16 every prompt's KV was already in Valkey (see
+  [Workload](#workload)). Most prompt tokens that the GPU caches didn't have
+  came from LMCache instead of being recomputed.
 - Routing strategy changed first-token time. At concurrency 8, 16 and 32,
   `precise-valkey` had a median of 264, 325 and 390 ms, which is 32%, 30%
   and 64% lower than `random` with LMCache, and 36%, 24% and 24% lower than
@@ -130,9 +139,10 @@ start of each run is recorded in `valkey-before.json`.
 - Docker with the Compose plugin, the NVIDIA Container Toolkit, and
   `python3` on the host.
 - Disk for the images, Qwen3-8B's weights (16 GB) and the results (about
-  3.5 GB for a full run, mostly inference-perf's per-request files). The
-  published run used a 200 GiB root volume, which was enough; its peak disk
-  use wasn't recorded.
+  3.5 GB for a full run: about 58 MB for each of its 60 stages, mostly
+  inference-perf's per-request files. That size was read on the host after
+  the run and is not in the published files). The published run used a
+  200 GiB root volume, which was enough; its peak disk use wasn't recorded.
 - Outbound internet access to pull images, Python packages and the model.
   The default model, `Qwen/Qwen3-8B`, is ungated, so no Hugging Face token
   is needed.
@@ -161,7 +171,8 @@ plus lmcache 0.5.7.post1 and `valkey-glide-sync` 2.5.2, see
 waits a few minutes for the replicas to start. Each run then recreates the
 replicas and sends 2,688 requests. With five configurations, three runs
 each and the default workload, the published run took about 3 hours 20
-minutes on 4x L40S, after the image build and model download.
+minutes on 4x L40S, after the image build and model download. That is an
+estimate: `metadata.json` records only when the run started.
 
 Stop everything afterwards with `docker compose down`.
 
@@ -287,7 +298,15 @@ users. The seed
 is fixed, so every configuration and run sees the same prompts.
 
 Each stage is a separate inference-perf run, so the counters can be read
-between stages. The caches are not flushed between stages of one run.
+between stages. The caches are not flushed between stages of one run, and
+every stage starts from the beginning of the same prompt order. The warm-up
+sends the first 384 of the 768 prompts. Each of the 8, 16 and 32 stages
+sends all 768 again, so by the end of the concurrency-8 stage every prompt's
+KV is in Valkey (in the LMCache configurations), and the later stages replay
+prompts that earlier stages already sent. Within one concurrency level every
+configuration saw the same sequence, so comparing configurations at that
+level is fair. Comparing concurrency levels is not: they differ in how warm
+the caches were as well as in load.
 
 If you change the model or GPU, check the `GPU KV cache size` line in
 `results/<run-id>/vllm-0.log` and adjust `NUM_PREFIXES` or
@@ -389,7 +408,9 @@ prefill is slow enough that the extra wait matters much less.
 - Valkey runs as a single node without authentication, on a private Docker
   network, with persistence off.
 - Each stage runs as its own inference-perf process, so the warm-up and the
-  first measured stage start at the same point in the prompt order.
+  first measured stage start at the same point in the prompt order, and the
+  results don't separate the effect of concurrency from the effect of warmer
+  caches in the later stages.
 
 ## AWS host (optional, AWS-specific)
 

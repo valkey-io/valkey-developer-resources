@@ -33,7 +33,7 @@ variable "use_spot" {
 }
 
 variable "root_volume_gb" {
-  description = "Size of the encrypted gp3 root volume, in GiB. Needs room for the AMI (48 GiB used at boot), the vLLM image (8.1 GiB compressed, more unpacked) plus the lmcache layer, the other images, Qwen3-8B's weights (16 GB), and the results (about 3.5 GB per full run). 200 GiB was enough for the published run. Valkey keeps its data in memory with persistence off, so it needs no disk."
+  description = "Size of the encrypted gp3 root volume, in GiB. Needs room for the AMI (48 GiB used at boot), the vLLM image (8.1 GiB compressed, more unpacked) plus the lmcache layer, the other images, Qwen3-8B's weights (16 GB), and the results (about 3.5 GB per full run). 200 GiB was enough for the published run; the sizes above were read on the host and are not in the published files. Valkey keeps its data in memory with persistence off, so it needs no disk."
   type        = number
   default     = 200
 

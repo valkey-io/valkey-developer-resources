@@ -8,15 +8,20 @@
 #
 # Default sizing (run-benchmark.sh): 192 system prompts x 4,096 tokens, four
 # users each, a 256-token question and 64 output tokens. The shared prefixes
-# add up to 786,432 tokens, more than four 48 GB replicas can hold in GPU KV
-# cache with Qwen3-8B, so every strategy has to evict. Check "GPU KV cache
-# size" in results/<run>/vllm-0.log and resize if your GPUs differ.
+# add up to 786,432 tokens, which is meant to be more than four 48 GB replicas
+# can hold in GPU KV cache with Qwen3-8B, so every strategy has to evict. The
+# published run didn't keep the "GPU KV cache size" line that would show the
+# capacity; random routing found only 15% of prompt tokens in a GPU cache,
+# which fits. Check that line in results/<run>/vllm-0.log and resize if your
+# GPUs differ.
 #
 # inference-perf builds NUM_PREFIXES x PROMPTS_PER_PREFIX prompts (768 by
 # default) from the seed, shuffles them with the same seed, and sends them
-# in that order, cycling. Every configuration and run sees the same prompts. run-benchmark.sh runs each stage (warm-up, then one per
-# concurrency level) as its own inference-perf invocation, so vLLM's
-# cache-hit counters can be read between stages.
+# in that order, cycling. Every configuration and run sees the same prompts.
+# run-benchmark.sh runs each stage (warm-up, then one per concurrency level)
+# as its own inference-perf invocation, so vLLM's cache-hit counters can be
+# read between stages. Every stage starts at the beginning of the same
+# order, so later stages replay prompts that earlier stages already sent.
 #
 # Rendered by scripts/render.py, one file per stage; the placeholders are
 # filled from run-benchmark.sh.
