@@ -1,6 +1,6 @@
 # llm-d Serving with Valkey
 
-This recipe adds an llm-d router in front of two vLLM servers. llm-d is an open-source, Kubernetes-native stack for distributed LLM inference. We still use valkey for kv-caching as per the KV-caching recipe, but we also add storing the prefix-cache index in valkey as well. The prefix-cache index stores which servers contain which 64-token blocks of the request in their own prefix cache. This information let's the router point the request to the server that has the most 64-token blocks of the request in its prefix cache. The more blocks in the cache the less new processing is required for the given request. Valkey adds the advantage of surviving router restarts.
+This recipe adds an llm-d router in front of two vLLM servers. llm-d is an open-source, Kubernetes-native stack for distributed LLM inference. We will use Valkey for `kv-caching` as per the KV-caching recipe, but we also add storing the prefix-cache index in Valkey as well. The `prefix-cache` index stores which servers contain which 64-token blocks of the request in their own prefix cache. This information lets the router point the request to the server that has the most 64-token blocks of the request in its prefix cache. The more blocks in the cache the less new processing is required for the given request. Valkey adds the advantage of surviving router restarts.
 
 This recipe configures an llm-d router (Envoy + EPP) in front of two vllm instances and uses Valkey for three things:
 
@@ -28,7 +28,7 @@ several times faster than recomputing the prompt. Keeping the index in Valkey
 rather than in the router's memory is about durability, not speed: the index
 survives a router restart.
 
-**Why CPU here?** This recipe runs on CPU so readers can try it locally without
+**Why CPU here?** This recipe runs on CPU so it is easy to run locally without
 GPU hardware. llm-d is validated in production on GPUs and TPUs and also
 supports CPU; its
 [upstream routing guide](https://github.com/llm-d/llm-d/tree/v1.0.0/guides/precise-prefix-cache-routing)
