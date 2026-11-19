@@ -1,0 +1,5 @@
+.env
+.hf-cache/
+rendered/
+results/
+.stack-commit
