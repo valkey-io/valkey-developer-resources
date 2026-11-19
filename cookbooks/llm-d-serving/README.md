@@ -1,6 +1,8 @@
 # llm-d Serving with Valkey
 
-This recipe adds an llm-d router in front of two vLLM servers. llm-d is an open-source, Kubernetes-native stack for distributed LLM inference. We will use Valkey for `kv-caching` as per the KV-caching recipe, but we also add storing the prefix-cache index in Valkey as well. The `prefix-cache` index stores which servers contain which 64-token blocks of the request in their own prefix cache. This information lets the router point the request to the server that has the most 64-token blocks of the request in its prefix cache. The more blocks in the cache the less new processing is required for the given request. Valkey adds the advantage of surviving router restarts.
+This recipe adds an llm-d router in front of two vLLM servers. llm-d is an open-source, Kubernetes-native stack for distributed LLM inference. We will use Valkey for `kv-caching` as per the KV-caching recipe, but we also add storing the prefix-cache index in Valkey as well. The `prefix-cache` index stores which servers contain which 64-token blocks of the request in their own prefix cache. This information lets the router point the request to the server that has the most 64-token blocks of the request in its prefix cache. The more blocks in the cache the less new processing is required for the given request.
+
+Valkey adds the advantage of surviving router restarts. By keeping the index in Valkey instead of the router's memory, a restarted router keeps routing follow-ups to the server that holds the conversation, even when the replicas' replay buffers (the short history of recent cache events a router rebuilds from) no longer reach back to those conversations. While the router runs, it routes the same whether the index is in Valkey or in its memory. The router itself is not optional, though: in this recipe it is the only thing that writes and reads the index. Without it the shared KV cache still works, but requests go wherever they are sent, so more follow-ups may reach a server that doesn't have the conversation and load it from Valkey instead of finding it in memory. If you already use Valkey for KV caching, adding the index is a configuration change: a database of its own on the same Valkey standalone node (not a cluster) and a router config that points at it.
 
 This recipe configures an llm-d router (Envoy + EPP) in front of two vllm instances and uses Valkey for three things:
 
@@ -24,9 +26,7 @@ The first two roles work together. A server answers fastest when the prompt
 prefix is already in its own memory, so the router sends each request to that
 server when it can. When it can't, for example because that server is busy, the
 other server loads the prefix from Valkey. That is slower than a local hit, but
-several times faster than recomputing the prompt. Keeping the index in Valkey
-rather than in the router's memory is about durability, not speed: the index
-survives a router restart.
+several times faster than recomputing the prompt.
 
 **Why CPU here?** This recipe runs on CPU so it is easy to run locally without
 GPU hardware. llm-d is validated in production on GPUs and TPUs and also
