@@ -41,15 +41,33 @@ def settled_dbsize(client, quiet_s: float = 1.0, timeout_s: float = 15.0) -> int
     that are not stored yet. Call this before expecting a Valkey load.
     """
     deadline = time.monotonic() + timeout_s
-    last, since = int(client.custom_command(["DBSIZE"])), time.monotonic()
+    last, since = client.dbsize(), time.monotonic()
     while time.monotonic() < deadline:
         time.sleep(0.1)
-        current = int(client.custom_command(["DBSIZE"]))
+        current = client.dbsize()
         if current != last:
             last, since = current, time.monotonic()
         elif time.monotonic() - since >= quiet_s:
             break
     return last
+
+
+def scan_keys(client, match: str | None = None) -> list[str]:
+    """Every key in the client's database, following the SCAN cursor to the end.
+
+    SCAN returns keys in batches, so it doesn't block the server the way KEYS
+    does. ``count`` is only a hint for the batch size, and the walk is finished
+    when the cursor returns to 0. SCAN can return a key twice, or miss one
+    written during the walk, so the result is approximate while a background
+    writer (LMCache or the router) is active. One page can be empty while later
+    ones still match, which is why the loop runs to the end.
+    """
+    cursor, keys = b"0", []
+    while True:
+        cursor, batch = client.scan(cursor, match=match, count=1000)
+        keys += [k.decode() for k in batch]
+        if cursor in (b"0", "0"):
+            return keys
 
 
 # ---------------------------------------------------------------------------

@@ -48,6 +48,7 @@ from helpers import (
     document,
     job_envelope,
     metric,
+    scan_keys,
     scrape,
     settled_dbsize,
     submit_job,
@@ -581,15 +582,21 @@ def _wait_until_replicas_idle(timeout_s: float = 120.0) -> None:
     pytest.fail(f"replicas still running requests after {timeout_s:.0f} s: {running}")
 
 
+def _zset_members(valkey, key) -> list[bytes]:
+    """Every member of a sorted set, lowest score first."""
+    from glide_sync import RangeByIndex  # imported here so the structural tests need no GLIDE
+    return valkey.zrange(key, RangeByIndex(0, -1))
+
+
 def _remove_batch_jobs(valkey, job_ids, queue_name="request-sortedset", result_name="result-list",
                        extra_keys=()) -> None:
     """Remove these jobs' queue entries, results and state, keeping everyone else's."""
-    for raw in valkey.custom_command(["ZRANGE", queue_name, "0", "-1"]) or []:
+    for raw in _zset_members(valkey, queue_name):
         if json.loads(raw)["data"]["id"] in job_ids:
-            valkey.custom_command(["ZREM", queue_name, raw])
-    for raw in valkey.custom_command(["LRANGE", result_name, "0", "-1"]) or []:
+            valkey.zrem(queue_name, [raw])
+    for raw in valkey.lrange(result_name, 0, -1):
         if json.loads(raw)["id"] in job_ids:
-            valkey.custom_command(["LREM", result_name, "1", raw])
+            valkey.lrem(result_name, 1, raw)
     valkey.delete([*extra_keys, *[f"request-active:{job_id}" for job_id in job_ids]])
 
 
@@ -600,16 +607,6 @@ def _conversation() -> list:
     # blocks); with 29 it was 923-1,043, often only 14 or 15 blocks.
     return [{"role": "system", "content": document(uuid.uuid4().hex[:8], clauses=36)},
             {"role": "user", "content": "Summarise clause 3."}]
-
-
-def _scan(client, match: str | None = None) -> list[str]:
-    """Every key in the client's database, following the SCAN cursor to the end."""
-    cursor, keys = b"0", []
-    while True:
-        cursor, batch = client.scan(cursor, match=match, count=1000)
-        keys += [k.decode() for k in batch]
-        if cursor in (b"0", "0"):
-            return keys
 
 
 @pytest.fixture(scope="module")
@@ -650,7 +647,7 @@ def test_router_index_lives_in_valkey_database_1(valkey, router_index):
     # The router writes its index from vLLM's KV events, after the response.
     deadline = time.monotonic() + 10
     while True:
-        keys = _scan(router_index)
+        keys = scan_keys(router_index)
         blocks = [k for k in keys if k.isdigit()]
         if (blocks and any(k.startswith("engine:") for k in keys)) or time.monotonic() > deadline:
             break
@@ -661,7 +658,7 @@ def test_router_index_lives_in_valkey_database_1(valkey, router_index):
     assert entry["PodIdentifier"].endswith(":8000")
     # Nothing of the router's lands in database 0 (walk every SCAN page: one
     # page can be empty while later ones still match).
-    assert not _scan(valkey, match="engine:*")
+    assert not scan_keys(valkey, match="engine:*")
 
 
 @requires_stack
@@ -720,11 +717,11 @@ def test_batch_job_from_python_runs_through_the_router(valkey):
         result = None
         stop = time.monotonic() + 60
         while result is None and time.monotonic() < stop:
-            for raw in valkey.custom_command(["LRANGE", "result-list", "0", "-1"]) or []:
+            for raw in valkey.lrange("result-list", 0, -1):
                 parsed = json.loads(raw)
                 if parsed["id"] == job_id:
                     result = parsed
-                    valkey.custom_command(["LREM", "result-list", "1", raw])
+                    valkey.lrem("result-list", 1, raw)
             time.sleep(0.5)
         assert result is not None, "the batch processor did not return a result"
         assert result["status_code"] == 200
@@ -751,12 +748,12 @@ def test_per_user_quota_holds_excess_batch_jobs_until_the_window_expires(valkey,
 
     def results():
         return {result["id"]: result
-                for raw in valkey.custom_command(["LRANGE", queue["result_queue_name"], "0", "-1"]) or []
+                for raw in valkey.lrange(queue["result_queue_name"], 0, -1)
                 if (result := json.loads(raw))["id"] in job_ids}
 
     def queued_jobs():
         return {job_id
-                for raw in valkey.custom_command(["ZRANGE", queue["queue_name"], "0", "-1"]) or []
+                for raw in _zset_members(valkey, queue["queue_name"])
                 if (job_id := json.loads(raw)["data"]["id"]) in job_ids}
 
     # Long generations an earlier test aborted may still be running, and would
@@ -797,7 +794,7 @@ def test_per_user_quota_holds_excess_batch_jobs_until_the_window_expires(valkey,
 
         assert all(result["status_code"] == 200 for result in admitted.values())
         assert valkey.exists([quota_key]), "the per-user quota should live in database 0"
-        assert valkey.custom_command(["TYPE", quota_key]) == b"zset"
+        assert valkey.type(quota_key) == b"zset"
         assert valkey.ttl(quota_key) > 0
 
         # The held job must eventually run when the sliding window frees a

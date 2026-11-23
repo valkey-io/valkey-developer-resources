@@ -68,15 +68,15 @@ plugins:
   - type: prefix-cache-affinity-filter
     parameters:
       prefixMatchInfoProducerName: precise-prefix-cache-producer
-      # The router turns in-flight tokens into an estimated wait with this
-      # rate (tokens per second). One replica of this stack prefills roughly
-      # 700-1,100 tokens/s on an 8-core laptop CPU (the notebook measures
-      # yours). llm-d's default (15,928) is calibrated for Qwen 32B on two
-      # H100 80GB GPUs with vLLM 0.19; see the affinity filter's README in
+      # CPU change 2. The router turns in-flight tokens into an estimated wait
+      # with this rate (tokens per second). One replica of this stack prefills
+      # roughly 700-1,100 tokens/s on an 8-core laptop CPU (the notebook
+      # measures yours). llm-d's default (15,928) is calibrated for Qwen 32B on
+      # two H100 80GB GPUs with vLLM 0.19; see the affinity filter's README in
       # llm-d-router v1.0.0:
       # https://github.com/llm-d/llm-d-router/blob/v1.0.0/pkg/epp/framework/plugins/scheduling/filter/prefixcacheaffinity/README.md#config
       peakPrefillThroughput: 1000
-      # CPU change 2. Stay on the replica that has the prefix unless its
+      # CPU change 3. Stay on the replica that has the prefix unless its
       # estimated wait is this much longer than the least-loaded other
       # replica's. llm-d's default is 18,000 ms, tuned for GPUs. With the
       # rate above, 1,500 ms means "move once the replica with the prefix has
