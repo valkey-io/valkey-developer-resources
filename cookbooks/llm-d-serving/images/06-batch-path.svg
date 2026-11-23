@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="910" height="380" viewBox="0 0 910 380" role="img" aria-labelledby="title desc" font-family="Arial, Helvetica, sans-serif">
+<title id="title">Batch jobs: a queue and per-user quotas in Valkey</title>
+<desc id="desc">A Python submitter adds jobs to the Valkey sorted set request-sortedset with ZADD. llm-d-async pulls them and checks the user&#x27;s quota sorted set quota:userid:&lt;user&gt; (3 jobs per user per 20 seconds). Admitted jobs go through Envoy and the EPP to a vLLM replica, and llm-d-async pushes each answer to the Valkey list result-list. Held jobs stay in the queue until the quota window frees.</desc>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="11" markerHeight="11" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/></marker>
+</defs>
+<rect width="910" height="380" fill="#ffffff"/>
+<rect x="30" y="150" width="140" height="52" rx="6" fill="#f8fafc" stroke="#475569" stroke-width="1.5"/>
+<text x="100.0" y="171.5" font-size="15" text-anchor="middle" font-weight="normal" fill="#0f172a">Python</text>
+<text x="100.0" y="191.0" font-size="15" text-anchor="middle" font-weight="normal" fill="#0f172a">submitter</text>
+<rect x="230" y="150" width="200" height="52" rx="6" fill="#ffedd5" stroke="#c2410c" stroke-width="1.5"/>
+<text x="330.0" y="171.8" font-size="14" text-anchor="middle" font-weight="bold" fill="#0f172a">request-sortedset</text>
+<text x="330.0" y="190.0" font-size="14" text-anchor="middle" font-weight="normal" fill="#0f172a">(Valkey sorted set)</text>
+<rect x="490" y="150" width="150" height="52" rx="6" fill="#f8fafc" stroke="#475569" stroke-width="1.5"/>
+<text x="565.0" y="171.5" font-size="15" text-anchor="middle" font-weight="bold" fill="#0f172a">llm-d-async</text>
+<text x="565.0" y="191.0" font-size="15" text-anchor="middle" font-weight="normal" fill="#0f172a">pulls jobs</text>
+<rect x="690" y="150" width="190" height="52" rx="6" fill="#f8fafc" stroke="#475569" stroke-width="1.5"/>
+<text x="785.0" y="171.8" font-size="14" text-anchor="middle" font-weight="bold" fill="#0f172a">quota gate</text>
+<text x="785.0" y="190.0" font-size="14" text-anchor="middle" font-weight="normal" fill="#0f172a">3 jobs per user per 20 s</text>
+<rect x="690" y="30" width="190" height="62" rx="6" fill="#ffedd5" stroke="#c2410c" stroke-width="1.5"/>
+<text x="785.0" y="57.1" font-size="13" text-anchor="middle" font-weight="bold" fill="#0f172a">quota:userid:&lt;user&gt;</text>
+<text x="785.0" y="74.0" font-size="13" text-anchor="middle" font-weight="normal" fill="#0f172a">(Valkey sorted set per user)</text>
+<path d="M 170 176 L 230 176" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="180.4" y="151.6" width="39.2" height="20.9" fill="#ffffff"/>
+<text x="200" y="166.6" font-size="13" text-anchor="middle" font-weight="normal" fill="#0f172a">ZADD</text>
+<path d="M 430 176 L 490 176" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M 640 176 L 690 176" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M 785 92 L 785 150" fill="none" stroke="#475569" stroke-width="1.5" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+<rect x="726.4" y="110.5" width="117.2" height="20.9" fill="#ffffff"/>
+<text x="785" y="125.5" font-size="13" text-anchor="middle" font-weight="normal" fill="#0f172a">check / record</text>
+<path d="M 740 202 L 740 244 L 330 244 L 330 202" fill="none" stroke="#475569" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+<rect x="347.7" y="233.6" width="374.6" height="20.9" fill="#ffffff"/>
+<text x="535" y="248.6" font-size="13" text-anchor="middle" font-weight="normal" fill="#0f172a">held: stays queued until the quota window frees</text>
+<path d="M 840 202 L 840 300" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="804.8" y="257.6" width="70.4" height="20.9" fill="#ffffff"/>
+<text x="840" y="272.6" font-size="13" text-anchor="middle" font-weight="normal" fill="#0f172a">admitted</text>
+<rect x="700" y="300" width="180" height="52" rx="6" fill="#f8fafc" stroke="#475569" stroke-width="1.5"/>
+<text x="790.0" y="321.5" font-size="15" text-anchor="middle" font-weight="bold" fill="#0f172a">Envoy + EPP</text>
+<text x="790.0" y="341.0" font-size="15" text-anchor="middle" font-weight="normal" fill="#0f172a">(router)</text>
+<rect x="440" y="300" width="160" height="52" rx="6" fill="#f8fafc" stroke="#475569" stroke-width="1.5"/>
+<text x="520.0" y="331.2" font-size="15" text-anchor="middle" font-weight="normal" fill="#0f172a">vllm-a or vllm-b</text>
+<rect x="40" y="300" width="210" height="52" rx="6" fill="#ffedd5" stroke="#c2410c" stroke-width="1.5"/>
+<text x="145.0" y="321.8" font-size="14" text-anchor="middle" font-weight="bold" fill="#0f172a">result-list</text>
+<text x="145.0" y="340.0" font-size="14" text-anchor="middle" font-weight="normal" fill="#0f172a">(Valkey list)</text>
+<path d="M 700 326 L 600 326" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M 440 326 L 250 326" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="286.4" y="307.1" width="117.2" height="37.8" fill="#ffffff"/>
+<text x="345" y="322.1" font-size="13" text-anchor="middle" font-weight="normal" fill="#0f172a">answer, pushed</text>
+<text x="345" y="339.0" font-size="13" text-anchor="middle" font-weight="normal" fill="#0f172a">by llm-d-async</text>
+</svg>

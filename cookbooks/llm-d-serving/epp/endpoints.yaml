@@ -1,0 +1,14 @@
+# The router's endpoint list (file-discovery plugin), used in place of a
+# Kubernetes InferencePool. Each address must be the replica's fixed IPv4 on
+# the compose network (docker-compose.yml) and the same as its POD_IP, because
+# the router matches each replica's KV-event topic ("kv@<ip>:8000@<model>")
+# to the endpoint with that address.
+endpoints:
+  - name: vllm-a
+    address: 172.16.89.11
+    port: "8000"
+    labels: {model: Qwen/Qwen2.5-0.5B-Instruct}
+  - name: vllm-b
+    address: 172.16.89.12
+    port: "8000"
+    labels: {model: Qwen/Qwen2.5-0.5B-Instruct}
